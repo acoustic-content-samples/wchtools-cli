@@ -1,0 +1,70 @@
+{
+  "name": "bad/chars",
+  "classification": "content-type",
+  "description": "",
+  "creator": "authorABC",
+  "creationDate": "2016-06-28T02:10:50.854Z",
+  "lastModifier": "authorABC",
+  "lastModifiedDate": "2016-06-28T11:34:08.996Z",
+  "status": "ready",
+  "tags": [],
+  "id": "3bc1a3b11e6f887de98fe07fa016a587",
+  "rev": "7-3b2e6386dd72222071e8ec71c31868a9",
+  "templateMapping": "",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+      "link-1": {
+        "title": "link-1",
+        "type": "object",
+        "properties": {
+          "elementType": {
+            "enum": [
+              "link"
+            ],
+            "default": "link"
+          },
+          "linkURL": {
+            "title": "Link URL",
+            "type": "string",
+            "pattern": "[-a-zA-Z0-9@:%._\\+~#=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%_\\+.~#?&/=]*)"
+          },
+          "linkText": {
+            "title": "Link Text",
+            "type": "string"
+          },
+          "linkTitle": {
+            "title": "Link Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "elementType"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "form": [
+    {
+      "key": "link-1",
+      "type": "dx-modal",
+      "items": [
+        {
+          "key": "linkURL",
+          "type": "text"
+        },
+        {
+          "key": "linkText",
+          "type": "text"
+        },
+        {
+          "key": "linkTitle",
+          "type": "text"
+        }
+      ],
+      "dxIcon": "type/icons/link-20px.svg"
+    }
+  ]
+}

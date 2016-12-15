@@ -1,0 +1,56 @@
+{
+  "name": "wchtools-cli",
+  "description": "command line tools for IBM Watson Content Hub",
+  "version": "1.0.0",
+  "keywords": [
+    "cli"
+  ],
+  "author": "IBM Corporation",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/ibm-wch/wchtools-cli/issues"
+  },
+  "engines": {
+    "node": ">=4.1.0"
+  },
+  "engine-strict": true,
+  "engineStrict": true,
+  "main": "index.js",
+  "bin": {
+    "wchtools": "./bin/wchtools"
+  },
+  "dependencies": {
+    "cli-table": "0.3.1",
+    "colors": "1.1.2",
+    "commander": "2.9.0",
+    "dxauthoringapi": "file:../authoring-api.tar.gz",
+    "log4js": "^0.6.33",
+    "ora": "^0.2.3",
+    "prompt": "1.0.0",
+    "q": "1.4.1",
+    "request": "^2.75.0"
+  },
+  "devDependencies": {
+    "chai": "~3.5",
+    "chai-as-promised": "~5.3",
+    "cp": "^0.2.0",
+    "cpr": "^2.0.0",
+    "diff": "^3.0.0",
+    "istanbul": "~0.4",
+    "mkdirp": "^0.5.1",
+    "mocha": "^3.1.0",
+    "node-uuid": "~1.4",
+    "rimraf": "~2.5",
+    "sinon": "~1",
+    "sinon-as-promised": "~4",
+    "sinon-chai": "~2.8"
+  },
+  "scripts": {
+    "unit": "./node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha test/unit/*.test.js -- -R spec",
+    "pretest": "node ./test/testsetup.js",
+    "checkcoverage": "./node_modules/.bin/istanbul check-coverage",
+    "testcleanup": "node ./test/testcleanup.js",
+    "posttest": "npm run testcleanup && npm run checkcoverage"
+  },
+  "private": true
+}

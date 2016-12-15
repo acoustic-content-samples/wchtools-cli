@@ -1,0 +1,33 @@
+<html>
+<head>
+
+<script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+<link rel="stylesheet" type="text/css"
+	href='http://cdn.jsdelivr.net/jqplot/1.0.8/jquery.jqplot.min.css'></link>
+<script src="http://cdn.jsdelivr.net/jqplot/1.0.8/jquery.jqplot.min.js"></script>
+<script
+	src="http://cdn.jsdelivr.net/jqplot/1.0.8/plugins/jqplot.barRenderer.min.js"></script>
+<script
+	src="http://cdn.jsdelivr.net/jqplot/1.0.8/plugins/jqplot.categoryAxisRenderer.min.js"></script>
+<script
+	src="http://cdn.jsdelivr.net/jqplot/1.0.8/plugins/jqplot.pointLabels.min.js"></script>
+<script src="jqplot_chart.js"></script>
+</head>
+
+
+
+<body>
+	<div>
+		<h3>About this sample</h3>
+		<div>This show a chart created with the jQPlot open source
+			charting library. The data for this chart in this example is defined
+			in the JS code.</div>
+		<div>&nbsp;&nbsp;</div>
+	</div>
+	<h2 class="blockHeading">jqPlot Chart Sample</h2>
+	<div id="ChartDiv"
+		style="width: 600px; height: 400px; display: inline-block"></div>
+
+</body>
+
+</html>

@@ -1,0 +1,16 @@
+{
+  "id": "0438ce22c22a598ebfc2947b12c2dba5",
+  "rev": "11-8e19f772a5855ca59669f57029848080",
+  "name": "Tax This",
+  "classification": "taxonomy",
+  "namePath": [
+    "Tax This"
+  ],
+  "links": {
+    "self": {
+      "href": "/authoring/v1/categories/0438ce22c22a598ebfc2947b12c2dba5"
+    }
+  },
+  "created": "2016-10-21T10:10:59.897Z",
+  "lastModified": "2016-10-21T10:56:58.457Z"
+}

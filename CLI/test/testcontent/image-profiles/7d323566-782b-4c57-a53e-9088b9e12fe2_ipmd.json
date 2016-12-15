@@ -1,0 +1,32 @@
+{
+  "id": "7d323566-782b-4c57-a53e-9088b9e12fe2",
+  "rev": "6-b1555a3839fdca151fc44763edfdf1bf",
+  "name": "My Image Profile",
+  "classification": "image-profile",
+  "dimensions": [
+    {
+      "label": "Small",
+      "key": "small",
+      "width": 1024,
+      "height": 800
+    },
+    {
+      "label": "Med",
+      "key": "med",
+      "width": 1280,
+      "height": 1024
+    },
+    {
+      "label": "Big",
+      "key": "big",
+      "width": 1920,
+      "height": 1280
+    }
+  ],
+  "lastModifierId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "lastModified": "2016-10-17T21:04:33.774Z",
+  "created": "2016-10-17T20:59:02.188Z",
+  "creatorId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "creator": "Adam",
+  "lastModifier": "Adam"
+}

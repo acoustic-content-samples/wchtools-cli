@@ -1,0 +1,21 @@
+{
+  "id": "093ba3f8cbecca454250317c26f3a8e1",
+  "rev": "41-c02257d939264c276476f7b819fe8b22",
+  "name": "AselaContent",
+  "typeId": "862fd5688e3c8494b55d7c2f9f11e18a",
+  "creator": "Carlos",
+  "tags": [],
+  "owners": [],
+  "elements": {
+    "number-1": {
+      "elementType": "number",
+      "value": 123
+    }
+  },
+  "lastModified": "2016-07-15T13:22:14.554Z",
+  "created": "2016-07-15T13:13:58.906Z",
+  "classification": "content",
+  "lastModifier": "evan",
+  "description": "",
+  "status": "draft"
+}

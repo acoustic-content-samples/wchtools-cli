@@ -1,0 +1,51 @@
+{
+  "id": "83fa3a2d-c392-4052-b332-d10c1335be7a",
+  "rev": "9-6efd17722aa92b902303fe0c8370c126",
+  "name": "My First Content",
+  "description": "",
+  "classification": "content",
+  "typeId": "b9468984-844e-47d6-ad6b-bb9f7d444aa3",
+  "lastModified": "2016-10-17T21:05:42.311Z",
+  "lastModifierId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "created": "2016-10-17T21:03:33.210Z",
+  "creatorId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "tags": [],
+  "status": "ready",
+  "elements": {
+    "myLabel": {
+      "elementType": "text",
+      "value": "My First Label"
+    },
+    "coolPic": {
+      "elementType": "image",
+      "renditions": {
+        "default": {
+          "renditionId": "13df4f9e-4b89-4870-aeef-43b8c37b857e",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/ab/abedf80c-a7fe-434a-8c27-14033ef2b8f8.JPG"
+        },
+        "small": {
+          "renditionId": "ba513871-d8ef-4ce9-a314-a29a6a321a16",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/ab/abedf80c-a7fe-434a-8c27-14033ef2b8f8.JPG?resize=0.38910505836575876xw:0.38910505836575876xh&crop=1024:800;198,0"
+        },
+        "med": {
+          "renditionId": "78368759-1044-4bc8-9406-fef1ebdc8bcd",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/ab/abedf80c-a7fe-434a-8c27-14033ef2b8f8.JPG?resize=0.4980544747081712xw:0.4980544747081712xh&crop=1280:1024;268,0"
+        },
+        "big": {
+          "renditionId": "b7d3b6ae-7b64-4cfa-842a-f62cb36d558f",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/ab/abedf80c-a7fe-434a-8c27-14033ef2b8f8.JPG?resize=0.622568093385214xw:0.622568093385214xh&crop=1920:1280;176,0"
+        }
+      },
+      "asset": {
+        "id": "1a57a87d-4c67-4089-b6a2-5f8bf1d78c1e",
+        "resourceUri": "/authoring/v1/resources/936a9371a86095f4c78fcc6273c9ded1",
+        "fileName": "DSC02939.JPG",
+        "fileSize": 4126684,
+        "mediaType": "image/jpeg"
+      }
+    },
+    "category": {
+      "elementType": "category"
+    }
+  }
+}

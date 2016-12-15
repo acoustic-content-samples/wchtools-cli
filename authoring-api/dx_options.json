@@ -1,0 +1,54 @@
+{
+  "dx-api-gateway": "https://my.digitalexperience.ibm.com/api",
+  "username": "",
+  "content": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
+  },
+  "types": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
+  },
+  "presentations": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
+  },
+  "assets": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 5
+  },
+  "image-profiles": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
+  },
+  "renditions": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
+  },
+  "resources": {
+    "offset": 0,
+    "limit": 100,
+    "concurrent-limit": 5
+  },
+  "publishing": {
+    "offset": 0,
+    "limit": 100,
+    "concurrent-limit": 10
+  },
+  "sources": {
+    "offset": 0,
+    "limit": 100,
+    "concurrent-limit": 10
+  },
+  "categories": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
+  }
+}

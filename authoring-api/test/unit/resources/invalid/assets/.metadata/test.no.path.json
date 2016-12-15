@@ -1,0 +1,22 @@
+{
+  "id": "e8623b17a16c0f51b867add92ef70077",
+  "rev": "1-d724482c3246918525cfec82f84f5897",
+  "classification": "asset",
+  "description": "",
+  "owners": [],
+  "creator": "User",
+  "created": "2016-06-16T19:51:29.775Z",
+  "lastModifier": "User",
+  "lastModified": "2016-06-16T19:51:29.775Z",
+  "tags": [],
+  "resource": "e8623b17a16c0f51b867add92ef6a9fc",
+  "path": "",
+  "links": {
+    "self": {
+      "href": "/asset/e8623b17a16c0f51b867add92ef70077"
+    },
+    "media": {
+      "href": "/resource/e8623b17a16c0f51b867add92ef6a9fc"
+    }
+  }
+}

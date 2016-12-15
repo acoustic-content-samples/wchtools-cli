@@ -1,0 +1,30 @@
+{
+  "id": "525a9cbf0759521280aaf14a3eb677f2",
+  "rev": "31-291dc041e66bcba9123bdb8e624189f3",
+  "name": "Cat 1.1",
+  "classification": "category",
+  "taxonomy": "0438ce22c22a598ebfc2947b12c2dba5",
+  "parent": "343247a16d92e4d3f366e50c6eb22719",
+  "ancestorIds": [
+    "0438ce22c22a598ebfc2947b12c2dba5",
+    "343247a16d92e4d3f366e50c6eb22719"
+  ],
+  "namePath": [
+    "Tax This",
+    "Cat 1",
+    "Cat 1.1"
+  ],
+  "links": {
+    "taxonomy": {
+      "href": "/authoring/v1/categories/0438ce22c22a598ebfc2947b12c2dba5"
+    },
+    "self": {
+      "href": "/authoring/v1/categories/525a9cbf0759521280aaf14a3eb677f2"
+    },
+    "parent": {
+      "href": "/authoring/v1/categories/343247a16d92e4d3f366e50c6eb22719"
+    }
+  },
+  "created": "2016-10-21T10:11:03.143Z",
+  "lastModified": "2016-10-21T10:57:01.499Z"
+}
