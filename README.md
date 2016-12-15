@@ -12,7 +12,7 @@ Please review the [LICENSE](LICENSE) and [NOTICE](NOTICE) files at the root of t
 ### Install
  Pre-Requisite: Before you install the wchtools CLI, you must install Node 4.3 or later 4.x. IBM Node 4.6 or later is suggested.
  
- Complete the following steps to install and run the wchtoolsCLI:
+ Complete the following steps to install and run the wchtools CLI:
 
    1. Download the latest release available from the [releases](../../releases) area and extract the files to a temporary folder on your local filesystem.
 
