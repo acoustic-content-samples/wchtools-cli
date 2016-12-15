@@ -1,6 +1,6 @@
 # wchtools
 ## IBM Watson Content Hub Developer Tools
-[![Build Status](http://dx-jenkins.rtp.raleigh.ibm.com/buildStatus/icon?job=squad-tools/prod-tools/master)](http://dx-jenkins.rtp.raleigh.ibm.com/job/squad-tools/job/prod-tools/job/master/)
+
 
 ### Summary
 The IBM Watson Content Hub Developer Tools provide a command line interface (CLI) based utility called wchtools for working with Watson Content Hub. This utility allows developer or other users to upload (push) and download (pull) any content, assets, and content model artifacts from Watson Content Hub. With the tool you can easily install sample packages or pull authoring artifacts for archiving locally. You can also use it for bulk upload of assets such as images, and to trigger a publishing job to publish your "ready" assets.
