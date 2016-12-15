@@ -1,0 +1,18 @@
+{
+  "scale": 0.38910505836575876,
+  "locationY": 0,
+  "height": 800,
+  "locationX": 198,
+  "rev": "1-fa8ff3ec1d2a297df3a02a15a699b31c",
+  "id": "ba513871-d8ef-4ce9-a314-a29a6a321a16",
+  "classification": "rendition",
+  "asset": {
+    "mediaType": "image/jpeg",
+    "fileName": "DSC02939.JPG",
+    "id": "1a57a87d-4c67-4089-b6a2-5f8bf1d78c1e",
+    "resource": "936a9371a86095f4c78fcc6273c9ded1",
+    "fileSize": 4295
+  },
+  "width": 1024,
+  "created": "2016-10-21T10:10:57.138Z"
+}

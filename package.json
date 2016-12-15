@@ -1,0 +1,22 @@
+{
+  "name": "prod-tools",
+  "version": "1.0.0",
+  "author": "IBM Corporation",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/ibm-wch/wchtools-cli/issues"
+  },
+  "engines": {
+    "node": ">=4.1.0"
+  },
+  "engine-strict": true,
+  "engineStrict": true,
+  "devDependencies": {
+    "istanbul": "~0.4",
+    "mocha": "^3.1.0"
+  },
+  "scripts": {
+    "unit": "node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha authoring-api/test/unit/*.test.js CLI/test/unit/*.test.js -- --recursive"
+  },
+  "private": true
+}

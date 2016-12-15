@@ -1,0 +1,22 @@
+{
+  "id": "e8623b17a16c0f51b867add92ef7c9dd",
+  "rev": "1-e20a28f7f307b8faaf65ffff16fc2bbc",
+  "classification": "asset",
+  "description": "",
+  "owners": [],
+  "creator": "User",
+  "created": "2016-06-16T19:51:30.024Z",
+  "lastModifier": "User",
+  "lastModified": "2016-06-16T19:51:30.024Z",
+  "tags": [],
+  "resource": "e8623b17a16c0f51b867add92ef6db7e",
+  "path": "/test_1/images/shoppingcart.png",
+  "links": {
+    "self": {
+      "href": "/asset/e8623b17a16c0f51b867add92ef7c9dd"
+    },
+    "media": {
+      "href": "/resource/e8623b17a16c0f51b867add92ef6db7e"
+    }
+  }
+}

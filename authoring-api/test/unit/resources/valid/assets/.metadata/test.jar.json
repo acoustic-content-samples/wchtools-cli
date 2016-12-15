@@ -1,0 +1,22 @@
+{
+  "id": "e8623b17a16c0f51b867add92ef723ad",
+  "rev": "1-1292cd23fe967bf2d6ba58a0549fd0c2",
+  "classification": "asset",
+  "description": "",
+  "owners": [],
+  "creator": "User",
+  "created": "2016-06-16T19:51:29.773Z",
+  "lastModifier": "User",
+  "lastModified": "2016-06-16T19:51:29.773Z",
+  "tags": [],
+  "resource": "e8623b17a16c0f51b867add92ef69b7b",
+  "path": "/test.jar",
+  "links": {
+    "self": {
+      "href": "/asset/e8623b17a16c0f51b867add92ef723ad"
+    },
+    "media": {
+      "href": "/resource/e8623b17a16c0f51b867add92ef69b7b"
+    }
+  }
+}

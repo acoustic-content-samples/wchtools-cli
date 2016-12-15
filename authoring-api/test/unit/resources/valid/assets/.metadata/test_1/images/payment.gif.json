@@ -1,0 +1,22 @@
+{
+  "id": "e8623b17a16c0f51b867add92ef79f7d",
+  "rev": "1-1f0a8fb58e3e806d208b422e771684be",
+  "classification": "asset",
+  "description": "",
+  "owners": [],
+  "creator": "User",
+  "created": "2016-06-16T19:51:30.025Z",
+  "lastModifier": "User",
+  "lastModified": "2016-06-16T19:51:30.025Z",
+  "tags": [],
+  "resource": "e8623b17a16c0f51b867add92ef77b0d",
+  "path": "/test_1/images/payment.gif",
+  "links": {
+    "self": {
+      "href": "/asset/e8623b17a16c0f51b867add92ef79f7d"
+    },
+    "media": {
+      "href": "/resource/e8623b17a16c0f51b867add92ef77b0d"
+    }
+  }
+}

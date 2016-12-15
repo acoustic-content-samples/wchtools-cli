@@ -1,0 +1,22 @@
+{
+  "id": "e8623b17a16c0f51b867add92ef7ac8d",
+  "rev": "1-b32a2fac52b463c67cb3438b49321f9d",
+  "classification": "asset",
+  "description": "",
+  "owners": [],
+  "creator": "User",
+  "created": "2016-06-16T19:51:30.025Z",
+  "lastModifier": "User",
+  "lastModified": "2016-06-16T19:51:30.025Z",
+  "tags": [],
+  "resource": "e8623b17a16c0f51b867add92ef6bbb6",
+  "path": "/test_1/images/logo.png",
+  "links": {
+    "self": {
+      "href": "/asset/e8623b17a16c0f51b867add92ef7ac8d"
+    },
+    "media": {
+      "href": "/resource/e8623b17a16c0f51b867add92ef6bbb6"
+    }
+  }
+}

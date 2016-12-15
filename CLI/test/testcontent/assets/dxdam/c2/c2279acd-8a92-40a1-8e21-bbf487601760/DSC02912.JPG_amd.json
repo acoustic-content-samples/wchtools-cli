@@ -1,0 +1,43 @@
+{
+  "mediaType": "image/jpeg",
+  "name": "DSC02912.JPG",
+  "path": "/dxdam/c2/c2279acd-8a92-40a1-8e21-bbf487601760/DSC02912.JPG",
+  "assetType": "image",
+  "lastModified": "2016-10-21T10:56:51.735Z",
+  "description": "",
+  "tags": {
+    "values": [],
+    "declined": [],
+    "analysis": "failed"
+  },
+  "categoryIds": [],
+  "fileName": "DSC02912.JPG",
+  "creatorId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "rev": "22-191e7d5fed1ff4f1853d52e5915e027a",
+  "id": "90d4fc04-09db-4d8f-a315-aa9eebe4cd2b",
+  "resource": "936a9371a86095f4c78fcc6273ca4d50",
+  "fileSize": 4938,
+  "lastModifierId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "renditions": {
+    "default": {
+      "id": "303ef1bb-4bf6-4e88-9bff-8497e913800e",
+      "source": "/authoring/v1/resources/936a9371a86095f4c78fcc6273ca4d50"
+    }
+  },
+  "classification": "asset",
+  "created": "2016-10-21T10:10:53.816Z",
+  "creator": "Adam.iem",
+  "lastModifier": "Adam.iem",
+  "categories": [],
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/90d4fc04-09db-4d8f-a315-aa9eebe4cd2b"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/936a9371a86095f4c78fcc6273ca4d50.JPG"
+    },
+    "thumbnail": {
+      "href": "/authoring/b0d322fc-60dd-4daa-b158-a01fbd0304c5/39/39907e68-955f-49a2-8e19-605259f8dbe6.JPG?fit=around|220:145&crop=220:145;*,*"
+    }
+  }
+}

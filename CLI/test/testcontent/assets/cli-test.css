@@ -1,0 +1,32 @@
+#customerList {
+    border-right: 2px solid #DDDDDD;
+    /*
+    overflow-y: scroll;
+    overflow-x: hidden;
+    height: 500px;
+    */
+    background: white;
+    min-width: 200px;
+}
+
+.customer .hidden {
+    display: none;
+}
+.customer {
+    padding: 5px 10px;
+    float: none;
+    font-size: 1em;
+}
+.customer .id {
+    float: right;
+    padding-top: 6px;
+}
+.customer .name {
+    font-size: 1.8em;
+}
+.customer .balance {
+    font-size: 2em;
+}
+.customerDivider {
+    border-top: 1px solid #DDD;
+}

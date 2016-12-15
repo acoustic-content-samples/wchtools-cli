@@ -1,0 +1,54 @@
+{
+  "id": "c1879fa9-c00b-4fdb-b83a-1427054545bb",
+  "rev": "9-5f5a3c800f0aa7eaa0c49aff8f208794",
+  "name": "My Second Content",
+  "classification": "content",
+  "typeId": "b9468984-844e-47d6-ad6b-bb9f7d444aa3",
+  "lastModified": "2016-10-17T21:07:22.632Z",
+  "lastModifierId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "created": "2016-10-17T21:06:07.969Z",
+  "creatorId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "tags": [],
+  "status": "draft",
+  "elements": {
+    "myLabel": {
+      "elementType": "text",
+      "value": "My Second Content Label"
+    },
+    "coolPic": {
+      "elementType": "image",
+      "renditions": {
+        "default": {
+          "renditionId": "303ef1bb-4bf6-4e88-9bff-8497e913800e",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/26/268621b2-c5a3-4bdd-99c5-8743d02d91b5.JPG"
+        },
+        "small": {
+          "renditionId": "78e80be1-deae-4680-8791-1d0e5076cb7f",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/26/268621b2-c5a3-4bdd-99c5-8743d02d91b5.JPG?resize=0.38910505836575876xw:0.38910505836575876xh&crop=1024:800;198,0"
+        },
+        "big": {
+          "renditionId": "8d193007-f636-45b0-9ad3-eb5cb05a8168",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/26/268621b2-c5a3-4bdd-99c5-8743d02d91b5.JPG?resize=0.622568093385214xw:0.622568093385214xh&crop=1920:1280;176,0"
+        },
+        "med": {
+          "renditionId": "be1789fe-cd36-41c2-8527-cf16462ce143",
+          "source": "/authoring/0160963c-75cd-4f9a-8216-031fd5ce0c99/26/268621b2-c5a3-4bdd-99c5-8743d02d91b5.JPG?resize=0.4980544747081712xw:0.4980544747081712xh&crop=1280:1024;268,0"
+        }
+      },
+      "asset": {
+        "id": "90d4fc04-09db-4d8f-a315-aa9eebe4cd2b",
+        "resourceUri": "/authoring/v1/resources/936a9371a86095f4c78fcc6273ca4d50",
+        "fileName": "DSC02912.JPG",
+        "fileSize": 3438006,
+        "mediaType": "image/jpeg"
+      }
+    },
+    "category": {
+      "elementType": "category",
+      "categoryIds": [
+        "936a9371a86095f4c78fcc6273c9527e"
+      ]
+    }
+  },
+  "description": ""
+}

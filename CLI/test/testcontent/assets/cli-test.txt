@@ -1,0 +1,4 @@
+Creating via: http://dx-marathon-3-slave3.rtp.raleigh.ibm.com:11359/presentation
+Push complete, artifacts pushed 2 with 0 errorsPull started
+Pull complete, artifacts pulled 21 with 0 errors
+Deleting: http://dx-marathon-3-slave3.rtp.raleigh.ibm

@@ -1,0 +1,53 @@
+{
+  "name": "dxauthoringapi",
+  "description": "Tools API for IBM Watson Content Hub",
+  "version": "1.0.0",
+  "keywords": [
+    "api",
+    "authoring"
+  ],
+  "author": "IBM Corporation",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/ibm-wch/wchtools-cli/issues"
+  },
+  "engines": {
+    "node": ">=4.1.0"
+  },
+  "engine-strict": true,
+  "engineStrict": true,
+  "main": "./dxAuthoring.js",
+  "dependencies": {
+    "async": "^2.0.1",
+    "deep-extend": "^0.4.1",
+    "i18n-2": "^0.6.3",
+    "ignore": "^3.1.5",
+    "log4js": "^0.6.33",
+    "mime-types": "^2.1.12",
+    "mkdirp": "^0.5.1",
+    "q": "^1.4.1",
+    "recursive-readdir": "^2.1.0",
+    "request": "^2.75.0",
+    "os-locale": "^1.4.0"
+  },
+  "devDependencies": {
+    "chai": "~3.5",
+    "chai-as-promised": "~5.3",
+    "cp": "~0.2",
+    "diff": "^3.0.0",
+    "istanbul": "~0.4",
+    "mocha": "^3.1.0",
+    "require-subvert": "^0.1.0",
+    "rimraf": "^2.5",
+    "sinon": "~1",
+    "sinon-as-promised": "~4",
+    "sinon-chai": "~2.8"
+  },
+  "scripts": {
+    "unit": "./node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha test/unit/**/*.test.js -- -R spec",
+    "checkcoverage": "./node_modules/.bin/istanbul check-coverage",
+    "testcleanup": "node ./test/testcleanup.js",
+    "posttest": "npm run testcleanup && npm run checkcoverage"
+  },
+  "private": true
+}

@@ -1,0 +1,22 @@
+{
+  "id": "e8623b17a16c0f51b867add92ef74eb0",
+  "rev": "1-853db46b1b39f662d3f35c41cd6f18dd",
+  "classification": "asset",
+  "description": "",
+  "owners": [],
+  "creator": "User",
+  "created": "2016-06-16T19:51:29.792Z",
+  "lastModifier": "User",
+  "lastModified": "2016-06-16T19:51:29.792Z",
+  "tags": [],
+  "resource": "e8623b17a16c0f51b867add92ef6f234",
+  "path": "/test_1/iecss.css",
+  "links": {
+    "self": {
+      "href": "/asset/e8623b17a16c0f51b867add92ef74eb0"
+    },
+    "media": {
+      "href": "/resource/e8623b17a16c0f51b867add92ef6f234"
+    }
+  }
+}

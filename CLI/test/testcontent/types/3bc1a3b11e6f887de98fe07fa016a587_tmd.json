@@ -1,0 +1,25 @@
+{
+  "id": "3bc1a3b11e6f887de98fe07fa016a587",
+  "rev": "10-c334d875e27be7ae0f1a73b516587db3",
+  "name": "cli-test-existi",
+  "classification": "content-type",
+  "description": "",
+  "creator": "Adam.iem",
+  "creatorId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "created": "2016-10-21T10:14:21.617Z",
+  "lastModifier": "Adam.iem",
+  "lastModifierId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "lastModified": "2016-10-21T10:35:12.481Z",
+  "status": "draft",
+  "tags": [
+    "string"
+  ],
+  "templateMapping": "",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "form": []
+}

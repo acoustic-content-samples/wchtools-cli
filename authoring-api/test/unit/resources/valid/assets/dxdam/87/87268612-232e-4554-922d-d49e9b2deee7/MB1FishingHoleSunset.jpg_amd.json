@@ -1,0 +1,43 @@
+{
+  "mediaType": "image/jpeg",
+  "name": "MB1FishingHoleSunset.jpg",
+  "path": "/dxdam/87/87268612-232e-4554-922d-d49e9b2deee7/MB1FishingHoleSunset.jpg",
+  "digest": "RsS2ob6yrr8YOFOPiy5aEQ==",
+  "assetType": "image",
+  "lastModified": "2016-11-04T22:37:44.428Z",
+  "description": "",
+  "tags": {
+    "values": [],
+    "declined": []
+  },
+  "categoryIds": [],
+  "fileName": "MB1FishingHoleSunset.jpg",
+  "creatorId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "rev": "1-d5e6956efb23cbfa3f73ac6250a462ff",
+  "id": "2e0bbf1d-6e26-4304-8663-463a8931cafa",
+  "resource": "bee59af1348e9b4eb89880c50862ae13",
+  "fileSize": 46808,
+  "lastModifierId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "renditions": {
+    "default": {
+      "id": "a53185cb-f416-4eef-99a5-4df7c9389398",
+      "source": "/authoring/v1/resources/bee59af1348e9b4eb89880c50862ae13"
+    }
+  },
+  "classification": "asset",
+  "created": "2016-11-04T22:37:44.428Z",
+  "creator": "Watson ContentHubTools",
+  "lastModifier": "Watson ContentHubTools",
+  "categories": [],
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/2e0bbf1d-6e26-4304-8663-463a8931cafa"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/bee59af1348e9b4eb89880c50862ae13.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/bcd21fa8-a5af-4a3f-afec-f744f7962538/20/207ef2e5-ee7f-49cd-bd9b-73ae0c625974.jpg?fit=around%7C220:145&crop=220:145;*,*"
+    }
+  }
+}

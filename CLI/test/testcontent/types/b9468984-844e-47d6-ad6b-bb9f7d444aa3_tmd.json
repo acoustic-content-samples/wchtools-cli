@@ -1,0 +1,138 @@
+{
+  "id": "b9468984-844e-47d6-ad6b-bb9f7d444aa3",
+  "rev": "6-6b59076854107f8afebaed5329f2bdf4",
+  "name": "My Content Type",
+  "classification": "content-type",
+  "description": "",
+  "creator": "Adam",
+  "creatorId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "created": "2016-10-17T21:01:14.391Z",
+  "lastModifier": "Adam",
+  "lastModifierId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "lastModified": "2016-10-17T21:03:08.833Z",
+  "status": "ready",
+  "tags": [],
+  "templateMapping": "",
+  "schema": {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "additionalProperties": false,
+    "properties": {
+      "myLabel": {
+        "title": "My Label",
+        "type": "object",
+        "properties": {
+          "elementType": {
+            "enum": [
+              "text"
+            ],
+            "default": "text"
+          },
+          "value": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "elementType"
+        ],
+        "additionalProperties": false
+      },
+      "coolPic": {
+        "title": "Cool Pic",
+        "type": "object",
+        "properties": {
+          "elementType": {
+            "enum": [
+              "image"
+            ],
+            "default": "image"
+          },
+          "asset": {
+            "title": "Asset Resource",
+            "type": "object",
+            "properties": {
+              "id": {
+                "title": "Asset Id",
+                "type": "string"
+              },
+              "acceptType": [
+                "jpg",
+                "jpeg",
+                "png",
+                "gif"
+              ]
+            }
+          },
+          "imageProfileId": "7d323566-782b-4c57-a53e-9088b9e12fe2"
+        },
+        "required": [
+          "elementType"
+        ],
+        "additionalProperties": false,
+        "dependencies": {
+          "asset": [
+            "renditions"
+          ],
+          "renditions": [
+            "asset"
+          ]
+        }
+      },
+      "category": {
+        "title": "Category",
+        "type": "object",
+        "properties": {
+          "elementType": {
+            "enum": [
+              "category"
+            ],
+            "default": "category"
+          },
+          "categoryIds": {
+            "title": "categories",
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "elementType"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "type": "object"
+  },
+  "form": [
+    {
+      "key": "myLabel",
+      "type": "dx-fieldset",
+      "items": [
+        {
+          "key": "myLabel.value",
+          "type": "dx-text"
+        }
+      ],
+      "dxIcon": "type/icons/text-20px.svg"
+    },
+    {
+      "key": "coolPic",
+      "type": "dx-image-upload",
+      "dxIcon": "type/icons/image-20px.svg"
+    },
+    {
+      "key": "category",
+      "type": "dx-fieldset",
+      "items": [
+        {
+          "key": "category.categoryIds",
+          "type": "dx-category"
+        }
+      ],
+      "dxIcon": "type/icons/category-20px.svg"
+    }
+  ]
+}

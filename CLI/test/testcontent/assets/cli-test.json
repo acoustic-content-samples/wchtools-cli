@@ -1,0 +1,60 @@
+{
+    "name": "xmancli",
+    "version": "0.0.2-7",
+    "description": "command line tools for Dx Next",
+    "main": "index.js",
+    "bin": {
+        "dxtool": "./bin/dxtool"
+    },
+    "scripts": {
+        "unit": "mocha test/unit/**/*.test.js",
+        "pretest": "node ./test/testsetup.js",
+        "test": "node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha test/**/*.test.js  --  --recursive  || npm run testcleanup",
+        "checkcoverage": "./node_modules/.bin/istanbul check-coverage",
+        "testcleanup": "node ./test/testcleanup.js",
+        "posttest": "npm run testcleanup && npm run checkcoverage"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.ibm.com/DX/prod-tools"
+    },
+    "keywords": [
+        "cli"
+    ],
+    "author": "IBM",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.ibm.com/DX/prod-tools/issues"
+    },
+    "dependencies": {
+        "cli-table": "0.3.1",
+        "colors": "1.1.2",
+        "commander": "2.9.0",
+        "dxauthoringapi": "file:../authoring-api.tar.gz",
+        "log4js": "0.6.33",
+        "open": "0.0.5",
+        "ora": "^0.2.3",
+        "prompt": "1.0.0",
+        "q": "1.4.1",
+        "request": "2.69.0"
+    },
+    "devDependencies": {
+        "chai": "latest",
+        "chai-as-promised": "latest",
+        "cp": "^0.2.0",
+        "cpr": "^1.1.2",
+        "diff": "latest",
+        "istanbul": "latest",
+        "mocha": "latest",
+        "node-uuid": "latest",
+        "rimraf": "latest",
+        "sinon": "latest",
+        "sinon-as-promised": "latest",
+        "sinon-chai": "latest"
+    },
+    "engines": {
+        "node": ">=4.1.0"
+    },
+    "engine-strict": true,
+    "engineStrict": true
+}

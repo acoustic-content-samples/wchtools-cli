@@ -1,0 +1,22 @@
+{
+  "id": "e8623b17a16c0f51b867add92ef7d5b2",
+  "rev": "1-f6dc077e6b4d05fd646287542b69b771",
+  "classification": "asset",
+  "description": "",
+  "owners": [],
+  "creator": "User",
+  "created": "2016-06-16T19:51:30.025Z",
+  "lastModifier": "User",
+  "lastModified": "2016-06-16T19:51:30.025Z",
+  "tags": [],
+  "resource": "e8623b17a16c0f51b867add92ef75eb7",
+  "path": "/test_1/images/banner2.jpg",
+  "links": {
+    "self": {
+      "href": "/asset/e8623b17a16c0f51b867add92ef7d5b2"
+    },
+    "media": {
+      "href": "/resource/e8623b17a16c0f51b867add92ef75eb7"
+    }
+  }
+}
