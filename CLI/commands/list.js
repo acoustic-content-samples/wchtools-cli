@@ -20,6 +20,7 @@ const BaseCommand = require("../lib/baseCommand");
 const dxAuthoring = require("dxauthoringapi");
 const utils = dxAuthoring.utils;
 const login = dxAuthoring.login;
+const options = dxAuthoring.options;
 const Q = require("q");
 const ora = require("ora");
 
@@ -61,17 +62,18 @@ class ListCommand extends BaseCommand {
             return;
         }
 
-        // Make sure the user name and password have been specified, if login is required for this list command.
-        self.handleAuthenticationOptions()
-            .then(function () {
-                const apiOptions = self.getApiOptions();
+        const apiOptions = self.getApiOptions();
 
+        // Make sure the user name and password have been specified, if login is required for this list command.
+        self.handleAuthenticationOptions(apiOptions)
+            .then(function () {
                 // Login using the current options, if login is required for this list command.
                 self.handleLogin(apiOptions)
                     .then(function () {
-                        // List the modified artifacts by default.
-                        if (!self.getCommandLineOption("new") && !self.getCommandLineOption("del")) {
+                        // List the modified and new artifacts by default.
+                        if (!self.getCommandLineOption("new") && !self.getCommandLineOption("mod") && !self.getCommandLineOption("del")) {
                             self.setCommandLineOption("mod", true);
+                            self.setCommandLineOption("new", true);
                         }
 
                         // Start the display of the list.
@@ -141,10 +143,13 @@ class ListCommand extends BaseCommand {
      * @returns {Boolean} A return value of true indicates that a login is required to execute this list command. A
      *          return value of false indicates that a login is not required to execute this list command.
      */
-    isLoginRequired () {
-        // For now, login is only required if the --server option has been specified on the command line.
+    isLoginRequired (apiOptions) {
+        // For now, login is only required if the --server option or the --del option has been specified on the command line.
+        // Login is also required if there is no (manually specified) tenant id available.
         const server = this.getCommandLineOption("server");
-        return (server !== undefined && server !== null && server !== "");
+        const del = this.getCommandLineOption("del");
+        const tenant = options.getRelevantOption(apiOptions, "x-ibm-dx-tenant-id");
+        return (server || del || !tenant);
     }
 
     /**
@@ -153,8 +158,8 @@ class ListCommand extends BaseCommand {
      *
      * @returns {Q.Promise} A promise that is resolved when the username and password have been specified, if necessary.
      */
-    handleAuthenticationOptions () {
-        if (this.isLoginRequired()) {
+    handleAuthenticationOptions (apiOptions) {
+        if (this.isLoginRequired(apiOptions)) {
             // A login is required, so call the super method to handle the authentication options in the normal way.
             return super.handleAuthenticationOptions();
         } else {
@@ -173,7 +178,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise to be fulfilled with the name of the logged in user.
      */
     handleLogin (apiOptions) {
-        if (this.isLoginRequired()) {
+        if (this.isLoginRequired(apiOptions)) {
             // A login is required, so use the loginREST object to login in the normal way.
             return login.login(apiOptions);
         } else {

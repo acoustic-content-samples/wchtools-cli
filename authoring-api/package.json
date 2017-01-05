@@ -1,7 +1,7 @@
 {
   "name": "dxauthoringapi",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "keywords": [
     "api",
     "authoring"
@@ -14,8 +14,9 @@
   "engines": {
     "node": ">=4.1.0"
   },
-  "engine-strict": true,
-  "engineStrict": true,
+  "config": {
+    "engine-strict": true
+  },
   "main": "./dxAuthoring.js",
   "dependencies": {
     "async": "^2.0.1",

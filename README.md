@@ -41,14 +41,14 @@ Please review the [LICENSE](LICENSE) and [NOTICE](NOTICE) files at the root of t
 
   After you successfully install the wchtools CLI, try the following commands:
 
-     wchtools --help 
-         - Use this command to get a list of all commands.
+    wchtools --help 
+        - Use this command to get a list of all commands.
          
     wchtools  pull --help     
         - Use this command to get a list of all options for a command such as pull or push.
         
     wchtools init
-       - Configure wchtools CLI to work with a specific user. Use this command to initialize the configuration with a specified user rather than specifying the user as an argument or at a prompt every time.
+        - Configure wchtools CLI to work with a specific user. Use this command to initialize the configuration with a specified user rather than specifying the user as an argument or at a prompt every time.
 
    
 ### Local filesystem layout and working directory
@@ -136,11 +136,11 @@ The wchtools CLI utility requires a specific filesystem layout. The file system 
 
   Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. To allow for a more granular push of web resource assets, with an option for a path below the <working-directory>/assets/ root path, you can push only a subset of web resource assets. For example, consider a working directory named  c:\work on Windows or ~/work on Linux or Mac, with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , toNav, sideNav.
   
-      -To push only the topNav assets, you would use 
+   - To push only the topNav assets, you would use 
   
               wchtools push --path topNav/
  
-     -To push only the style folder that is below the topNav folder, you would use
+   - To push only the style folder that is below the topNav folder, you would use
   
              wchtools push --path topNav/style
 
@@ -182,3 +182,11 @@ NOTE:  Granular options such as pushing only one or more artifact types at a tim
   - The authoring content service does not allow pushing a "ready" state content item, if that content item currently has a "draft" outstanding. You can push a draft content item, whether a draft exists, or no artifact exists for that content ID. But you cannot push a "ready" content item if that item has a draft.  If you must push a ready item, for example, to recover from a server side mistake, where a draft exists, you can cancel the draft and try again. Or you can fix the issue with the authoring UI and then pull the content down to the local filesystem again for archiving.
 
   - Authoring artifacts refer to each other by internal identifiers (the 'id' field). The Watson Content Hub authoring services enforce validation of referential integrity as artifacts are created or updated through the public REST APIs.   For this reason, it is suggested that you use the -A or --All-authoring options when you push authoring artifacts. This option is not needed if you are pushing up only a new set of low level artifacts such as content types (where you could use -t to specify that's what what you want to push). Low-level artifacts are those artifacts without references to other types of artifacts. The all authoring artifact options push artifacts in order from those with no dependencies, to those with the most dependencies. This ordering helps avoid issues where dependent artifacts don't exist yet on the server, during a push.
+
+#### Git Repository
+  The IBM Watson Content Hub Developer Tools are provided as open source and made available in github.
+  While it is not necessary to obtain the source from the github repository in order to install the release version of wchtools, you may choose to clone the github repository to access the source for the developer tools.  After cloning the github repository you can run npm install from the root folder of the local copy.
+  - npm install
+
+  Unit tests for the developer tools are provided in the github repository and can be run by executing:
+  - npm run unit

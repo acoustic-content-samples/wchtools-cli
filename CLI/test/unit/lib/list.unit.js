@@ -72,7 +72,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--dir", "./", "-q"])
+                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--dir", "./", "-q", "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -101,7 +101,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", '--user', 'foo', '--password', 'password'])
+                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -129,7 +129,7 @@ class ListUnitTest extends UnitTest {
                 stub.resolves([itemName1, itemName2, badItem]);
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--mod"])
+                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--mod", "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -158,7 +158,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--Ignore-timestamps", "-q"])
+                xman.parseArgs(['', UnitTest.COMMAND, "list", switches, "--Ignore-timestamps", "-q", "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -185,7 +185,7 @@ class ListUnitTest extends UnitTest {
             it("test fail extra param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, "foo"])
+                xman.parseArgs(['', UnitTest.COMMAND, command, switches, "foo", "--user", "foo", "--password", "password"])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -210,7 +210,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, "--dir", "...."])
+                xman.parseArgs(['', UnitTest.COMMAND, command, switches, "--dir", "....", "--user", "foo", "--password", "password"])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -236,7 +236,7 @@ class ListUnitTest extends UnitTest {
             it("test fail path and not asset param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, "-p", "--path", "./"])
+                xman.parseArgs(['', UnitTest.COMMAND, command, "-p", "--path", "./", "--user", "foo", "--password", "password"])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");

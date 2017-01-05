@@ -1,6 +1,6 @@
 {
   "name": "prod-tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "IBM Corporation",
   "license": "Apache-2.0",
   "bugs": {
@@ -9,13 +9,18 @@
   "engines": {
     "node": ">=4.1.0"
   },
-  "engine-strict": true,
-  "engineStrict": true,
+  "config": {
+    "engine-strict": true
+  },
   "devDependencies": {
     "istanbul": "~0.4",
-    "mocha": "^3.1.0"
+    "mocha": "^3.1.0",
+    "rimraf": "~2.5"
   },
   "scripts": {
+    "npminstallall": "node ./npminstallall.js",
+    "clear": "node ./npmclearmodules.js",
+    "install": "npm run clear && npm run npminstallall",
     "unit": "node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha authoring-api/test/unit/*.test.js CLI/test/unit/*.test.js -- --recursive"
   },
   "private": true
