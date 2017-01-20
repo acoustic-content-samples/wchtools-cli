@@ -661,7 +661,7 @@ const helper = {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
                 const assetFile = assetsFS.getPath(path, opts);
                 const assetHashes = hashes.getHashesForFile(assetsFS.getDir(opts), assetFile, opts);
-                let resourceId = assetHashes ? assetHashes.resource : undefined;
+                let resourceId;
                 let resourceMd5 = assetHashes ? assetHashes.md5 : undefined;
 
                 // In order to push the asset to the content hub, open a read stream for the asset file.
