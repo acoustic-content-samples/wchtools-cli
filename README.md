@@ -10,11 +10,11 @@ The IBM Watson Content Hub Developer Tools provide a command line interface (CLI
 Please review the [LICENSE](LICENSE) and [NOTICE](NOTICE) files at the root of this repository before you download and get started with this toolkit.
 
 ### Install
- Pre-Requisite: Before you install the wchtools CLI, you must install Node 4.3 or later 4.x. IBM Node 4.6 or later is suggested.
+ Pre-Requisite: Before you install the wchtools CLI, you must install Node 4.3 or later 4.x. IBM Node 4.6 or later 4.x is suggested.
  
  Complete the following steps to install and run the wchtools CLI:
 
-   1. Download the latest release available from the [releases](../../releases) area and extract the files to a temporary folder on your local filesystem.
+   1. Download the latest wch.developer.tools.zip release available from the [releases](../../releases) page of this repository and extract the files to a temporary folder on your local filesystem.
 
    2. Run the installation command from that temporary folder as follows:-
 
