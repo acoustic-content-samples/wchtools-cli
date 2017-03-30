@@ -26,7 +26,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
  Complete the following steps to install and run the wchtools CLI from a downloadable release in the git repository:
 
-   1. Download the latest wch.developer.tools.zip release available from the [releases](https://github.com/ibm-wch/releases) page of the wchtools-cli git repository and extract the files to a temporary folder on your local filesystem.
+   1. Download the latest wch.developer.tools.zip release available from the [releases](https://github.com/ibm-wch/wchtools-cli/releases) page of the wchtools-cli git repository and extract the files to a temporary folder on your local filesystem.
 
    2. Run the installation command from that temporary folder as follows:-
 
