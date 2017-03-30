@@ -9,7 +9,7 @@ const ImageProfilesUnitTest = require("./imageProfiles.unit.js");
 const BaseFsUnit = require("./base.fs.unit.js");
 
 // Require the local module being tested.
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/imageProfilesFS.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/imageProfilesFS.js").instance;
 
 class ImageProfilesFsUnitTest extends BaseFsUnit {
     constructor() {

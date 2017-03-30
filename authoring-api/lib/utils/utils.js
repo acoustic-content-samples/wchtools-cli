@@ -32,9 +32,10 @@ const i18nModule = require("i18n-2");
 const i18n = getI18N(__dirname, ".json", "en");
 const vPath = new RegExp('[?<>*|"]');
 const loggers = [];
+let httplang;
+
 // Enable the request module cookie jar so cookies can be shared across response, request with this request wrapper
 const requestWrapper = require("request").defaults({jar: true});
-let httplang;
 
 /**
  * get the object that is used to localize string
@@ -43,19 +44,16 @@ let httplang;
  * @param defaultLocale the local to use as a default. en is used if not set
  * @returns {*|exports|module.exports}
  */
-function getI18N(directory, extension, defaultLocale) {
-
+function getI18N (directory, extension, defaultLocale) {
     let dir = directory;
     while (dir && !fs.existsSync(dir + "/nls")) {
         const parent = path.dirname(dir);
         dir = (dir !== parent) ? parent : undefined;
     }
+
     if (dir) {
         dir = dir + "/nls";
-//         getLogger(apisLog).info("found nls directory for path: " + directory + " at: " + dir);
         directory = dir;
-    } else {
-//         getLogger(apisLog).warn("no nls directory found for path: " + directory);
     }
 
     extension = extension || ".json";
@@ -86,16 +84,15 @@ function getI18N(directory, extension, defaultLocale) {
             return localeData;
         }
     });
+
     // use os-locale to determine the locale
     let locale = oslocale.sync();
-    if (locale) {
+    if (locale && locales.indexOf(locale) === -1) {
+        locale = locale.split('.')[0];
         if (locales.indexOf(locale) === -1) {
-            locale = locale.split('.')[0];
+            locale = locale.split('_')[0];
             if (locales.indexOf(locale) === -1) {
-                locale = locale.split('_')[0];
-                if (locales.indexOf(locale) === -1) {
-                    locale = undefined;
-                }
+                locale = defaultLocale;
             }
         }
     }
@@ -111,9 +108,9 @@ function getI18N(directory, extension, defaultLocale) {
  * @param defaultLocale the default locale
  * @returns {Array.<string>} list of supported locales
  */
-function getLocales(directory, extension, defaultLocale) {
-    var files = fs.readdirSync(directory);
-    var locales = files.map(function (file) {
+function getLocales (directory, extension, defaultLocale) {
+    const files = fs.readdirSync(directory);
+    const locales = files.map(function (file) {
         let locale;
         // filter out hidden files & only look at files with the desired extension
         if (!file.match(/^\./) && file.endsWith(extension)) {
@@ -130,10 +127,9 @@ function getLocales(directory, extension, defaultLocale) {
 }
 
 /**
- * Returns the http header language string for the supplied locale string.
- * @param locale
+ * Returns the http header language string for the system.
  */
-function getHTTPLanguage() {
+function getHTTPLanguage () {
     if (!httplang) {
         let locale = oslocale.sync();
         if (locale) {
@@ -146,11 +142,37 @@ function getHTTPLanguage() {
 }
 
 /**
+ * Determine whether the specified URL is valid for accessing the WCH API.
+ *
+ * @param url The URL to be validated.
+ *
+ * @returns {boolean} A value of true if the specified URL is valid, otherwise false.
+ */
+function isValidApiUrl(url) {
+    let valid = false;
+    if (url) {
+        // Javascript does not natively support validation of URL syntax. It appears that URL validation is typically
+        // accomplished using regular expression matching. Unfortunately, this can result in the occasional validation
+        // mistake. There are regular expressions available for testing URLs to varying degrees of complexity. One of
+        // the simpler ones I found is the following regular expression.
+        //
+        // "^https?://(www\\.)?([-a-z0-9]{1,63}\\.)*?[a-z0-9][-a-z0-9]{0,61}[a-z0-9]\\.[a-z]{2,6}(/[-\\w@\\+\\.~#\\?&/=%]*)?$"
+        //
+        // This tests for a "generic" (non-internationalized) URL with an "http" or "https" protocol. For now however,
+        // we will use a simpler test, looking only for the "http" or "https" protocol, and the "/api" component.
+        const uriRegExp = new RegExp("^https?://.+/api.*", "i");
+
+        valid = uriRegExp.test(url);
+    }
+    return valid;
+}
+
+/**
  * uses a regexp to check a path to be valid
  * @param path path to be checked
- * @returns {boolean} true if path is valid
+ * @returns {boolean} true if path is invalid
  */
-function isInvalidPath(path) {
+function isInvalidPath (path) {
     return vPath.test(path);
 }
 
@@ -158,7 +180,7 @@ function isInvalidPath(path) {
  * Get the directory that the log file should be created in.  currently uses cwd but could be user home
  * @returns {string} the directory the log file is found in
  */
-function getApiLogDir() {
+function getApiLogDir () {
     return process.cwd() + '/' + ProductAbrev + '-api.log';
 }
 
@@ -171,7 +193,7 @@ function getApiLogDir() {
  * @param response used to get amy response codes or status messages
  * @param requestOptions used to log the initial request info including the request id
  */
-function getError(err, body, response, requestOptions) {
+function getError (err, body, response, requestOptions) {
     try {
         const error = getBaseError(err, body, response);
         error.log = "Error Message: " + error.message;
@@ -219,7 +241,7 @@ function getError(err, body, response, requestOptions) {
  * @param resp the response object is checked for status messages
  * @returns {*|Error} first error found
  */
-function getBaseError(err, body, resp) {
+function getBaseError (err, body, resp) {
     return getErrorFromErr(err) || getErrorFromBody(body) || getErrorFromResponse(resp) || new Error(i18n.__("unknown_error"));
 }
 
@@ -228,9 +250,10 @@ function getBaseError(err, body, resp) {
  * @param error error object returned from the request
  * @returns {*} an error if one is found
  */
-function getErrorFromErr(error) {
-    if (error && error.code && (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET'))
+function getErrorFromErr (error) {
+    if (error && error.code && (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET')) {
         error.message = i18n.__("service_unavailable");
+    }
     return error;
 }
 
@@ -239,7 +262,7 @@ function getErrorFromErr(error) {
  * @param body the body of the response from the request
  * @returns {*} an error if one is found
  */
-function getErrorFromBody(body) {
+function getErrorFromBody (body) {
     let err;
     if (body) {
         if (typeof body === "string") {
@@ -258,8 +281,12 @@ function getErrorFromBody(body) {
             err = body.error;
         } else if (body.errors) {
             let messages = '';
-            body.errors.forEach(function (error) {
-                messages += error.message + ': '
+            body.errors.forEach(function (error, index) {
+                messages += error.message;
+                if (index < body.errors.length - 1) {
+                    // Add a separator if this is not the last error in the array.
+                    messages += ' ; ';
+                }
             });
             err = new Error(messages);
         }
@@ -272,7 +299,7 @@ function getErrorFromBody(body) {
  * @param response the response from the request
  * @returns {*} an error if one is found
  */
-function getErrorFromResponse(response) {
+function getErrorFromResponse (response) {
     let err;
     if (response && response.statusMessage && response.statusCode) {
         err = new Error(i18n.__("service_response_error", {code: response.statusCode, message: response.statusMessage}));
@@ -280,148 +307,12 @@ function getErrorFromResponse(response) {
     return err;
 }
 
-/**
- * the logs errors using the api log it marks the error object as logged and will only log an error once
- * @param heading text you want to label the error with
- * @param error the error that you want logged
- */
-function logErrors(heading, error) {
-    try {
-        if (error instanceof Error && !error.isLogged) {
-            error.heading = heading;
-            getLogger(apisLog).error(heading + (error.log ? error.log : error.toString()));
-            error.isLogged = true;
-        }
-        else
-            getLogger(apisLog).error(error.toString());
-    }
-    catch (e) {
-        // do nothing
-    }
-}
-
-/**
- * the logs warnings using the api log
- * @param warning text you want to log as a warning
- */
-function logWarnings(warning) {
-    try {
-        getLogger(apisLog).warn(warning);
-    }
-    catch (e) {
-        // do nothing
-    }
-}
-
-/**
- * the logs debug info using the api log it marks the error object as logged and will only log an error once
- * @param info a sting of info you want logged as debug information
- * @param response an optional parameter if you want the response object logged for debug
- * @param requestOptions an optional parameter if you want the request object logged for debug
- */
-function logDebugInfo(info, response, requestOptions) {
-    try {
-        const logger = getLogger(apisLog);
-        if (logger.isLevelEnabled('DEBUG')) {
-            if (requestOptions instanceof Object) {
-                try {
-                    info += " Request Options: " + JSON.stringify(requestOptions);
-                } catch (e) {
-                    //do nothing
-                }
-            }
-            if (response instanceof Object) {
-                try {
-                    info += " Response: " + JSON.stringify(response);
-                } catch (e) {
-                    //do nothing
-                }
-
-            }
-            logger.debug(info);
-        }
-    }
-    catch (e) {
-        // do nothing
-    }
-}
-
-/**
- * quick way to clone the opts object so you can add an option without affecting what was passed in
- * @param opts an opts object that is used through out the authoring api or undefined
- * @returns {{}} the cloned opts object
- */
-function cloneOpts(opts) {
-    let cOpts = {};
-    if (opts)
-        cOpts = this.clone(opts);
-    return cOpts;
-}
-
-/**
- * fast way to clone a json object
- * @param obj
- */
-function clone(obj) {
-    // fastest way to clone objects (that don't contain functions)
-    return JSON.parse(JSON.stringify(obj));
-}
-
-/**
- * helper to call the path normalize function so not all files would need their own include of path
- * @param filePath path to normalize
- */
-function pathNormalize(filePath) {
-    return path.normalize(filePath);
-}
-
-/**
- * get the user home directory for Windows, Linus or mac
- * @returns {*}
- */
-function getUserHome() {
-    return process.env[(process.platform === 'win32') ? 'USERPROFILE' : 'HOME'];
-}
-
-/**
- *  get the logger by name
- *  currently we only have the apiLogger but we could add different ones in the future api-debug?
- *  @param (name) name of the logger
- *  @param (config) if not the apiLogger the configuration for the logger of this name
- *  @returns (logger) the logger function for this log
- */
-function getLogger(name, config) {
-    if (!loggers[name]) {
-        if (apisLog === name)
-            configLogger(apisLogConfig);
-        else
-            configLogger(config);
-        loggers[name] = log4js.getLogger(name)
-    }
-    return loggers[name];
-}
-/**
- * Set the logging level for the named logger
- * @param name the name of the logger to get
- * @param level the level of logging (TRACE,DEBUG,INFO,WARN,ERROR,FATAL)
- */
-function setLoggerLevel(name, level) {
-    getLogger(name).setLevel(level);
-}
-
-const log4jsConfig = {appenders: [], replaceConsole: false, levels: {"[all]": logLevel}};
-
-function configLogger(config) {
-    config.appenders.forEach(function (appenderConfig) {
-        log4jsConfig.appenders.push(appenderConfig);
-    });
-    log4js.configure(log4jsConfig);
-}
-
 const apisLog = ProductAbrev + " " + ProductVersion;
 let apisLogConfig;
-// only log to the console if we are running the tests which are run of the jenkins server from the prod-tool directory
-if (process.cwd().indexOf('prod-tools') !== -1)
+
+// Only log to the console if we are running the tests on the jenkins server
+const buildTag = process.env.BUILD_TAG;
+if (buildTag && buildTag.indexOf('jenkins') !== -1) {
     apisLogConfig = {
         appenders: [
             {
@@ -441,7 +332,7 @@ if (process.cwd().indexOf('prod-tools') !== -1)
             "[all]": logLevel
         }
     };
-else
+} else {
     apisLogConfig = {
         appenders: [
             {
@@ -457,22 +348,157 @@ else
             "[all]": logLevel
         }
     };
+}
+
+/**
+ * the logs errors using the api log it marks the error object as logged and will only log an error once
+ * @param heading text you want to label the error with
+ * @param error the error that you want logged
+ */
+function logErrors (heading, error) {
+    try {
+        if (error instanceof Error) {
+            // Only log a given error once.
+            if (!error.isLogged) {
+                error.heading = heading;
+                getLogger(apisLog).error(heading + (error.log ? error.log : error.toString()));
+                error.isLogged = true;
+            }
+        } else {
+            // Not sure what this error is, so just log it as a string.
+            getLogger(apisLog).error(error.toString());
+        }
+    }
+    catch (e) {
+        // do nothing
+    }
+}
+
+/**
+ * the logs warnings using the api log
+ * @param warning text you want to log as a warning
+ */
+function logWarnings (warning) {
+    try {
+        getLogger(apisLog).warn(warning);
+    }
+    catch (e) {
+        // do nothing
+    }
+}
+
+/**
+ * the logs debug info using the api log it marks the error object as logged and will only log an error once
+ * @param info a sting of info you want logged as debug information
+ * @param response an optional parameter if you want the response object logged for debug
+ * @param requestOptions an optional parameter if you want the request object logged for debug
+ */
+function logDebugInfo (info, response, requestOptions) {
+    const logger = getLogger(apisLog);
+    try {
+        if (logger.isLevelEnabled('DEBUG')) {
+            if (requestOptions instanceof Object) {
+                info += " Request Options: " + JSON.stringify(requestOptions);
+            }
+            if (response instanceof Object) {
+                info += " Response: " + JSON.stringify(response);
+            }
+        }
+    } catch (e) {
+        // do nothing
+    } finally {
+        logger.debug(info);
+    }
+}
+
+/**
+ * quick way to clone the opts object so you can add an option without affecting what was passed in
+ * @param {Object} opts The options object to be cloned.
+ * @returns {{}} the cloned opts object
+ */
+function cloneOpts (opts) {
+    let cOpts = {};
+    if (opts) {
+        cOpts = clone(opts);
+    }
+    return cOpts;
+}
+
+/**
+ * fast way to clone a json object
+ * @param obj
+ */
+function clone (obj) {
+    // fastest way to clone objects (that don't contain functions)
+    return JSON.parse(JSON.stringify(obj));
+}
+
+/**
+ * helper to call the path normalize function so not all files would need their own include of path
+ * @param filePath path to normalize
+ */
+function pathNormalize (filePath) {
+    return path.normalize(filePath);
+}
+
+/**
+ * get the user home directory for Windows, Linus or mac
+ * @returns {*}
+ */
+function getUserHome () {
+    return process.env[(process.platform === 'win32') ? 'USERPROFILE' : 'HOME'];
+}
+
+/**
+ *  get the logger by name
+ *  currently we only have the apiLogger but we could add different ones in the future api-debug?
+ *  @param (name) name of the logger
+ *  @param (config) if not the apiLogger the configuration for the logger of this name
+ *  @returns (logger) the logger function for this log
+ */
+function getLogger (name, config) {
+    if (!loggers[name]) {
+        if (apisLog === name) {
+            configLogger(apisLogConfig);
+        } else {
+            configLogger(config);
+        }
+        loggers[name] = log4js.getLogger(name)
+    }
+    return loggers[name];
+}
+
+/**
+ * Set the logging level for the named logger
+ * @param name the name of the logger to get
+ * @param level the level of logging (TRACE,DEBUG,INFO,WARN,ERROR,FATAL)
+ */
+function setLoggerLevel (name, level) {
+    getLogger(name).setLevel(level);
+}
+
+const log4jsConfig = {appenders: [], replaceConsole: false, levels: {"[all]": logLevel}};
+
+function configLogger (config) {
+    config.appenders.forEach(function (appenderConfig) {
+        log4jsConfig.appenders.push(appenderConfig);
+    });
+    log4js.configure(log4jsConfig);
+}
 
 /**
  * Like Q.allSettled, but with a concurrency limit.
  *
  * @param {Object} promiseFns - An array of functions that return a promise.
  * @param limit - If not provided, it defaults to promises.length.
- * @returns a promise for an array of the promises as returned from promiseFns.
+ * @returns {Q.Promise} a promise for an array of the promises as returned from promiseFns.
  */
-function throttledAll(promiseFns, limit) {
-
+function throttledAll (promiseFns, limit) {
     const logger = getLogger(apisLog);
+    const deferred = Q.defer();
+    const promises = [];
 
     limit = limit || promiseFns.length;
-    const deferred = Q.defer();
-
-    const promises = [];
 
     // Wrap the promises in callbacks
     const callbacks = promiseFns.map(function (promiseFn) {
@@ -480,34 +506,41 @@ function throttledAll(promiseFns, limit) {
             try {
                 const promise = promiseFn();
                 promises.push(promise);
+
                 // Bind the first argument (error) to null
-                promise.then(done.bind(null, null)).catch(function (e) {
-                    const errMessage = i18n.__("operation_failed");
-                    if (e instanceof Error) {
-                        logger.error(errMessage, e.toString());
-                    } else if (typeof e === "object") {
-                        logger.error(errMessage, JSON.stringify(e));
-                    } else
-                        logger.error(errMessage, e.toString());
-                    // call done with null to allow the rest of the parallel tasks to complete
-                    done(null);
-                });
+                promise
+                    .then(done.bind(null, null))
+                    .catch(function (e) {
+                        const errMessage = i18n.__("operation_failed");
+                        if (e instanceof Error) {
+                            logger.error(errMessage, e.message);
+                        } else if (typeof e === "object") {
+                            logger.error(errMessage, JSON.stringify(e));
+                        } else {
+                            logger.error(errMessage, e.toString());
+                        }
+
+                        // call done with null to allow the rest of the parallel tasks to complete
+                        done(null);
+                    });
             } catch (e) {
                 done(e);
             }
         };
     });
+
     // Execute the callbacks in parallel (with a limit)
     async.parallelLimit(callbacks, limit, function (err, results) {
         if (err) {
-            logger.error(i18n.__("async_parallel_limit_error"), err.toString());
+            logErrors(i18n.__("async_parallel_limit_error"), err);
             deferred.reject(err);
         } else {
             logger.info(i18n.__("async_parallel_limit_results"), results);
             // resolve the deferred object with the array of promise states
-            Q.allSettled(promises).then(function (results) {
-                deferred.resolve(results);
-            });
+            Q.allSettled(promises)
+                .then(function (results) {
+                    deferred.resolve(results);
+                });
         }
     });
 
@@ -518,7 +551,7 @@ function throttledAll(promiseFns, limit) {
  * This is used to get teh request wrapper that has the cookie jar for authentication
  * @returns {*}
  */
-function getRequestWrapper() {
+function getRequestWrapper () {
     return requestWrapper;
 }
 
@@ -528,7 +561,7 @@ function getRequestWrapper() {
  * @param file
  * @returns {string}
  */
-function getRelativePath(dir, file) {
+function getRelativePath (dir, file) {
     // always use / as the path separator char
     return path.relative(dir, file).replace(/\\/g, '/');
 }
@@ -542,7 +575,7 @@ function getRelativePath(dir, file) {
  *
  * @returns {String} The original string after all occurrences of the find string have been replaced.
  */
-function replaceAll(original, find, replace) {
+function replaceAll (original, find, replace) {
     // Make sure the find string is escaped, so that it can be safely used in a regular expression.
     find = find.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
 
@@ -550,11 +583,23 @@ function replaceAll(original, find, replace) {
     return original.replace(new RegExp(find, 'g'), replace);
 }
 
+/**
+ * Remove any calculated values, so that the utils object is reset to the initial state.
+ */
+function reset () {
+    // Remove any calculated values.
+    httplang = null;
+    while (loggers.length > 0) {
+        loggers.pop();
+    }
+}
+
 const utils = {
     ProductName: ProductName,
     ProductAbrev: ProductAbrev,
     apisLog: apisLog,
     apisLogConfig: apisLogConfig,
+    isValidApiUrl: isValidApiUrl,
     isInvalidPath: isInvalidPath,
     getError: getError,
     getApiLogDir: getApiLogDir,
@@ -573,7 +618,8 @@ const utils = {
     getRequestWrapper: getRequestWrapper,
     getRelativePath: getRelativePath,
     getHTTPLanguage: getHTTPLanguage,
-    replaceAll: replaceAll
+    replaceAll: replaceAll,
+    reset: reset
 };
 
 module.exports = utils;

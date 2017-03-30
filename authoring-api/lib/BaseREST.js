@@ -32,8 +32,7 @@ class BaseREST {
     }
 
     reset () {
-        this._uri = options.getRelevantOption(null, "dx-api-gateway");
-        this._initialized = false;
+        this._uri = undefined;
     }
 
     getServiceName () {
@@ -44,7 +43,7 @@ class BaseREST {
         return this._uriPath;
     }
 
-    static getHeaders (opts) {
+    static getHeaders () {
         return {
             "Accept": "application/json",
             "Accept-Language": utils.getHTTPLanguage(),
@@ -54,40 +53,38 @@ class BaseREST {
     }
 
     getRequestURI (opts) {
-        const restObject = this;
-
         // Promise based to allow for lookup of URI if necdessary going forward
         const deferred = Q.defer();
-        if (restObject._initialized) {
-            deferred.resolve(restObject._uri);
-        } else {
+
+        if (!this._uri) {
             const baseUrl = options.getRelevantOption(opts, "x-ibm-dx-tenant-base-url");
             if (baseUrl) {
-                restObject._uri = baseUrl;
+                this._uri = baseUrl;
             } else {
+                const gateway = options.getRelevantOption(opts, "dx-api-gateway");
                 const tenantId = options.getRelevantOption(opts, "x-ibm-dx-tenant-id");
-                restObject._uri = restObject._uri + "/" + tenantId;
+                this._uri = gateway + "/" + tenantId;
             }
-            restObject._initialized = true;
-            deferred.resolve(restObject._uri);
         }
+        deferred.resolve(this._uri);
+
         return deferred.promise;
     }
 
     getRequestOptions (opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const headers = BaseREST.getHeaders(opts);
+        const headers = BaseREST.getHeaders();
 
         this.getRequestURI(opts)
-            .then(function(uri) {
+            .then(function (uri) {
                 deferred.resolve({
                     uri: uri + restObject.getUriPath(),
                     json: true,
                     headers: headers
                 });
             })
-            .catch(function(err) {
+            .catch(function (err) {
                 deferred.reject(err);
             });
         return deferred.promise;
@@ -116,14 +113,14 @@ class BaseREST {
         const offset = options.getRelevantOption(opts, "offset", this.getServiceName(), "offset");
         const limit = options.getRelevantOption(opts, "limit", this.getServiceName(), "limit");
         this.getRequestOptions(opts)
-            .then(function(requestOptions) {
+            .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + (uriSuffix || "") + "?offset=" + offset + "&limit=" + limit;
                 if (queryParams) {
                     Object.keys(queryParams).forEach(function (key) {
                         requestOptions.uri = requestOptions.uri + "&" + key + "=" + queryParams[key];
                     });
                 }
-                request.get(requestOptions, function(err, res, body) {
+                request.get(requestOptions, function (err, res, body) {
                     if ((err) || (res && res.statusCode != 200)) {  //NOSONAR
                         err = utils.getError(err, body, res, requestOptions);
                         utils.logErrors(i18n.__("get_items_error" , {service_name: restObject.getServiceName()}),err);
@@ -132,7 +129,8 @@ class BaseREST {
                         deferred.resolve(body.items);
                     }
                 });
-            }, function (err) {
+            })
+            .catch(function (err) {
                 deferred.reject(err);
             });
 
@@ -143,9 +141,9 @@ class BaseREST {
         const restObject = this;
         const deferred = Q.defer();
         this.getRequestOptions(opts)
-            .then(function(requestOptions) {
+            .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + id;
-                request.get(requestOptions, function(err, res, body) {
+                request.get(requestOptions, function (err, res, body) {
                     if ((err) || (res && res.statusCode != 200)) { //NOSONAR
                         err = utils.getError(err, body, res, requestOptions);
                         // special case where we ar just seeing if the item does exisit and if not it's not an error
@@ -156,7 +154,8 @@ class BaseREST {
                         deferred.resolve(body);
                     }
                 });
-            }, function (err) {
+            })
+            .catch(function (err) {
                 deferred.reject(err);
             });
         return deferred.promise;
@@ -166,10 +165,10 @@ class BaseREST {
         const restObject = this;
         const deferred = Q.defer();
         this.getRequestOptions(opts)
-            .then(function(requestOptions) {
+            .then(function (requestOptions) {
                 requestOptions.body = item;
                 utils.logDebugInfo("Creating item with request options: ",undefined, requestOptions);
-                request.post(requestOptions, function(err, res, body) {
+                request.post(requestOptions, function (err, res, body) {
                     if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
                         err = utils.getError(err, body, res, requestOptions);
                         utils.logErrors(i18n.__("create_item_error", {service_name: restObject.getServiceName()}), err);
@@ -179,7 +178,8 @@ class BaseREST {
                         deferred.resolve(body);
                     }
                 });
-            }, function (err) {
+            })
+            .catch(function (err) {
                 deferred.reject(err);
             });
         return deferred.promise;
@@ -189,11 +189,11 @@ class BaseREST {
         const deferred = Q.defer();
         const restObject = this;
         this.getRequestOptions(opts)
-            .then(function(requestOptions) {
+            .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + item.id;
                 requestOptions.body = item;
                 utils.logDebugInfo("Updating item with request options: ",undefined, requestOptions);
-                request.put(requestOptions, function(err, res, body) {
+                request.put(requestOptions, function (err, res, body) {
                     if (res && res.statusCode == 404) {  //NOSONAR
                         deferred.resolve(restObject.createItem(item, opts));
                     } else if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
@@ -208,40 +208,50 @@ class BaseREST {
                             deferred.resolve(item);
                     }
                 });
-            }, function (err) {
+            })
+            .catch(function (err) {
                 deferred.reject(err);
             });
         return deferred.promise;
     }
 
+    /**
+     * Delete the given item.
+     *
+     * @param {Object} item The item to be deleted.
+     * @param {Object} [opts] The options to be used for the delete request.
+     *
+     * @return {Q.Promise} A promise to delete the given item.
+     */
     deleteItem (item, opts) {
         const restObject = this;
         const deferred = Q.defer();
         this.getRequestOptions(opts)
-            .then(function(requestOptions) {
+            .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + item.id;
                 utils.logDebugInfo('delete item:' + restObject.getServiceName(),undefined,requestOptions);
 
                 // del ==> delete
-                return request.del(requestOptions, function(err, res, body) {
+                return request.del(requestOptions, function (err, res, body) {
                     if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
                         err = utils.getError(err, body, res, requestOptions);
                         utils.logErrors(i18n.__("delete_item_error", {service_name: restObject.getServiceName()}), err);
                         deferred.reject(err);
                     } else {
                         if (res.statusCode === 204 && (!body)) {
-                            body = "Deleted item with id: " + item.id;
+                            body = i18n.__("deleted_item", {id: item.id});
                         }
-                        utils.logDebugInfo('delete item:' + restObject.getServiceName(),  res);
+                        res.body = body;
+                        utils.logDebugInfo('delete ' + restObject.getServiceName(), res);
                         deferred.resolve(body);
                     }
                 });
-            }, function (err) {
+            })
+            .catch(function (err) {
                 deferred.reject(err);
             });
         return deferred.promise;
     }
-
 }
 
 module.exports = BaseREST;

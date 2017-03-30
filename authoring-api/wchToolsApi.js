@@ -22,47 +22,72 @@ const contentHelper = require('./contentHelper').instance;
 const categoriesHelper = require('./categoriesHelper').instance;
 const publishingJobsHelper = require('./publishingJobsHelper').instance;
 const publishingSourcesHelper = require('./publishingSourcesHelper').instance;
+const publishingProfilesHelper = require('./publishingProfilesHelper').instance;
+const publishingSiteRevisionsHelper = require('./publishingSiteRevisionsHelper').instance;
 const renditionssHelper = require('./renditionsHelper').instance;
 const imageProfilesHelper = require('./imageProfilesHelper').instance;
 const login = require('./lib/loginREST').instance;
 const utils = require('./lib/utils/utils.js');
 const options = require('./lib/utils/options.js');
 
-module.exports.getItemTypeHelper = function(options) {
+module.exports.getItemTypeHelper = function (options) {
     itemTypesHelper.initGlobalOptions(options);
     return itemTypesHelper;
 };
-module.exports.getPresentationsHelper = function(options) {
+
+module.exports.getPresentationsHelper = function (options) {
     presentationsHelper.initGlobalOptions(options);
     return presentationsHelper;
 };
-module.exports.getAssetsHelper = function(options){
+
+module.exports.getAssetsHelper = function (options){
     assetsHelper.initGlobalOptions(options);
     return assetsHelper;
 };
-module.exports.getImageProfilesHelper = function(options){
+
+module.exports.getImageProfilesHelper = function (options){
     imageProfilesHelper.initGlobalOptions(options);
     return imageProfilesHelper;
 };
-module.exports.getRenditionsHelper = function(options){
+
+module.exports.getRenditionsHelper = function (options){
     renditionssHelper.initGlobalOptions(options);
     return renditionssHelper;
 };
-module.exports.getContentHelper = function(options) {
+
+module.exports.getContentHelper = function (options) {
     contentHelper.initGlobalOptions(options);
     return contentHelper;
 };
-module.exports.getCategoriesHelper = function(options) {
+
+module.exports.getCategoriesHelper = function (options) {
     categoriesHelper.initGlobalOptions(options);
     return categoriesHelper;
 };
-module.exports.getPublishingJobsHelper = function(options) {
+
+module.exports.getPublishingJobsHelper = function (options) {
     publishingJobsHelper.initGlobalOptions(options);
     return publishingJobsHelper;
 };
-module.exports.getPublishingSourcesHelper = function(options) {
+
+module.exports.getPublishingSourcesHelper = function (options) {
     publishingSourcesHelper.initGlobalOptions(options);
     return publishingSourcesHelper;
+};
+
+module.exports.getPublishingProfilesHelper = function (options) {
+    publishingProfilesHelper.initGlobalOptions(options);
+    return publishingProfilesHelper;
+};
+
+module.exports.getPublishingSiteRevisionsHelper = function (options) {
+    publishingSiteRevisionsHelper.initGlobalOptions(options);
+    return publishingSiteRevisionsHelper;
+};
+
+module.exports.getInitializationErrors = function () {
+    // Return any errors that occurred during initialization of the required modules.
+    return options.getInitializationErrors();
 };
 
 module.exports.login = login;

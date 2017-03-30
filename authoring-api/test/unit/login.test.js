@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Run the unit tests for the login object in the authoring-api package.
+ * Run the unit tests for the login object in the API package.
  */
 "use strict";
 

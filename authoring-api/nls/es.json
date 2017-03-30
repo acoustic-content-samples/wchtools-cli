@@ -12,11 +12,13 @@
   "deleted_original_file": "Archivo original suprimido: nuevo archivo de %(old_name)s: %(new_name)s",
   "error_cancelling_job": "Error al cancelar el trabajo: id %(id)s",
   "error_fs_get_item": "Error en getItem del sistema de archivos",
+  "error_fs_get_filestats": "Error en getFileStats del sistema de archivos para %(name)s.",
   "error_parsing_item": "Error al analizar elemento para el archivo: %(name)s. %(message)s\n%(body)s",
   "get_items_error": "Error al obtener los elementos %(service_name)s: ",
   "save_item_write_failed": "saveItem no ha podido escribir en el archivo %(path)s",
   "save_item_write_failed_bad_path": "saveItem no ha podido escribir en el archivo %(path)s vía de acceso errónea",
   "close_stream_failed": "closeStream ha fallado con el error: ",
+  "error_options_file": "Error al leer el archivo de opciones de configuración: %(filename)s. %(error)s",
 
   "name_required": "Debe especificarse un nombre.",
   "category_exists": "Una categoría con el nombre %(name)s ya existe.",
@@ -24,10 +26,13 @@
   "presentation_exists": "Una presentación con el nombre %(name)s ya existe.",
   "cannot_get_asset": "No se puede obtener activo: %(path)s; código de estado: %(code)s",
   "deleted_asset": "Se ha suprimido el activo con el ID: %(id)s",
+  "create_asset_metadata_error": "Error al crear metadatos de activo: ",
+  "deleted_item": "Se ha suprimido el elemento con el ID: %(id)s",
   "get_item_error": "Error al obtener el elemento %(service_name)s: ",
   "create_item_error": "Error al crear el elemento %(service_name)s: ",
   "update_item_error": "Error al actualizar el elemento %(service_name)s: ",
   "delete_item_error": "Error al suprimir el elemento %(service_name)s: ",
+  "delete_rendition_error": "La supresión de representaciones no está soportada. ID: %(id)s, opciones: %(opts)s",
   "error_tenant_map": "Error en loadTenantMap: ",
   "error_save_hashes": "Error en saveHashes: ",
   "error_update_hashes": "Error en updateHashes: ",
@@ -43,7 +48,8 @@
   "async_parallel_limit_error": "La llamada parallelLimit asíncrona ha fallado con el error: ",
   "async_parallel_limit_results": "Resultados de parallelLimit asíncrona: ",
   "please_try": "Vuelva a intentarlo más tarde.  Si el problema persiste, póngase en contacto con soporte al cliente e incluya la información de registro disponible en %(log_dir)s",
-  "conflict":"El servicio ha detectado y devuelto una condición de error al procesar la solicitud para este artefacto."
-
+  "conflict":"El servicio ha detectado y devuelto una condición de error al procesar la solicitud para este artefacto.",
+  "login_missing_authn":"El servicio de inicio de sesión no ha podido responder con información de autenticación válida. ",
+  "digest_mismatch": "El resumen %(cli_digest)s del activo extraído %(asset)s no coincide con el resumen del servidor %(server_digest)s."
 }
 

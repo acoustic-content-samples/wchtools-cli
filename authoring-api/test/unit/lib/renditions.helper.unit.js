@@ -25,9 +25,9 @@ const BaseHelperUnitTest = require("./base.helper.unit.js");
 const sinon = require("sinon");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/renditionsREST.js").instance;
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/renditionsFS.js").instance;
-const helper = require(UnitTest.AUTHORING_API_PATH + "renditionsHelper.js").instance;
+const restApi = require(UnitTest.API_PATH + "lib/renditionsREST.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/renditionsFS.js").instance;
+const helper = require(UnitTest.API_PATH + "renditionsHelper.js").instance;
 const path1 = RenditionsUnitTest.VALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.VALID_RENDITION_1;
 const path2 = RenditionsUnitTest.VALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.VALID_RENDITION_2;
 const badPath = RenditionsUnitTest.INVALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.INVALID_RENDITION_BAD_NAME;
@@ -40,12 +40,13 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
     run(){
         super.run(restApi, fsApi,helper,  path1, path2, badPath);
     }
-    testDeleteRemoteItem (restApi,fsApi, helper){
+
+    testDeleteRemoteItem (restApi, fsApi, helper){
         describe("deleteItem", function () {
             it("should fail calling delete", function (done) {
                 // Call the method being tested.
                 let error;
-                helper.deleteRemoteItem({id: UnitTest.DUMMY_ID})
+                helper.deleteRemoteItem(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -55,6 +56,7 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
                             expect(err.message).to.contain("Delete");
+                            expect(err.message).to.contain(UnitTest.DUMMY_ID);
                         } catch (err) {
                             error = err;
                         }

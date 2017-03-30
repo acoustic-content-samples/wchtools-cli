@@ -17,9 +17,9 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const dxAuthoring = require("dxauthoringapi");
-const loginHelper = dxAuthoring.login;
-const utils = dxAuthoring.utils;
+const toolsApi = require("wchtools-api");
+const loginHelper = toolsApi.login;
+const utils = toolsApi.utils;
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const ora = require("ora");
 
@@ -38,7 +38,11 @@ class PublishCommand extends BaseCommand {
             .then(function (job) {
                 self.successMessage(i18n.__("cli_publishing_job_status", {job_status: job.state}));
                 if (self.getCommandLineOption("verbose")) {
-                    logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
+                    helper.getPublishingJobStatus(jobId, apiOptions)
+                        .then(function(jobStatus) {
+                            job = Object.assign(job, jobStatus);
+                            logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
+                        })
                 }
                 self.resetCommandLineOptions();
             })
@@ -58,7 +62,7 @@ class PublishCommand extends BaseCommand {
         const mode = this.getCommandLineOption("rebuild") ? "REBUILD" : "UPDATE";
         const statusJobId = this.getCommandLineOption("status");
         const jobParameters = {"mode": mode};
-        const helper = dxAuthoring.getPublishingJobsHelper();
+        const helper = toolsApi.getPublishingJobsHelper();
         const self = this;
 
         // Handle the necessary command line options.

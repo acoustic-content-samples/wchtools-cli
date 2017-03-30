@@ -27,9 +27,9 @@ const PublishingSourcesUnitTest = require("./publishingSources.unit.js");
 const BaseHelperUnit = require("./base.helper.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/publishingSourcesREST.js").instance;
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/publishingSourcesFS.js").instance;
-const helper = require(UnitTest.AUTHORING_API_PATH + "publishingSourcesHelper.js").instance;
+const restApi = require(UnitTest.API_PATH + "lib/publishingSourcesREST.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/publishingSourcesFS.js").instance;
+const helper = require(UnitTest.API_PATH + "publishingSourcesHelper.js").instance;
 const path1 = PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCES_DIRECTORY + PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_1;
 const path2 = PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCES_DIRECTORY + PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_2;
 const badPath = PublishingSourcesUnitTest.INVALID_PUBLISHING_SOURCES_DIRECTORY + PublishingSourcesUnitTest.INVALID_PUBLISHING_SOURCE_BAD_NAME;

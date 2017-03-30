@@ -21,6 +21,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
+const NAME = "publishing-sources";
 
 class PublishingSourcesREST extends BaseREST {
 
@@ -28,7 +29,7 @@ class PublishingSourcesREST extends BaseREST {
         if (enforcer !== singletonEnforcer)
             throw i18n.__("singleton_construct_error", {classname: "PublishingSourcesREST"});
 
-        super("sources", "/publishing/v1/sources", undefined, undefined);
+        super(NAME, "/publishing/v1/sources", undefined, undefined);
     }
 
     static get instance() {

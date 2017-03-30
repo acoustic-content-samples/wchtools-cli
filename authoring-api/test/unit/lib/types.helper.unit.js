@@ -24,9 +24,9 @@ const TypesUnitTest = require("./types.unit.js");
 const BaseHelperUnit = require("./base.helper.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/itemTypesREST.js").instance;
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/itemTypesFS.js").instance;
-const helper = require(UnitTest.AUTHORING_API_PATH + "itemTypesHelper.js").instance;
+const restApi = require(UnitTest.API_PATH + "lib/itemTypesREST.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/itemTypesFS.js").instance;
+const helper = require(UnitTest.API_PATH + "itemTypesHelper.js").instance;
 const path1 = TypesUnitTest.VALID_TYPES_DIRECTORY + TypesUnitTest.VALID_TYPE_1;
 const path2 = TypesUnitTest.VALID_TYPES_DIRECTORY + TypesUnitTest.VALID_TYPE_2;
 const badPath = TypesUnitTest.INVALID_TYPES_DIRECTORY + TypesUnitTest.INVALID_TYPE_BAD_NAME;

@@ -28,11 +28,11 @@ const rimraf = require("rimraf");
 const diff = require("diff");
 const uuid = require("node-uuid");
 const sinon = require("sinon");
-const xman = require("../../../xman");
+const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const hashes = require(UnitTest.AUTHORING_API_PATH + "/lib/utils/hashes.js");
+const hashes = require(UnitTest.API_PATH + "/lib/utils/hashes.js");
 
 class DeleteUnitTest extends UnitTest {
     constructor () {
@@ -69,7 +69,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--named', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--named', itemName1])
                     .then(function (msg) {
                         // The stub should only have been called once, and the expected error should have been returned.
                         expect(stub).to.have.been.calledOnce;
@@ -95,16 +95,16 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--named', itemName1, '-v','--user', 'foo', '--password','password'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--named', itemName1, '-v','--user', 'foo', '--password','password', '--url', 'http://foo.bar/api'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // The stub should only have been called once, and the expected error should have been returned.
                             expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain(DELETE_FAIL);
+                            expect(err.message).to.contain(DELETE_FAIL);
                         } catch (err) {
                             error = err;
                         }
@@ -122,16 +122,16 @@ class DeleteUnitTest extends UnitTest {
             let stub = sinon.stub(fs, "statSync");
             stub.throws("BAD DIRECTORY");
             let error;
-            xman.parseArgs(['', UnitTest.COMMAND, command, switches, '--dir', '....'])
+            toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--dir', '....'])
                 .then(function (msg) {
                     // This is not expected. Pass the error to the "done" function to indicate a failed test.
                     error = new Error("The command should have failed.");
                 })
-                .catch(function (msg) {
+                .catch(function (err) {
                     try {
                         // The stub should only have been called once, and the expected error should have been returned.
                         expect(stub).to.have.been.calledOnce;
-                        expect(msg).to.contain('Invalid directory');
+                        expect(err.message).to.contain('Invalid directory');
                     } catch (err) {
                         error = err;
                     }
@@ -150,15 +150,15 @@ class DeleteUnitTest extends UnitTest {
             it("test fail extra param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--named', itemName1, '--user', 'foo', '--password', 'password', 'foo'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--named', itemName1, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', 'foo'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // The expected error should have been returned.
-                            expect(msg).to.contain('Invalid argument');
+                            expect(err.message).to.contain('Invalid argument');
                         } catch (err) {
                             error = err;
                         }
@@ -172,15 +172,15 @@ class DeleteUnitTest extends UnitTest {
             it("test Failing no named parameter", function (done) {
                 // Execute the command to delete the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // The expected error should have been returned.
-                            expect(msg).to.equal('The web asset to be deleted must be specified with the --named argument.');
+                            expect(err.message).to.equal('The web asset to be deleted must be specified with the --named argument.');
                         } catch (err) {
                             error = err;
                         }
@@ -194,15 +194,15 @@ class DeleteUnitTest extends UnitTest {
             it("test Failing no -w parameter", function (done) {
                 // Execute the command to delete the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "delete", '--named', 'red', '--user', 'foo', '--password', 'password'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", '--named', 'red', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // The expected error should have been returned.
-                            expect(msg).to.contain('Delete currently only supports deleting a web asset');
+                            expect(err.message).to.contain('Delete currently only supports deleting a web asset');
                         } catch (err) {
                             error = err;
                         }

@@ -1,20 +1,20 @@
 /*
-Copyright 2016 IBM Corporation
+ Copyright 2016 IBM Corporation
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+ http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 /**
- * Unit tests for dxAuthoring.js.
+ * Unit tests for wchToolsApi.js.
  */
 "use strict";
 
@@ -22,12 +22,12 @@ limitations under the License.
 const UnitTest = require("./lib/base.unit.js");
 
 // Require the local module being tested.
-let dxauthoring = require(UnitTest.AUTHORING_API_PATH + "dxAuthoring.js");
+const toolsApi = require(UnitTest.API_PATH + "wchToolsApi.js");
 
-describe("Unit tests for dxAuthoring.js", function () {
+describe("Unit tests for wchToolsApi.js", function () {
     describe("getPresentationsHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = dxauthoring.getPresentationsHelper();
+            const helper = toolsApi.getPresentationsHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("getVirtualFolderName");
             expect(helper).to.have.property("listModifiedLocalItemNames");
@@ -38,7 +38,7 @@ describe("Unit tests for dxAuthoring.js", function () {
 
     describe("getAssetsHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = dxauthoring.getAssetsHelper();
+            const helper = toolsApi.getAssetsHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("getAssetFolderName");
             expect(helper).to.have.property("pushModifiedItems");
@@ -49,7 +49,7 @@ describe("Unit tests for dxAuthoring.js", function () {
 
     describe("getItemTypeHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = dxauthoring.getItemTypeHelper();
+            const helper = toolsApi.getItemTypeHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("getEventEmitter");
             expect(helper).to.have.property("createRemoteItem");
@@ -60,7 +60,7 @@ describe("Unit tests for dxAuthoring.js", function () {
 
     describe("getContentHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = dxauthoring.getContentHelper();
+            const helper = toolsApi.getContentHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("pushItem");
             expect(helper).to.have.property("pullModifiedItems");
@@ -71,7 +71,7 @@ describe("Unit tests for dxAuthoring.js", function () {
 
     describe("getCategoriesHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = dxauthoring.getCategoriesHelper();
+            const helper = toolsApi.getCategoriesHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("createLocalItem");
             expect(helper).to.have.property("getLocalItem");
@@ -82,7 +82,7 @@ describe("Unit tests for dxAuthoring.js", function () {
 
     describe("getPublishingJobsHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = dxauthoring.getPublishingJobsHelper();
+            const helper = toolsApi.getPublishingJobsHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("createPublishingJob");
             expect(helper).to.have.property("getPublishingJob");
@@ -93,7 +93,7 @@ describe("Unit tests for dxAuthoring.js", function () {
 
     describe("getPublishingSourcesHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = dxauthoring.getPublishingSourcesHelper();
+            const helper = toolsApi.getPublishingSourcesHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("getName");
             expect(helper).to.have.property("pullItem");
@@ -104,14 +104,14 @@ describe("Unit tests for dxAuthoring.js", function () {
 
     describe("utils", function () {
         it("should exist", function (done) {
-            expect(dxauthoring.utils).to.be.ok;
+            expect(toolsApi.utils).to.be.ok;
             done();
         });
     });
 
     describe("options", function () {
         it("should exist", function (done) {
-            expect(dxauthoring.options).to.be.ok;
+            expect(toolsApi.options).to.be.ok;
             done();
         });
     });

@@ -12,11 +12,13 @@
   "deleted_original_file": "Gelöschte Originaldatei: %(old_name)s neue Datei: %(new_name)s",
   "error_cancelling_job": "Fehler beim Abbrechen des Jobs: id %(id)s",
   "error_fs_get_item": "Fehler beim Abrufen des Elements aus Dateisystem",
+  "error_fs_get_filestats": "Fehler in getFileStats des Dateisystems für %(name)s.",
   "error_parsing_item": "Fehler bei der Syntaxanalyse eines Elements für Datei: %(name)s. %(message)s\n%(body)s",
   "get_items_error": "Fehler beim Abrufen der Elemente %(service_name)s: ",
   "save_item_write_failed": "Speichern des Elements beim Schreiben in Datei %(path)s fehlgeschlagen",
   "save_item_write_failed_bad_path": "Speichern des Elements beim Schreiben in Datei %(path)s fehlgeschlagen. Fehlerhafter Pfad",
   "close_stream_failed": "closeStream mit Fehler fehlgeschlagen: ",
+  "error_options_file": "Fehler beim Lesen der Konfigurationsoptionsdatei: %(filename)s. %(error)s",
 
   "name_required": "Name muss angegeben werden.",
   "category_exists": "Eine Kategorie mit dem Namen %(name)s ist bereits vorhanden.",
@@ -24,10 +26,13 @@
   "presentation_exists": "Eine Präsentation mit dem Namen %(name)s ist bereits vorhanden.",
   "cannot_get_asset": "Fehler beim Abrufen des Assets: %(path)s; Statuscode: %(code)s",
   "deleted_asset": "Gelöschtes Asset mit ID: %(id)s",
+  "create_asset_metadata_error": "Fehler beim Erstellen der Assetmetadaten: ",
+  "deleted_item": "Gelöschtes Element mit ID: %(id)s",
   "get_item_error": "Fehler beim Abrufen des Elements %(service_name)s: ",
   "create_item_error": "Fehler beim Erstellen des Elements %(service_name)s: ",
   "update_item_error": "Fehler beim Aktualisieren des Elements %(service_name)s: ",
   "delete_item_error": "Fehler beim Löschen des Elements %(service_name)s: ",
+  "delete_rendition_error": "Das Löschen von Wiedergaben wird nicht unterstützt. ID: %(id)s, Optionen: %(opts)s",
   "error_tenant_map": "Fehler in loadTenantMap: ",
   "error_save_hashes": "Fehler in saveHashes: ",
   "error_update_hashes": "Fehler in updateHashes: ",
@@ -43,7 +48,8 @@
   "async_parallel_limit_error": "Asynchroner Aufruf von parallelLimit mit Fehler fehlgeschlagen: ",
   "async_parallel_limit_results": "Ergebnisse des asynchronen Aufrufs von parallelLimit: ",
   "please_try": "Versuchen Sie es später noch einmal. Wenn das Problem bestehen bleibt, dann wenden Sie sich an den Kundendienst. Übermitteln Sie auch die verfügbaren Protokollinformationen unter %(log_dir)s",
-  "conflict":"Der Service hat beim Verarbeiten der Anforderung für dieses Artefakt eine Fehlerbedingung festgestellt und zurückgegeben."
-
+  "conflict":"Der Service hat beim Verarbeiten der Anforderung für dieses Artefakt eine Fehlerbedingung festgestellt und zurückgegeben.",
+  "login_missing_authn":"Der Anmeldeservice hat nicht mit Authentifizierungsinformationen geantwortet.",
+  "digest_mismatch": "Digest %(cli_digest)s des extrahierten Assets %(asset)s weicht vom Server-Digest %(server_digest)s ab."
 }
 

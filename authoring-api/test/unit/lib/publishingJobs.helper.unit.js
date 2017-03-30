@@ -27,13 +27,13 @@ const fs = require("fs");
 const stream = require("stream");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const publishingJobsREST = require(UnitTest.AUTHORING_API_PATH + "lib/publishingJobsREST.js").instance;
+const publishingJobsREST = require(UnitTest.API_PATH + "lib/publishingJobsREST.js").instance;
 
 // Require the local module being tested.
-const publishingJobsHelper = require(UnitTest.AUTHORING_API_PATH + "publishingJobsHelper.js").instance;
+const publishingJobsHelper = require(UnitTest.API_PATH + "publishingJobsHelper.js").instance;
 const path1 = PublishingJobsUnitTest.VALID_PUBLISHING_JOBS_DIRECTORY + PublishingJobsUnitTest.VALID_PUBLISHING_JOB_1;
 const path2 = PublishingJobsUnitTest.VALID_PUBLISHING_JOBS_DIRECTORY + PublishingJobsUnitTest.VALID_PUBLISHING_JOB_2;
 
@@ -45,7 +45,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
     run () {
         const self = this;
-        describe("Unit tests for authoring-api/publishingJobsHelper.js", function () {
+        describe("Unit tests for publishingJobsHelper.js", function () {
             // Initialize common resourses before running the unit tests.
             before(function (done) {
                 // Signal that the cleanup is complete.
@@ -65,6 +65,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
             self.testInit();
             self.testGetPublishingJobs();
             self.testGetPublishingJob();
+            self.testGetPublishingJobStatus();
             self.testCreatePublishingJob();
             self.testCancelPublishingJob();
             self.testDeletePublishingJob();
@@ -241,6 +242,75 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
         });
     }
 
+
+    testGetPublishingJobStatus() {
+        const self = this;
+        describe("getPublishingJobStatus", function () {
+            it("should fail when there is an error getting publishing job status.", function (done) {
+                // Create an assetsREST.getItems stub that returns an error.
+                const JOBS_ERROR = "There was an error getting the specified publishing job status.";
+                const stub = sinon.stub(publishingJobsREST, "getPublishingJobStatus");
+                stub.rejects(JOBS_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                publishingJobsHelper.getPublishingJobStatus(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                    .then(function (job) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the publishing job status should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stub).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.equal(JOBS_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting a publishing job status.", function (done) {
+                // Read the contents of five test asset metadata files.
+                const job1 = UnitTest.getJsonObject(path1);
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stub = sinon.stub(publishingJobsREST, "getPublishingJobStatus");
+                stub.resolves(job1);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                publishingJobsHelper.getPublishingJobStatus(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                    .then(function (job) {
+                        // Verify that the stub was called once and that the helper returned the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(diff.diffJson(job1, job)).to.have.lengthOf(1);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
 
     testCreatePublishingJob () {
         const self = this;

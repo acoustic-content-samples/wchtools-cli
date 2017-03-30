@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Run the unit tests for the asset objects in the authoring-api package.
+ * Run the unit tests for the asset objects in the API package.
  */
 "use strict";
 

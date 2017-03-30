@@ -24,9 +24,9 @@ const ImageProfilesUnitTest = require("./imageProfiles.unit.js");
 const BaseHelperUnit = require("./base.helper.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/imageProfilesREST.js").instance;
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/imageProfilesFS.js").instance;
-const helper = require(UnitTest.AUTHORING_API_PATH + "imageProfilesHelper.js").instance;
+const restApi = require(UnitTest.API_PATH + "lib/imageProfilesREST.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/imageProfilesFS.js").instance;
+const helper = require(UnitTest.API_PATH + "imageProfilesHelper.js").instance;
 const path1 = ImageProfilesUnitTest.VALID_IMAGE_PROFILES_DIRECTORY + ImageProfilesUnitTest.VALID_IMAGE_PROFILE_1;
 const path2 = ImageProfilesUnitTest.VALID_IMAGE_PROFILES_DIRECTORY + ImageProfilesUnitTest.VALID_IMAGE_PROFILE_2;
 const badPath = ImageProfilesUnitTest.INVALID_IMAGE_PROFILES_DIRECTORY + ImageProfilesUnitTest.INVALID_IMAGE_PROFILE_BAD_NAME;

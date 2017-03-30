@@ -12,11 +12,13 @@
   "deleted_original_file": "Fichier d'origine supprimé : %(old_name)s ; nouveau fichier : %(new_name)s",
   "error_cancelling_job": "Erreur lors de l'annulation du travail : id %(id)s",
   "error_fs_get_item": "Erreur dans le fichier système getItem",
+  "error_fs_get_filestats": "Erreur dans la fonction getFileStats du système de fichiers pour %(name)s.",
   "error_parsing_item": "Erreur lors de l'analyse syntaxique de l'élément pour le fichier %(name)s. %(message)s\n%(body)s",
   "get_items_error": "Erreur lors de l'obtention des éléments %(service_name)s : ",
   "save_item_write_failed": "saveItem n'est pas parvenu à écrire dans le fichier %(path)s",
   "save_item_write_failed_bad_path": "saveItem n'est pas parvenu à écrire dans le fichier %(path)s ; chemin d'accès incorrect",
   "close_stream_failed": "CloseStream a échoué avec l'erreur : ",
+  "error_options_file": "Erreur lors de la lecture du fichier d'options de configuration : %(filename)s. %(error)s",
 
   "name_required": "Vous devez spécifier un nom.",
   "category_exists": "Il existe déjà une catégorie nommée %(name)s.",
@@ -24,10 +26,13 @@
   "presentation_exists": "Il existe déjà une présentation nommée %(name)s.",
   "cannot_get_asset": "Impossible d'obtenir l'actif : %(path)s ; code de statut : %(code)s",
   "deleted_asset": "L'actif dont l'ID est %(id)s a été supprimé",
+  "create_asset_metadata_error": "Erreur lors de la création des métadonnées d'actif : ",
+  "deleted_item": "L'élément dont l'ID est %(id)s a été supprimé",
   "get_item_error": "Erreur lors de l'obtention de l'élément %(service_name)s : ",
   "create_item_error": "Erreur lors de la création de l'élément %(service_name)s : ",
   "update_item_error": "Erreur lors de la mise à jour de l'élément %(service_name)s : ",
   "delete_item_error": "Erreur lors de la suppression de l'élément %(service_name)s : ",
+  "delete_rendition_error": "La suppression des rendus n'est pas prise en charge. ID : %(id)s, options : %(opts)s",
   "error_tenant_map": "Erreur dans loadTenantMap : ",
   "error_save_hashes": "Erreur dans saveHashes : ",
   "error_update_hashes": "Erreur dans updateHashes : ",
@@ -43,7 +48,8 @@
   "async_parallel_limit_error": "L'appel parallelLimit asynchrone a échoué avec l'erreur suivante : ",
   "async_parallel_limit_results": "Résultats de l'appel parallelLimit asynchrone : ",
   "please_try": "Essayez à nouveau ultérieurement.  Si le problème persiste, contactez le service clients et incluez les informations de journal disponibles dans %(log_dir)s",
-  "conflict":"Le service a rencontré et renvoyé une condition d'erreur lors du traitement de la demande pour cet artefact."
-
+  "conflict":"Le service a rencontré et renvoyé une condition d'erreur lors du traitement de la demande pour cet artefact.",
+  "login_missing_authn":"Le service de connexion n'a pas réussi à répondre avec des informations d'authentification valides. ",
+  "digest_mismatch": "Le prétraitement %(cli_digest)s de l'actif %(asset)s extrait ne correspond pas au prétraitement du serveur %(server_digest)s."
 }
 

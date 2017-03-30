@@ -1,0 +1,11 @@
+{
+    "id": "testsr2",
+    "created": "2017-01-04T21:59:10.926Z",
+    "creator": { "id": "unknown" },
+    "lastModified": "2017-01-09T19:15:31.666Z",
+    "lastModifier": { "id": "0c523896-2b47-4911-8363-58e1fadbd245" },
+    "name": { "en": "Test SR 2" },
+    "description": { "en": "Test site revision 2" },
+    "state": "READY",
+    "lastSucceeded": "2017-01-09T18:13:55.007Z"
+}

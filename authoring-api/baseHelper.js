@@ -87,7 +87,7 @@ class BaseHelper {
     /**
      * Set the options to be used as global options for this helper.
      *
-     * Note: This method should only be called from the dxAuthoring getter for this helper.
+     * Note: This method should only be called from the wchToolsApi getter for this helper.
      *
      * @param {Object} opts - The options to be used as global options for this helper.
      */
@@ -117,6 +117,16 @@ class BaseHelper {
             return "";
         }
         return this._fsApi.getFolderName();
+    }
+
+    /**
+     * Determines if the artifact directory exists locally.
+     *
+     * @returns {boolean}
+     */
+    doesDirectoryExist(opts) {
+        const dir = this._fsApi.getPath(opts);
+        return fs.existsSync(dir);
     }
 
     /**
@@ -316,7 +326,7 @@ class BaseHelper {
             })
             .catch(function (err) {
                 // Use the event emitter to indicate that there was an error pulling the item.
-                helper._eventEmitter.emit("pulled-error", err);
+                helper._eventEmitter.emit("pulled-error", err, id);
                 throw err;
             });
     }
@@ -426,7 +436,7 @@ class BaseHelper {
     listModifiedLocalItemNames (flags, opts) {
         const helper = this;
         const fsObject = this._fsApi;
-        const dir = fsObject.getDir(opts);
+        const dir = fsObject.getPath(opts);
         return fsObject.listNames(opts)
             .then(function (itemNames) {
                 const results = itemNames.filter(function (itemName) {
@@ -450,7 +460,7 @@ class BaseHelper {
     listLocalDeletedNames (opts) {
         const fsObject = this._fsApi;
         const deferred = Q.defer();
-        const dir = fsObject.getDir(opts);
+        const dir = fsObject.getPath(opts);
         const extension = fsObject.getExtension();
         deferred.resolve(hashes.listFiles(dir, opts)
             .filter(function (path) {
@@ -523,7 +533,7 @@ class BaseHelper {
      */
     getModifiedRemoteItems (flags, opts) {
         const helper = this;
-        const dir = helper._fsApi.getDir(opts);
+        const dir = helper._fsApi.getPath(opts);
         return helper._restApi.getModifiedItems(hashes.getLastPullTimestamp(dir, opts), opts)
             .then(function (items) {
                 const results = items.filter(function (item) {
@@ -798,13 +808,13 @@ class BaseHelper {
                 return Q.allSettled(promises)
                     .then(function (promises) {
                         items = [];
-                        promises.forEach(function (promise) {
+                        promises.forEach(function (promise, index) {
                             if (promise.state === "fulfilled") {
                                 items.push(promise.value);
                             }
                             else {
                                 items.push(promise.reason);
-                                helper._eventEmitter.emit("pulled-error", promise.reason);
+                                helper._eventEmitter.emit("pulled-error", promise.reason, itemList[index].id);
                             }
                         });
                         deferred.resolve(items);

@@ -1,8 +1,10 @@
-.dxToolsignore
+.wchtoolsignore
+.wchtoolshashes
 .dxhashes
 sp-config.json
 # npm
 /index.js
+test/
 .travis.yml
 *.sh
 .babelrc

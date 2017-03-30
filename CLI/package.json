@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
-  "description": "command line tools for IBM Watson Content Hub",
-  "version": "1.0.2",
+  "description": "Command line tools for IBM Watson Content Hub",
+  "version": "1.1.7",
   "keywords": [
     "cli"
   ],
@@ -24,7 +24,7 @@
     "cli-table": "0.3.1",
     "colors": "1.1.2",
     "commander": "2.9.0",
-    "dxauthoringapi": "../authoring-api",
+    "wchtools-api": "../authoring-api",
     "log4js": "^0.6.33",
     "ora": "^0.2.3",
     "prompt": "1.0.0",
@@ -51,6 +51,5 @@
     "checkcoverage": "./node_modules/.bin/istanbul check-coverage",
     "testcleanup": "node ./test/testcleanup.js",
     "posttest": "npm run testcleanup && npm run checkcoverage"
-  },
-  "private": true
+  }
 }

@@ -23,8 +23,8 @@ const UnitTest = require("./base.unit.js");
 class PresentationsUnitTest extends UnitTest {
     // File and directory constants used by all presentations unit tests.
     static get PRESENTATIONS_DIRECTORY() { return "presentations/"; };
-    static get VALID_PRESENTATIONS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PresentationsUnitTest.PRESENTATIONS_DIRECTORY; };
-    static get INVALID_PRESENTATIONS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PresentationsUnitTest.PRESENTATIONS_DIRECTORY; };
+    static get VALID_PRESENTATIONS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PresentationsUnitTest.PRESENTATIONS_DIRECTORY; };
+    static get INVALID_PRESENTATIONS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PresentationsUnitTest.PRESENTATIONS_DIRECTORY; };
 
     // Path values for test assets.
     static get VALID_PRESENTATION_1() { return "presentation-1.json"; };

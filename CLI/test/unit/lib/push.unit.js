@@ -29,11 +29,11 @@ const diff = require("diff");
 const uuid = require("node-uuid");
 const Q = require("q");
 const sinon = require("sinon");
-const xman = require("../../../xman");
+const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const hashes = require(UnitTest.AUTHORING_API_PATH + "/lib/utils/hashes.js");
+const hashes = require(UnitTest.API_PATH + "/lib/utils/hashes.js");
 
 class PushUnitTest extends UnitTest {
     constructor () {
@@ -75,7 +75,7 @@ class PushUnitTest extends UnitTest {
                         const emitter = helper.getEventEmitter();
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
-                        emitter.emit("pushed-error", badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -86,7 +86,7 @@ class PushUnitTest extends UnitTest {
                 const unique = uuid.v4();
                 const downloadTarget = DOWNLOAD_TARGET + unique;
                 mkdirp.sync(downloadTarget);
-                xman.parseArgs(['', UnitTest.COMMAND, "push", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -119,7 +119,7 @@ class PushUnitTest extends UnitTest {
                         const emitter = helper.getEventEmitter();
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
-                        emitter.emit("pushed-error", badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -127,7 +127,7 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "push", "--user", "foo", "--password", "password"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -155,7 +155,7 @@ class PushUnitTest extends UnitTest {
                         const emitter = helper.getEventEmitter();
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
-                        emitter.emit("pushed-error", badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -164,7 +164,7 @@ class PushUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                xman.parseArgs(['', UnitTest.COMMAND, "push", switches, "--Ignore-timestamps","--dir", downloadTarget,'--user','foo','--password','password','-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--ignore-timestamps","--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -193,15 +193,15 @@ class PushUnitTest extends UnitTest {
             it("test fail extra param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, 'foo'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, 'foo'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(msg).to.contain('Invalid argument');
+                            expect(err.message).to.contain('Invalid argument');
                         } catch (err) {
                             error = err;
                         }
@@ -218,17 +218,17 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, '--dir', '....'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--dir', '....'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // Verify that the stub was called once, and that the expected error message was returned.
                             expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain("....");
-                            expect(msg).to.contain("does not exist");
+                            expect(err.message).to.contain("....");
+                            expect(err.message).to.contain("does not exist");
                         } catch (err) {
                             error = err;
                         }
@@ -244,15 +244,15 @@ class PushUnitTest extends UnitTest {
             it("test fail all and named", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, '--All-authoring','--named','red'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--all-authoring','--named','red'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(msg).to.equal('Invalid options, named can only be used for a single type.');
+                            expect(err.message).to.equal('Invalid options, named can only be used for a single type.');
                         } catch (err) {
                             error = err;
                         }
@@ -266,15 +266,15 @@ class PushUnitTest extends UnitTest {
             it("test fail named and path param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, '--named','foo','--path', 'foo'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--named','foo','--path', 'foo'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(msg).to.equal('Invalid options named and path cannot be used together.');
+                            expect(err.message).to.equal('Invalid options named and path cannot be used together.');
                         } catch (err) {
                             error = err;
                         }

@@ -22,9 +22,9 @@ const UnitTest = require("./base.unit.js");
 
 class PublishingSourcesUnitTest extends UnitTest {
     // File and directory constants used by all presentations unit tests.
-    static get PUBLISHING_SOURCES_DIRECTORY() { return "sources/"; };
-    static get VALID_PUBLISHING_SOURCES_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PublishingSourcesUnitTest.PUBLISHING_SOURCES_DIRECTORY; };
-    static get INVALID_PUBLISHING_SOURCES_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PublishingSourcesUnitTest.PUBLISHING_SOURCES_DIRECTORY; };
+    static get PUBLISHING_SOURCES_DIRECTORY() { return "publishing-sources/"; };
+    static get VALID_PUBLISHING_SOURCES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PublishingSourcesUnitTest.PUBLISHING_SOURCES_DIRECTORY; };
+    static get INVALID_PUBLISHING_SOURCES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PublishingSourcesUnitTest.PUBLISHING_SOURCES_DIRECTORY; };
 
     // Path values for test assets.
     static get VALID_PUBLISHING_SOURCE_1() { return "publishing-source-1.json"; };

@@ -24,8 +24,8 @@ const RenditionsUnitTest = require("./renditions.unit.js");
 const BaseRestUnit = require("./base.rest.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/renditionsREST.js").instance;
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const restApi = require(UnitTest.API_PATH + "lib/renditionsREST.js").instance;
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for presentations.
 const lookupUri =  options.getProperty("renditions", "uri");
 const path1 = RenditionsUnitTest.VALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.VALID_RENDITION_1;
@@ -47,7 +47,7 @@ class RenditionsRestUnitTest extends BaseRestUnit {
             it("should fail calling delete", function (done) {
                 // Call the method being tested.
                 let error;
-                restApi.deleteItem({id: UnitTest.DUMMY_ID})
+                restApi.deleteItem({id: UnitTest.DUMMY_ID}, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");

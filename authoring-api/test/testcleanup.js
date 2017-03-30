@@ -18,5 +18,5 @@ const utils = require("../lib/utils/utils.js");
 const fs = require("fs");
 rimraf.sync('_*');
 var homeDir = utils.getUserHome();
-if(fs.existsSync( homeDir + '/dx-options.json'))
-    fs.unlinkSync( homeDir + '/dx-options.json');
+if(fs.existsSync( homeDir + '/.wchtoolsoptions'))
+    fs.unlinkSync( homeDir + '/.wchtoolsoptions');

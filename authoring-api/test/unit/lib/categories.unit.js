@@ -23,8 +23,8 @@ const UnitTest = require("./base.unit.js");
 class CategoriesUnitTest extends UnitTest {
     // File and directory constants used by all categories unit tests.
     static get CATEGORIES_DIRECTORY() { return "categories/"; };
-    static get VALID_CATEGORIES_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + CategoriesUnitTest.CATEGORIES_DIRECTORY; };
-    static get INVALID_CATEGORIES_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + CategoriesUnitTest.CATEGORIES_DIRECTORY; };
+    static get VALID_CATEGORIES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + CategoriesUnitTest.CATEGORIES_DIRECTORY; };
+    static get INVALID_CATEGORIES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + CategoriesUnitTest.CATEGORIES_DIRECTORY; };
 
     // Path values for test assets.
     static get VALID_CATEGORY_1() { return "category-1.json"; };

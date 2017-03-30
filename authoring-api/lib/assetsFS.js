@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
- "use strict";
+"use strict";
 
 const fs = require("fs");
 const path = require("path");
@@ -21,8 +21,10 @@ const Q = require("q");
 const mkdirp = require("mkdirp");
 const recursive = require("recursive-readdir");
 const utils = require("./utils/utils.js");
+const options = require("./utils/options.js");
+const hashes = require("./utils/hashes.js");
 const ignore = require("ignore");
-const ignoreFile = ".dxToolsignore";
+const ignoreFile = ".wchtoolsignore";
 const BaseFS = require("./BaseFS.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -79,13 +81,13 @@ class AssetsFS extends BaseFS {
     }
 
     /**
-     * Get the virtual folder for storing web assets.
+     * Get the path to the virtual folder for storing web assets.  Does not create the directory.
      *
-     * @param {Object} opts The options to be used.
+     * @param {Object} [opts] The options to be used.
      *
      * @return {String} The virtual folder for storing web assets.
      */
-    getDir (opts) {
+    getAssetsPath (opts) {
         // All virtual folders are within the defined working directory.
         let assetsDir = BaseFS.getWorkingDir(opts);
 
@@ -95,12 +97,42 @@ class AssetsFS extends BaseFS {
             assetsDir += this.getFolderName() + path.sep;
         }
 
-        // Createe the folder to be used for storing web assets, if it doesn't exist.
+        return assetsDir;
+    }
+
+    /**
+     * Get the virtual folder for storing web assets.
+     *
+     * @param {Object} opts The options to be used.
+     *
+     * @return {String} The virtual folder for storing web assets.
+     */
+    getDir (opts) {
+
+        const assetsDir = this.getAssetsPath(opts);
+
+        // Create the folder to be used for storing web assets, if it doesn't exist.
         if (!fs.existsSync(assetsDir)) {
             mkdirp.sync(assetsDir);
         }
 
         return assetsDir;
+    }
+
+    /**
+     * Get the path to the virtual folder for storing content assets.  Does not create the directory.
+     *
+     * Note: The path defined for content assets always begins with a special folder used for content assets.
+     *
+     * @param {Object} opts The options to be used.
+     *
+     * @return {String} The virtual folder for storing content assets.
+     */
+    getContentResourcePath (opts) {
+        const assetDir = this.getAssetsPath(opts);
+
+        // Don't return the special folder - the path value defined in the content asset metadata already includes it.
+        return assetDir;
     }
 
     /**
@@ -113,7 +145,7 @@ class AssetsFS extends BaseFS {
      * @return {String} The virtual folder for storing content assets.
      */
     getContentResourceDir (opts) {
-        const assetDir = this.getDir(opts);
+        const assetDir = this.getAssetsPath(opts);
         const contentAssetDir = assetDir + CONTENT_RESOURCE_DIRECTORY + path.sep;
 
         // Make sure the special folder for storing content assets is created.
@@ -135,20 +167,39 @@ class AssetsFS extends BaseFS {
      * @returns {Object} The default ignore filter.
      */
     getDefaultIgnoreFilter (opts) {
-        const assetsDir = this.getDir(opts);
+        // Locations of the "ignore" files (which define the files/folders that will not be stored in the content hub.)
+        const defaultIgnoreFile = path.dirname(__filename) + path.sep + ignoreFile;
+        const assetsIgnoreFile = this.getAssetsPath(opts) + ignoreFile;
 
-        // Look for an "ignore" file (defines which files do not belong to the content hub.)
-        let ig;
-        if (fs.existsSync(assetsDir + ignoreFile)) {
-            // First priority is an ignore file that exists in the assets virtual folder.
-            ig = ignore().add(fs.readFileSync(assetsDir + ignoreFile).toString());
-        } else {
-            // Otherwise use the standard ignore file stored in the same location as this JavaScript file.
-            ig = ignore().add(fs.readFileSync(path.dirname(__filename) + path.sep + ignoreFile).toString());
+        // Determine whether the ignore rules from all ignore files should be added.
+        let additive = options.getRelevantOption(opts, "is_ignore_additive");
+
+        // If the value is anything other than a boolean value of false, use the default value.
+        if (additive !== false) {
+            additive = true;
         }
 
-        // Return a filter created from the ignore file.
-        return ig.createFilter();
+        let ignoreRules;
+        if (additive) {
+            // Use the default ignore file.
+            ignoreRules = ignore().add(fs.readFileSync(defaultIgnoreFile).toString());
+
+            if (fs.existsSync(assetsIgnoreFile)) {
+                // Add the ignore file that exists in the assets virtual folder.
+                ignoreRules.add(fs.readFileSync(assetsIgnoreFile).toString());
+            }
+        } else {
+            if (fs.existsSync(assetsIgnoreFile)) {
+                // Only use the ignore file that exists in the assets virtual folder.
+                ignoreRules = ignore().add(fs.readFileSync(assetsIgnoreFile).toString());
+            } else {
+                // Only use the default ignore file.
+                ignoreRules = ignore().add(fs.readFileSync(defaultIgnoreFile).toString());
+            }
+        }
+
+        // Return a filter created from the ignore file rules.
+        return ignoreRules.createFilter();
     }
 
     isContentResource (item) {
@@ -161,13 +212,13 @@ class AssetsFS extends BaseFS {
     }
 
     getPath (name, opts) {
-        return this.getDir(opts) + name;
+        return this.getAssetsPath(opts) + name;
     }
 
     getMetadataPath (name, opts) {
         if (this.isContentResource(name)) {
             // make sure teh resource directory is created and append the name that includes the path including dxdam */
-            return this.getContentResourceDir(opts) + name + this.getExtension();
+            return this.getContentResourcePath(opts) + name + this.getExtension();
         }
         return this.getPath(name, opts);
     }
@@ -285,80 +336,70 @@ class AssetsFS extends BaseFS {
      */
     listNames (filter, opts) {
         const deferred = Q.defer();
-        const assetDir = this.getDir(opts);
+        const assetDir = this.getAssetsPath(opts);
 
         if (!filter) {
             filter = this.getDefaultIgnoreFilter(opts);
         }
 
-        recursive(assetDir, function (err, files) {
-            if (err) {
-                deferred.reject(err);
-            } else {
-                files = files.map(function (file) {
-                    return utils.getRelativePath(assetDir, file);
-                });
-
-                // this does the ignore for the file on the relative path
-                files = files.filter(filter)
-                    .map(function (file) {
-                        return file;
+        if (fs.existsSync(assetDir)) {
+            recursive(assetDir, function (err, files) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    files = files.map(function (file) {
+                        return utils.getRelativePath(assetDir, file);
                     });
 
-                // if web assets only filter out the dxdam resources
-                if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
+                    // this does the ignore for the file on the relative path
+                    files = files.filter(filter);
+
+                    // if web assets only filter out the dxdam resources
+                    if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
+                        files = files.filter(function (path) {
+                            if (!path.startsWith(CONTENT_RESOURCE_DIRECTORY)) {
+                                return path;
+                            }
+                        });
+                    }
+
+                    // if content assets only filter out the non dxdam resources
+                    if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
+                        files = files.filter(function (path) {
+                            if (path.startsWith(CONTENT_RESOURCE_DIRECTORY)) {
+                                return path;
+                            }
+                        });
+                    }
+
                     files = files.filter(function (path) {
-                        if (!path.startsWith(CONTENT_RESOURCE_DIRECTORY)) {
+                        if (!path.endsWith(ASSET_METADATA_SUFFIX) && path !== hashes.FILENAME) {
                             return path;
                         }
-                    })
-                    .map(function (file) {
-                        return file;
                     });
-                }
 
-                // if content assets only filter out the non dxdam resources
-                if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
-                    files = files.filter(function(path) {
-                        if (path.startsWith(CONTENT_RESOURCE_DIRECTORY)) {
-                            return path;
+                    if (opts && opts.filterPath !== undefined) {
+                        // make sure filter path is correct format
+                        let filterPath = opts.filterPath.replace(/\\/g, '/');
+                        if (filterPath.indexOf('/') === 0) {
+                            filterPath = filterPath.slice(1);
                         }
-                    })
-                    .map(function (file) {
-                        return file;
-                    });
-                }
-
-                files = files.filter(function (path) {
-                    if (!path.endsWith(ASSET_METADATA_SUFFIX) && path !== ".dxhashes") {
-                        return path;
-                    }
-                })
-                .map(function (file) {
-                    return file;
-                });
-
-                if (opts && opts.filterPath !== undefined) {
-                    // make sure filter path is correct format
-                    let filterPath = opts.filterPath.replace(/\\/g, '/');
-                    if (filterPath.indexOf('/') === 0) {
-                        filterPath = filterPath.slice(1);
-                    }
-                    if (!filterPath.endsWith('/')) {
-                        filterPath = filterPath + '/';
-                    }
-                    files = files.filter(function (path){
-                        if (path.indexOf(filterPath) === 0) {
-                            return path;
+                        if (!filterPath.endsWith('/')) {
+                            filterPath = filterPath + '/';
                         }
-                    })
-                    .map(function (file) {
-                        return file;
-                    });
+                        files = files.filter(function (path) {
+                            if (path.indexOf(filterPath) === 0) {
+                                return path;
+                            }
+                        });
+                    }
+                    deferred.resolve(files);
                 }
-                deferred.resolve(files);
-            }
-        });
+            });
+        } else {
+            // Silently return an empty array.
+            deferred.resolve([]);
+        }
 
         return deferred.promise;
     }

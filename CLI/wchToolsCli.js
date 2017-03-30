@@ -17,13 +17,17 @@ limitations under the License.
 
 const fs = require('fs');
 const util = require('util');
-const status = require('./lib/status');
+const Q = require('q');
 const request = require('request');
 const program = require('commander');
+const colors = require('colors');
+
+const status = require('./lib/status');
 const commands = require('./commands')(program);
 const packageJson = require('./package.json');
-const utils = require("dxauthoringapi").utils;
-var i18n = utils.getI18N(__dirname, ".json", "en");
+const toolsApi = require("wchtools-api");
+const utils = toolsApi.utils;
+const i18n = utils.getI18N(__dirname, ".json", "en");
 
 program.LOG_PATH = process.cwd() + '/.cli-log';
 
@@ -34,7 +38,6 @@ program
 	.option('-d, --debug', i18n.__('cli_opt_debug'));
 
 // Turn off colors when non-interactive
-const colors = require('colors');
 colors.mode = process.stdout.isTTY ? colors.mode : 'none';
 
 // Define a utility function for console.log(), so that only one line has to be excluded from the Sonar analysis.
@@ -61,9 +64,37 @@ program.successMessage = function () {
     displayToConsole(msg.green);
 };
 
+program.warningMessage = function () {
+    const msg = util.format.apply(this, arguments);
+    displayToConsole(msg.yellow);
+};
+
 program.errorMessage = function () {
 	const msg = util.format.apply(this, arguments);
     displayToConsole(msg.red);
+};
+
+/**
+ * Display any errors that occurred during initialization.
+ *
+ * @returns {Array} An array of initialization errors, or null if there were no errors.
+ */
+program.displayInitializationErrors = function () {
+    // Get the initialization errors from the tools API. (For now this is the only source of initialization errors.)
+    const errors = toolsApi.getInitializationErrors();
+    if (errors && errors.length > 0) {
+        // There was one or more errors, so send each one to the errorMessage method.
+        errors.forEach(function (error, index) {
+            program.errorMessage(error.message);
+
+            // If this is not the final error to be displayed, add an empty line for separation.
+            if (index < errors.length - 1) {
+                program.errorMessage("");
+            }
+        });
+        return errors;
+    }
+    return null;
 };
 
 // Create request wrapper
@@ -104,20 +135,59 @@ program.on('*', function() {
 program.successMessageSave = program.successMessage;
 program.errorMessageSave = program.errorMessage;
 
-module.exports =  {
-    program: program,
-    parseArgs: function (argv) {
-        const Q = require('q');
-        const deferred = Q.defer();
+/**
+ * Execute the given command using the specified arguments.
+ *
+ * @param {Array} argv An array of arguments including the command to be executed.
+ *
+ * @returns {Q.Promise} A promise to parse the given arguments and execute the included command.
+ */
+const parseArgs = function (argv) {
+    // Create a promise for this command.
+    const deferred = Q.defer();
+
+    const errors = program.displayInitializationErrors();
+    if (errors && errors.length > 0) {
+        // There were initialization errors, so the returned promise should be rejected.
+        let error;
+        if (errors.length === 1) {
+            // There was a single error.
+            error = errors[0];
+        } else {
+            // There were multiple errors, so combine their messages into a single error.
+            let message = "";
+            errors.forEach(function (error, index) {
+                if (index === 0) {
+                    message = error.message;
+                } else {
+                    message = message + "\n\n" + error.message;
+                }
+            });
+            error = new Error(message);
+        }
+        deferred.reject(error);
+    } else {
+        // Override the successMessage method to resolve the promise.
         program.successMessage = function (msg) {
             program.successMessageSave(msg);
-            deferred.resolve('Success: ' +msg);
+            deferred.resolve(i18n.__("cli_success_message", {"message": msg}));
         };
+
+        // Override the errorMessage method to reject the promise.
         program.errorMessage = function (msg) {
             program.errorMessageSave(msg);
-            deferred.reject(msg);
+            deferred.reject(new Error(msg));
         };
+
+        // Execute the command (asynchronously).
         program.parse(argv);
-        return deferred.promise;
     }
+
+    // Return the promise for this command.
+    return deferred.promise;
+};
+
+module.exports =  {
+    program: program,
+    parseArgs: parseArgs
 };

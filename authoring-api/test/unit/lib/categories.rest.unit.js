@@ -24,8 +24,8 @@ const CategoriesUnitTest = require("./categories.unit.js");
 const BaseRestUnit = require("./base.rest.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/categoriesREST.js").instance;
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const restApi = require(UnitTest.API_PATH + "lib/categoriesREST.js").instance;
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for presentations.
 const lookupUri =  options.getProperty("categories", "uri");
 const path1 = CategoriesUnitTest.VALID_CATEGORIES_DIRECTORY + CategoriesUnitTest.VALID_CATEGORY_1;
