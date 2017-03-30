@@ -18,7 +18,7 @@ limitations under the License.
  */
 "use strict";
 
-const helper = require("dxauthoringapi").getAssetsHelper();
+const helper = require("wchtools-api").getAssetsHelper();
 const rest = require("../../../authoring-api/lib/assetsREST.js");
 const fs = require("../../../authoring-api/lib/assetsFS.js").instance;
 

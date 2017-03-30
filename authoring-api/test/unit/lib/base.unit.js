@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Base class for authoringApi unit tests.
+ * Base class for API unit tests.
  */
 "use strict";
 
@@ -48,7 +48,7 @@ authorApiPath = path.normalize(authorApiPath + path.sep + '../../../');
 
 class UnitTest {
     // File and directory constants used by all unit tests.
-    static get AUTHORING_API_PATH () { return authorApiPath; };
+    static get API_PATH () { return authorApiPath; };
     static get VALID_RESOURCES_DIRECTORY () { return "test/unit/resources/valid" + path.sep; }; // Relative to root.
     static get INVALID_RESOURCES_DIRECTORY () { return "test/unit/resources/invalid" + path.sep; }; // Relative to root.
 
@@ -88,7 +88,7 @@ class UnitTest {
      * Restore options to the initial state.
      */
     static restoreOptions () {
-        const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+        const options = require(UnitTest.API_PATH + "lib/utils/options.js");
         options.resetState();
     }
 

@@ -1,0 +1,21 @@
+{
+  "id": "test1",
+  "created": "2017-01-17T17:47:43.373Z",
+  "creator": {
+    "id": "unknown"
+  },
+  "lastModified": "2017-01-18T21:59:21.162Z",
+  "lastModifier": {
+    "id": "0097d31b-9af3-4aaa-a23c-d68dc30ae0c3"
+  },
+  "rev": "20-83137f8f64d9902a4af72905b1813dd2",
+  "name": {
+    "en": "Test1"
+  },
+  "description": {
+    "en": "Test site revision 1"
+  },
+  "state": "READY",
+  "autoPublishEnabled": true,
+  "lastSucceeded": "2017-01-17T18:55:43.770Z"
+}

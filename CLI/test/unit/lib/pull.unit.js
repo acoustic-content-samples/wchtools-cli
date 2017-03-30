@@ -29,11 +29,11 @@ const diff = require("diff");
 const uuid = require("node-uuid");
 const Q = require("q");
 const sinon = require("sinon");
-const xman = require("../../../xman");
+const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const hashes = require(UnitTest.AUTHORING_API_PATH + "/lib/utils/hashes.js");
+const hashes = require(UnitTest.API_PATH + "/lib/utils/hashes.js");
 
 class PullUnitTest extends UnitTest {
     constructor () {
@@ -76,7 +76,7 @@ class PullUnitTest extends UnitTest {
                         const emitter = helper.getEventEmitter();
                         emitter.emit("pulled", itemName1);
                         emitter.emit("pulled", itemName2);
-                        emitter.emit("pulled-error", badItem);
+                        emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -85,7 +85,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                xman.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password','-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -118,7 +118,7 @@ class PullUnitTest extends UnitTest {
                         const emitter = helper.getEventEmitter();
                         emitter.emit("pulled", itemName1);
                         emitter.emit("pulled", itemName2);
-                        emitter.emit("pulled-error", badItem);
+                        emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -126,7 +126,7 @@ class PullUnitTest extends UnitTest {
 
                 // Execute the command to pull the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, "pull", "--user", "foo", "--password", "password"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -146,7 +146,7 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
-            it("test pull Ignore-timestamps working", function (done) {
+            it("test pull ignore-timestamps working", function (done) {
                 // Stub the helper.pullAllItems method to return a promise that is resolved after emitting events.
                 const stub = sinon.stub(helper, "pullAllItems", function () {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
@@ -155,7 +155,7 @@ class PullUnitTest extends UnitTest {
                         const emitter = helper.getEventEmitter();
                         emitter.emit("pulled", itemName1);
                         emitter.emit("pulled", itemName2);
-                        emitter.emit("pulled-error", badItem);
+                        emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -164,7 +164,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                xman.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--Ignore-timestamps","--dir", downloadTarget,'--user','foo','--password','password','-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps","--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -192,15 +192,15 @@ class PullUnitTest extends UnitTest {
             it("test fail extra param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, 'foo'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, 'foo'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(msg).to.contain('Invalid argument');
+                            expect(err.message).to.contain('Invalid argument');
                         } catch (err) {
                             error = err;
                         }
@@ -217,17 +217,17 @@ class PullUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                xman.parseArgs(['', UnitTest.COMMAND, command, switches, '--dir', '....'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--dir', '....'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (msg) {
+                    .catch(function (err) {
                         try {
                             // The stub should only have been called once, and the expected message should be returned.
                             expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain("....");
-                            expect(msg).to.contain("could not be created");
+                            expect(err.message).to.contain("....");
+                            expect(err.message).to.contain("could not be created");
                         } catch (err) {
                             error = err;
                         }

@@ -24,7 +24,7 @@ const PresentationsUnitTest = require("./presentations.unit.js");
 const BaseFsUnit = require("./base.fs.unit.js");
 
 // Require the local module being tested.
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/presentationsFS.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/presentationsFS.js").instance;
 
 class PresentationsFsUnitTest extends BaseFsUnit {
     constructor() {

@@ -17,9 +17,9 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const dxAuthoring = require("dxauthoringapi");
-const utils = dxAuthoring.utils;
-const login = dxAuthoring.login;
+const toolsApi = require("wchtools-api");
+const utils = toolsApi.utils;
+const login = toolsApi.login;
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 class DeleteCommand extends BaseCommand {
@@ -42,35 +42,38 @@ class DeleteCommand extends BaseCommand {
             if (this.getCommandLineOption("webassets")) {
                 const self = this;
 
-                // Make sure the user name and password have been specified.
-                self.handleAuthenticationOptions()
+                // Make sure the url option has been specified.
+                self.handleUrlOption()
+                    .then(function () {
+                        // Make sure the user name and password have been specified.
+                        return self.handleAuthenticationOptions();
+                    })
                     .then(function () {
                         // Login using the current options.
-                        let apiOptions = self.getApiOptions();
-                        login.login(apiOptions)
-                            .then(function (/*results*/) {
-                                const logger = self.getLogger();
-                                logger.info("Deleting web asset with specified path: " + named);
+                        return login.login(self.getApiOptions());
+                    })
+                    .then(function () {
+                        const logger = self.getLogger();
+                        logger.info(i18n.__("cli_deleting_web_asset", {"path": named}));
 
-                                // Delete the web asset using the API.
-                                const helper = dxAuthoring.getAssetsHelper(apiOptions);
-                                self.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
-                                apiOptions = self.getApiOptions();
-                                helper.deleteRemoteItem(named, apiOptions)
-                                    .then(function (result) {
-                                        logger.info(result);
-                                        self.successMessage(i18n.__('cli_delete_success', {name: named}));
-                                        self.resetCommandLineOptions();
-                                    })
-                                    .catch(function (err) {
-                                        logger.error("Web asset was not deleted: " + err.toString());
-                                        self.errorMessage(err.message);
-                                        self.resetCommandLineOptions();
-                                    });
-                            })
-                            .catch(function (err) {
-                                self.errorMessage(err.message);
-                            });
+                        // Delete the web asset using the API.
+                        const helper = toolsApi.getAssetsHelper(self.getApiOptions());
+                        self.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
+                        return helper.deleteRemoteItem(named, self.getApiOptions());
+                    })
+                    .then(function (result) {
+                        const logger = self.getLogger();
+                        logger.info(result);
+
+                        self.successMessage(i18n.__('cli_delete_success', {name: named}));
+                    })
+                    .catch(function (err) {
+                        const logger = self.getLogger();
+                        logger.error(i18n.__("cli_delete_failure", {"err": err.toString()}));
+                        self.errorMessage(err.message);
+                    })
+                    .finally(function () {
+                        self.resetCommandLineOptions();
                     });
             } else {
                 this.errorMessage(i18n.__('cli_delete_webAsset'));
@@ -106,6 +109,7 @@ function deleteCommand (program) {
         .option('--named <path>',        i18n.__('cli_delete_opt_named'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
+        .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
         .action(function (options) {
             const command = new DeleteCommand(program);
             if (command.setCommandLineOptions(options, this)) {

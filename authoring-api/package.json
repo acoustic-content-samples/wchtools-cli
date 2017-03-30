@@ -1,10 +1,10 @@
 {
-  "name": "dxauthoringapi",
+  "name": "wchtools-api",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "1.0.2",
+  "version": "1.1.7",
   "keywords": [
     "api",
-    "authoring"
+    "tools"
   ],
   "author": "IBM Corporation",
   "license": "Apache-2.0",
@@ -17,7 +17,7 @@
   "config": {
     "engine-strict": true
   },
-  "main": "./dxAuthoring.js",
+  "main": "./wchToolsApi.js",
   "dependencies": {
     "async": "^2.0.1",
     "deep-extend": "^0.4.1",
@@ -49,6 +49,5 @@
     "checkcoverage": "./node_modules/.bin/istanbul check-coverage",
     "testcleanup": "node ./test/testcleanup.js",
     "posttest": "npm run testcleanup && npm run checkcoverage"
-  },
-  "private": true
+  }
 }

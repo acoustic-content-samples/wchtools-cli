@@ -25,17 +25,18 @@ const UnitTest = require("./base.unit.js");
 const sinon = require("sinon");
 
 // Require the local modules that will be stubbed and spied.
-const utils = require(UnitTest.AUTHORING_API_PATH + "lib/utils/utils.js");
+const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const request = utils.getRequestWrapper();
 
 // Require the local module being tested.
-const loginREST = require(UnitTest.AUTHORING_API_PATH + "lib/loginREST.js").instance;
+const loginREST = require(UnitTest.API_PATH + "lib/loginREST.js").instance;
 
 const tenantId = process.env.TENANT_ID || UnitTest.DUMMY_ID;
 
 // Define some generic login options to be used by the tests.
 const loginOptions = {
-    "x-ibm-dx-tenant-id":tenantId,
+    "x-ibm-dx-tenant-base-url": "http://foo.com/api",
+    "x-ibm-dx-tenant-id": tenantId,
     "username": UnitTest.DUMMY_NAME,
     "password": "foobar"
 };
@@ -47,8 +48,11 @@ class LoginRestUnitTest extends UnitTest {
 
     run() {
         const self = this;
-        describe("Unit tests for authoring-api/loginREST.js", function() {
+        describe("Unit tests for loginREST.js", function() {
             before(function (done) {
+                // Reset any values that may have been set by other tests.
+                loginREST.reset();
+
                 // Signal that the setup is complete.
                 done();
             });
@@ -63,6 +67,9 @@ class LoginRestUnitTest extends UnitTest {
             });
 
             after(function (done) {
+                // Reset any values that may have been set by these tests.
+                loginREST.reset();
+
                 // Signal that the cleanup is complete.
                 done();
             });
@@ -107,10 +114,10 @@ class LoginRestUnitTest extends UnitTest {
                     const requestOptions = loginREST._getRequestOptions(loginOptions);
 
                     expect(requestOptions).to.exist;
-                    expect(requestOptions.uri).to.equal(loginREST._uri);
-                    expect(requestOptions.headers["x-ibm-dx-tenant-id"]).to.equal(tenantId);
-                    expect(requestOptions.auth.user).to.equal(UnitTest.DUMMY_NAME);
-                    expect(requestOptions.auth.pass).to.equal("foobar");
+                    expect(requestOptions.uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                    expect(requestOptions.headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+                    expect(requestOptions.auth.user).to.equal(loginOptions["username"]);
+                    expect(requestOptions.auth.pass).to.equal(loginOptions["password"]);
                 } catch (err) {
                     error = err;
                 }
@@ -147,7 +154,7 @@ class LoginRestUnitTest extends UnitTest {
                         try {
                             // Verify that the stub was called once with the expected values.
                             expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.equal(loginREST._uri);
+                            expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
                             expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
 
                             // Verify that the expected error is returned.
@@ -187,7 +194,7 @@ class LoginRestUnitTest extends UnitTest {
                         try {
                             // Verify that the stub was called once with the expected values.
                             expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.equal(loginREST._uri);
+                            expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
                             expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
 
                             // Verify that the expected error is returned.
@@ -227,12 +234,12 @@ class LoginRestUnitTest extends UnitTest {
                         try {
                             // Verify that the stub was called once with the expected values.
                             expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.equal(loginREST._uri);
+                            expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
                             expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("Login service failed");
+                            expect(err.message).to.contain("login service failed");
                         } catch (err) {
                             error = err;
                         }
@@ -262,7 +269,7 @@ class LoginRestUnitTest extends UnitTest {
                     .then(function (retval) {
                         // Verify that the stub was called once with the expected values.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.firstCall.args[0].uri).to.equal(loginREST._uri);
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
                         expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
 
                         // Verify that the expected value is returned.

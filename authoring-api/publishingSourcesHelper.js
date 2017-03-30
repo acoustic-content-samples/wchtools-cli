@@ -35,7 +35,7 @@ class PublishingSourcesHelper extends BaseHelper {
         if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "PublishingSourcesHelper"});
         }
-        super(rest, fS, "sources");
+        super(rest, fS, rest.getServiceName());
     }
 
     /**

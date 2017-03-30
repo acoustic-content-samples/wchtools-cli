@@ -14,14 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Run the unit tests for the presentation objects in the authoring-api package.
+ * Run the unit tests for the content objects in the CLI package.
  */
 "use strict";
-const helper = require("dxauthoringapi").getContentHelper();
+
+const helper = require("wchtools-api").getContentHelper();
 const rEST = require("../../../authoring-api/lib/contentREST.js").instance;
 const fS = require("../../../authoring-api/lib/contentFS.js").instance;
-if(!fS || !rEST)
+
+if(!fS || !rEST) {
     console.log('Error could not load required');
+}
+
 // Presentations Tests with CLI
 const BASE_NAME = 'content';
 const PullUnitTest = require("./lib/pull.unit.js");

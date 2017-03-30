@@ -18,7 +18,7 @@ limitations under the License.
 
 const fs = require('fs');
 const path = require('path');
-const utils = require("dxauthoringapi").utils;
+const utils = require("wchtools-api").utils;
 
 function getPlugins () {
     // Loop though command files

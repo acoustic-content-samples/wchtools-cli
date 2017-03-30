@@ -1,0 +1,11 @@
+{
+    "contentFormat":"SIMPLE",
+    "autoActivate":true,
+    "enableRendering":false,
+    "enableContentPublishing":false,
+    "enableAssetPublishing":true,
+    "assetUrlGenerationMode":"PATH",
+    "name":{"en":"CLI Test Profile 2"},
+    "description":{"en":"Another integration test profile"},
+    "id":"clitestprofile2"
+}

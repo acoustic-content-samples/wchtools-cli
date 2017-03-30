@@ -24,45 +24,52 @@ const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
 class RenditionsREST extends BaseREST {
-
-    constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+    constructor (enforcer) {
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "RenditionsREST"});
+        }
 
         super("renditions", "/authoring/v1/renditions", undefined, "/views/by-created");
     }
 
-    static get instance() {
+    static get instance () {
         if (!this[singleton]) {
             this[singleton] = new RenditionsREST(singletonEnforcer);
         }
         return this[singleton];
     }
+
     // renditions cannot be updated they only can be created
     updateItem (item, opts) {
         return this.createItem(item, opts);
     }
-    deleteItem() {
-        return Q.reject(new Error("Delete not supported"));
+
+    deleteItem (item, opts) {
+        return Q.reject(new Error(i18n.__("delete_rendition_error", {"id": item.id, "opts": JSON.stringify(opts ? opts : {})})));
     }
-    createItem(item, opts){
-        const restApi = this;
+
+    createItem (item, opts) {
         const cOpts = utils.cloneOpts(opts);
+
+        // Bind the super method so that we can call it later.
+        const parentMethod = super.createItem.bind(this);
+
         // make sure if get item fails we don't log the error we expect it to fail if the item was not created yet
-        // renditions never get deleted so getting the item is more likely to worl
+        // renditions never get deleted so getting the item is more likely to work
         // instead of trying to create and have the item fail with a 409 and that being logged as an error
         cOpts.noErrorLog = "true";
-        return this.getItem(item.id,cOpts)
-            .then(function(item){
+        return this.getItem(item.id, cOpts)
+            .then(function (item) {
                 utils.logDebugInfo('This item already exists: ' + item.id + ' :renditionRest');
                 return item;
-            },
-            function(){
-                return BaseREST.prototype.createItem.call(restApi,item, opts)
-                    .then(function(item){
+            })
+            .catch(function () {
+                return parentMethod(item, opts)
+                    .then(function (item) {
                         return item;
-                    }, function(err){
-                    throw(err);
+                    })
+                    .catch(function (err) {
+                        throw(err);
                     });
             });
     }

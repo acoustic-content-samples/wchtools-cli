@@ -23,8 +23,8 @@ const UnitTest = require("./base.unit.js");
 class ContentsUnitTest extends UnitTest {
     // File and directory constants used by all contents unit tests.
     static get CONTENTS_DIRECTORY() { return "content/"; };
-    static get VALID_CONTENTS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + ContentsUnitTest.CONTENTS_DIRECTORY; };
-    static get INVALID_CONTENTS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + ContentsUnitTest.CONTENTS_DIRECTORY; };
+    static get VALID_CONTENTS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + ContentsUnitTest.CONTENTS_DIRECTORY; };
+    static get INVALID_CONTENTS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + ContentsUnitTest.CONTENTS_DIRECTORY; };
 
     // Path values for test assets.
     static get VALID_CONTENT_1() { return "content-1.json"; };

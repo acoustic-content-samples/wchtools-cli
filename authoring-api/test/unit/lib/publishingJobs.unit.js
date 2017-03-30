@@ -23,8 +23,8 @@ const UnitTest = require("./base.unit.js");
 class PublishingJobsUnitTest extends UnitTest {
     // File and directory constants used by all presentations unit tests.
     static get PUBLISHING_JOBS_DIRECTORY() { return "jobs/"; };
-    static get VALID_PUBLISHING_JOBS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PublishingJobsUnitTest.PUBLISHING_JOBS_DIRECTORY; };
-    static get INVALID_PRESENTATIONS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PublishingJobsUnitTest.PUBLISHING_JOBS_DIRECTORY; };
+    static get VALID_PUBLISHING_JOBS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PublishingJobsUnitTest.PUBLISHING_JOBS_DIRECTORY; };
+    static get INVALID_PRESENTATIONS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PublishingJobsUnitTest.PUBLISHING_JOBS_DIRECTORY; };
 
     // Path values for test assets.
     static get VALID_PUBLISHING_JOB_1() { return "publishing-job-1.json"; };

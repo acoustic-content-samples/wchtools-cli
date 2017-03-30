@@ -1,11 +1,10 @@
-*.mov
-*.mp4
-.dxToolsignore
-.hashes
+.wchtoolsignore
+.wchtoolshashes
+.dxhashes
+.gitignore
+.gitattributes
 sp-config.json
 # npm
-/index.js
-test/
 .travis.yml
 *.sh
 .babelrc
@@ -23,7 +22,6 @@ index.php
 *.rej
 *.swo
 *.swp
-*.zip
 *.vi
 *~
 *.sass-cache
@@ -43,6 +41,7 @@ thumbs.db
 
 # Folders to ignore
 .hg
+.git
 .svn
 .CVS
 .idea

@@ -196,7 +196,7 @@ const pushAssets = function (assetPaths, opts) {
         .then(function (promises) {
             // Keep track of the assets that were successfully pushed, and emit a "pushed-error" event for the others.
             const assets = [];
-            promises.forEach(function (promise) {
+            promises.forEach(function (promise, index) {
                 if (promise.state === "fulfilled") {
                     logger.trace("Pushed: " + JSON.stringify(promise.value));
                     assets.push(promise.value);
@@ -204,7 +204,7 @@ const pushAssets = function (assetPaths, opts) {
                 else {
 
                     // Rejected promises are logged by throttledAll(), so just emit the error event.
-                    eventEmitter.emit("pushed-error", promise.reason);
+                    eventEmitter.emit("pushed-error", promise.reason, assetPaths[index]);
                     errorCount++;
                 }
             });
@@ -213,7 +213,7 @@ const pushAssets = function (assetPaths, opts) {
         .then(function (assets) {
             // Keep track of the timestamp of this operation, but only if there were no errors.
             if (errorCount === 0) {
-                hashes.setLastPushTimestamp(assetsFS.getDir(opts), new Date(), opts);
+                setLastPushTimestamps(opts);
             }
             return assets;
         });
@@ -231,7 +231,7 @@ const pushAssets = function (assetPaths, opts) {
  */
 const pullAsset = function (asset, opts) {
     // Verify the pathname.
-    if (!isValidWindowsPathname(asset.path) || asset.path === ".dxhashes" || asset.path === "/.dxhashes") {
+    if (!isValidWindowsPathname(asset.path) || asset.path === hashes.FILENAME || asset.path === "/" + hashes.FILENAME) {
         const deferred = Q.defer();
         deferred.reject(new Error(i18n.__("invalid_path", {path: asset.path})));
         return deferred.promise;
@@ -242,8 +242,14 @@ const pullAsset = function (asset, opts) {
                 // Download the specified asset contents and write them to the given stream.
                 return assetsREST.pullItem(asset, stream, opts)
                     .then(function (asset) {
-                        const basePath = assetsFS.getDir(opts);
+                        const basePath = assetsFS.getAssetsPath(opts);
                         const filePath = assetsFS.getPath(asset.path, opts);
+
+                        const md5 = hashes.generateMD5Hash(filePath);
+                        if (md5 !== asset.digest) {
+                            logger.warn(i18n.__("digest_mismatch", {cli_digest: md5, asset: asset.path, server_digest: asset.digest}));
+                            eventEmitter.emit("pulled-warning", asset.path);
+                        }
                         hashes.updateHashes(basePath, filePath, asset, opts);
 
                         // Notify any listeners that the asset at the given path was pulled.
@@ -311,7 +317,7 @@ const pullAssetChunk = function (listFn, opts) {
                 .then(function (promises) {
                     // Return a list of results - asset metadata for a fulfilled promise, error for a rejected promise.
                     const assets = [];
-                    promises.forEach(function (promise) {
+                    promises.forEach(function (promise, index) {
                         if (promise.state === "fulfilled") {
                             const asset = promise.value;
                             assets.push(asset);
@@ -319,7 +325,7 @@ const pullAssetChunk = function (listFn, opts) {
                         else {
                             const error = promise.reason;
                             assets.push(error);
-                            eventEmitter.emit("pulled-error", error);
+                            eventEmitter.emit("pulled-error", error, assetList[index].path);
                         }
                     });
 
@@ -487,6 +493,93 @@ const closeStream = function (stream, deferred) {
 };
 
 /**
+ * Returns the last pull timestamps, converting from a single timestamp to the new multi-value timestamp format if needed.
+ * @param opts
+ * @returns {{webAssets: String, contentAssets: String}}
+ */
+const getLastPullTimestamps = function(opts) {
+    const dir = assetsFS.getAssetsPath(opts);
+    const timestamps = hashes.getLastPullTimestamp(dir, opts);
+    // create the timestamps object now
+    // we use the webAssets and contentAssets children of the timestamps read from .wchtoolshashes if they exist (new format)
+    // otherwise fall back to copying the old format (a single timestamp) into each field
+    return {
+        webAssets: (timestamps ? (timestamps.webAssets ? timestamps.webAssets : (timestamps.contentAssets ? undefined : timestamps)) : undefined),
+        contentAssets: (timestamps ? (timestamps.contentAssets ? timestamps.contentAssets : (timestamps.webAssets ? undefined : timestamps)) : undefined)
+    };
+};
+
+/**
+ * Returns the last push timestamps, converting from a single timestap to the new multi-value timestamp format if needed.
+ * @param opts
+ * @returns {{webAssets: String, contentAssets: String}}
+ */
+const getLastPushTimestamps = function(opts) {
+    const dir = assetsFS.getAssetsPath(opts);
+    const timestamps = hashes.getLastPushTimestamp(dir, opts);
+    // create the timestamps object now
+    // we use the webAssets and contentAssets children of the timestamps read from .wchtoolshashes if they exist (new format)
+    // otherwise fall back to copying the old format (a single timestamp) into each field
+    return {
+        webAssets: (timestamps ? (timestamps.webAssets ? timestamps.webAssets : (timestamps.contentAssets ? undefined : timestamps)) : undefined),
+        contentAssets: (timestamps ? (timestamps.contentAssets ? timestamps.contentAssets : (timestamps.webAssets ? undefined : timestamps)) : undefined)
+    };
+};
+
+/**
+ * Sets the last pull timestamps.
+ * @param opts
+ */
+const setLastPullTimestamps = function(opts) {
+    const timestamps = getLastPullTimestamps(opts);
+    if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
+        timestamps.webAssets = new Date();
+    } else if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
+        timestamps.contentAssets = new Date();
+    } else {
+        timestamps.webAssets = timestamps.contentAssets = new Date();
+    }
+    hashes.setLastPullTimestamp(assetsFS.getAssetsPath(opts), timestamps, opts);
+};
+
+/**
+ * Sets the last push timestamps.
+ * @param opts
+ */
+const setLastPushTimestamps = function(opts) {
+    const timestamps = getLastPushTimestamps(opts);
+    if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
+        timestamps.webAssets = new Date();
+    } else if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
+        timestamps.contentAssets = new Date();
+    } else {
+        timestamps.webAssets = timestamps.contentAssets = new Date();
+    }
+    hashes.setLastPushTimestamp(assetsFS.getAssetsPath(opts), timestamps, opts);
+};
+
+const getTimestamp = function(timestamps, opts) {
+    const webAssetTimestamp = timestamps.webAssets;
+    const contentAssetTimestamp = timestamps.contentAssets;
+    let timestamp;
+    if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
+        timestamp = webAssetTimestamp;
+    } else if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
+        timestamp = contentAssetTimestamp;
+    } else {
+        // calculate the min of both timestamps
+        const webAssetDate = new Date(webAssetTimestamp);
+        const contentAssetDate = new Date(contentAssetTimestamp);
+        if (webAssetDate.valueOf() < contentAssetDate.valueOf()) {
+            timestamp = webAssetTimestamp;
+        } else {
+            timestamp = contentAssetTimestamp;
+        }
+    }
+    return timestamp;
+};
+
+/**
  * High-level functionality for managing assets on the local file system and through the Content Hub API.
  */
 const helper = {
@@ -520,9 +613,19 @@ const helper = {
     },
 
     /**
+     * Determines if the artifact directory exists locally.
+     *
+     * @returns {boolean}
+     */
+    doesDirectoryExist: function (opts) {
+        const dir = assetsFS.getAssetsPath(opts);
+        return fs.existsSync(dir);
+    },
+
+    /**
      * Set the options to be used as global options for this helper.
      *
-     * Note: This method should only be called from the dxAuthoring getter for this helper.
+     * Note: This method should only be called from the wchToolsApi getter for this helper.
      *
      * @param {Object} opts - The options to be used as global options for this helper.
      */
@@ -595,7 +698,7 @@ const helper = {
             .then(function (/*results*/) {
                 if (errorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
-                    hashes.setLastPullTimestamp(assetsFS.getDir(opts), new Date(), opts);
+                    setLastPullTimestamps(opts);
                 }
             });
 
@@ -637,7 +740,7 @@ const helper = {
             .then(function (/*results*/) {
                 if (errorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
-                    hashes.setLastPullTimestamp(assetsFS.getDir(opts), new Date(), opts);
+                    setLastPullTimestamps(opts);
                 }
             });
 
@@ -660,13 +763,14 @@ const helper = {
             .then(function (length) {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
                 const assetFile = assetsFS.getPath(path, opts);
-                const assetHashes = hashes.getHashesForFile(assetsFS.getDir(opts), assetFile, opts);
+                const assetHashes = hashes.getHashesForFile(assetsFS.getAssetsPath(opts), assetFile, opts);
+                const isContentResource = assetsFS.isContentResource(path);
                 let resourceId;
                 let resourceMd5 = assetHashes ? assetHashes.md5 : undefined;
 
                 // In order to push the asset to the content hub, open a read stream for the asset file.
                 let streamOpened;
-                if (assetsFS.isContentResource(path) && fs.existsSync(assetsFS.getMetadataPath(path, opts))) {
+                if (isContentResource && fs.existsSync(assetsFS.getMetadataPath(path, opts))) {
                     // There is a metadata file for the content asset, so start by reading the metadata file.
                     streamOpened = assetsFS.getItem(path, opts)
                         .then(function (asset) {
@@ -701,8 +805,10 @@ const helper = {
                         // Register that the asset file exists locally.
                         addLocalStatus(path);
 
+                        // Determine how to set replaceContentReource - if the saved md5 doesn't match the md5 of the resource
+                        const replaceContentResource = (resourceMd5 !== hashes.generateMD5Hash(assetFile));
                         // Push the asset to the content hub.
-                        assetsREST.pushItem(resourceId, resourceMd5, path, readStream, length, opts)
+                        assetsREST.pushItem(isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
                             .then(function (asset) {
                                 // The push succeeded so emit a "pushed" event.
                                 eventEmitter.emit("pushed", path);
@@ -711,7 +817,7 @@ const helper = {
                                 addRemoteStatus(path);
 
                                 // Save the asset metadata to a local file.
-                                if (assetsFS.isContentResource(path)) {
+                                if (isContentResource) {
                                     // Don't wait for the metadata to be saved, and don't reject the push if the save fails.
                                     assetsFS.saveItem(asset, opts);
                                 }
@@ -729,7 +835,7 @@ const helper = {
 
                                 // Update the hashes for the pushed asset.
                                 const assetPath = assetsFS.getPath(asset.path, opts);
-                                hashes.updateHashes(assetsFS.getDir(opts), assetPath, asset, opts);
+                                hashes.updateHashes(assetsFS.getAssetsPath(opts), assetPath, asset, opts);
                             })
                             .catch(function (err) {
                                 // Failed to push the asset file, so explicitly close the read stream.
@@ -824,7 +930,7 @@ const helper = {
             .then(function (assets) {
                 // Turn the retrieved list of assets (metadata) into a list of asset path values.
                 return assets.map(function (asset) {
-                    return utils.getRelativePath(assetsFS.getDir(opts), assetsFS.getPath(asset.path, opts));
+                    return utils.getRelativePath(assetsFS.getAssetsPath(opts), assetsFS.getPath(asset.path, opts));
                 });
             });
     },
@@ -839,10 +945,10 @@ const helper = {
      */
     getModifiedRemoteItems: function (flags, opts) {
         // Get the local directory to use for comparison, based on the specified options.
-        const dir = assetsFS.getDir(opts);
+        const dir = assetsFS.getAssetsPath(opts);
 
         // Recursively call assetsREST.getModifiedItems() to retrieve the remote assets modified since the last pull.
-        return assetsREST.getModifiedItems(hashes.getLastPullTimestamp(dir, opts), opts)
+        return assetsREST.getModifiedItems(getTimestamp(getLastPullTimestamps(opts), opts), opts)
             .then(function (items) {
                 // Return a promise for the filtered list of remote modified assets.
                 return items.filter(function (item) {
@@ -886,7 +992,7 @@ const helper = {
             .then(function (items) {
                 // The list results contain the relative path of each modified asset.
                 const results = items.map(function (item) {
-                    return utils.getRelativePath(assetsFS.getDir(opts), assetsFS.getPath(item.path, opts));
+                    return utils.getRelativePath(assetsFS.getAssetsPath(opts), assetsFS.getPath(item.path, opts));
                 });
 
                 // Add the deleted assets if the flag was specified.
@@ -918,7 +1024,7 @@ const helper = {
         helper.listRemoteItemNames(opts)
             .then(function (remoteItemPaths) {
                 // Get the list of local assets that are known to have existed on the server.
-                const dir = assetsFS.getDir(opts);
+                const dir = assetsFS.getAssetsPath(opts);
                 const localItemPaths = hashes.listFiles(dir, opts);
 
                 // The deleted assets are the ones that exist in the local list but not in the remote list.
@@ -967,7 +1073,7 @@ const helper = {
      */
     listModifiedLocalItemNames: function (flags, opts) {
         // Get the list of local asset paths.
-        const dir = assetsFS.getDir(opts);
+        const dir = assetsFS.getAssetsPath(opts);
         return assetsFS.listNames(null, opts)
             .then(function (assetPaths) {
                 // Filter the list so that it only contains modified asset paths.
@@ -1003,7 +1109,7 @@ const helper = {
         const deferred = Q.defer();
 
         // Get the list of local asset paths.
-        const dir = assetsFS.getDir(opts);
+        const dir = assetsFS.getAssetsPath(opts);
         const localAssetPaths = hashes.listFiles(dir, opts);
 
         // Get the list of deleted local assets.
@@ -1041,8 +1147,8 @@ const helper = {
             })
             .then(function (asset) {
                 // The asset was found, so delete it using its ID.
-                logger.trace("deleteRemoteAssetsByPath found asset id: " + asset.id);
-                return assetsREST.deleteItem(asset.id, opts);
+                logger.trace("deleteRemoteItem found asset id: " + asset.id);
+                return assetsREST.deleteItem(asset, opts);
             })
             .then(function (message) {
                 // The delete was successful, so resolve the promise with the message returned from the REST service.

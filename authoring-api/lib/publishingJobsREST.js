@@ -52,6 +52,30 @@ class PublishingJobsREST extends BaseREST {
         return this.getItem(id, opts);
     }
 
+    getPublishingJobStatus (id, opts) {
+        const restObject = this;
+        const deferred = Q.defer();
+        this.getRequestOptions(opts)
+            .then(function (requestOptions) {
+                requestOptions.uri = requestOptions.uri + "/" + id + "/status";
+                request.get(requestOptions, function (err, res, body) {
+                    if ((err) || (res && res.statusCode != 200)) { //NOSONAR
+                        err = utils.getError(err, body, res, requestOptions);
+                        // special case where we ar just seeing if the item does exist and if not it's not an error
+                        if(!opts || opts.noErrorLog !== "true")
+                            utils.logErrors(i18n.__("getPublishingJobStatus_error", {service_name: restObject.getServiceName()}), err);
+                        deferred.reject(err);
+                    } else {
+                        deferred.resolve(body);
+                    }
+                });
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+        return deferred.promise;
+    }
+
     deletePublishingJob(id, opts) {
         return this.deleteItem({"id": id}, opts);
     }

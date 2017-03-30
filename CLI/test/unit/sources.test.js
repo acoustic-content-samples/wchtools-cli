@@ -14,24 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Run the unit tests for the publishing sources objects in the authoring-api package.
+ * Run the unit tests for the publishing sources objects in the CLI package.
  */
 "use strict";
-const helper = require("dxauthoringapi").getPublishingSourcesHelper()
+
+const helper = require("wchtools-api").getPublishingSourcesHelper();
 const rest = require("../../../authoring-api/lib/publishingSourcesREST.js").instance;
 const fs = require("../../../authoring-api/lib/publishingSourcesFS.js").instance;
-if(!fs || !rest)
+
+if(!fs || !rest) {
     console.log('Error could not load required');
+}
+
 // PublishingSources Tests with CLI
 const BASE_NAME = 'publishingSource';
 const PullUnitTest = require("./lib/pull.unit.js");
 const pullUnitTest = new PullUnitTest();
-pullUnitTest.run(helper, rest, fs, '--sources', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
+pullUnitTest.run(helper, rest, fs, '--publishing-sources', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
 
 const PushUnitTest = require("./lib/push.unit.js");
 const pushUnitTest = new PushUnitTest();
-pushUnitTest.run(helper, rest, fs, '--sources', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
+pushUnitTest.run(helper, rest, fs, '--publishing-sources', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
 
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();
-listUnitTest.run(helper, '--sources', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
+listUnitTest.run(helper, '--publishing-sources', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');

@@ -24,9 +24,9 @@ const ContentsUnitTest = require("./contents.unit.js");
 const BaseHelperUnit = require("./base.helper.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/contentREST.js").instance;
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/contentFS.js").instance;
-const helper = require(UnitTest.AUTHORING_API_PATH + "contentHelper.js").instance;
+const restApi = require(UnitTest.API_PATH + "lib/contentREST.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/contentFS.js").instance;
+const helper = require(UnitTest.API_PATH + "contentHelper.js").instance;
 const path1 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_1;
 const path2 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_2;
 const badPath = ContentsUnitTest.INVALID_CONTENTS_DIRECTORY + ContentsUnitTest.INVALID_CONTENT_BAD_NAME;

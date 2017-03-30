@@ -27,10 +27,10 @@ const fs = require("fs");
 const stream = require("stream");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const utils = require(UnitTest.AUTHORING_API_PATH + "lib/utils/utils.js");
+const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const request = utils.getRequestWrapper();
 
 class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
@@ -66,6 +66,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
             self.testSingleton(restApi, lookupUri,restName,itemPath1,itemPath2);
             self.testGetPublishingJobs(restApi, lookupUri,restName,itemPath1,itemPath2);
             self.testGetPublishingJob(restApi, lookupUri,restName,itemPath1,itemPath2);
+            self.testGetPublishingJobStatus(restApi, lookupUri,restName,itemPath1,itemPath2);
             self.testCreatePublishingJob(restApi, lookupUri,restName,itemPath1,itemPath2);
             self.testDeletePublishingJob(restApi, lookupUri,restName,itemPath1,itemPath2);
             self.testCancelPublishingJob(restApi, lookupUri,restName,itemPath1,itemPath2);
@@ -287,6 +288,77 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
         });
     }
 
+
+    testGetPublishingJobStatus (restApi, lookupUri,restName,itemPath1,itemPath2) {
+        const self = this;
+        describe("getPublishingJobStatus", function() {
+            it("should fail when the specified item does not exist", function (done) {
+                const CANNOTFIND_ERROR = "cannot find item.";
+                const stub = sinon.stub(request, "get");
+
+                let err = new Error(CANNOTFIND_ERROR);
+                let res = {"statusCode": 404};
+                let body = null;
+                stub.onCall(0).yields(err, res, body);
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+                // Call the method being tested.
+                let error;
+                restApi.getPublishingJobStatus(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch (function (err) {
+                        try {
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain(CANNOTFIND_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting a valid publishing job status", function (done) {
+                const stub = sinon.stub(request, "get");
+                let err = null;
+                let res = {"statusCode": 200};
+
+                // Read the contents of a test file.
+                const item =  UnitTest.getJsonObject(itemPath1);
+                let body = item;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.getPublishingJobStatus(item.id, UnitTest.DUMMY_OPTIONS)
+                    .then(function (rContent) {
+                        // Verify that the item stub was called once with the expected value.
+                        expect(stub).to.have.been.calledOnce;
+
+                        // Verify that the REST API returned the expected value.
+                        expect(diff.diffJson(item, rContent)).to.have.lengthOf(1);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
 
     testCreatePublishingJob (restApi, lookupUri,restName,itemPath1,itemPath2) {
         const self = this;

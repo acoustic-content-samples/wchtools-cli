@@ -29,7 +29,7 @@ class PublishingSourcesFS extends JSONItemFS {
     constructor(enforcer) {
         if (enforcer !== singletonEnforcer)
             throw i18n.__("singleton_construct_error", {classname: "PublishingSourcesFS"});
-        super("sources", "sources", "_smd.json");
+        super("publishing-sources", "publishing-sources", "_smd.json");
     }
 
     static get instance() {

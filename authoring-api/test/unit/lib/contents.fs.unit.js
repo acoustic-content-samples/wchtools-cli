@@ -24,7 +24,7 @@ const ContentsUnitTest = require("./contents.unit.js");
 const BaseFsUnit = require("./base.fs.unit.js");
 
 // Require the local module being tested.
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/contentFS.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/contentFS.js").instance;
 
 class ContentsFsUnitTest extends BaseFsUnit {
     constructor() {

@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016,2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,10 +17,10 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const dxAuthoring = require("dxauthoringapi");
-const utils = dxAuthoring.utils;
-const login = dxAuthoring.login;
-const options = dxAuthoring.options;
+const toolsApi = require("wchtools-api");
+const utils = toolsApi.utils;
+const login = toolsApi.login;
+const options = toolsApi.options;
 const Q = require("q");
 const ora = require("ora");
 
@@ -29,13 +29,15 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const PREFIX = "========== ";
 const SUFFIX = " ===========";
 const ListTypes =                PREFIX + i18n.__('cli_listing_types') + SUFFIX;
-const ListPresentations =        PREFIX + i18n.__('cli_listing_presentations') + SUFFIX;
 const ListAssets =               PREFIX + i18n.__('cli_listing_assets') + SUFFIX;
 const ListContentItems =         PREFIX + i18n.__('cli_listing_content') + SUFFIX;
 const ListCategories =           PREFIX + i18n.__('cli_listing_categories') + SUFFIX;
+const ListPublishingProfiles =   PREFIX + i18n.__('cli_listing_profiles') + SUFFIX;
 const ListPublishingSources =    PREFIX + i18n.__('cli_listing_sources') + SUFFIX;
 const ListImageProfiles =        PREFIX + i18n.__('cli_listing_image_profiles') + SUFFIX;
 const ListRenditions =           PREFIX + i18n.__('cli_listing_renditions') + SUFFIX;
+const ListPublishingSiteRevisions = PREFIX + i18n.__('cli_listing_site_revisions') + SUFFIX;
+
 
 class ListCommand extends BaseCommand {
     /**
@@ -58,82 +60,85 @@ class ListCommand extends BaseCommand {
         self.handleArtifactTypes();
 
         // Make sure the "path" and "dir" options can be handled successfully.
-        if (!self.handleDirOption() || !self.handlePathOption()){
+        if (!self.handleDirOption() || !self.handlePathOption()) {
             return;
         }
 
-        const apiOptions = self.getApiOptions();
-
-        // Make sure the user name and password have been specified, if login is required for this list command.
-        self.handleAuthenticationOptions(apiOptions)
+        // Make sure the url has been specified, if login is required for this list command.
+        self.handleUrlOption()
+            .then(function () {
+                // Make sure the user name and password have been specified, if login is required for this list command.
+                return self.handleAuthenticationOptions();
+            })
             .then(function () {
                 // Login using the current options, if login is required for this list command.
-                self.handleLogin(apiOptions)
-                    .then(function () {
-                        // List the modified and new artifacts by default.
-                        if (!self.getCommandLineOption("new") && !self.getCommandLineOption("mod") && !self.getCommandLineOption("del")) {
-                            self.setCommandLineOption("mod", true);
-                            self.setCommandLineOption("new", true);
+                return self.handleLogin(self.getApiOptions());
+            })
+            .then(function () {
+                // List the modified and new artifacts by default.
+                if (!self.getCommandLineOption("new") && !self.getCommandLineOption("mod") && !self.getCommandLineOption("del")) {
+                    self.setCommandLineOption("mod", true);
+                    self.setCommandLineOption("new", true);
+                }
+
+                // Start the display of the list.
+                self.startDisplay();
+
+                return Q.allSettled(self.listArtifacts());
+            })
+            .then(function (results) {
+                let artifactsCount = 0;
+
+                // Display the list of artifacts for each of the specified types.
+                results.forEach(function (result) {
+                    if (result.state === 'rejected') {
+                        let msg;
+                        if (result.reason instanceof Error) {
+                            msg = result.reason.heading + ' ' + result.reason.message;
+                        }
+                        else {
+                           msg =result.reason.toString();
+                        }
+                        if (!self.getCommandLineOption("quiet")) {
+                            BaseCommand.displayToConsole(msg);
+                        } else {
+                            const logger = self.getLogger();
+                            logger.info(msg);
+                        }
+                    }
+                    else {
+                        // Display a message for the current type.
+                        const msg = result.value.type;
+                        if (!self.getCommandLineOption("quiet")) {
+                            BaseCommand.displayToConsole(msg);
+                        } else {
+                            const logger = self.getLogger();
+                            logger.info(msg);
                         }
 
-                        // Start the display of the list.
-                        self.startDisplay();
+                        // Display (or log) the list of items for the current type.
+                        const itemNames = result.value.value;
+                        itemNames.forEach(function (itemName) {
+                            artifactsCount++;
+                            if (!self.getCommandLineOption("quiet")) {
+                                BaseCommand.displayToConsole(itemName);
+                            } else {
+                                const logger = self.getLogger();
+                                logger.info(itemName);
+                            }
+                        });
+                    }
+                });
 
-                        Q.allSettled(self.listArtifacts())
-                            .then(function (results) {
-                                let artifactsCount = 0;
-
-                                // Display the list of artifacts for each of the specified types.
-                                results.forEach(function (result) {
-                                    if (result.state === 'rejected') {
-                                        let msg;
-                                        if (result.reason instanceof Error) {
-                                            msg = result.reason.heading + ' ' + result.reason.message;
-                                        }
-                                        else {
-                                           msg =result.reason.toString();
-                                        }
-                                        if (!self.getCommandLineOption("quiet")) {
-                                            BaseCommand.displayToConsole(msg);
-                                        } else {
-                                            const logger = self.getLogger();
-                                            logger.info(msg);
-                                        }
-                                    }
-                                    else {
-                                        // Display a message for the current type.
-                                        const msg = result.value.type;
-                                        if (!self.getCommandLineOption("quiet")) {
-                                            BaseCommand.displayToConsole(msg);
-                                        } else {
-                                            const logger = self.getLogger();
-                                            logger.info(msg);
-                                        }
-
-                                        // Display (or log) the list of items for the current type.
-                                        const itemNames = result.value.value;
-                                        itemNames.forEach(function (itemName) {
-                                            artifactsCount++;
-                                            if (!self.getCommandLineOption("quiet")) {
-                                                BaseCommand.displayToConsole(itemName);
-                                            } else {
-                                                const logger = self.getLogger();
-                                                logger.info(itemName);
-                                            }
-                                        });
-                                    }
-                                });
-
-                                // End the display of the list.
-                                self.endDisplay(artifactsCount);
-
-                                // Reset the command line options once the command has completed.
-                                self.resetCommandLineOptions();
-                            });
-                    })
-                    .catch(function (err) {
-                        self.errorMessage(err.message);
-                    });
+                // End the display of the list.
+                self.endDisplay(artifactsCount);
+            })
+            .catch(function (err) {
+                self.errorMessage(err.message);
+            })
+            .finally(function () {
+                // Reset the command line options once the command has completed.
+                self.resetCommandLineOptions();
             });
     }
 
@@ -153,12 +158,32 @@ class ListCommand extends BaseCommand {
     }
 
     /**
+     * Handle the url option. It can be specified as a command line option or user option ("x-ibm-dx-tenant-base-url").
+     * If the url is not specified by either of these methods, a prompt will be displayed to enter the value.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the url has been specified.
+     */
+    handleUrlOption () {
+        const apiOptions = this.getApiOptions();
+        if (this.isLoginRequired(apiOptions)) {
+            // A login is required, so call the super method to handle the url option in the normal way.
+            return super.handleUrlOption();
+        } else {
+            // A login is not required, so just return a resolved promise.
+            const deferred = Q.defer();
+            deferred.resolve();
+            return deferred.promise;
+        }
+    }
+
+    /**
      * Handle the authentication options. These can be specified as command line options, user property (username), or
      * environment variable (password). If either value is missing, the user will be prompted for the missing value(s).
      *
      * @returns {Q.Promise} A promise that is resolved when the username and password have been specified, if necessary.
      */
-    handleAuthenticationOptions (apiOptions) {
+    handleAuthenticationOptions () {
+        const apiOptions = this.getApiOptions();
         if (this.isLoginRequired(apiOptions)) {
             // A login is required, so call the super method to handle the authentication options in the normal way.
             return super.handleAuthenticationOptions();
@@ -246,13 +271,8 @@ class ListCommand extends BaseCommand {
             promises.push(this.listImageProfiles());
         }
 
-        // Handle the presentations option.
-        if (this.getCommandLineOption("presentations")) {
-            promises.push(this.listPresentations());
-        }
-
         // Handle the categories option.
-        if (this.getCommandLineOption("Categories")) {
+        if (this.getCommandLineOption("categories")) {
             promises.push(this.listCategories());
         }
 
@@ -271,9 +291,19 @@ class ListCommand extends BaseCommand {
             promises.push(this.listContent());
         }
 
-        // Handle the (publishing) sources option.
-        if (this.getCommandLineOption("sources")) {
+        // Handle the publishing sources option.
+        if (this.getCommandLineOption("publishingSources")) {
             promises.push(this.listSources());
+        }
+
+        // Handle the publishing profiles option.
+        if (this.getCommandLineOption("publishingProfiles")) {
+            promises.push(this.listProfiles());
+        }
+
+        // Handle the publishing profiles option.
+        if (this.getCommandLineOption("publishingSiteRevisions")) {
+            promises.push(this.listSiteRevisions());
         }
 
         return promises;
@@ -317,10 +347,10 @@ class ListCommand extends BaseCommand {
         // if Ignore-timestamps is specified then list all items, otherwise only list modified items (which is the default behavior)
         // if server is specified then list remote items, otherwise list local items (the default)
         const functionName = "list" +
-                             ((this.getCommandLineOption("IgnoreTimestamps")) ? "" : "Modified") +
+                             ((this.getCommandLineOption("ignoreTimestamps")) ? "" : "Modified") +
                              ((this.getCommandLineOption("server")) ? "Remote" : "Local") +
                              "ItemNames";
-        if (this.getCommandLineOption("IgnoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             return helper[functionName].bind(helper);
         } else {
             return helper[functionName].bind(helper, this.getFlags(helper));
@@ -333,7 +363,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the specified list of "asset" artifacts.
      */
     listAssets () {
-        const helper = dxAuthoring.getAssetsHelper();
+        const helper = toolsApi.getAssetsHelper();
 
         if (this.getCommandLineOption("assets") && this.getCommandLineOption("webassets")) {
             this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_BOTH);
@@ -365,7 +395,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the specified list of "image profile" artifacts.
      */
     listImageProfiles () {
-        const helper = dxAuthoring.getImageProfilesHelper();
+        const helper = toolsApi.getImageProfilesHelper();
         const apiOptions = this.getApiOptions();
         const listFunction = this.getListFunction(helper);
         const imageProfilesPromise = listFunction(apiOptions);
@@ -383,35 +413,12 @@ class ListCommand extends BaseCommand {
     }
 
     /**
-     * List the "presentation" artifacts.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the specified list of "presentation" artifacts.
-     */
-    listPresentations () {
-        const helper = dxAuthoring.getPresentationsHelper();
-        const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
-        const presentationPromise = listFunction(apiOptions);
-        const deferred = Q.defer();
-
-        presentationPromise
-            .then(function (result) {
-                deferred.resolve({"type": ListPresentations, "value": result});
-            })
-            .catch(function (err) {
-                deferred.reject(err);
-            });
-
-        return deferred.promise;
-    }
-
-    /**
      * List the "category" artifacts.
      *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "category" artifacts.
      */
     listCategories () {
-        const helper = dxAuthoring.getCategoriesHelper();
+        const helper = toolsApi.getCategoriesHelper();
         const apiOptions = this.getApiOptions();
         const listFunction = this.getListFunction(helper);
         const categoriesPromise = listFunction(apiOptions);
@@ -434,7 +441,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the specified list of "rendition" artifacts.
      */
     listRenditions () {
-        const helper = dxAuthoring.getRenditionsHelper();
+        const helper = toolsApi.getRenditionsHelper();
         const apiOptions = this.getApiOptions();
         const listFunction = this.getListFunction(helper);
         const renditionsPromise = listFunction(apiOptions);
@@ -457,7 +464,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the specified list of "type" artifacts.
      */
     listTypes () {
-        const helper = dxAuthoring.getItemTypeHelper();
+        const helper = toolsApi.getItemTypeHelper();
         const apiOptions = this.getApiOptions();
         const listFunction = this.getListFunction(helper);
         const typePromise = listFunction(apiOptions);
@@ -480,7 +487,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the specified list of "content" artifacts.
      */
     listContent () {
-        const helper = dxAuthoring.getContentHelper();
+        const helper = toolsApi.getContentHelper();
         const apiOptions = this.getApiOptions();
         const listFunction = this.getListFunction(helper);
         const contentsPromise = listFunction(apiOptions);
@@ -503,7 +510,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing source" artifacts.
      */
     listSources () {
-        const helper = dxAuthoring.getPublishingSourcesHelper();
+        const helper = toolsApi.getPublishingSourcesHelper();
         const apiOptions = this.getApiOptions();
         const listFunction = this.getListFunction(helper);
         const sourcesPromise = listFunction(apiOptions);
@@ -521,6 +528,52 @@ class ListCommand extends BaseCommand {
     }
 
     /**
+     * List the "publishing profile" artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing profile" artifacts.
+     */
+    listProfiles () {
+        const helper = toolsApi.getPublishingProfilesHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper);
+        const profilesPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        profilesPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListPublishingProfiles, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    /**
+     * List the "publishing site revision" artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing site revision" artifacts.
+     */
+    listSiteRevisions () {
+        const helper = toolsApi.getPublishingSiteRevisionsHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper);
+        const artifactPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        artifactPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListPublishingSiteRevisions, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    /**
      * Reset the command line options for this command.
      *
      * NOTE: This is used to reset the values when the command is invoked by the mocha testing. Normally the process
@@ -529,13 +582,14 @@ class ListCommand extends BaseCommand {
      */
     resetCommandLineOptions () {
         this.setCommandLineOption("types", undefined);
-        this.setCommandLineOption("presentations", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
-        this.setCommandLineOption("Categories", undefined);
-        this.setCommandLineOption("sources", undefined);
+        this.setCommandLineOption("categories", undefined);
+        this.setCommandLineOption("publishingSources", undefined);
+        this.setCommandLineOption("publishingProfiles", undefined);
+        this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("renditions", undefined);
         this.setCommandLineOption("quiet", undefined);
         this.setCommandLineOption("path", undefined);
@@ -553,25 +607,27 @@ function listCommand (program) {
         .command('list')
         .description(i18n.__('cli_list_description'))
         .option('-t --types',            i18n.__('cli_list_opt_types'))
-        .option('-p --presentations',    i18n.__('cli_list_opt_presentations'))
         .option('-a --assets',           i18n.__('cli_list_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_list_opt_web_assets'))
         .option('-i --image-profiles',   i18n.__('cli_list_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_list_opt_content'))
-        .option('-C --Categories',       i18n.__('cli_list_opt_categories'))
-        .option('-s --sources',          i18n.__('cli_list_opt_sources'))
+        .option('-C --categories',       i18n.__('cli_list_opt_categories'))
+        .option('-P --publishing-profiles',i18n.__('cli_list_opt_profiles'))
+        .option('-R --publishing-site-revisions',i18n.__('cli_list_opt_site_revisions'))
+        .option('-s --publishing-sources',i18n.__('cli_list_opt_sources'))
         .option('-r --renditions',       i18n.__('cli_list_opt_renditions'))
         .option('-q --quiet',            i18n.__('cli_list_opt_quiet'))
-        .option('-A --All-authoring',    i18n.__('cli_list_opt_all'))
+        .option('-I --ignore-timestamps',i18n.__('cli_list_opt_ignore_timestamps'))
+        .option('-A --all-authoring',    i18n.__('cli_list_opt_all'))
         .option('--path <path>',         i18n.__('cli_list_opt_path'))
         .option('--dir <dir>',           i18n.__('cli_list_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
-        .option('-I --Ignore-timestamps',i18n.__('cli_list_opt_ignore_timestamps'))
         .option('--new',                 i18n.__('cli_list_opt_new'))
         .option('--del',                 i18n.__('cli_list_opt_deleted'))
         .option('--mod',                 i18n.__('cli_list_opt_modified'))
         .option('--server',              i18n.__('cli_list_opt_server'))
+        .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
         .action(function (options) {
             const command = new ListCommand(program);
             if (command.setCommandLineOptions(options, this)) {

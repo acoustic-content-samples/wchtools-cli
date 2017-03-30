@@ -58,7 +58,8 @@ class RenditionsHelper extends BaseHelper {
      * @returns {Q.Promise} A rejected promise indicating that renditions cannot be deleted.
      */
     deleteRemoteItem(id, opts) {
-        return Q.reject(new Error("Delete not supported"));
+        const message = i18n.__("delete_rendition_error", {"id": id, "opts": JSON.stringify(opts ? opts : {})});
+        return Q.reject(new Error(message));
     }
 }
 

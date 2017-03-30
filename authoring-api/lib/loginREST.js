@@ -29,6 +29,8 @@ const i18n = utils.getI18N(__dirname + "/nls", ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
+const uriPath = "/login/v1/basicauth";
+
 // Local function to determine whether to reject on login error.
 const rejectOnError = function () {
     // The default behavior ist to reject the login promise on login error.
@@ -54,8 +56,6 @@ class LoginREST {
         }
 
         this._serviceName = "login";
-        this._uriPath = "/login/v1/basicauth";
-        this._uri = options.getRelevantOption(null, "dx-api-gateway") + this._uriPath;
         this._tenant_id = process.env.TENANT_ID;  // Allow explicit tenant id for testing
     }
 
@@ -99,8 +99,15 @@ class LoginREST {
      * @returns {Object} The request options to be used for logging in.
      */
     _getRequestOptions (opts) {
+        const baseUrl = options.getRelevantOption(opts, "x-ibm-dx-tenant-base-url");
+        const api_gateway = options.getRelevantOption(opts, "dx-api-gateway");
+
+        // FUTURE We expect at least one of these should exist before getting here. If neither exists, the error from
+        // FUTURE the login request is "Invalid URI null/login/v1/basicauth". This isn't very useful. It would be more
+        // FUTURE useful to throw an Error from here and catch it before login. Or at least add an error to the log.
+
         return {
-            uri: this._uri,
+            uri: (baseUrl || api_gateway) + uriPath,
             headers: this._getHeaders(opts),
             auth: {
                 "user": opts.username,
@@ -139,25 +146,39 @@ class LoginREST {
                 }
             } else if (res.headers && res.headers["set-cookie"] && res.headers["x-ibm-dx-tenant-id"]) {
                 // The login succeeded.
-                let tenant = res.headers["x-ibm-dx-tenant-id"];
-                let baseUrl = res.headers["x-ibm-dx-tenant-base-url"];
+                const tenant = res.headers["x-ibm-dx-tenant-id"];
+                const baseUrl = res.headers["x-ibm-dx-tenant-base-url"];
                 if (tenant || baseUrl) {
-                    response["x-ibm-dx-tenant-id"]=tenant;
-                    response["x-ibm-dx-tenant-base-url"]=baseUrl;
+                    const existingBaseUrl = options.getProperty("x-ibm-dx-tenant-base-url");
+
+                    // Resolve the promise with the tenant and baseUrl values from the login response.
+                    response["x-ibm-dx-tenant-id"] = tenant;
+                    response["x-ibm-dx-tenant-base-url"] = existingBaseUrl || baseUrl;
+                    response["base-url-from-login-response"] = baseUrl;
+
+                    // Keep track of the returned values, but do not overwrite an existing base URL.
                     const opt = {};
                     opt["x-ibm-dx-tenant-id"] = tenant;
-                    opt["x-ibm-dx-tenant-base-url"] = baseUrl;
+                    if (!existingBaseUrl) {
+                        opt["x-ibm-dx-tenant-base-url"] = baseUrl;
+                    }
                     logger.debug("LoginREST.login.resolve: Setting runtime user option for tenant based on login response: " + JSON.stringify(opt));
                     options.setOptions(opt);
                 }
                 logger.debug("LoginREST.login.resolve: cookie" + res.headers["set-cookie"]);
                 deferred.resolve(response);
             } else {
-                // The login did not return the expected cookie(s).
+                // The login did not return the expected authentication token or tenant id.
+                requestOptions.auth.pass='****';
                 err = utils.getError(err, body, res, requestOptions);
-                utils.logErrors("Login service returned with valid HTTP code but missing authentication token or tenant id.", err);
+
+                // Log the actual error that was returned from the service.
+                const message = i18n.__("login_missing_authn");
+                utils.logErrors(message, err);
+
+                // Reject the promise, if allowed.
                 if (rejectOnError()) {
-                    deferred.reject(new Error("Login service failed to respond with valid authentication information"));
+                    deferred.reject(new Error(message));
                 } else {
                     deferred.resolve(response);
                 }
@@ -165,6 +186,13 @@ class LoginREST {
         });
 
         return deferred.promise;
+    }
+
+    /**
+     * Remove any local values that may have been set previously.
+     */
+    reset () {
+        this._tenant_id = process.env.TENANT_ID;
     }
 }
 

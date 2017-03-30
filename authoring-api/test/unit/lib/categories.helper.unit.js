@@ -25,9 +25,9 @@ const BaseHelperUnitTest = require("./base.helper.unit.js");
 const sinon = require("sinon");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/categoriesREST.js").instance;
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/categoriesFS.js").instance;
-const helper = require(UnitTest.AUTHORING_API_PATH + "categoriesHelper.js").instance;
+const restApi = require(UnitTest.API_PATH + "lib/categoriesREST.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/categoriesFS.js").instance;
+const helper = require(UnitTest.API_PATH + "categoriesHelper.js").instance;
 const path1 = CategoriesUnitTest.VALID_CATEGORIES_DIRECTORY + CategoriesUnitTest.VALID_CATEGORY_1;
 const path2 = CategoriesUnitTest.VALID_CATEGORIES_DIRECTORY + CategoriesUnitTest.VALID_CATEGORY_2;
 const badPath = CategoriesUnitTest.INVALID_CATEGORIES_DIRECTORY + CategoriesUnitTest.INVALID_CATEGORY_BAD_NAME;

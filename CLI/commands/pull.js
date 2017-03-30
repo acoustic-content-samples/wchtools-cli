@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const dxAuthoring = require("dxauthoringapi");
-const utils = dxAuthoring.utils;
-const login = dxAuthoring.login;
+const toolsApi = require("wchtools-api");
+const utils = toolsApi.utils;
+const login = toolsApi.login;
 const Q = require("q");
 const ora = require("ora");
 
@@ -29,7 +29,6 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const PREFIX = "========== ";
 const SUFFIX = " ===========";
 const PullingTypes =                PREFIX + i18n.__('cli_pull_pulling_types') + SUFFIX;
-const PullingPresentations =        PREFIX + i18n.__('cli_pull_pulling_presentations') + SUFFIX;
 const PullingAssets =               PREFIX + i18n.__('cli_pull_pulling_assets') + SUFFIX;
 const PullingContentAssets =        PREFIX + i18n.__('cli_pull_pulling_content_assets') + SUFFIX;
 const PullingWebAssets =            PREFIX + i18n.__('cli_pull_pulling_web_assets') + SUFFIX;
@@ -37,7 +36,9 @@ const PullingImageProfiles =        PREFIX + i18n.__('cli_pull_pulling_image_pro
 const PullingContents =             PREFIX + i18n.__('cli_pull_pulling_content') + SUFFIX;
 const PullingCategories =           PREFIX + i18n.__('cli_pull_pulling_categories') + SUFFIX;
 const PullingRenditions =           PREFIX + i18n.__('cli_pull_pulling_renditions') + SUFFIX;
+const PullingPublishingProfiles =   PREFIX + i18n.__('cli_pull_pulling_profiles') + SUFFIX;
 const PullingPublishingSources =    PREFIX + i18n.__('cli_pull_pulling_sources') + SUFFIX;
+const PullingPublishingSiteRevisions = PREFIX + i18n.__('cli_pull_pulling_site_revisions') + SUFFIX;
 
 class PullCommand extends BaseCommand {
     /**
@@ -50,6 +51,8 @@ class PullCommand extends BaseCommand {
 
         // The directory specified by the "dir" command line option should be created.
         this.setCreateDir(true);
+
+        // Only pull modified artifacts by default.
         this._modified = true;
     }
 
@@ -63,41 +66,41 @@ class PullCommand extends BaseCommand {
         // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
         self.handleArtifactTypes();
 
-        // Make sure the "path", "dir", and authentication options can be handled successfully.
+        // Make sure the "dir" option can be handled successfully.
         if (!self.handleDirOption()) {
             return;
         }
 
-        // Make sure the user name and password have been specified.
-        self.handleAuthenticationOptions().then(function() {
-            // Login using the current options.
-            const apiOptions = self.getApiOptions();
-            login.login(apiOptions)
-                .then(function (/*results*/) {
-                    // Start the display of the pulled artifacts.
-                    self.startDisplay();
+        // Make sure the url has been specified.
+        self.handleUrlOption()
+            .then(function () {
+                // Make sure the user name and password have been specified.
+                return self.handleAuthenticationOptions();
+            })
+            .then(function () {
+                // Login using the current options.
+                return login.login(self.getApiOptions());
+            })
+            .then(function () {
+                // Start the display of the pulled artifacts.
+                self.startDisplay();
 
-                    self.pullArtifacts()
-                        .then(function (/*results*/) {
-                            // End the display of the pulled artifacts.
-                            self.endDisplay();
+                return self.pullArtifacts();
+            })
+            .then(function () {
+                // End the display of the pulled artifacts.
+                self.endDisplay();
+            })
+            .catch(function (err) {
+                self.errorMessage(err.message);
+            })
+            .finally(function () {
+                // Reset the command line options once the command has completed.
+                self.resetCommandLineOptions();
 
-                            // Reset the command line options once the command has completed.
-                            self.resetCommandLineOptions();
-
-                            // Handle any necessary cleanup.
-                            self.handleCleanup();
-                        });
-                })
-                .catch(function (err) {
-                    self.errorMessage(err.message);
-                    // Reset the command line options once the command has completed.
-                    self.resetCommandLineOptions();
-
-                    // Handle any necessary cleanup.
-                    self.handleCleanup();
-                });
-        });
+                // Handle any necessary cleanup.
+                self.handleCleanup();
+            });
     }
 
     /**
@@ -124,7 +127,7 @@ class PullCommand extends BaseCommand {
             this.spinner.stop();
         }
 
-        // TODO This is not translation compatible. We need to convert this to a string with substitution parameters.
+        // FUTURE This is not translation compatible. We need to convert this to a string with substitution parameters.
         let message = i18n.__(this._modified ? 'cli_pull_modified_complete' : 'cli_pull_complete');
         if (this._artifactsCount > 0) {
             message += " " + i18n.__n('cli_pull_success', this._artifactsCount);
@@ -136,7 +139,7 @@ class PullCommand extends BaseCommand {
             message += " " + i18n.__('cli_log_non_verbose');
         }
         if (this._artifactsCount === 0 && this._artifactsError === 0) {
-            if (this.getCommandLineOption("IgnoreTimestamps")) {
+            if (this.getCommandLineOption("ignoreTimestamps")) {
                 message = i18n.__('cli_pull_complete_ignore_timestamps_nothing_pulled');
             } else {
                 message = i18n.__('cli_pull_complete_nothing_pulled');
@@ -162,7 +165,7 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("Categories")) {
+                if (self.getCommandLineOption("categories")) {
                     return self.handlePullPromise(self.pullCategories());
                 }
             })
@@ -177,11 +180,6 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("presentations")) {
-                    return self.handlePullPromise(self.pullPresentations());
-                }
-            })
-            .then(function () {
                 if (self.getCommandLineOption("types")) {
                     return self.handlePullPromise(self.pullTypes());
                 }
@@ -192,7 +190,17 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("sources")) {
+                if (self.getCommandLineOption("publishingProfiles")) {
+                    return self.handlePullPromise(self.pullProfiles());
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("publishingSiteRevisions")) {
+                    return self.handlePullPromise(self.pullSiteRevisions());
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("publishingSources")) {
                     return self.handlePullPromise(self.pullSources());
                 }
             })
@@ -257,7 +265,7 @@ class PullCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the asset artifacts.
      */
     pullAssets () {
-        const helper = dxAuthoring.getAssetsHelper();
+        const helper = toolsApi.getAssetsHelper();
         const self = this;
 
         if (this.getCommandLineOption("assets") && this.getCommandLineOption("webassets")) {
@@ -271,15 +279,21 @@ class PullCommand extends BaseCommand {
             this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
         }
 
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
+        // The api emits an event when an item is pulled, so we log it for the user.
         const assetPulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_asset_pulled', {name: name}));
         };
-
         helper.getEventEmitter().on("pulled", assetPulled);
 
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
+        // The api can emit a warning event when an item is pulled, so we log it for the user.
+        const assetPulledWarning = function (name) {
+            self.getLogger().warn(i18n.__('cli_pull_asset_digest_mismatch', {asset: name}));
+            self.warningMessage(i18n.__('cli_pull_asset_digest_mismatch', {asset: name}));
+        };
+        helper.getEventEmitter().on("pulled-warning", assetPulledWarning);
+
+        // The api emits an event when there is a pull error, so we log it for the user.
         const assetPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().info(i18n.__('cli_pull_asset_pull_error', {name: name, message: error.message}));
@@ -289,6 +303,7 @@ class PullCommand extends BaseCommand {
         // Cleanup function to remove the event listeners.
         this.addCleanup(function () {
             helper.getEventEmitter().removeListener("pulled", assetPulled);
+            helper.getEventEmitter().removeListener("pulled-warning", assetPulledWarning);
             helper.getEventEmitter().removeListener("pulled-error", assetPulledError);
         });
 
@@ -299,7 +314,7 @@ class PullCommand extends BaseCommand {
         let assetPromise;
         if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
             assetPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
             assetPromise = helper.pullAllItems(apiOptions);
         } else {
             assetPromise = helper.pullModifiedItems(apiOptions);
@@ -315,19 +330,19 @@ class PullCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the asset artifacts.
      */
     pullImageProfiles () {
-        const helper = dxAuthoring.getImageProfilesHelper();
+        const helper = toolsApi.getImageProfilesHelper();
         const self = this;
 
         self.getLogger().info(PullingImageProfiles);
 
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
+        // The api emits an event when an item is pulled, so we log it for the user.
         const imageProfilePulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_image_profile_pulled', {name: name}));
         };
         helper.getEventEmitter().on("pulled", imageProfilePulled);
 
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
+        // The api emits an event when there is a pull error, so we log it for the user.
         const imageProfilePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().info(i18n.__('cli_pull_image_profile_pull_error', {name: name, message: error.message}));
@@ -347,7 +362,7 @@ class PullCommand extends BaseCommand {
         let imageProfilesPromise;
         if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
             imageProfilesPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
             imageProfilesPromise = helper.pullAllItems(apiOptions);
         } else {
             imageProfilesPromise = helper.pullModifiedItems(apiOptions);
@@ -358,72 +373,24 @@ class PullCommand extends BaseCommand {
     }
 
     /**
-     * Pull the presentation artifacts.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the results of pulling the presentation artifacts.
-     */
-    pullPresentations () {
-        const helper = dxAuthoring.getPresentationsHelper();
-        const self = this;
-
-        self.getLogger().info(PullingPresentations);
-
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
-        const presentationPulled = function (name) {
-            self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_presentation_pulled', {name: name}));
-        };
-        helper.getEventEmitter().on("pulled", presentationPulled);
-
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
-        const presentationPulledError = function (error, name) {
-            self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_presentation_pull_error', {name: name, message: error.message}));
-        };
-        helper.getEventEmitter().on("pulled-error", presentationPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", presentationPulled);
-            helper.getEventEmitter().removeListener("pulled-error", presentationPulledError);
-        });
-
-        // If a name is set, pull the named presentation.
-        // If Ignore-timestamps is set then pull all presentations. Otherwise
-        // only pull modified presentations (which is the default behavior).
-        const apiOptions = this.getApiOptions();
-        let presentationPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            presentationPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
-            presentationPromise = helper.pullAllItems(apiOptions);
-        } else {
-            presentationPromise = helper.pullModifiedItems(apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return presentationPromise;
-    }
-
-    /**
      * Pull the rendition artifacts.
      *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the rendition artifacts.
      */
     pullRenditions () {
-        const helper = dxAuthoring.getRenditionsHelper();
+        const helper = toolsApi.getRenditionsHelper();
         const self = this;
 
         self.getLogger().info(PullingRenditions);
 
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
+        // The api emits an event when an item is pulled, so we log it for the user.
         const renditionPulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_rendition_pulled', {name: name}));
         };
         helper.getEventEmitter().on("pulled", renditionPulled);
 
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
+        // The api emits an event when there is a pull error, so we log it for the user.
         const renditionPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().info(i18n.__('cli_pull_rendition_pull_error', {name: name, message: error.message}));
@@ -443,7 +410,7 @@ class PullCommand extends BaseCommand {
         let renditionPromise;
         if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
             renditionPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
             renditionPromise = helper.pullAllItems(apiOptions);
         } else {
             renditionPromise = helper.pullModifiedItems(apiOptions);
@@ -459,19 +426,19 @@ class PullCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the category artifacts.
      */
     pullCategories () {
-        const helper = dxAuthoring.getCategoriesHelper();
+        const helper = toolsApi.getCategoriesHelper();
         const self = this;
 
         self.getLogger().info(PullingCategories);
 
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
+        // The api emits an event when an item is pulled, so we log it for the user.
         const categoryPulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_cat_pulled', {name: name}));
         };
         helper.getEventEmitter().on("pulled", categoryPulled);
 
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
+        // The api emits an event when there is a pull error, so we log it for the user.
         const categoryPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().info(i18n.__('cli_pull_cat_pull_error', {name: name, message: error.message}));
@@ -491,7 +458,7 @@ class PullCommand extends BaseCommand {
         let categoryPromise;
         if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
             categoryPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
             categoryPromise = helper.pullAllItems(apiOptions);
         } else {
             categoryPromise = helper.pullModifiedItems(apiOptions);
@@ -507,19 +474,19 @@ class PullCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the type artifacts.
      */
     pullTypes () {
-        const helper = dxAuthoring.getItemTypeHelper();
+        const helper = toolsApi.getItemTypeHelper();
         const self = this;
 
         self.getLogger().info(PullingTypes);
 
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
+        // The api emits an event when an item is pulled, so we log it for the user.
         const itemTypePulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_type_pulled', {name: name}));
         };
         helper.getEventEmitter().on("pulled", itemTypePulled);
 
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
+        // The api emits an event when there is a pull error, so we log it for the user.
         const itemTypePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().info(i18n.__('cli_pull_type_pull_error', {name: name, message: error.message}));
@@ -539,7 +506,7 @@ class PullCommand extends BaseCommand {
         let typePromise;
         if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
             typePromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
             typePromise = helper.pullAllItems(apiOptions);
         } else {
             typePromise = helper.pullModifiedItems(apiOptions);
@@ -555,19 +522,19 @@ class PullCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the content artifacts.
      */
     pullContent () {
-        const helper = dxAuthoring.getContentHelper();
+        const helper = toolsApi.getContentHelper();
         const self = this;
 
         self.getLogger().info(PullingContents);
 
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
+        // The api emits an event when an item is pulled, so we log it for the user.
         const contentPulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_content_pulled', {name: name}));
         };
         helper.getEventEmitter().on("pulled", contentPulled);
 
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
+        // The api emits an event when there is a pull error, so we log it for the user.
         const contentPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().info(i18n.__('cli_pull_content_pull_error', {name: name, message: error.message}));
@@ -587,7 +554,7 @@ class PullCommand extends BaseCommand {
         let contentPromise;
         if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
             contentPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
             contentPromise = helper.pullAllItems(apiOptions);
         } else {
             contentPromise = helper.pullModifiedItems(apiOptions);
@@ -603,19 +570,19 @@ class PullCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the source artifacts.
      */
     pullSources () {
-        const helper = dxAuthoring.getPublishingSourcesHelper();
+        const helper = toolsApi.getPublishingSourcesHelper();
         const self = this;
 
         self.getLogger().info(PullingPublishingSources);
 
-        // The authoring api emits an event when an item is pulled, so we log it for the user.
+        // The api emits an event when an item is pulled, so we log it for the user.
         const sourcePulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_source_pulled', {name: name}));
         };
         helper.getEventEmitter().on("pulled", sourcePulled);
 
-        // The authoring api emits an event when there is a pull error, so we log it for the user.
+        // The api emits an event when there is a pull error, so we log it for the user.
         const sourcePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().info(i18n.__('cli_pull_source_pull_error', {name: name, message: error.message}));
@@ -635,7 +602,7 @@ class PullCommand extends BaseCommand {
         let sourcePromise;
         if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
             sourcePromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("IgnoreTimestamps")) {
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
             sourcePromise = helper.pullAllItems(apiOptions);
         } else {
             sourcePromise = helper.pullModifiedItems(apiOptions);
@@ -643,6 +610,102 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return sourcePromise;
+    }
+
+    /**
+     * Pull the publishing profile artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pulling the profile artifacts.
+     */
+    pullProfiles () {
+        const helper = toolsApi.getPublishingProfilesHelper();
+        const self = this;
+
+        self.getLogger().info(PullingPublishingProfiles);
+
+        // The api emits an event when an item is pulled, so we log it for the user.
+        const profilePulled = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_profile_pulled', {name: name}));
+        };
+        helper.getEventEmitter().on("pulled", profilePulled);
+
+        // The api emits an event when there is a pull error, so we log it for the user.
+        const profilePulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().info(i18n.__('cli_pull_profile_pull_error', {name: name, message: error.message}));
+        };
+        helper.getEventEmitter().on("pulled-error", profilePulledError);
+
+        // Cleanup function to remove the event listeners.
+        this.addCleanup(function () {
+            helper.getEventEmitter().removeListener("pulled", profilePulled);
+            helper.getEventEmitter().removeListener("pulled-error", profilePulledError);
+        });
+
+        // If a name is set, pull the named profile.
+        // If Ignore-timestamps is set then pull all profiles. Otherwise only pull
+        // modified profiles (which is the default behavior).
+        const apiOptions = this.getApiOptions();
+        let profilesPromise;
+        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
+            profilesPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+            profilesPromise = helper.pullAllItems(apiOptions);
+        } else {
+            profilesPromise = helper.pullModifiedItems(apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return profilesPromise;
+    }
+
+    /**
+     * Pull the publishing site revision artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pulling the site revision artifacts.
+     */
+    pullSiteRevisions () {
+        const helper = toolsApi.getPublishingSiteRevisionsHelper();
+        const self = this;
+
+        self.getLogger().info(PullingPublishingSiteRevisions);
+
+        // The api emits an event when an item is pulled, so we log it for the user.
+        const siteRevisionPulled = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_site_revision_pulled', {name: name}));
+        };
+        helper.getEventEmitter().on("pulled", siteRevisionPulled);
+
+        // The api emits an event when there is a pull error, so we log it for the user.
+        const siteRevisionPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().info(i18n.__('cli_pull_site_revision_pull_error', {name: name, message: error.message}));
+        };
+        helper.getEventEmitter().on("pulled-error", siteRevisionPulledError);
+
+        // Cleanup function to remove the event listeners.
+        this.addCleanup(function () {
+            helper.getEventEmitter().removeListener("pulled", siteRevisionPulled);
+            helper.getEventEmitter().removeListener("pulled-error", siteRevisionPulledError);
+        });
+
+        // If a name is set, pull the named site revision
+        // If Ignore-timestamps is set then pull all site revisions. Otherwise only pull
+        // modified site revisions (which is the default behavior).
+        const apiOptions = this.getApiOptions();
+        let artifactPromise;
+        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
+            artifactPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactPromise = helper.pullAllItems(apiOptions);
+        } else {
+            artifactPromise = helper.pullModifiedItems(apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactPromise;
     }
 
     /**
@@ -654,14 +717,15 @@ class PullCommand extends BaseCommand {
      */
     resetCommandLineOptions () {
         this.setCommandLineOption("types", undefined);
-        this.setCommandLineOption("presentations", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
-        this.setCommandLineOption("Categories", undefined);
+        this.setCommandLineOption("categories", undefined);
         this.setCommandLineOption("renditions", undefined);
-        this.setCommandLineOption("sources", undefined);
+        this.setCommandLineOption("publishingSources", undefined);
+        this.setCommandLineOption("publishingProfiles", undefined);
+        this.setCommandLineOption("publishingSiteRevisions", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -672,24 +736,26 @@ function pullCommand (program) {
         .command('pull')
         .description(i18n.__('cli_pull_description'))
         .option('-t --types',            i18n.__('cli_pull_opt_types'))
-        .option('-p --presentations',    i18n.__('cli_pull_opt_presentations'))
         .option('-a --assets',           i18n.__('cli_pull_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_pull_opt_web_assets'))
         .option('-i --image-profiles',   i18n.__('cli_pull_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_pull_opt_content'))
-        .option('-C --Categories',       i18n.__('cli_pull_opt_categories'))
+        .option('-C --categories',       i18n.__('cli_pull_opt_categories'))
         .option('-r --renditions',       i18n.__('cli_pull_opt_renditions'))
-        .option('-s --sources',          i18n.__('cli_pull_opt_sources'))
+        .option('-P --publishing-profiles',i18n.__('cli_pull_opt_profiles'))
+        .option('-R --publishing-site-revisions',i18n.__('cli_pull_opt_site_revisions'))
+        .option('-s --publishing-sources',i18n.__('cli_pull_opt_sources'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
-        .option('-I --Ignore-timestamps',i18n.__('cli_pull_opt_ignore_timestamps'))
-        .option('-A --All-authoring',    i18n.__('cli_pull_opt_all'))
+        .option('-I --ignore-timestamps',i18n.__('cli_pull_opt_ignore_timestamps'))
+        .option('-A --all-authoring',    i18n.__('cli_pull_opt_all'))
         .option('--dir <dir>',           i18n.__('cli_pull_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
+        .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
         .action(function (options) {
             const command = new PullCommand(program);
             if (command.setCommandLineOptions(options, this)) {
-                if (command.getCommandLineOption("IgnoreTimestamps")) {
+                if (command.getCommandLineOption("ignoreTimestamps")) {
                     command._modified = false;
                 }
                 command.doPull(true);

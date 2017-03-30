@@ -12,11 +12,13 @@
   "deleted_original_file": "元のファイル %(old_name)s を削除しました。新規ファイル: %(new_name)s",
   "error_cancelling_job": "次のジョブのキャンセルでエラーが発生しました: ID %(id)s",
   "error_fs_get_item": "ファイル・システム getItem でエラーが発生しました",
-  "error_parsing_item": "ファイル %(name)s のアイテムの構文解析でエラーが発生しました。%(message)s\n%(body)s",
-  "get_items_error": "アイテム %(service_name)s の取得でエラーが発生しました:",
+  "error_fs_get_filestats": "%(name)s のファイル・システムの getFileStats でエラーが発生しました。",
+  "error_parsing_item": "ファイル %(name)s のアイテムの構文解析でエラーが発生しました。 %(message)s\n%(body)s",
+  "get_items_error": "アイテム %(service_name)s の取得でエラーが発生しました: ",
   "save_item_write_failed": "saveItem でファイル %(path)s への書き込みに失敗しました",
   "save_item_write_failed_bad_path": "saveItem でファイル %(path)s への書き込みに失敗しました。パスが正しくありません",
   "close_stream_failed": "closeStream がエラーで失敗しました: ",
+  "error_options_file": "構成オプション・ファイル %(filename)s の読み取り中にエラーが発生しました。%(error)s",
 
   "name_required": "名前を指定する必要があります。",
   "category_exists": "名前 %(name)s のカテゴリーは既に存在します。",
@@ -24,10 +26,13 @@
   "presentation_exists": "名前 %(name)s のプレゼンテーションは既に存在します。",
   "cannot_get_asset": "次のアセットを取得できません: %(path)s。状況コード: %(code)s",
   "deleted_asset": "次の ID のアセットを削除しました: %(id)s",
-  "get_item_error": "アイテム %(service_name)s の取得でエラーが発生しました:",
-  "create_item_error": "アイテム %(service_name)s の作成でエラーが発生しました:",
-  "update_item_error": "アイテム %(service_name)s の更新でエラーが発生しました:",
-  "delete_item_error": "アイテム %(service_name)s の削除でエラーが発生しました:",
+  "create_asset_metadata_error": "アセット・メタデータの作成中にエラーが発生しました: ",
+  "deleted_item": "ID %(id)s のアイテムを削除しました",
+  "get_item_error": "アイテム %(service_name)s の取得でエラーが発生しました: ",
+  "create_item_error": "アイテム %(service_name)s の作成でエラーが発生しました: ",
+  "update_item_error": "アイテム %(service_name)s の更新でエラーが発生しました: ",
+  "delete_item_error": "アイテム %(service_name)s の削除でエラーが発生しました: ",
+  "delete_rendition_error": "レンディションの削除はサポートされていません。ID: %(id)s、opts: %(opts)s",
   "error_tenant_map": "loadTenantMap でエラーが発生しました: ",
   "error_save_hashes": "saveHashes でエラーが発生しました: ",
   "error_update_hashes": "updateHashes でエラーが発生しました: ",
@@ -36,14 +41,15 @@
   "error_get_hashes_for_file": "getHashesForFile でエラーが発生しました: ",
 
   "unknown_error": "不明なエラー",
-  "service_unavailable": "IBM Watson Content Hub サービスは現在使用できません。",
-  "service_error": "IBM Watson Content Hub サービスが技術的な問題を報告しています。",
+  "service_unavailable": "IBM Watson Content Hub サービスは現在使用できません。  ",
+  "service_error": "IBM Watson Content Hub サービスが技術的な問題を報告しています。  ",
   "service_response_error": "IBM Watson Content Hub サービスからエラー・コード %(code)d および次の状況メッセージが返されました: %(message)s",
   "operation_failed": "操作がエラーで失敗しました: ",
   "async_parallel_limit_error": "非同期の parallelLimit 呼び出しがエラーで失敗しました: ",
   "async_parallel_limit_results": "非同期 parallelLimit の結果: ",
   "please_try": "後で再試行してください。  問題が解決しない場合、お客様サポートにお問い合わせのうえ、%(log_dir)s にあるログ情報を提供してください",
-  "conflict":"サービスでこの成果物の要求を処理中にエラーが発生し、エラー状態が返されました。"
-
+  "conflict":"サービスでこの成果物の要求を処理中にエラーが発生し、エラー状態が返されました。",
+  "login_missing_authn":"ログイン・サービスが、有効な認証情報で応答できませんでした。",
+  "digest_mismatch": "プルしたアセット %(asset)s のダイジェスト %(cli_digest)s がサーバー・ダイジェスト %(server_digest)s と一致しません。"
 }
 

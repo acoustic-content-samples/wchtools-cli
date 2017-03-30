@@ -1,6 +1,5 @@
 {
   "dx-api-gateway": "https://my.digitalexperience.ibm.com/api",
-  "username": "",
   "content": {
     "offset": 0,
     "limit": 200,
@@ -41,7 +40,17 @@
     "limit": 100,
     "concurrent-limit": 10
   },
-  "sources": {
+  "publishing-sources": {
+    "offset": 0,
+    "limit": 100,
+    "concurrent-limit": 10
+  },
+  "publishing-profiles": {
+    "offset": 0,
+    "limit": 100,
+    "concurrent-limit": 10
+  },
+  "site-revisions": {
     "offset": 0,
     "limit": 100,
     "concurrent-limit": 10

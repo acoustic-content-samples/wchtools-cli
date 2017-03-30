@@ -43,11 +43,11 @@ const path  = require("path");
 global.expect = chai.expect;
 const sinon = require("sinon");
 
-const dxauthoringapi = require("dxauthoringapi");
-const helper = dxauthoringapi.getPublishingJobsHelper();
-const loginHelper = dxauthoringapi.login;
+const toolsApi = require("wchtools-api");
+const helper = toolsApi.getPublishingJobsHelper();
+const loginHelper = toolsApi.login;
 
-const xman = require("../../xman");
+const toolsCli = require("../../wchToolsCli");
 const LONG_TIMEOUT = 80000;
 
 describe("Test Publishing command", function () {
@@ -70,7 +70,7 @@ describe("Test Publishing command", function () {
         stubGet.resolves({id: 'foo'});
 
         let error;
-        xman.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -95,7 +95,7 @@ describe("Test Publishing command", function () {
         stubGet.resolves({id: 'foo'});
 
         let error;
-        xman.parseArgs(['', process.cwd() + '/index.js', 'publish', '-rv', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '-rv', '--user', 'uname', '--password', 'pwd'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -120,7 +120,7 @@ describe("Test Publishing command", function () {
         stubGet.rejects("Error");
 
         let error;
-        xman.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd'])
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The command should have failed.");
@@ -129,7 +129,7 @@ describe("Test Publishing command", function () {
                 try {
                     // The stub should only have been called once, and it should have been before the spy.
                     expect(stubGet).to.have.been.calledOnce;
-                    expect(err).to.contain('Error');
+                    expect(err.message).to.contain('Error');
                 } catch (err) {
                     error = err;
                 }
@@ -144,17 +144,17 @@ describe("Test Publishing command", function () {
     it("test fail extra param", function (done) {
         // Execute the command to list the items to the download directory.
         let error;
-        xman.parseArgs(['', process.cwd() + "/index.js", 'publish', 'foo', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + "/index.js", 'publish', 'foo', '--user', 'uname', '--password', 'pwd'])
             // Handle a fulfilled promise.
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The command should have failed.");
             })
             // Handle a rejected promise, or a failed expectation from the "then" block.
-            .catch(function (msg) {
+            .catch(function (err) {
                 try {
                     // The stub should only have been called once, and it should have been before the spy.
-                    expect(msg).to.contain('Invalid argument');
+                    expect(err.message).to.contain('Invalid argument');
                 } catch (err) {
                     error = err;
                 }
@@ -173,7 +173,7 @@ describe("Test Publishing command", function () {
         stubGet.resolves({id: 'mypublishiingjobid', state: 'WAITING'});
 
         let error;
-        xman.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '--user', 'uname', '--password', 'pwd'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -198,7 +198,7 @@ describe("Test Publishing command", function () {
         const stubGet = sinon.stub(helper, "getPublishingJob");
         stubGet.resolves({id: 'mypublishiingjobid', state: 'WAITING'});
         let error;
-        xman.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '-v', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '-v', '--user', 'uname', '--password', 'pwd'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -223,7 +223,7 @@ describe("Test Publishing command", function () {
         stubGet.rejects("Error");
 
         let error;
-        xman.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', 'badjobid', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', 'badjobid', '--user', 'uname', '--password', 'pwd'])
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The publish --status command with bad job id should have failed.");
@@ -232,7 +232,7 @@ describe("Test Publishing command", function () {
                 try {
                     // The stub should only have been called once, and it should have been before the spy.
                     expect(stubGet).to.have.been.calledOnce;
-                    expect(err).to.contain('Error');
+                    expect(err.message).to.contain('Error');
                 } catch (err) {
                     error = err;
                 }

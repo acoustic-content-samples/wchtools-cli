@@ -28,9 +28,9 @@ const BaseHelperUnitTest = require("./base.helper.unit.js");
 const sinon = require("sinon");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/presentationsREST.js").instance;
-const fsApi = require(UnitTest.AUTHORING_API_PATH + "lib/presentationsFS.js").instance;
-const helper = require(UnitTest.AUTHORING_API_PATH + "presentationsHelper.js").instance;
+const restApi = require(UnitTest.API_PATH + "lib/presentationsREST.js").instance;
+const fsApi = require(UnitTest.API_PATH + "lib/presentationsFS.js").instance;
+const helper = require(UnitTest.API_PATH + "presentationsHelper.js").instance;
 const path1 = PresentationsUnitTest.VALID_PRESENTATIONS_DIRECTORY + PresentationsUnitTest.VALID_PRESENTATION_1;
 const path2 = PresentationsUnitTest.VALID_PRESENTATIONS_DIRECTORY + PresentationsUnitTest.VALID_PRESENTATION_2;
 const badPath = PresentationsUnitTest.INVALID_PRESENTATIONS_DIRECTORY + PresentationsUnitTest.INVALID_PRESENTATION_BAD_NAME;

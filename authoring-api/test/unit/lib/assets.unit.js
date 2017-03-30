@@ -24,9 +24,9 @@ const stream = require("stream");
 
 class AssetsUnitTest extends UnitTest {
     // Create a stream that can be used for testing when no data is required.
-    static get AUTHORING_API_PATH () { return UnitTest.AUTHORING_API_PATH; };
+    static get API_PATH () { return UnitTest.API_PATH; };
     static get VALID_RESOURCES_DIRECTORY () { return UnitTest.VALID_RESOURCES_DIRECTORY; };
-    static get VALID_WORKING_DIRECTORY () { return this.AUTHORING_API_PATH + this.VALID_RESOURCES_DIRECTORY; };
+    static get VALID_WORKING_DIRECTORY () { return this.API_PATH + this.VALID_RESOURCES_DIRECTORY; };
     static get DUMMY_STREAM () { return new stream.Readable(); };
     static get DUMMY_WRITE_STREAM () { return new stream.Writable(); };
     static get DUMMY_PASS_STREAM () { return new stream.PassThrough(); };
@@ -37,9 +37,9 @@ class AssetsUnitTest extends UnitTest {
     static get VALID_ASSETS_DIRECTORY() {
         return this.VALID_RESOURCES_DIRECTORY + this.ASSETS_DIRECTORY; };
     static get INVALID_ASSETS_DIRECTORY() { return this.INVALID_RESOURCES_DIRECTORY + this.ASSETS_DIRECTORY; };
-    static get VALID_ASSETS_METADATA_DIRECTORY() { return this.AUTHORING_API_PATH + this.VALID_ASSETS_DIRECTORY + this.METADATA_DIRECTORY; };
-    static get VALID_CONTENT_ASSETS_METADATA_DIRECTORY() { return this.AUTHORING_API_PATH + this.VALID_ASSETS_DIRECTORY; };
-    static get INVALID_ASSETS_METADATA_DIRECTORY() { return this.AUTHORING_API_PATH + this.INVALID_ASSETS_DIRECTORY + this.METADATA_DIRECTORY; };
+    static get VALID_ASSETS_METADATA_DIRECTORY() { return this.API_PATH + this.VALID_ASSETS_DIRECTORY + this.METADATA_DIRECTORY; };
+    static get VALID_CONTENT_ASSETS_METADATA_DIRECTORY() { return this.API_PATH + this.VALID_ASSETS_DIRECTORY; };
+    static get INVALID_ASSETS_METADATA_DIRECTORY() { return this.API_PATH + this.INVALID_ASSETS_DIRECTORY + this.METADATA_DIRECTORY; };
 
     // Path values for test content assets.
     static get ASSET_CONTENT_JPG_1() { return "dxdam/87/87268612-232e-4554-922d-d49e9b2deee7/MB1FishingHoleSunset.jpg"; };

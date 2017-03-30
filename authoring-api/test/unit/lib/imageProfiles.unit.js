@@ -23,8 +23,8 @@ const UnitTest = require("./base.unit.js");
 class ImageProfilesUnitTest extends UnitTest {
     // File and directory constants used by all types unit tests.
     static get IMAGE_PROFILES_DIRECTORY() { return "image-profiles/"; };
-    static get VALID_IMAGE_PROFILES_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + ImageProfilesUnitTest.IMAGE_PROFILES_DIRECTORY; };
-    static get INVALID_IMAGE_PROFILES_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + ImageProfilesUnitTest.IMAGE_PROFILES_DIRECTORY; };
+    static get VALID_IMAGE_PROFILES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + ImageProfilesUnitTest.IMAGE_PROFILES_DIRECTORY; };
+    static get INVALID_IMAGE_PROFILES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + ImageProfilesUnitTest.IMAGE_PROFILES_DIRECTORY; };
 
     // Path values for test assets.
     static get VALID_IMAGE_PROFILE_1() { return "image-profile-1.json"; };

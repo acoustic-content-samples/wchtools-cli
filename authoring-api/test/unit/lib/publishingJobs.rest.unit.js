@@ -24,8 +24,8 @@ const PublishingJobsUnitTest = require("./publishingJobs.unit.js");
 const BasePublishingJobsRestUnit = require("./basePublishingJobs.rest.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/publishingJobsREST.js").instance;
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const restApi = require(UnitTest.API_PATH + "lib/publishingJobsREST.js").instance;
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Get the "lookup" URI.
 const lookupUri =  options.getProperty("publishing", "uri");

@@ -25,10 +25,10 @@ const UnitTest = require("./base.unit.js");
 const fs = require("fs");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const utils = require(UnitTest.AUTHORING_API_PATH + "lib/utils/utils.js");
+const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const request = utils.getRequestWrapper();
 
 class BaseRestUnitTest extends UnitTest {

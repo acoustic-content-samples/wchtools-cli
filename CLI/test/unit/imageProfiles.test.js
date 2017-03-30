@@ -14,14 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Run the unit tests for the presentation objects in the authoring-api package.
+ * Run the unit tests for the image profile objects in the CLI package.
  */
 "use strict";
-const helper = require("dxauthoringapi").getImageProfilesHelper()
+
+const helper = require("wchtools-api").getImageProfilesHelper();
 const rest = require("../../../authoring-api/lib/imageProfilesREST.js").instance;
 const fs = require("../../../authoring-api/lib/imageProfilesFS.js").instance;
-if(!fs || !rest)
+
+if (!fs || !rest) {
     console.log('Error could not load required');
+}
+
 // PublishingSources Tests with CLI
 const BASE_NAME = 'imageProfiles';
 const PullUnitTest = require("./lib/pull.unit.js");

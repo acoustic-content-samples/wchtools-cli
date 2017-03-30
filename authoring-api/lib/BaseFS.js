@@ -21,6 +21,7 @@ const mkdirp = require("mkdirp");
 const Q = require("q");
 const options = require("./utils/options.js");
 const utils = require("./utils/utils.js");
+const i18n = utils.getI18N(__dirname, ".json", "en");
 
 class BaseFS {
     constructor (serviceName, folderName, extension) {
@@ -74,9 +75,9 @@ class BaseFS {
     getFileStats (name, opts) {
         const deferred = Q.defer();
 
-        fs.stat(this.getItemPath(name, opts), function(err, stats) {
+        fs.stat(this.getItemPath(name, opts), function (err, stats) {
             if (err) {
-                utils.logErrors( "Get file stats error " + name, err);
+                utils.logErrors(i18n.__("error_fs_get_filestats", {"name": name}), err);
                 deferred.reject(err);
             } else {
                 deferred.resolve(stats);

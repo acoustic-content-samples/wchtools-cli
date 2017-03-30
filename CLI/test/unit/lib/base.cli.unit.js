@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Base class for authoringApi unit tests.
+ * Base class for CLI unit tests.
  */
 "use strict";
 
@@ -47,16 +47,16 @@ const path  = require("path");
 global.expect = chai.expect;
 const loadPath = path.dirname(__filename);
 const cliPath = path.normalize(loadPath + path.sep + '../../../');
-const authorApiPath = path.normalize(loadPath + path.sep + '../../../../authoring-api');
-const dxAuthoring = require("dxauthoringapi");
+const apiPath = path.normalize(loadPath + path.sep + '../../../../authoring-api');
+const toolsApi = require("wchtools-api");
 
 class UnitTest {
     // File and directory constants used by all unit tests.
     static get  COMMAND () {return process.cwd() + "/index.js";};
     static get CLI_PATH () { return cliPath; };
-    static get AUTHORING_API_PATH () { return authorApiPath; };
-    static get VALID_RESOURCES_DIRECTORY () { return   authorApiPath + "/test/unit/resources/valid" + path.sep; }; // Relative to root.
-    static get INVALID_RESOURCES_DIRECTORY () { return  authorApiPath + "/test/unit/resources/invalid" + path.sep; }; // Relative to root.
+    static get API_PATH () { return apiPath; };
+    static get VALID_RESOURCES_DIRECTORY () { return   apiPath + "/test/unit/resources/valid" + path.sep; }; // Relative to root.
+    static get INVALID_RESOURCES_DIRECTORY () { return  apiPath + "/test/unit/resources/invalid" + path.sep; }; // Relative to root.
     static get DOWNLOAD_DIR () { return cliPath + "test/unit/download" + path.sep; }; // Relative to root.
 
     // Dummy values to be used when real values are not required.
@@ -98,7 +98,7 @@ class UnitTest {
      * Restore options to the initial state.
      */
     static restoreOptions () {
-        const options = require(authorApiPath + "/lib/utils/options.js");
+        const options = require(apiPath + "/lib/utils/options.js");
         options.resetState();
     }
 
@@ -162,7 +162,7 @@ class UnitTest {
     /**
     */
     getLoginHelper() {
-        return dxAuthoring.login;
+        return toolsApi.login;
     }
 }
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 /**
- * Run the unit tests for the presentation objects in the authoring-api package.
+ * Run the unit tests for the presentation objects in the API package.
  */
 "use strict";
 
@@ -27,3 +27,8 @@ publishingSourcesHelperUnitTest.run();
 const PublishingSourcesRestUnitTest = require("./lib/publishingSources.rest.unit.js");
 const publishingSourcesRestUnitTest = new PublishingSourcesRestUnitTest();
 publishingSourcesRestUnitTest.run();
+
+// Publishing Sources FS
+const PublishingSourcesFsUnitTest = require("./lib/publishingSources.fs.unit.js");
+const publishingSourcesFsUnitTest = new PublishingSourcesFsUnitTest();
+publishingSourcesFsUnitTest.run();

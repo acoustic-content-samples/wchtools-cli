@@ -23,8 +23,8 @@ const UnitTest = require("./base.unit.js");
 class RenditionsUnitTest extends UnitTest {
     // File and directory constants used by all renditions unit tests.
     static get RENDITIONS_DIRECTORY() { return "renditions/"; };
-    static get VALID_RENDITIONS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + RenditionsUnitTest.RENDITIONS_DIRECTORY; };
-    static get INVALID_RENDITIONS_DIRECTORY() { return UnitTest.AUTHORING_API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + RenditionsUnitTest.RENDITIONS_DIRECTORY; };
+    static get VALID_RENDITIONS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + RenditionsUnitTest.RENDITIONS_DIRECTORY; };
+    static get INVALID_RENDITIONS_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + RenditionsUnitTest.RENDITIONS_DIRECTORY; };
 
     // Path values for test assets.
     static get VALID_RENDITION_1() { return "rendition-1.json"; };

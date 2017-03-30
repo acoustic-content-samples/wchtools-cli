@@ -15,15 +15,16 @@ limitations under the License.
 */
 "use strict";
 
-const dxAuthoring = require("dxauthoringapi");
-const utils = dxAuthoring.utils;
-const options = dxAuthoring.options;
+const toolsApi = require("wchtools-api");
+const utils = toolsApi.utils;
+const options = toolsApi.options;
 const fs  = require('fs');
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
 const Q = require("q");
 const log4js = require('log4js');
 const ProductVersion = require("../package.json").version;
+const cliLog = "cli" + " " + ProductVersion;
 
 class BaseCommand {
     /**
@@ -32,18 +33,30 @@ class BaseCommand {
      * @param {object} program A Commander program object.
      */
     constructor (program) {
+        // The Commander instance to be used for this command.
         this._program = program;
+
+        // The logger for this command, which will be lazy loaded.
+        this._logger;
+
+        // The command line options for this command, which must be set using the setCommandLineOptions method.
+        this._commandLineOptions;
+
+        // The options used by this command for making API calls.
         this._apiOptions = {};
+
+        // Flag to indicate whether the directory specified by the "dir" option on the command line should be created.
         this._createDir = false;
+
+        // Keep track of the number of artifact types specified by the command line options.
         this._optionArtifactCount = 0;
 
-        // Keep track of the number of artifacts that were successfully pulled, and the number of errors.
+        // Keep track of the number of artifacts successfully pushed or pulled, and the number of errors.
         this._artifactsCount = 0;
         this._artifactsError = 0;
 
-        // Keep track of cleanup functions to execute after the command has been completed.
+        // The cleanup functions to execute after the command has been completed.
         this._cleanups = [];
-        this.cliLog = "cli" + " " + ProductVersion;
     }
 
     /**
@@ -180,8 +193,8 @@ class BaseCommand {
         this.setCommandLineOption("user", undefined);
         this.setCommandLineOption("password", undefined);
         this.setCommandLineOption("verbose", undefined);
-        this.setCommandLineOption("IgnoreTimestamps", undefined);
-        this.setCommandLineOption("AllAuthoring", undefined);
+        this.setCommandLineOption("ignoreTimestamps", undefined);
+        this.setCommandLineOption("allAuthoring", undefined);
     }
 
     /**
@@ -203,6 +216,15 @@ class BaseCommand {
     }
 
     /**
+     * Display a warning message.
+     *
+     * @param {string} message The message to be displayed.
+     */
+    warningMessage (message) {
+        this.getProgram().warningMessage(message);
+    }
+
+    /**
      * Display a success message.
      *
      * @param {string} message The message to be displayed.
@@ -215,14 +237,13 @@ class BaseCommand {
      * Determine how many artifact type options were specified. If none, then set the default artifact type option.
      */
     handleArtifactTypes () {
-        // If All-Authoring was specified, set all authoring artifact types.
-        if (this.getCommandLineOption("AllAuthoring")) {
+        // If all-Authoring was specified, set all authoring artifact types.
+        if (this.getCommandLineOption("allAuthoring")) {
             this.setCommandLineOption("types", true);
-            this.setCommandLineOption("presentations", true);
             this.setCommandLineOption("assets", true);
             this.setCommandLineOption("webassets", true);
             this.setCommandLineOption("content", true);
-            this.setCommandLineOption("Categories", true);
+            this.setCommandLineOption("categories", true);
             this.setCommandLineOption("renditions", true);
             this.setCommandLineOption("imageProfiles", true);
         }
@@ -230,9 +251,6 @@ class BaseCommand {
         // Determine the number of artifact types that have been set.
         // If no object types were specified, set the default object type(s).
         if (this.getCommandLineOption("types")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("presentations")) {
             this._optionArtifactCount++;
         }
         if (this.getCommandLineOption("assets")) {
@@ -244,13 +262,19 @@ class BaseCommand {
         if (this.getCommandLineOption("content")) {
             this._optionArtifactCount++;
         }
-        if (this.getCommandLineOption("Categories")) {
+        if (this.getCommandLineOption("categories")) {
             this._optionArtifactCount++;
         }
         if (this.getCommandLineOption("renditions")) {
             this._optionArtifactCount++;
         }
-        if (this.getCommandLineOption("sources")) {
+        if (this.getCommandLineOption("publishingSources")) {
+            this._optionArtifactCount++;
+        }
+        if (this.getCommandLineOption("publishingProfiles")) {
+            this._optionArtifactCount++;
+        }
+        if (this.getCommandLineOption("publishingSiteRevisions")) {
             this._optionArtifactCount++;
         }
         if (this.getCommandLineOption("imageProfiles")) {
@@ -313,8 +337,84 @@ class BaseCommand {
             }
         }
 
+        // Set the option for the working directory.
         this.setApiOption("workingDir", dir);
+
+        // Use any options that are defined in that directory.
+        options.extendOptionsFromDirectory(dir);
+
         return true;
+    }
+
+    /**
+     * Handle the url option. It can be specified as a command line option or user option ("x-ibm-dx-tenant-base-url").
+     * If the url is not specified by either of these methods, a prompt will be displayed to enter the value.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the url has been specified.
+     */
+    handleUrlOption () {
+        // FUTURE   When we remove support for using the "dx-api-gateway" fallback option, we will always prompt for the
+        // FUTURE   "x-ibm-dx-tenant-base-url" option (if it has not been specified/configured.) Until then, we will not
+        // FUTURE   prompt for the "x-ibm-dx-tenant-base-url" option if the "x-ibm-dx-tenant-id" option has been defined.
+        const defer = Q.defer();
+        let schemaInput;
+
+        // Get the value of the command line option.
+        let url = this.getCommandLineOption("url");
+        if (!url) {
+            // Get the value of the user option.
+            url  = options.getProperty("x-ibm-dx-tenant-base-url");
+            if (!url && !options.getProperty("x-ibm-dx-tenant-id")) {
+                // Define the schema used to prompt for the url value.
+                schemaInput =
+                    {
+                        url:
+                            {
+                                description: i18n.__("cli_base_url"),
+                                required: true
+                            }
+                    };
+            }
+        }
+
+        if (schemaInput) {
+            // Prompt for the url.
+            prompt.message = '';
+            prompt.delimiter = ' ';
+            prompt.start();
+            const schemaProps = {properties: schemaInput};
+            const self = this;
+            prompt.get(schemaProps, function (err, result) {
+                if (err) {
+                    defer.reject(err);
+                } else if (result.url && utils.isValidApiUrl(result.url)) {
+                    // The specified url is valid, so set the appropriate API option and resolve the promise.
+                    self.setApiOption("x-ibm-dx-tenant-base-url", result.url);
+                    defer.resolve();
+                } else {
+                    // Reject the promise to indicate that command execution should not continue.
+                    defer.reject(new Error(i18n.__("cli_invalid_url_option")));
+                }
+            });
+        } else {
+            if (!url) {
+                // FUTURE When we remove support for using the "dx-api-gateway" option as a fallback, remove this case.
+                // A prompt was not displayed and a base URL was not specified. Assume fallback to "dx-api-gateway".
+                defer.resolve();
+            } else {
+                // A base URL was specified, either on the command line or in an options file.
+                if (utils.isValidApiUrl(url)) {
+                    // The url is valid, so set the appropriate API option and resolve the promise.
+                    this.setApiOption("x-ibm-dx-tenant-base-url", url);
+                    defer.resolve();
+                } else {
+                    // Reject the promise to indicate that command execution should not continue.
+                    defer.reject(new Error(i18n.__("cli_invalid_url_option")));
+                }
+            }
+        }
+
+        return defer.promise;
     }
 
     /**
@@ -333,7 +433,7 @@ class BaseCommand {
             // The user name was specified on the command line.
             this.setApiOption("username", username);
         } else {
-            username  = options.getUserProperty('username');
+            username  = options.getProperty('username');
             if (username) {
                 // The user name was specified in the user properties.
                 this.setApiOption("username", username);
@@ -343,7 +443,7 @@ class BaseCommand {
                 {
                     username:
                     {
-                        description: i18n.__('cli_init_user_name'),
+                        description: i18n.__('cli_base_user_name'),
                         required: true
                     }
                 };
@@ -365,8 +465,8 @@ class BaseCommand {
             schemaInput.password =
             {
                 description: i18n.__('cli_base_password'),
-                hidden:true,
-                required:true
+                hidden: true,
+                required: true
             };
         } else {
             // The password will be prompted for.
@@ -375,8 +475,8 @@ class BaseCommand {
                 password:
                 {
                     description: i18n.__('cli_base_password'),
-                    hidden:true,
-                    required:true
+                    hidden: true,
+                    required: true
                 }
             };
         }
@@ -388,9 +488,9 @@ class BaseCommand {
             prompt.start();
             const schemaProps = {properties: schemaInput};
             const self = this;
-            prompt.get(schemaProps, function(err, result) {
+            prompt.get(schemaProps, function (err, result) {
                 if (err) {
-                    // TODO How do we get an error, and should we reject if we do?
+                    // FUTURE How do we get an error, and should we reject if we do?
                     console.warn(err.message);
                     defer.resolve();
                 } else {
@@ -438,18 +538,18 @@ class BaseCommand {
         return true;
     }
 
-    getLogConfig() {
+    getLogConfig () {
         // Set up logging for the CLI in the directory where the files exist, and then get the logger.
         const fileAppender = {
             type: 'file',
             filename: './' + utils.ProductAbrev + '-cli.log',
-            category: this.cliLog,
+            category: cliLog,
             maxLogSize: 30480,
             backups: 3
         };
         const consoleAppender = {
             type: 'console',
-            category: this.cliLog
+            category: cliLog
         };
 
         const appenders = [fileAppender];
@@ -466,12 +566,12 @@ class BaseCommand {
      * @returns {object} The logger to be used by this command.
      */
     getLogger () {
-        if(!this.logger){
+        if (!this._logger) {
             const logConfig = this.getLogConfig();
-            this.logger = utils.getLogger(this.cliLog, logConfig);
-            this.logger.setLevel('INFO');
+            this._logger = utils.getLogger(cliLog, logConfig);
+            this._logger.setLevel('INFO');
         }
-        return this.logger;
+        return this._logger;
     }
 }
 

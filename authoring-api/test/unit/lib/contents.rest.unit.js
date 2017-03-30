@@ -24,8 +24,8 @@ const ContentsUnitTest = require("./contents.unit.js");
 const BaseRestUnit = require("./base.rest.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/contentREST.js").instance;
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const restApi = require(UnitTest.API_PATH + "lib/contentREST.js").instance;
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for presentations.
 const lookupUri =  options.getProperty("content", "uri");
 const path1 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_1;

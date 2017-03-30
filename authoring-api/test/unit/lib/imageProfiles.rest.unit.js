@@ -24,8 +24,8 @@ const ImageProfilesUnitTest = require("./imageProfiles.unit.js");
 const BaseRestUnit = require("./base.rest.unit.js");
 
 // Require the local module being tested.
-const restApi = require(UnitTest.AUTHORING_API_PATH + "lib/imageProfilesREST.js").instance;
-const options = require(UnitTest.AUTHORING_API_PATH + "lib/utils/options.js");
+const restApi = require(UnitTest.API_PATH + "lib/imageProfilesREST.js").instance;
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for presentations.
 const lookupUri =  options.getProperty("image-profiles", "uri");
 const path1 = ImageProfilesUnitTest.VALID_IMAGE_PROFILES_DIRECTORY + ImageProfilesUnitTest.VALID_IMAGE_PROFILE_1;

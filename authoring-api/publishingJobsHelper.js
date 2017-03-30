@@ -46,7 +46,7 @@ class PublishingJobsHelper {
         return this[singleton];
     }
 
-    // only to be called from dxAuthoring getter
+    // only to be called from wchToolsApi getter
     initGlobalOptions (opts) {
         if (opts) {
             options.setGlobalOptions(opts);
@@ -67,6 +67,10 @@ class PublishingJobsHelper {
 
     getPublishingJob (id, opts) {
         return rest.getPublishingJob(id, opts);
+    }
+
+    getPublishingJobStatus (id, opts) {
+        return rest.getPublishingJobStatus(id, opts);
     }
 
     deletePublishingJob (id, opts) {

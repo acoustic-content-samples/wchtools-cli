@@ -1,4 +1,7 @@
-.dxToolsignore
+*.mov
+*.mp4
+.wchtoolsignore
+.wchtoolshashes
 .dxhashes
 sp-config.json
 # npm

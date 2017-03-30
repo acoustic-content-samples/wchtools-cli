@@ -1,0 +1,10 @@
+{
+    "contentFormat":"SIMPLE",
+    "autoActivate":true,
+    "enableRendering":false,
+    "enableContentPublishing":false,
+    "enableAssetPublishing":true,
+    "assetUrlGenerationMode":"PATH",
+    "name":{"en":"Integration Test Profile"},
+    "description":{"en":"An integration test profile"}
+}

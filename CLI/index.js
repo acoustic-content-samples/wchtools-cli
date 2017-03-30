@@ -15,9 +15,9 @@ limitations under the License.
 */
 "use strict";
 
-const program = require('./xman').program;
-const dxAuthoring = require("dxauthoringapi");
-const utils = dxAuthoring.utils;
+const program = require('./wchToolsCli').program;
+const toolsApi = require("wchtools-api");
+const utils = toolsApi.utils;
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 // The English versions of the localized strings. These are used to find localizable strings that are being displayed in
@@ -148,12 +148,12 @@ program.commands.forEach(function (command) {
 });
 
 // The first process argument is always the path to the node executable. The second process argument is always the file
-// being executed, which is this case should be either "bin/wchtools" or "index.js". If no other argument is specified,
+// being executed, which in this case should be either "bin/wchtools" or "index.js". If no other argument is specified,
 // then there is no action to take, so just output the help information.
 if (process.argv.length <= 2) {
     // Output the help information.
     program.outputHelp();
-} else {
+} else if (!program.displayInitializationErrors()) {
     // Parse the specified arguments to invoke any matching commands.
     program.parse(process.argv);
 }

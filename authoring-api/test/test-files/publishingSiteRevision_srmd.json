@@ -1,0 +1,6 @@
+{
+    "name": { "en": "Test Site Revision" },
+    "description": { "en": "Default site revision" },
+    "state": "DEFECTIVE",
+    "autoPublishEnabled": true
+}

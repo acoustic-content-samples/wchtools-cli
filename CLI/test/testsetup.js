@@ -16,7 +16,7 @@ limitations under the License.
 const path = require("path");
 const fs = require("fs");
 var cp = require('cp');
-const utils = require("dxauthoringapi").utils;
+const utils = require("wchtools-api").utils;
 
 var loadPath = path.dirname(__filename);
 var cDir = path.normalize(loadPath + path.sep + '../commands');

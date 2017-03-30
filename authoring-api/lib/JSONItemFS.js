@@ -55,13 +55,13 @@ class JSONItemFS extends BaseFS {
         } else if (typeof arg === "object") {
             name = this.getFileName(arg);
         }
-        return this.getDir(opts) + name + this.getExtension();
+        return this.getPath(opts) + name + this.getExtension();
     }
 
     handleRename(name, opts) {
         // if the file is already an id based file nothing to do
         if (!fs.existsSync(name) && opts && opts.originalPushFileName){
-            const oldName = this.getDir(opts) + opts.originalPushFileName + this.getExtension();
+            const oldName = this.getPath(opts) + opts.originalPushFileName + this.getExtension();
             if (fs.existsSync(oldName)) {
                 fs.unlinkSync(oldName);
                 logger.warn(i18n.__("deleted_original_file", {old_name: oldName, new_name: name}));
@@ -99,7 +99,7 @@ class JSONItemFS extends BaseFS {
             mkdirp.mkdirp(dir, function(err) {
                 if (err) {
                     // Reject the promise if an error occurs when creating a directory.
-                    logger.error(i18n.__("save_item_write_failed_bad_path", {path: filepath}), err);
+                    utils.logErrors(i18n.__("save_item_write_failed_bad_path", {path: filepath}), err);
                     reject(err);
                 } else {
                     try {
@@ -109,7 +109,7 @@ class JSONItemFS extends BaseFS {
                         }
                         return resolve(item);
                     } catch (err) {
-                        logger.error(i18n.__("save_item_write_failed", {path: filepath}), err);
+                        utils.logErrors(i18n.__("save_item_write_failed", {path: filepath}), err);
                         reject(err);
                     }
                 }
@@ -125,19 +125,25 @@ class JSONItemFS extends BaseFS {
     listNames(opts) {
         const fsObject = this;
         return Q.Promise(function(resolve, reject) {
-            fs.readdir(fsObject.getDir(opts), function(err, files) {
-                if (err) {
-                    reject(err);
-                } else {
-                    const extension = fsObject.getExtension();
-                    const names = files.filter(function(file) {
-                        return file.endsWith(extension);
-                    }).map(function(file) {
-                        return file.replace(extension, "");
-                    });
-                    resolve(names);
-                }
-            });
+            const path = fsObject.getPath(opts);
+            if (fs.existsSync(path)) {
+                fs.readdir(path, function(err, files) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        const extension = fsObject.getExtension();
+                        const names = files.filter(function(file) {
+                            return file.endsWith(extension);
+                        }).map(function(file) {
+                            return file.replace(extension, "");
+                        });
+                        resolve(names);
+                    }
+                });
+            } else {
+                // Silently return an empty array.
+                resolve([]);
+            }
         });
     }
 
@@ -148,17 +154,17 @@ class JSONItemFS extends BaseFS {
     getItems(opts) {
         const fsObject = this;
         return this.listNames(opts)
-            .then(function(names) {
-                const promises = names.map(function(name) {
-                    return fsObject.getItem(name, opts).catch(function(err) {
-                        logger.error(i18n.__("error_fs_get_item"), err);
+            .then(function (names) {
+                const promises = names.map(function (name) {
+                    return fsObject.getItem(name, opts).catch(function (err) {
+                        utils.logErrors(i18n.__("error_fs_get_item"), err);
                     });
                 });
                 return Q.all(promises);
             })
-            .then(function(names) {
+            .then(function (names) {
                 // filter out any undefined values due to errors
-                names = names.filter(function(n) { return n; });
+                names = names.filter(function (n) { return n; });
                 return names;
             });
     }
@@ -167,21 +173,21 @@ class JSONItemFS extends BaseFS {
      * Gets the item with the given name from the local filesystem
      *
      * @param {string} name - The name of the item
-     * @returns {Promise} A promise that resolves with the requested item. The promise
+     * @returns {Q.Promise} A promise that resolves with the requested item. The promise
      *                    will reject if the item doesn't exist.
      */
     getItem(name, opts) {
         const deferred = Q.defer();
         fs.readFile(this.getItemPath(name, opts), function(err, body) {
             if (err) {
-                logger.error(err);
+                utils.logErrors(i18n.__("error_fs_get_item"), err);
                 deferred.reject(err);
             } else {
                 try {
                     const item = JSON.parse(body.toString());
                     deferred.resolve(item);
                 } catch (e) {
-                    logger.error(i18n.__("error_parsing_item", {name:name, message: e.message, body: body.toString()}));
+                    utils.logErrors(i18n.__("error_parsing_item", {name:name, message: e.message, body: body.toString()}), e);
                     deferred.reject(e);
                 }
             }

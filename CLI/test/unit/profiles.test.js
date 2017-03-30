@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,25 +13,30 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 /**
- * Run the unit tests for the presentation objects in the authoring-api package.
+ * Run the unit tests for the publishing profiles objects.
  */
 "use strict";
-const helper = require("dxauthoringapi").getPresentationsHelper();
-const rest = require("../../../authoring-api/lib/presentationsREST.js").instance;
-const fs = require("../../../authoring-api/lib/presentationsFS.js").instance;
-if(!fs || !rest)
+
+const helper = require("wchtools-api").getPublishingProfilesHelper();
+const rest = require("../../../authoring-api/lib/publishingProfilesREST.js").instance;
+const fs = require("../../../authoring-api/lib/publishingProfilesFS.js").instance;
+
+if(!fs || !rest) {
     console.log('Error could not load required');
-// Presentations Tests with CLI
-const BASE_NAME = 'presentation';
+}
+
+// PublishingSources Tests with CLI
+const BASE_NAME = 'publishingProfiles';
 const PullUnitTest = require("./lib/pull.unit.js");
 const pullUnitTest = new PullUnitTest();
-pullUnitTest.run(helper, rest, fs, '-p', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_pmd.json');
+pullUnitTest.run(helper, rest, fs, '--publishing-profiles', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
 
 const PushUnitTest = require("./lib/push.unit.js");
 const pushUnitTest = new PushUnitTest();
-pushUnitTest.run(helper, rest, fs, '-p', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_pmd.json');
+pushUnitTest.run(helper, rest, fs, '--publishing-profiles', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
 
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();
-listUnitTest.run(helper, '-p', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
+listUnitTest.run(helper, '--publishing-profiles', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
