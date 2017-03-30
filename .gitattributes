@@ -1,0 +1,9 @@
+* text eol=lf
+*.cmd eol=crlf
+*.gitattributes eol=crlf
+*.zip binary
+*.gz binary
+*.md binary
+*.jpg binary
+*.gif binary
+*.png binary
