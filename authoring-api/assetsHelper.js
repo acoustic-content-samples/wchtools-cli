@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -246,9 +246,10 @@ const pullAsset = function (asset, opts) {
                         const filePath = assetsFS.getPath(asset.path, opts);
 
                         const md5 = hashes.generateMD5Hash(filePath);
-                        if (md5 !== asset.digest) {
-                            logger.warn(i18n.__("digest_mismatch", {cli_digest: md5, asset: asset.path, server_digest: asset.digest}));
-                            eventEmitter.emit("pulled-warning", asset.path);
+                        if (!hashes.compareMD5Hashes(md5, asset.digest)) {
+                            let err = i18n.__("digest_mismatch", {cli_digest: md5, asset: asset.path, server_digest: asset.digest});
+                            logger.error(err);
+                            throw new Error(err);
                         }
                         hashes.updateHashes(basePath, filePath, asset, opts);
 

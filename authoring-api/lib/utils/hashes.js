@@ -1,5 +1,5 @@
 /*
-Copyright 2016, 2017 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,6 +46,22 @@ function generateMD5Hash(filename) {
     hash.update(content);
     const md5 = hash.digest("base64"); // returns a base-64 encoded string
     return md5;
+}
+
+/**
+ * Compare two base64 encoded md5 hashes, decoding first to account for padding differences
+ *
+ * @param {String} hash1
+ * @param {String} hash2
+ *
+ * @returns {boolean} specifying whether the hashes match
+ *
+ * @private
+ */
+function compareMD5Hashes(hash1, hash2) {
+    return (hash1 && hash2) &&
+            ((hash1 === hash2) ||
+            Buffer.compare(new Buffer(hash1, 'base64'), new Buffer(hash2, 'base64')) === 0);
 }
 
 /**
@@ -512,6 +528,7 @@ function isRemoteModified(flags, item, basePath, filePath, opts) {
 
 const hashes = {
     generateMD5Hash: generateMD5Hash,
+    compareMD5Hashes: compareMD5Hashes,
     updateHashes: updateHashes,
     getLastPullTimestamp: getLastPullTimestamp,
     setLastPullTimestamp: setLastPullTimestamp,

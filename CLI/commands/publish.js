@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,7 +51,16 @@ class PublishCommand extends BaseCommand {
                 self.errorMessage(curError);
                 self.resetCommandLineOptions();
             });
+    }
 
+    getJobIdFromStatusOption(status, helper) {
+        // If status is boolean==true then --status was specified without a job id so lookup most recent job
+        if (status === true) {
+            return helper.getPublishingJobs( { "offset": 0, "limit": 1 } )
+                .then(jobs => { return (jobs ? jobs[0].id : 0) });
+        } else {
+            return Promise.resolve(status);
+        }
     }
 
     /**
@@ -60,7 +69,7 @@ class PublishCommand extends BaseCommand {
     doPublish () {
         const logger = this.getLogger();
         const mode = this.getCommandLineOption("rebuild") ? "REBUILD" : "UPDATE";
-        const statusJobId = this.getCommandLineOption("status");
+        const status = this.getCommandLineOption("status");
         const jobParameters = {"mode": mode};
         const helper = toolsApi.getPublishingJobsHelper();
         const self = this;
@@ -71,8 +80,15 @@ class PublishCommand extends BaseCommand {
             const apiOptions = self.getApiOptions();
             loginHelper.login(apiOptions)
                 .then(function (/*results*/) {
-                    if (statusJobId) {
-                        self.displayJobStatus(self, helper, logger, statusJobId, apiOptions);
+                    if (status) {
+                        self.getJobIdFromStatusOption(status, helper)
+                            .then(jobId => {
+                                if (jobId && jobId !== 0) {
+                                    self.displayJobStatus(self, helper, logger, jobId, apiOptions);
+                                } else {
+                                    self.errorMessage(i18n.__('cli_publishing_no_jobs'));
+                                }
+                            });
                     } else {
                         BaseCommand.displayToConsole(i18n.__('cli_publishing_job_started'));
                         self.spinner = ora();
@@ -127,7 +143,7 @@ function publishCommand (program) {
         .description(i18n.__('cli_publishing_description'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-r --rebuild',          i18n.__('cli_publishing_opt_rebuild'))
-        .option('--status <id>',        i18n.__('cli_publishing_opt_status'))
+        .option('--status [id]',         i18n.__('cli_publishing_opt_status'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .action(function (options) {

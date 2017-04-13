@@ -85,7 +85,7 @@ class AssetsREST extends BaseREST {
             "Accept": "application/json",
             "Accept-Language": utils.getHTTPLanguage(),
             "Content-Type": mtype,
-            "Connection": "keep-alive",
+            "Connection": "keep-alive"
         };
 
         return headers;
@@ -96,7 +96,7 @@ class AssetsREST extends BaseREST {
         const headers = {
             "Accept": "*/*",
             "Accept-Language": utils.getHTTPLanguage(),
-            "Connection": "keep-alive",
+            "Connection": "keep-alive"
         };
 
         this.getRequestURI(opts)

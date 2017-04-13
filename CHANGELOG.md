@@ -1,6 +1,14 @@
 # Changelog
 
-### v1.1.*   Changes since 1.0.*
+### v1.1.10 Changes since 1.1.7
+
+ - Report syntax error in authoring artifact json to console not just wchtools-api.log when skipping over invalid files.
+ - Make publishing job id to publish --status arg optional, so that you can leave it off if you don't know the value and get the status of the most recent publishing job instead of a specified publishing job.
+ - Update some dependencies to recent versions.
+ - Mismatched md5 checksum between what the server says it's downloading and what wchtools receives is now reported as an error, instead of a warning.
+ - Mention 'sudo' for installing via npm on Mac and Linux, in the Readme install instructions.
+
+### v1.1   Changes since 1.0.*
 
 NOTE: Starting with release 1.1.*, please retrieve your Watson Content Hub tenant specific API URL from the Authoring UI "Hub Information" dialog, to configure wchtools.  This should be the same WCH tenant specific base API URL you use for all the public WCH samples and with the APIs in IBM API Explorer for Watson Content Hub as described here: https://developer.ibm.com/api/view/id-618:title-IBM_Watson_Content_Hub_API#getting
 Follow the Readme instructions for installing the wchtools CLI and then the Getting Started instructions for obtaining and setting your WCH tenant specific API URL.

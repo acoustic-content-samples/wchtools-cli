@@ -1,6 +1,6 @@
 {
   "name": "prod-tools",
-  "version": "1.1.7",
+  "version": "1.1.11",
   "author": "IBM Corporation",
   "license": "Apache-2.0",
   "bugs": {
@@ -15,7 +15,7 @@
   "devDependencies": {
     "istanbul": "~0.4",
     "mocha": "^3.1.0",
-    "rimraf": "~2.5"
+    "rimraf": "^2.6.1"
   },
   "scripts": {
     "npminstallall": "node ./npminstallall.js",
