@@ -13,7 +13,7 @@
   "error_cancelling_job": "Error cancelling job: id %(id)s",
   "error_fs_get_item": "Error in file system getItem",
   "error_fs_get_filestats": "Error in file system getFileStats for %(name)s.",
-  "error_parsing_item": "Error parsing item for file: %(name)s. %(message)s\n%(body)s",
+  "error_parsing_item": "Error parsing item for file: %(name)s. %(message)s",
   "get_items_error": "Error getting items %(service_name)s: ",
   "save_item_write_failed": "saveItem failed to write to file %(path)s",
   "save_item_write_failed_bad_path": "saveItem failed to write to file %(path)s bad path",

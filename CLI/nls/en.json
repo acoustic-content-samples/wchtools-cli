@@ -220,6 +220,7 @@
   "cli_publishing_job_created": "Publishing Job %(id)s created",
   "cli_publishing_job_details": "Publishing job details: %(job_details)s",
   "cli_publishing_job_error":   "Publishing job request resulted in an error: %(message)s",
+  "cli_publishing_no_jobs":     "No publishing jobs found",
 
   "cli_delete_description":        "Delete the specified artifact.  Currently this command is limited to web assets such as html, css and javascript.  Use the authoring UI to delete other artifact types.",
   "cli_delete_opt_web_assets":     "If specified, web assets will be deleted.",

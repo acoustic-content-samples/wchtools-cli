@@ -243,8 +243,9 @@ class AssetsFS extends BaseFS {
                     const item = JSON.parse(body.toString());
                     deferred.resolve(item);
                 } catch (e) {
-                    utils.logErrors(i18n.__("error_parsing_item", {name: path, message: e.message, body: body.toString()}), e);
-                    deferred.reject(e);
+                    let msg = i18n.__("error_parsing_item", {name:path, message: e.message});
+                    utils.logErrors(msg, e);
+                    deferred.reject((e instanceof SyntaxError) ? new SyntaxError(msg) : new Error(msg));
                 }
             }
         });

@@ -56,6 +56,7 @@ let stubGetHashesForFile;
 let stubListFiles;
 let stubIsLocalModified;
 let stubIsRemoteModified;
+let stubcompareMD5Hashes;
 
 class AssetsHelperUnitTest extends AssetsUnitTest {
     constructor () {
@@ -118,6 +119,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubIsRemoteModified = sinon.stub(hashes, "isRemoteModified");
                 stubIsRemoteModified.returns(true);
                 self.addTestDouble(stubIsRemoteModified);
+
+                stubcompareMD5Hashes = sinon.stub(hashes, "compareMD5Hashes");
+                stubcompareMD5Hashes.returns(true);
+                self.addTestDouble(stubcompareMD5Hashes);
+
 
                 // Signal that the initialization is complete.
                 done();

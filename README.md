@@ -11,14 +11,20 @@ Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/
 
 ### Install
  Pre-Requisite: Before you install the wchtools CLI, you must install Node 4.3 or a later 4.x version. IBM Node 4.6 or a later 4.x version is suggested.
- 
+
  You may install the wchtools CLI as a node module directly from the npm registry at https://npmjs.com,  or by downloading and installing a release from the wchtools-cli git repository.
- 
+
 #### Installing the wchtools-cli module from the npm registry
 
 Execute the following npm command, to install the wchtools CLI module and its dependencies from the npm registry:
 
+  -For Windows:
+
        npm install -g wchtools-cli
+
+  -For Mac or Linux:
+
+       sudo npm install -g wchtools-cli
 
 Then follow the Getting Started instructions below, to configure and start using the wchtools command.
 

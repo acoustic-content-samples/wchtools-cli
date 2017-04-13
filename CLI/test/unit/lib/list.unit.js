@@ -26,7 +26,6 @@ const fs = require("fs");
 const path = require("path");
 const rimraf = require("rimraf");
 const diff = require("diff");
-const uuid = require("node-uuid");
 const sinon = require("sinon");
 const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");

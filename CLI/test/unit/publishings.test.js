@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -187,6 +187,36 @@ describe("Test Publishing command", function () {
             .finally(function () {
                 // Call mocha's done function to indicate that the test is over.
                 stubGet.restore();
+                done(error);
+            });
+    });
+
+
+    it("check publish --status without job id" , function (done) {
+        this.timeout(LONG_TIMEOUT);
+
+        const stubGetJobs = sinon.stub(helper, "getPublishingJobs");
+        stubGetJobs.resolves([{id: 'mypublishiingjobid'}]);
+
+        const stubGet = sinon.stub(helper, "getPublishingJob");
+        stubGet.resolves({id: 'mypublishiingjobid', state: 'SUCCESS'});
+
+        let error;
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '--user', 'uname', '--password', 'pwd'])
+            .then(function (msg) {
+                // The stub should only have been called once, and it should have been before the spy.
+                expect(stubGet).to.have.been.calledOnce;
+                expect(msg).to.contain('SUCCESS');
+            })
+            .catch(function (err) {
+                // NOTE: A failed expectation from above will be handled here.
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // Call mocha's done function to indicate that the test is over.
+                stubGet.restore();
+                stubGetJobs.restore();
                 done(error);
             });
     });

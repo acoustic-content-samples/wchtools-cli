@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "1.1.7",
+  "version": "1.1.11",
   "keywords": [
     "cli"
   ],
@@ -29,7 +29,7 @@
     "ora": "^0.2.3",
     "prompt": "1.0.0",
     "q": "1.4.1",
-    "request": "^2.75.0"
+    "request": "^2.81.0"
   },
   "devDependencies": {
     "chai": "~3.5",
@@ -39,8 +39,8 @@
     "diff": "^3.0.0",
     "istanbul": "~0.4",
     "mkdirp": "^0.5.1",
-    "node-uuid": "~1.4",
-    "rimraf": "~2.5",
+    "uuid": "^3.0.1",
+    "rimraf": "^2.6.1",
     "sinon": "~1",
     "sinon-as-promised": "~4",
     "sinon-chai": "~2.8"

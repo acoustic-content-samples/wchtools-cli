@@ -176,7 +176,6 @@ class BaseHelper {
      */
     getLocalItems (opts) {
         const helper = this;
-
         // Return the FS object's promise to get the local items.
         return this._fsApi.getItems(opts)
             .then(function (items) {
@@ -255,6 +254,11 @@ class BaseHelper {
         return this._fsApi.getItem(name, opts)
             .then(function (item) {
                 return helper._uploadItem(item, opts);
+            })
+            .catch(function (err) {
+                if (! err.emitted)
+                    helper._eventEmitter.emit("pushed-error", err, name);
+                throw err;
             });
     }
 
@@ -718,6 +722,7 @@ class BaseHelper {
             })
             .catch(function (err) {
                 helper._eventEmitter.emit("pushed-error", err, helper.getName(item));
+                err.emitted = true;
                 utils.logErrors(logError + helper.getName(item), err);
                 if (isUpdate && err.statusCode === 409) {
                     return helper._restApi.getItem(item.id, opts)

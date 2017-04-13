@@ -186,9 +186,10 @@ class JSONItemFS extends BaseFS {
                 try {
                     const item = JSON.parse(body.toString());
                     deferred.resolve(item);
-                } catch (e) {
-                    utils.logErrors(i18n.__("error_parsing_item", {name:name, message: e.message, body: body.toString()}), e);
-                    deferred.reject(e);
+                } catch (er) {
+                    let msg = i18n.__("error_parsing_item", {name:name, message: er.message});
+                    utils.logErrors(msg, er);
+                    deferred.reject((er instanceof SyntaxError) ? new SyntaxError(msg) : new Error(msg));
                 }
             }
         });
