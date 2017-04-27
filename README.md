@@ -55,6 +55,15 @@ Then follow the Getting Started instructions below, to configure and start using
         - To uninstall the current version and then install, run the sudo chmod a+x ./reinstall.sh and sudo ./reinstall.sh.  
 
 
+### Notification of updated versions of wchtools
+
+  By default, the wchtools CLI uses the update-notifier node module to check the npm registry for a newer version of wchtools-cli module than the one you have currently installed on your system.   The check runs as an asynchronous background task, to avoid slowing down your wchtools commands, and will notify you on the next successful execution of wchtools after it detects that there is a newer version.
+
+   - To avoid nagging you, when you know there's a newer version but aren't ready to update yet,  it only checks once per day, and will only notify you once within that one day interval.
+
+   - To disable checking the npm registry for a newer version and notification of updates, set the environment variable NO_UPDATE_NOTIFIER to any value, prior to executing wchtools CLI.   You may set this as a persistent environment variable manually for your OS or unix shell profile script,  or in a build script, if wchtools is run as part of a build process.
+
+
 ### Getting Started
 
   After you successfully install the wchtools CLI, initialize the username and the API URL for your Watson Content Hub tenant.   Obtain the API URL from the "Hub Information" dialog available off the top navigation bar of the content hub authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}

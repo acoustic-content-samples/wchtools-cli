@@ -17,29 +17,31 @@ limitations under the License.
 
 const expect = require("chai").expect;
 const sinon = require("sinon");
+const prompt = require("prompt");
 const toolsApi = require("wchtools-api");
 const options = toolsApi.options;
 const toolsCli = require("../../wchToolsCli");
 
 const TEST_USER = "testUser";
 const TEST_URL = "http://foo.bar/api";
+const INVALID_URL = "www.foo.bar";
 const OPTIONS_SAVE_DIRECTORY = "saveLocation";
 
 describe("init", function () {
     describe("init command", function () {
-        it("test init user param", function (done) {
+        it("test init user and url params", function (done) {
             let error;
 
             // Stub the setOptions method so that the test doesn't actually modify the options.
-            const stubGet = sinon.stub(options, "setOptions");
-            stubGet.returns(OPTIONS_SAVE_DIRECTORY);
+            const stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
 
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', TEST_USER, '--url', TEST_URL])
                 .then(function (msg) {
-                    expect(stubGet).to.have.been.calledOnce;
-                    expect(stubGet.args[0][0]["username"]).to.equal(TEST_USER);
-                    expect(stubGet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(stubSet).to.have.been.calledOnce;
+                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
                     expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
                 })
                 .catch(function (err) {
@@ -49,7 +51,197 @@ describe("init", function () {
                 })
                 .finally(function () {
                     // Restore the stub that was created.
+                    stubSet.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("test init user param", function (done) {
+            let error;
+
+            // Stub the getProperty method to return null for the url.
+            const originalGetProperty = options.getProperty;
+            const stubGet = sinon.stub(options, "getProperty", function (key) {
+                if (key === "x-ibm-dx-tenant-base-url") {
+                    return null;
+                } else {
+                    originalGetProperty(key);
+                }
+            });
+
+            // Stub the setOptions method so that the test doesn't actually modify the options.
+            const stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
+
+            // Stub the prompt.get method so that the test doesn't actually prompt for the user and url.
+            const stubPrompt = sinon.stub(prompt, "get");
+            stubPrompt.yields(null, {"x-ibm-dx-tenant-base-url": TEST_URL});
+
+            // Execute the command to set the user.
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', "--user", TEST_USER])
+                .then(function (msg) {
+                    expect(stubSet).to.have.been.calledOnce;
+                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the stubs that were created.
                     stubGet.restore();
+                    stubSet.restore();
+                    stubPrompt.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("test init url param", function (done) {
+            let error;
+
+            // Stub the getProperty method to return null for the user.
+            const originalGetProperty = options.getProperty;
+            const stubGet = sinon.stub(options, "getProperty", function (key) {
+                if (key === "username") {
+                    return null;
+                } else {
+                    originalGetProperty(key);
+                }
+            });
+
+            // Stub the setOptions method so that the test doesn't actually modify the options.
+            const stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
+
+            // Stub the prompt.get method so that the test doesn't actually prompt for the user and url.
+            const stubPrompt = sinon.stub(prompt, "get");
+            stubPrompt.yields(null, {"username": TEST_USER});
+
+            // Execute the command to set the user.
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', "--url", TEST_URL])
+                .then(function (msg) {
+                    expect(stubSet).to.have.been.calledOnce;
+                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the stubs that were created.
+                    stubGet.restore();
+                    stubSet.restore();
+                    stubPrompt.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("test init no params", function (done) {
+            let error;
+
+            // Stub the setOptions method so that the test doesn't actually modify the options.
+            const stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
+
+            // Stub the prompt.get method so that the test doesn't actually prompt for the user and url.
+            const stubPrompt = sinon.stub(prompt, "get");
+            stubPrompt.yields(null, {"username": TEST_USER, "x-ibm-dx-tenant-base-url": TEST_URL});
+
+            // Execute the command to set the user.
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init'])
+                .then(function (msg) {
+                    expect(stubSet).to.have.been.calledOnce;
+                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the stubs that were created.
+                    stubSet.restore();
+                    stubPrompt.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("test init no params invalid URL", function (done) {
+            let error;
+
+            // Stub the prompt.get method so that the test doesn't actually prompt for the user and url.
+            const stubPrompt = sinon.stub(prompt, "get");
+            stubPrompt.yields(null, {"username": TEST_USER, "x-ibm-dx-tenant-base-url": INVALID_URL});
+
+            // Execute the command to set the user.
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init'])
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The command should have failed.");
+                })
+                .catch(function (err) {
+                    expect(err.message).to.contain("API URL is not valid");
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the stubs that were created.
+                    stubPrompt.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("test init no params failure", function (done) {
+            let error;
+
+            // Stub the prompt.get method so that the test doesn't actually prompt for the user and url.
+            const stubPrompt = sinon.stub(prompt, "get");
+            stubPrompt.yields(null, {"username": TEST_USER, "x-ibm-dx-tenant-base-url": TEST_URL});
+
+            // Stub the setOptions method to return an error.
+            const stubSet = sinon.stub(options, "setOptions");
+            const SET_ERROR = "Error setting option values, expected by unit test.";
+            stubSet.throws(new Error(SET_ERROR));
+
+            // Execute the command to set the user.
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init'])
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The command should have failed.");
+                })
+                .catch(function (err) {
+                    expect(err.message).to.contain(SET_ERROR);
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the stubs that were created.
+                    stubPrompt.restore();
+                    stubSet.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);

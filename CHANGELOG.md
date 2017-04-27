@@ -1,12 +1,17 @@
 # Changelog
 
-### v1.1.10 Changes since 1.1.7
+### v1.1.13 Changes since 1.1.7
 
  - Report syntax error in authoring artifact json to console not just wchtools-api.log when skipping over invalid files.
  - Make publishing job id to publish --status arg optional, so that you can leave it off if you don't know the value and get the status of the most recent publishing job instead of a specified publishing job.
  - Update some dependencies to recent versions.
  - Mismatched md5 checksum between what the server says it's downloading and what wchtools receives is now reported as an error, instead of a warning.
  - Mention 'sudo' for installing via npm on Mac and Linux, in the Readme install instructions.
+ - Add user agent http header  (wchtools/version) to WCH REST requests
+ - Add latent support for update-notifier to notify of future new versions of wchtools in npm registry, with ability to disable that by setting env var NO_UPDATE_NOTIFIER=true
+ - Add retry support, for retrying push of content items that have reference errors (referring to not yet existing content) at the end of a push request,  to allow pushing packages of content containing references to each other, to a tenant that does not yet have any of those content items.
+ - Logging improvements:  correctly flag errors with [ERROR] during verbose logging,  set wchtools-api.log level to WARN, to pick up warnings in addition to errors.
+ - wchtools will now set a non-zero return status when pushing and pulling where 1 or more artifacts resulted in an error during a push or pull.  This enables build scripts running wchtools to better detect whether there were any network or service errors encountered during an otherwise successful push command.
 
 ### v1.1   Changes since 1.0.*
 

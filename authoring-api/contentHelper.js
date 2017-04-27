@@ -42,5 +42,42 @@ class ContentHelper extends BaseHelper {
     getName (item){
         return item.id;
     }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @returns {Boolean} A return value of true indicates that retry push is enabled.
+     *
+     * @override
+     */
+    isRetryPushEnabled () {
+        return true;
+    }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @param {Error} error The error returned from the failed push operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the push should be retried.
+     *
+     * @override
+     */
+    filterRetryPush (error) {
+        let retVal = false;
+
+        // A reference error has a response code of 400 and an error code of 6000.
+        if (error && error["response"] && (error["response"]["statusCode"] === 400)) {
+            const responseBody = error["response"]["body"];
+            if (responseBody && responseBody["errors"] && responseBody["errors"].length === 1) {
+                const responseError = responseBody["errors"][0];
+                if (responseError && responseError["code"] === 6000) {
+                    retVal = true;
+                }
+            }
+        }
+
+        return retVal;
+    }
 }
 module.exports = ContentHelper;

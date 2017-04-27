@@ -31,16 +31,17 @@ const BASE_NAME = 'type';
 const PullUnitTest = require("./lib/pull.unit.js");
 const pullUnitTest = new PullUnitTest();
 pullUnitTest.run(helper, rest, fs, '-a', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_amd.json');
+pullUnitTest.run(helper, rest, fs, '-w', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_amd.json');
 
 const PushUnitTest = require("./lib/push.unit.js");
 const pushUnitTest = new PushUnitTest();
 pushUnitTest.run(helper, rest, fs, '-a', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_amd.json');
+pushUnitTest.run(helper, rest, fs, '-w', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_amd.json');
 
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();
 listUnitTest.run(helper, '-a', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
-
-// TODO We need to have the above tests for both -a and -w.
+listUnitTest.run(helper, '-w', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const DeleteUnitTest = require("./lib/delete.unit.js");
 const deleteUnitTest = new DeleteUnitTest();

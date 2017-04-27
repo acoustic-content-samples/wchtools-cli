@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -85,7 +85,8 @@ class AssetsREST extends BaseREST {
             "Accept": "application/json",
             "Accept-Language": utils.getHTTPLanguage(),
             "Content-Type": mtype,
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "User-Agent": utils.getUserAgent()
         };
 
         return headers;
@@ -96,7 +97,8 @@ class AssetsREST extends BaseREST {
         const headers = {
             "Accept": "*/*",
             "Accept-Language": utils.getHTTPLanguage(),
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "User-Agent": utils.getUserAgent()
         };
 
         this.getRequestURI(opts)
@@ -188,7 +190,6 @@ class AssetsREST extends BaseREST {
         this.getDownloadRequestOptions(opts)
             .then(function (reqOptions) {
                 reqOptions.uri = reqOptions.uri + "/" + asset.resource;
-
                 // Make the request and pipe the response to the specified stream.
                 const responseStream = request.get(reqOptions);
                 responseStream.pipe(stream);

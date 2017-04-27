@@ -31,9 +31,6 @@ const sinon = require("sinon");
 const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 
-// Require the local modules that will be stubbed, mocked, and spied.
-const hashes = require(UnitTest.API_PATH + "/lib/utils/hashes.js");
-
 class PullUnitTest extends UnitTest {
     constructor () {
         super();
@@ -76,6 +73,7 @@ class PullUnitTest extends UnitTest {
                         emitter.emit("pulled", itemName1);
                         emitter.emit("pulled", itemName2);
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pulled-warning", {message: "This warning was expected by the unit test"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;

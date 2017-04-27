@@ -17,7 +17,7 @@ limitations under the License.
 
 const itemTypesHelper = require('./itemTypesHelper').instance;
 const presentationsHelper = require('./presentationsHelper').instance;
-const assetsHelper = require('./assetsHelper.js');
+const assetsHelper = require('./assetsHelper.js').instance;
 const contentHelper = require('./contentHelper').instance;
 const categoriesHelper = require('./categoriesHelper').instance;
 const publishingJobsHelper = require('./publishingJobsHelper').instance;

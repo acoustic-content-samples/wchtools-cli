@@ -95,8 +95,18 @@ describe("options.js", function () {
         it("should have two initialization errors for invalid default and user options files", function (done) {
             // Create a stub for fs.existsSync that will return false for the test options file.
             const originalExistsSync = fs.existsSync;
+            let defaultFilenameExistsCount = 0;
             const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === localFilename) {
+                if (filename === defaultFilename) {
+                    // The default filename should always exist. But if this test is running in the default directory,
+                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
+                    // true the first time it is called, and false the second time it is called.
+                    if (defaultFilename === localFilename) {
+                        return (defaultFilenameExistsCount++ < 1);
+                    } else {
+                        return true;
+                    }
+                } else if (filename === localFilename) {
                     return false;
                 } else if (filename === userFilename) {
                     return true;
@@ -112,6 +122,9 @@ describe("options.js", function () {
             // Create a stub for fs.readFileSync that will return invlid JSON.
             const originalReadFileSync = fs.readFileSync;
             const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
+                // The default filename should always exist. But if this test is running in the default directory,
+                // the defaultFilename and the localFilename will be the same. In that case, the stub may need to
+                // return different content the first time it is called, than the second time it is called.
                 if (filename === defaultFilename) {
                     return '{"foo": "bar", "fuz":{}';
                 } else if (filename === userFilename) {
@@ -142,8 +155,18 @@ describe("options.js", function () {
         it("should have two initialization errors for invalid default and test options files", function (done) {
             // Create a stub for fs.existsSync that will return false for the test options file.
             const originalExistsSync = fs.existsSync;
+            let defaultFilenameExistsCount = 0;
             const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === localFilename) {
+                if (filename === defaultFilename) {
+                    // The default filename should always exist. But if this test is running in the default directory,
+                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
+                    // true both times it is called.
+                    if (defaultFilename === localFilename) {
+                        return (defaultFilenameExistsCount++ < 2);
+                    } else {
+                        return true;
+                    }
+                } else if (filename === localFilename) {
                     return true;
                 } else if (filename === userFilename) {
                     return false;
@@ -158,9 +181,17 @@ describe("options.js", function () {
 
             // Create a stub for fs.readFileSync that will return invlid JSON.
             const originalReadFileSync = fs.readFileSync;
+            let defaultFilenameReadCount = 0;
             const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
+                // The default filename should always exist. But if this test is running in the default directory,
+                // the defaultFilename and the localFilename will be the same. In that case, the stub may need to
+                // return different content the first time it is called, than the second time it is called.
                 if (filename === defaultFilename) {
-                    return '{"foo": "bar", "fuz":{}';
+                    if (defaultFilenameReadCount++ === 0) {
+                        return '{"foo": "bar", "fuz":{}';
+                    } else {
+                        return '{"foo": "bar", "foz":{}';
+                    }
                 } else if (filename === localFilename) {
                     return '{"foo": "bar", "foz":{}';
                 } else {
@@ -189,9 +220,19 @@ describe("options.js", function () {
         it("should have one initialization errors for invalid old (1) user options file", function (done) {
             // Create a stub for fs.existsSync that will return true for the user options file after it has been renamed.
             const originalExistsSync = fs.existsSync;
+            let defaultFilenameExistsCount = 0;
             let userFilenameExists = false;
             const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === localFilename) {
+                if (filename === defaultFilename) {
+                    // The default filename should always exist. But if this test is running in the default directory,
+                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
+                    // true the first time it is called, and false the second time it is called.
+                    if (defaultFilename === localFilename) {
+                        return (defaultFilenameExistsCount++ < 1);
+                    } else {
+                        return true;
+                    }
+                } else if (filename === localFilename) {
                     return false;
                 } else if (filename === userFilename) {
                     return userFilenameExists;
@@ -251,9 +292,19 @@ describe("options.js", function () {
         it("should have one initialization errors for invalid old (2) user options file", function (done) {
             // Create a stub for fs.existsSync that will return true for the user options file after it has been renamed.
             const originalExistsSync = fs.existsSync;
+            let defaultFilenameExistsCount = 0;
             let userFilenameExists = false;
             const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === localFilename) {
+                if (filename === defaultFilename) {
+                    // The default filename should always exist. But if this test is running in the default directory,
+                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
+                    // true the first time it is called, and false the second time it is called.
+                    if (defaultFilename === localFilename) {
+                        return (defaultFilenameExistsCount++ < 1);
+                    } else {
+                        return true;
+                    }
+                } else if (filename === localFilename) {
                     return false;
                 } else if (filename === userFilename) {
                     return userFilenameExists;
@@ -313,8 +364,18 @@ describe("options.js", function () {
         it("should delete old user options files", function (done) {
             // Create a stub for fs.existsSync that will return true for all user options files.
             const originalExistsSync = fs.existsSync;
+            let defaultFilenameExistsCount = 0;
             const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === localFilename) {
+                if (filename === defaultFilename) {
+                    // The default filename should always exist. But if this test is running in the default directory,
+                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
+                    // true the first time it is called, and false the second time it is called.
+                    if (defaultFilename === localFilename) {
+                        return (defaultFilenameExistsCount++ < 1);
+                    } else {
+                        return true;
+                    }
+                } else if (filename === localFilename) {
                     return false;
                 } else if (filename === userFilename) {
                     return true;

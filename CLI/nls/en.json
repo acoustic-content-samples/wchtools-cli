@@ -18,6 +18,7 @@
   "cli_help_options": "Options:",
   "cli_help_usage_info": "output usage information",
   "cli_help_version_number": "output the version number",
+  "cli_update_notifier": "A new version of wchtools exists. Run '%(update_command)s' to update from version %(current_version)s to version %(new_version)s.",
 
   "cli_opt_verbose":              "Display verbose results from the specified operations.",
   "cli_opt_user_name":            "User name",

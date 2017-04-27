@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,7 +48,8 @@ class BaseREST {
             "Accept": "application/json",
             "Accept-Language": utils.getHTTPLanguage(),
             "Content-Type": "application/json",
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "User-Agent": utils.getUserAgent()
         };
     }
 
@@ -58,9 +59,12 @@ class BaseREST {
 
         if (!this._uri) {
             const baseUrl = options.getRelevantOption(opts, "x-ibm-dx-tenant-base-url");
+
+            /*istanbul ignore next*/
             if (baseUrl) {
                 this._uri = baseUrl;
             } else {
+                // FUTURE This fallback code will eventually be obsolete.
                 const gateway = options.getRelevantOption(opts, "dx-api-gateway");
                 const tenantId = options.getRelevantOption(opts, "x-ibm-dx-tenant-id");
                 this._uri = gateway + "/" + tenantId;
@@ -121,7 +125,7 @@ class BaseREST {
                     });
                 }
                 request.get(requestOptions, function (err, res, body) {
-                    if ((err) || (res && res.statusCode != 200)) {  //NOSONAR
+                    if ((err) || (res && res.statusCode !== 200)) {
                         err = utils.getError(err, body, res, requestOptions);
                         utils.logErrors(i18n.__("get_items_error" , {service_name: restObject.getServiceName()}),err);
                         deferred.reject(err);
@@ -144,7 +148,7 @@ class BaseREST {
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + id;
                 request.get(requestOptions, function (err, res, body) {
-                    if ((err) || (res && res.statusCode != 200)) { //NOSONAR
+                    if ((err) || (res && res.statusCode !== 200)) {
                         err = utils.getError(err, body, res, requestOptions);
                         // special case where we ar just seeing if the item does exisit and if not it's not an error
                         if(!opts || opts.noErrorLog !== "true")
@@ -171,7 +175,15 @@ class BaseREST {
                 request.post(requestOptions, function (err, res, body) {
                     if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
                         err = utils.getError(err, body, res, requestOptions);
-                        utils.logErrors(i18n.__("create_item_error", {service_name: restObject.getServiceName()}), err);
+
+                        // Check to see if this operation should be retried.
+                        if (opts && opts.filterRetryPush && opts.filterRetryPush(err)) {
+                            // The operation will be retried, so do not log the error yet.
+                            err.retry = true;
+                        } else {
+                            // The operation will not be retried, so log the error.
+                            utils.logErrors(i18n.__("create_item_error", {service_name: restObject.getServiceName()}), err);
+                        }
                         deferred.reject(err);
                     } else {
                         utils.logDebugInfo('create item:' + restObject.getServiceName(),  res);
@@ -194,11 +206,19 @@ class BaseREST {
                 requestOptions.body = item;
                 utils.logDebugInfo("Updating item with request options: ",undefined, requestOptions);
                 request.put(requestOptions, function (err, res, body) {
-                    if (res && res.statusCode == 404) {  //NOSONAR
+                    if (res && res.statusCode === 404) {
                         deferred.resolve(restObject.createItem(item, opts));
                     } else if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
                         err = utils.getError(err, body, res, requestOptions);
-                        utils.logErrors( i18n.__("update_item_error", {service_name: restObject.getServiceName()}), err);
+
+                        // Check to see if this operation should be retried.
+                        if (opts && opts.filterRetryPush && opts.filterRetryPush(err)) {
+                            // The operation will be retried, so do not log the error yet.
+                            err.retry = true;
+                        } else {
+                            // The operation will not be retried, so log the error.
+                            utils.logErrors(i18n.__("update_item_error", {service_name: restObject.getServiceName()}), err);
+                        }
                         deferred.reject(err);
                     } else {
                         utils.logDebugInfo('update item:' + restObject.getServiceName(),  res);
@@ -241,7 +261,7 @@ class BaseREST {
                         if (res.statusCode === 204 && (!body)) {
                             body = i18n.__("deleted_item", {id: item.id});
                         }
-                        res.body = body;
+                        res["body"] = body;
                         utils.logDebugInfo('delete ' + restObject.getServiceName(), res);
                         deferred.resolve(body);
                     }

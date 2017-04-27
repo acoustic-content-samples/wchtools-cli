@@ -26,6 +26,7 @@ const fs = require("fs");
 const path = require("path");
 const rimraf = require("rimraf");
 const diff = require("diff");
+const prompt = require("prompt");
 const uuid = require("uuid");
 const Q = require("q");
 const sinon = require("sinon");
@@ -33,7 +34,7 @@ const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const hashes = require(UnitTest.API_PATH + "/lib/utils/hashes.js");
+const options = require("wchtools-api").options;
 
 class PushUnitTest extends UnitTest {
     constructor () {
@@ -59,6 +60,7 @@ class PushUnitTest extends UnitTest {
 
             // Run each of the tests defined in this class.
             self.testPush(helper, restApi, fsApi, switches, itemName1, itemName2, badItem, itemExtension);
+            self.testPushUrlOption(helper, restApi, fsApi, switches, itemName1, itemName2, badItem, itemExtension);
             self.testPushParamFail(helper, restApi, fsApi, switches, itemName1, itemName2, badItem, itemExtension);
         });
     }
@@ -92,7 +94,7 @@ class PushUnitTest extends UnitTest {
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts successfully');
                         expect(msg).to.contain('1 error');
-                   })
+                    })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;
@@ -107,10 +109,6 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test generic push working", function (done) {
-                if (switches !== '-a') {
-                    return done();
-                }
-
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
                 const stub = sinon.stub(helper, "pushModifiedItems", function () {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
@@ -127,7 +125,7 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -146,7 +144,196 @@ class PushUnitTest extends UnitTest {
                         done(error);
                     });
             });
-            it("test push Ignore-timestamps working", function (done) {
+
+            it("test push no directories", function (done) {
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Stub the helper.doesDirectoryExist method to return false.
+                const stubExist = sinon.stub(helper, "doesDirectoryExist");
+                stubExist.returns(false);
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error was specified.
+                        expect(err.message).to.contain("does not contain any directories");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's methods.
+                        stub.restore();
+                        stubExist.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test push no items ignore timestamps", function (done) {
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Stub the helper.doesDirectoryExist method to return true.
+                const stubExist = sinon.stub(helper, "doesDirectoryExist");
+                stubExist.returns(true);
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "-I", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the expected error was specified.
+                        expect(msg).to.contain("No items to be pushed");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's methods.
+                        stub.restore();
+                        stubExist.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test push no items", function (done) {
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Stub the helper.doesDirectoryExist method to return true.
+                const stubExist = sinon.stub(helper, "doesDirectoryExist");
+                stubExist.returns(true);
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the expected error was specified.
+                        expect(msg).to.contain("nothing has been modified locally");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's methods.
+                        stub.restore();
+                        stubExist.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test successful push of web asset with path", function (done) {
+                if (switches !== "-w" ) {
+                    return done();
+                }
+
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter();
+                        emitter.emit("pushed", itemName1);
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--path", ".", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "pushModifiedItems" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test failure pushing web asset with path", function (done) {
+                if (switches !== "-w" ) {
+                    return done();
+                }
+
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter();
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--path", ".", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 error');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "pushModifiedItems" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test push ignore-timestamps working", function (done) {
                 // Stub the helper.pushAllItems method to return a promise that is resolved after emitting events.
                 const stub = sinon.stub(helper, "pushAllItems", function () {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
@@ -155,7 +342,6 @@ class PushUnitTest extends UnitTest {
                         const emitter = helper.getEventEmitter();
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
-                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -164,12 +350,11 @@ class PushUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--ignore-timestamps","--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api','-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts');
-                        expect(msg).to.contain('1 error');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -184,7 +369,315 @@ class PushUnitTest extends UnitTest {
                     });
             });
         });
+    }
 
+    testPushUrlOption (helper, restApi, fsApi, switches, itemName1, itemName2, badItem, itemExtension) {
+        describe("CLI-unit-push-url-option", function () {
+            it("test generic push with configured URL", function (done) {
+                // Stub the options.getProperty method to return a base URL value.
+                const originalGetProperty = options.getProperty;
+                const BASE_URL = "http://www.ibm.com/foo/api";
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    // When the stubbed method is called with the key for the base URL, return a known value.
+                    if (key === "x-ibm-dx-tenant-base-url") {
+                        return BASE_URL;
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
+
+                // Stub the prompt.get method to make sure it doesn't get called.
+                const stubPrompt = sinon.stub(prompt, "get");
+
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stubPush = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter();
+                        emitter.emit("pushed", itemName1);
+                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
+                    .then(function (msg) {
+                        // Verify that the get stub was called with the expected value.
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
+
+                        // Verify that the prompt stub was not called.
+                        expect(stubPrompt).to.not.have.been.called;
+
+                        // Verify that the push stub was called once, and that the expected message was returned.
+                        expect(stubPush).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts successfully');
+                        expect(msg).to.contain('1 error');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubGet.restore();
+                        stubPrompt.restore();
+                        stubPush.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test generic push with configured tenant ID", function (done) {
+                // Stub the options.getProperty method to return a tenant ID value.
+                const originalGetProperty = options.getProperty;
+                const TENANT_ID = "1234567890";
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    // When the stubbed method is called with the key for the base URL, return null.
+                    // When the stubbed method is called with the key for the tenant ID, return a known value.
+                    if (key === "x-ibm-dx-tenant-base-url") {
+                        return null;
+                    } else if (key === "x-ibm-dx-tenant-id") {
+                        return TENANT_ID;
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
+
+                // Stub the prompt.get method to make sure it doesn't get called.
+                const stubPrompt = sinon.stub(prompt, "get");
+
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stubPush = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter();
+                        emitter.emit("pushed", itemName1);
+                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
+                    .then(function (msg) {
+                        // Verify that the get stub was called with the expected values.
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+
+                        // Verify that the prompt stub was not called.
+                        expect(stubPrompt).to.not.have.been.called;
+
+                        // Verify that the push stub was called once, and that the expected message was returned.
+                        expect(stubPush).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts successfully');
+                        expect(msg).to.contain('1 error');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubGet.restore();
+                        stubPrompt.restore();
+                        stubPush.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test generic push with URL prompt failure", function (done) {
+                // Stub the options.getProperty method to return a base URL value.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    // When the stubbed method is called with the key for the base URL or the tenant ID, return null.
+                    if (key === "x-ibm-dx-tenant-base-url" || key === "x-ibm-dx-tenant-id") {
+                        return null;
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
+
+                // Stub the prompt.get method to pass an error to the callback function.
+                const stubPrompt = sinon.stub(prompt, "get");
+                const PROMPT_ERROR = "An expected prompt error while executing a unit test.";
+                stubPrompt.yields(new Error(PROMPT_ERROR));
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the get stub was called with the expected values.
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+
+                        // Verify that the prompt stub was called once.
+                        expect(stubPrompt).to.have.been.calledOnce;
+
+                        // Verify that the expected error was specified.
+                        expect(err.message).to.equal(PROMPT_ERROR);
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubGet.restore();
+                        stubPrompt.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test generic push with invalid prompted URL", function (done) {
+                // Stub the options.getProperty method to return a base URL value.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    // When the stubbed method is called with the key for the base URL or the tenant ID, return null.
+                    if (key === "x-ibm-dx-tenant-base-url" || key === "x-ibm-dx-tenant-id") {
+                        return null;
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
+
+                // Stub the prompt.get method to pass an error to the callback function.
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"url": "Invalid URL"});
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the get stub was called with the expected values.
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+
+                        // Verify that the prompt stub was called once.
+                        expect(stubPrompt).to.have.been.calledOnce;
+
+                        // Verify that the expected error was specified.
+                        expect(err.message).to.contain("not valid");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubGet.restore();
+                        stubPrompt.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test generic push with prompted URL", function (done) {
+                // Stub the options.getProperty method to return a base URL value.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    // When the stubbed method is called with the key for the base URL or the tenant ID, return null.
+                    if (key === "x-ibm-dx-tenant-base-url" || key === "x-ibm-dx-tenant-id") {
+                        return null;
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
+
+                // Stub the prompt.get method to pass an error to the callback function.
+                const stubPrompt = sinon.stub(prompt, "get");
+                const BASE_URL = "http://www.ibm.com/foo/api";
+                stubPrompt.yields(null, {"url": BASE_URL});
+
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stubPush = sinon.stub(helper, "pushModifiedItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter();
+                        emitter.emit("pushed", itemName1);
+                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
+                    .then(function (msg) {
+                        // Verify that the get stub was called with the expected values.
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+
+                        // Verify that the prompt stub was called once.
+                        expect(stubPrompt).to.have.been.calledOnce;
+
+                        // Verify that the push stub was called once, and that the expected message was returned.
+                        expect(stubPush).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts successfully');
+                        expect(msg).to.contain('1 error');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubGet.restore();
+                        stubPrompt.restore();
+                        stubPush.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test generic push with invalid specified URL", function (done) {
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "Invalid URL"])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error was specified.
+                        expect(err.message).to.contain("not valid");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
     }
 
     testPushParamFail (helper, restApi, fsApi, switches, itemName1, itemName2, badItem, itemExtension) {

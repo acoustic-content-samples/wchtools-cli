@@ -24,6 +24,8 @@ function getPlugins () {
     // Loop though command files
     const plugins = [];
     const pluginDir = utils.getUserHome() + path.sep +  utils.ProductName + path.sep + "cli" +  path.sep + "plugins";
+
+    /*istanbul ignore next*/
     if (fs.existsSync(pluginDir)) {
         fs.readdirSync(pluginDir)
             .forEach(function (filename) {
@@ -39,24 +41,26 @@ function getPlugins () {
 }
 
 function commandLoader (program) {
-    var commands = {};
-    var loadPath = path.dirname(__filename);
+    const commands = {};
+    const loadPath = path.dirname(__filename);
 
     // Loop though command files
     fs.readdirSync(loadPath).filter(function (filename) {
         return (/\.js$/.test(filename) && filename !== 'index.js');
     })
         .forEach(function (filename) {
-            var name = filename.substr(0, filename.lastIndexOf('.'));
+            const name = filename.substr(0, filename.lastIndexOf('.'));
 
             // Require command
-	        var command = require(path.join(loadPath, filename));
+            const command = require(path.join(loadPath, filename));
 
 	        // Initialize command
     	    commands[name] = command(program);
     	});
 
     const plugins = getPlugins();
+
+    /*istanbul ignore next*/
     plugins.forEach(function (loadPath) {
         if (fs.existsSync(loadPath)) {
             fs.readdirSync(loadPath)
@@ -64,10 +68,10 @@ function commandLoader (program) {
                     return (/\.js$/.test(filename) && filename !== 'index.js');
                 })
 				.forEach(function (filename) {
-                    var name = filename.substr(0, filename.lastIndexOf('.'));
+                    const name = filename.substr(0, filename.lastIndexOf('.'));
 
 	                // Require command
-    	            var command = require(path.join(loadPath, filename));
+                    const command = require(path.join(loadPath, filename));
         	        // Initialize command
             	    commands[name] = command(program);
             	});
