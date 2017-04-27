@@ -55,6 +55,9 @@ class BaseCommand {
         this._artifactsCount = 0;
         this._artifactsError = 0;
 
+        // The process exit code to use for a CLI error.
+        this.CLI_ERROR_EXIT_CODE = 1;
+
         // The cleanup functions to execute after the command has been completed.
         this._cleanups = [];
     }
@@ -164,9 +167,7 @@ class BaseCommand {
      * @returns {string} The value of the command line option with the given name, or null.
      */
     getCommandLineOption (name) {
-        if (this._commandLineOptions) {
-            return this._commandLineOptions[name];
-        }
+        return this._commandLineOptions[name];
     }
 
     /**
@@ -176,9 +177,7 @@ class BaseCommand {
      * @param {object} value The value of the command line option.
      */
     setCommandLineOption (name, value) {
-        if (this._commandLineOptions) {
-            this._commandLineOptions[name] = value;
-        }
+        this._commandLineOptions[name] = value;
     }
 
     /**
@@ -190,6 +189,7 @@ class BaseCommand {
      */
     resetCommandLineOptions () {
         this.setCommandLineOption("dir", undefined);
+        this.setCommandLineOption("url", undefined);
         this.setCommandLineOption("user", undefined);
         this.setCommandLineOption("password", undefined);
         this.setCommandLineOption("verbose", undefined);
@@ -212,7 +212,11 @@ class BaseCommand {
      * @param {string} message The message to be displayed.
      */
     errorMessage (message) {
+        // Display the specified error message.
         this.getProgram().errorMessage(message);
+
+        // Set the exit code for the process, so that a parent process can determine success.
+        process.exitCode = this.CLI_ERROR_EXIT_CODE;
     }
 
     /**
@@ -221,6 +225,7 @@ class BaseCommand {
      * @param {string} message The message to be displayed.
      */
     warningMessage (message) {
+        // Display the specified warning message.
         this.getProgram().warningMessage(message);
     }
 
@@ -230,6 +235,7 @@ class BaseCommand {
      * @param {string} message The message to be displayed.
      */
     successMessage (message) {
+        // Display the specified success message.
         this.getProgram().successMessage(message);
     }
 

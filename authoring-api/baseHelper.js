@@ -34,6 +34,31 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
  */
 class BaseHelper {
     /**
+     * Name of a retry property (Number) that specifies how many items were attempted for the current push operation.
+     */
+    static get RETRY_PUSH_ITEM_COUNT () { return "itemCount"; };
+
+    /**
+     * Name of a retry property (Array) that contains the items whose push operation failed and will be retried.
+     */
+    static get RETRY_PUSH_ITEMS () { return "items"; };
+
+    /**
+     * Name of an item property (String) that contains the name of the item whose push operation will be retried.
+     */
+    static get RETRY_PUSH_ITEM_NAME () { return "name"; };
+
+    /**
+     * Name of an item property (Error) that contains the error for the failed push operation.
+     */
+    static get RETRY_PUSH_ITEM_ERROR () { return "error"; };
+
+    /**
+     * Name of an item property (String) that contains the heading for the failed push operation.
+     */
+    static get RETRY_PUSH_ITEM_HEADING () { return "heading"; };
+
+    /**
      * The base constructor for a helper object.
      *
      * @constructs BaseHelper
@@ -67,6 +92,11 @@ class BaseHelper {
          * @member {events.EventEmitter} _eventEmitter - The object used to emit events for this helper.
          */
         this._eventEmitter = new events.EventEmitter();
+
+        /**
+         * @member {Object} _retryPush - The object used to store retry push settings for this helper.
+         */
+        this._retryPush = {};
 
         /**
          * @member {String} NEW - State flag indicating that an item is new.
@@ -155,10 +185,9 @@ class BaseHelper {
      * @resolves {Object} The item on the local file system with the given name.
      */
     getLocalItem (name, opts) {
-        const helper = this;
-
         // Return the FS object's promise to get the local item with the given name.
-        return this._fsApi.getItem(name, opts)
+        const helper = this;
+        return helper._fsApi.getItem(name, opts)
             .then(function (item) {
                 // Keep track of the item's local status.
                 return helper._addLocalStatus(item);
@@ -175,9 +204,9 @@ class BaseHelper {
      * @resolves {Array} The items on the local file system.
      */
     getLocalItems (opts) {
-        const helper = this;
         // Return the FS object's promise to get the local items.
-        return this._fsApi.getItems(opts)
+        const helper = this;
+        return helper._fsApi.getItems(opts)
             .then(function (items) {
                 // Keep track of each item's local status.
                 items.forEach(function (item) {
@@ -197,10 +226,9 @@ class BaseHelper {
      * @resolves {Array} The items on the remote content hub.
      */
     getRemoteItems (opts) {
-        const helper = this;
-
         // Return the REST object's promise to get the remote items.
-        return this._restApi.getItems(opts)
+        const helper = this;
+        return helper._restApi.getItems(opts)
             .then(function (items) {
                 // Keep track of each item's remote status.
                 items.forEach(function (item) {
@@ -221,14 +249,83 @@ class BaseHelper {
      * @resolves {Object} The item that was created.
      */
     createRemoteItem (item, opts) {
-        const helper = this;
-
         // Return the REST object's promise to create the remote item.
-        return this._restApi.createItem(item, opts)
+        const helper = this;
+        return helper._restApi.createItem(item, opts)
             .then(function (item) {
                 // Keep track of the item's remote status.
                 return helper._addRemoteStatus(item);
             });
+    }
+
+    /**
+     * Initialize any values used to retry items that failed to push.
+     *
+     * @param {Array} names A list of item names being pushed.
+     */
+    initializeRetryPush (names) {
+        this.setRetryPushProperty(BaseHelper.RETRY_PUSH_ITEM_COUNT, names ? names.length : 0);
+        this.setRetryPushProperty(BaseHelper.RETRY_PUSH_ITEMS, []);
+    }
+
+    /**
+     * Get the value of the specified retry push property.
+     *
+     * @param {String} name The name of the property.
+     *
+     * @returns {*} The value of the specified retry push property, or null if the property is not defined.
+     */
+    getRetryPushProperty (name) {
+        return this._retryPush[name] || null;
+    }
+
+    /**
+     * Set the value of the specified retry push property.
+     *
+     * @param {String} name The name of the property.
+     * @param {*} value The value of the specified property.
+     */
+    setRetryPushProperty (name, value) {
+        this._retryPush[name] = value;
+    }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @returns {Boolean} A return value of true indicates that retry push is enabled.
+     */
+    isRetryPushEnabled () {
+        return false;
+    }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @param {Error} error The error returned from the failed push operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the push should be retried.
+     */
+    filterRetryPush (error) {
+        // Log a warning to indicate that this method should be overridden by the helper class that enabled retry push.
+        // This warning is meant to be read by WCH developers, so it is not translated.
+        logger.warn(this.constructor.name + ".filterRetryPush should be overridden to handle error: " + error);
+        return false;
+    }
+
+    /**
+     * Add the properties for an item that should have its push operation retried.
+     *
+     * @param {Object} properties The properties of the push to be retried.
+     */
+    addRetryPushProperties (properties) {
+        const items = this.getRetryPushProperty(BaseHelper.RETRY_PUSH_ITEMS);
+        if (items) {
+            // The list already exists, so add the specified properties to it.
+            items.push(properties);
+        } else {
+            // The list does not exist, so create a new list containing the specified properties and add it.
+            this.setRetryPushProperty(BaseHelper.RETRY_PUSH_ITEMS, [properties]);
+        }
     }
 
     /**
@@ -244,20 +341,21 @@ class BaseHelper {
      * @resolves {Object} The item that was pushed.
      */
     pushItem (name, opts) {
-        const helper = this;
-
         // Clone the options so that our changes do not affect the original options.
         opts = utils.cloneOpts(opts);
         opts.originalPushFileName = name;
 
         // Return the promise to to get the local item and upload it to the content hub.
-        return this._fsApi.getItem(name, opts)
+        const helper = this;
+        return helper._fsApi.getItem(name, opts)
             .then(function (item) {
                 return helper._uploadItem(item, opts);
             })
             .catch(function (err) {
-                if (! err.emitted)
-                    helper._eventEmitter.emit("pushed-error", err, name);
+                // Only emit the error event if it hasn't already been emitted and we won't be doing a retry.
+                if (!err.emitted && !err.retry) {
+                    helper.getEventEmitter().emit("pushed-error", err, name);
+                }
                 throw err;
             });
     }
@@ -272,10 +370,9 @@ class BaseHelper {
      * @resolves {Array} The items that were pushed.
      */
     pushAllItems (opts) {
-        const helper = this;
-
         // Return the promise to to get the list of local item names and push those items to the content hub.
-        return this._fsApi.listNames(opts)
+        const helper = this;
+        return helper._fsApi.listNames(opts)
             .then(function (names) {
                 return helper._pushNameList(names, opts);
             });
@@ -291,10 +388,9 @@ class BaseHelper {
      * @resolves {Array} The modified items that were pushed.
      */
     pushModifiedItems (opts) {
-        const helper = this;
-
         // Return the promise to to get the list of modified local item names and push those items to the content hub.
-        return this.listModifiedLocalItemNames([helper.NEW, helper.MODIFIED], opts)
+        const helper = this;
+        return helper.listModifiedLocalItemNames([helper.NEW, helper.MODIFIED], opts)
             .then(function (names) {
                 return helper._pushNameList(names, opts);
             });
@@ -313,16 +409,15 @@ class BaseHelper {
      * @resolves {Array} The item that was pulled.
      */
     pullItem (id, opts) {
-        const helper = this;
-
         // Return the promise to get the remote item and save it on the local file system.
-        return this._restApi.getItem(id, opts)
+        const helper = this;
+        return helper._restApi.getItem(id, opts)
             .then(function (item) {
                 return helper._fsApi.saveItem(item, opts);
             })
             .then(function (item) {
                 // Use the event emitter to indicate that the item was successfully pulled.
-                helper._eventEmitter.emit("pulled", helper.getName(item));
+                helper.getEventEmitter().emit("pulled", helper.getName(item));
 
                 // Keep track of the item's local status.
                 helper._addLocalStatus( item);
@@ -330,7 +425,7 @@ class BaseHelper {
             })
             .catch(function (err) {
                 // Use the event emitter to indicate that there was an error pulling the item.
-                helper._eventEmitter.emit("pulled-error", err, id);
+                helper.getEventEmitter().emit("pulled-error", err, id);
                 throw err;
             });
     }
@@ -355,9 +450,8 @@ class BaseHelper {
         };
         this.getEventEmitter().on("pulled-error", assetPulledError);
 
-        const helper = this;
-
         // Pull a "chunk" of remote items and and then recursively pull any remaining chunks.
+        const helper = this;
         helper._pullItemsChunk(helper.getRemoteItems, opts)
             .then(function (items) {
                 // The deferred will get resolved when all chunks have been pulled.
@@ -399,9 +493,8 @@ class BaseHelper {
         };
         this.getEventEmitter().on("pulled-error", assetPulledError);
 
-        const helper = this;
-
         // Pull a "chunk" of modified remote items and and then recursively pull any remaining chunks.
+        const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(helper, [helper.NEW, helper.MODIFIED]);
         helper._pullItemsChunk(listFn, opts)
             .then(function (items) {
@@ -425,7 +518,7 @@ class BaseHelper {
     }
 
     /**
-     * @returns {Promise} - A promise that resolves with an array of the names of
+     * @returns {Q.Promise} - A promise that resolves with an array of the names of
      *                      all items that exist on the file system.
      */
     listLocalItemNames (opts) {
@@ -500,13 +593,13 @@ class BaseHelper {
         const listFn = this._restApi.getItems.bind(this._restApi);
 
         // Get the first chunk of remote items, and then recursively retrieve any additional chunks.
-        const self = this;
-        self._listItemChunk(listFn, opts)
+        const helper = this;
+        helper._listItemChunk(listFn, opts)
             .then(function (listInfo) {
                 // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
                 // deferred, so we have to handle that explicitly.
-                self._recurseList(listFn, deferred, null, listInfo, opts);
+                helper._recurseList(listFn, deferred, null, listInfo, opts);
             })
             .catch(function (err) {
                 // If the list function's promise is rejected, propogate that to the deferred that was returned.
@@ -519,9 +612,9 @@ class BaseHelper {
                 // Turn the resulting list of items (metadata) into a list of item names.
                 return items.map(function (item) {
                     if (opts && opts.includeNameInList === "true") {
-                        return self.getName(item) + ' -- ' + item.name;
+                        return helper.getName(item) + ' -- ' + item.name;
                     } else {
-                        return self.getName(item);
+                        return helper.getName(item);
                     }
                 });
             });
@@ -564,11 +657,11 @@ class BaseHelper {
     listModifiedRemoteItemNames (flags, opts) {
         const deferred = Q.defer();
         const results = null;
-        const self = this;
-        const listFn = self.getModifiedRemoteItems.bind(self, flags);
-        self._listItemChunk(listFn, opts)
+        const helper = this;
+        const listFn = helper.getModifiedRemoteItems.bind(helper, flags);
+        helper._listItemChunk(listFn, opts)
             .then(function (listInfo) {
-                self._recurseList(listFn, deferred, results, listInfo, opts);
+                helper._recurseList(listFn, deferred, results, listInfo, opts);
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -578,13 +671,13 @@ class BaseHelper {
             .then(function (items) {
                 const results = items.map(function (item) {
                     if (opts && opts.includeNameInList === "true") {
-                        return self.getName(item) + ' -- ' + item.name;
+                        return helper.getName(item) + ' -- ' + item.name;
                     } else {
-                        return self.getName(item);
+                        return helper.getName(item);
                     }
                 });
-                if (flags.indexOf(self.DELETED) !== -1) {
-                    return self.listRemoteDeletedNames(opts)
+                if (flags.indexOf(helper.DELETED) !== -1) {
+                    return helper.listRemoteDeletedNames(opts)
                         .then(function (itemNames) {
                             itemNames.forEach(function (itemName) {
                                 results.push(itemName);
@@ -641,11 +734,11 @@ class BaseHelper {
      * @returns {Q.Promise} A promise for the deleted item.
      */
     deleteRemoteItem (id, opts) {
-        const helper = this;
         const item = {id: id};
 
         // This function exists mostly for testing purposes
-        return this._restApi.deleteItem(item, opts)
+        const helper = this;
+        return helper._restApi.deleteItem(item, opts)
             .then(function () {
                 helper._statusTracker.removeStatus(StatusTracker.EXISTS_REMOTELY);
                 return item;
@@ -675,6 +768,7 @@ class BaseHelper {
     reset () {
         this._statusTracker = new StatusTracker();
         this._eventEmitter = new events.EventEmitter();
+        this._retryPush = {};
     }
 
     _addRemoteStatus (item) {
@@ -699,13 +793,24 @@ class BaseHelper {
     _uploadItem (item, opts) {
         let promise;
         let logError;
+
+        // Setup the retry options to be passed to the REST layer.
+        let rOpts = opts;
+
+        // Retry is only available if it is enabled for this helper, and if it has been initialized for this helper.
+        if (this.isRetryPushEnabled() && this.getRetryPushProperty(BaseHelper.RETRY_PUSH_ITEM_COUNT)) {
+            // Clone the options and add the filter for determining whether a failed push should be retried.
+            rOpts = utils.cloneOpts(opts);
+            rOpts.filterRetryPush = this.filterRetryPush.bind(this);
+        }
+
         const isUpdate = item.id && item.rev;
         if (isUpdate) {
-            promise = this._restApi.updateItem(item, opts);
+            promise = this._restApi.updateItem(item, rOpts);
             logError = i18n.__("push_error_updating_item");
         } else {
             // No ID, so it has to be created
-            promise = this._restApi.createItem(item, opts);
+            promise = this._restApi.createItem(item, rOpts);
             logError = i18n.__("push_error_creating_item");
         }
 
@@ -715,38 +820,54 @@ class BaseHelper {
                 return helper._addRemoteStatus(item);
             })
             .then(function (item) {
-                helper._eventEmitter.emit("pushed", helper.getName(item));
-                const cOpts  = utils.cloneOpts(opts);
+                helper.getEventEmitter().emit("pushed", helper.getName(item));
+                const cOpts = utils.cloneOpts(opts);
                 cOpts.renameIfNeeded = true;
                 return helper._fsApi.saveItem(item, opts);
             })
             .catch(function (err) {
-                helper._eventEmitter.emit("pushed-error", err, helper.getName(item));
-                err.emitted = true;
-                utils.logErrors(logError + helper.getName(item), err);
-                if (isUpdate && err.statusCode === 409) {
-                    return helper._restApi.getItem(item.id, opts)
-                        .then(function (item) {
-                            const cOpts = utils.cloneOpts(opts);
-                            cOpts.conflict = true;
-                            return helper._fsApi.saveItem(item, cOpts)
-                                .then(function () {
-                                    // throw the original err for conflict
-                                    throw(err);
-                                })
-                                .catch(function (error) {
-                                    logger.warn(error);
-                                    // throw the original err for conflict
-                                    throw err;
-                                });
-                        })
-                        .catch(function (error) {
-                            logger.warn(error);
-                            // throw the original err for conflict
-                            throw err;
-                        });
-                } else {
+                const name = helper.getName(item);
+                const heading = logError + name;
+
+                // Determine whether the push of this item should be retried.
+                if (err.retry) {
+                    // Add a retry entry to the helper.
+                    const retryProperties = {};
+                    retryProperties[BaseHelper.RETRY_PUSH_ITEM_NAME] = name;
+                    retryProperties[BaseHelper.RETRY_PUSH_ITEM_ERROR] = err;
+                    retryProperties[BaseHelper.RETRY_PUSH_ITEM_HEADING] = heading;
+                    helper.addRetryPushProperties(retryProperties);
+
+                    // Rethrow the error to propogate it back to the caller. Otherwise the caller won't know to retry.
                     throw(err);
+                } else {
+                    helper.getEventEmitter().emit("pushed-error", err, name);
+                    err.emitted = true;
+                    utils.logErrors(heading, err);
+                    if (isUpdate && err.statusCode === 409) {
+                        return helper._restApi.getItem(item.id, opts)
+                            .then(function (item) {
+                                const cOpts = utils.cloneOpts(opts);
+                                cOpts.conflict = true;
+                                return helper._fsApi.saveItem(item, cOpts)
+                                    .then(function () {
+                                        // throw the original err for conflict
+                                        throw(err);
+                                    })
+                                    .catch(function (error) {
+                                        logger.warn(error);
+                                        // throw the original err for conflict
+                                        throw err;
+                                    });
+                            })
+                            .catch(function (error) {
+                                logger.warn(error);
+                                // throw the original err for conflict
+                                throw err;
+                            });
+                    } else {
+                        throw(err);
+                    }
                 }
             });
     }
@@ -757,30 +878,82 @@ class BaseHelper {
      * @param {Array} names - The names of the items to be pushed.
      * @param {Object} opts - The options to be used for the push operations.
      *
-     * @returns {Promise} A promise for the items that were pushed.
+     * @returns {Q.Promise} A promise for the items that were pushed.
      *
      * @protected
      */
     _pushNameList (names, opts) {
+        const deferred = Q.defer();
+
         const helper = this;
         const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName, "concurrent-limit");
-        const results = utils.throttledAll(names.map(function (name) {
-            return function () {
-                return helper.pushItem(name, opts);
-            };
-        }), concurrentLimit);
+        const pushedItems = [];
+        const pushItems = function (names, opts) {
+            const results = utils.throttledAll(names.map(function (name) {
+                return function () {
+                    return helper.pushItem(name, opts);
+                };
+            }), concurrentLimit);
 
-        return results
-            .then(function (promises) {
-                promises = promises.filter(function (promise) {
-                    if (promise.state === 'fulfilled') {
-                        return promise;
+            results
+                .then(function (promises) {
+                    promises
+                        .filter(function (promise) {
+                            return (promise.state === 'fulfilled');
+                        })
+                        .forEach(function (promise) {
+                            pushedItems.push(promise.value)
+                        });
+
+                    // Check to see if a retry is required.
+                    const retryItems = helper.getRetryPushProperty(BaseHelper.RETRY_PUSH_ITEMS);
+                    if (retryItems && retryItems.length > 0) {
+                        // There are items to retry, so check to see whether any push operations were successful.
+                        const itemCount = helper.getRetryPushProperty(BaseHelper.RETRY_PUSH_ITEM_COUNT) || 0;
+                        if (retryItems.length < itemCount) {
+                            // At least one push operation was successful, so proceed with the retry.
+                            const names = [];
+                            retryItems.forEach(function (item) {
+                                // Add each retry item to the list of items to be pushed.
+                                const name = item[BaseHelper.RETRY_PUSH_ITEM_NAME];
+                                names.push(name);
+
+                                // Log a warning that the push of this item will be retried.
+                                const error = item[BaseHelper.RETRY_PUSH_ITEM_ERROR];
+                                utils.logWarnings(i18n.__("pushed_item_retry" , {name: name, message: error.message}));
+                            });
+
+                            // Initialize the retry values and then push the items in the list.
+                            helper.initializeRetryPush(names);
+                            pushItems(names, opts);
+                        } else {
+                            // There were no successful push operations, so do not retry again.
+                            retryItems.forEach(function (item) {
+                                // Emit a "pushed-error" event for each unpushed item, and log the error.
+                                const name = item[BaseHelper.RETRY_PUSH_ITEM_NAME];
+                                const error = item[BaseHelper.RETRY_PUSH_ITEM_ERROR];
+                                const heading = item[BaseHelper.RETRY_PUSH_ITEM_HEADING];
+                                delete error.retry;
+                                helper.getEventEmitter().emit("pushed-error", error, name);
+                                utils.logErrors(heading, error);
+                            });
+
+                            // Resolve the promise with the list of any items that were successfully pushed.
+                            deferred.resolve(pushedItems);
+                        }
+                    } else {
+                        // There were no items to retry, so resolve the promise with the list pushed items.
+                        deferred.resolve(pushedItems);
                     }
                 });
-                return promises.map(function (promise) {
-                    return promise.value;
-                });
-            })
+        };
+
+        // Initialize the retry values and then push the items in the list.
+        helper.initializeRetryPush(names);
+        pushItems(names, opts);
+
+        // Return the promise that will eventually be resolved in the pushItems function.
+        return deferred.promise
             .then(function (items) {
                 return items.map(function (item) {
                     return helper._addRemoteStatus(item);
@@ -791,21 +964,17 @@ class BaseHelper {
             });
     }
 
-    _getLatestTimestamp () {
-        return new Date(0).getTime();
-    }
-
     _pullItemsChunk (listFn, opts) {
-        const helper = this;
         let items = [];
         const deferred = Q.defer();
+        const helper = this;
         listFn.call(helper, opts)
             .then(function (itemList) {
                 const promises = itemList.map(function (item) {
                     const name = helper.getName(item);
                     return helper._fsApi.saveItem(item, opts)
                         .then(function () {
-                            helper._eventEmitter.emit("pulled", name);
+                            helper.getEventEmitter().emit("pulled", name);
                             helper._addLocalStatus(item);
                             return item;
                         });
@@ -819,7 +988,7 @@ class BaseHelper {
                             }
                             else {
                                 items.push(promise.reason);
-                                helper._eventEmitter.emit("pulled-error", promise.reason, itemList[index].id);
+                                helper.getEventEmitter().emit("pulled-error", promise.reason, itemList[index].id);
                             }
                         });
                         deferred.resolve(items);
@@ -885,10 +1054,10 @@ class BaseHelper {
             // clone the opts to not change the passed in opts
             opts = utils.clone(opts);
             opts.offset = offset +  limit;
-            const self = this;
-            self._listItemChunk(listFn, opts)
+            const helper = this;
+            helper._listItemChunk(listFn, opts)
                 .then(function (listInfo) {
-                    self._recurseList(listFn, deferred, results, listInfo, opts);
+                    helper._recurseList(listFn, deferred, results, listInfo, opts);
                 });
         }
     };

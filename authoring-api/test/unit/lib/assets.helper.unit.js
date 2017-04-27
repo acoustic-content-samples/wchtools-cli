@@ -40,7 +40,7 @@ const assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 const assetsREST = require(UnitTest.API_PATH + "lib/assetsREST.js").instance;
 
 // Require the local module being tested.
-const assetsHelper = require(UnitTest.API_PATH + "assetsHelper.js");
+const assetsHelper = require(UnitTest.API_PATH + "assetsHelper.js").instance;
 
 // Stub mkdirp to guard against creating an assets directory.
 let stubMkdirp;

@@ -62,6 +62,7 @@ class BaseRestUnitTest extends UnitTest {
 
             // Run each of the tests defined in this class.
             self.testSingleton(restApi, lookupUri, restName, itemPath1, itemPath2);
+            self.testGetModifiedItems(restApi, lookupUri, restName, itemPath1, itemPath2);
             self.testGetItems(restApi, lookupUri, restName, itemPath1, itemPath2);
             self.testGetItem(restApi, lookupUri, restName, itemPath1, itemPath2);
             self.testDeleteItem(restApi, lookupUri, restName, itemPath1, itemPath2);
@@ -91,13 +92,139 @@ class BaseRestUnitTest extends UnitTest {
         });
     }
 
+    testGetModifiedItems (restApi, lookupUri, restName, itemPath1, itemPath2) {
+        const self = this;
+
+        describe("getModifiedItems", function() {
+            it("should fail when getting items the fails with an error", function (done) {
+                // Create a stub for the GET requests.
+                const stub = sinon.stub(request, "get");
+
+                // The second GET request is to retrieve the items, but returns an error.
+                const URI_ERROR = "Error getting the items.";
+                const err = new Error(URI_ERROR);
+                const res = null;
+                const body = null;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.getModifiedItems(null, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once with the lookup URI and once with the URI.
+                            expect(stub).to.have.been.calledOnce;
+                            expect(stub.firstCall.args[0].uri).to.contain("http");
+                            expect(stub.firstCall.args[0].json).to.equal(true);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.equal(URI_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when getting the items fails with an error response code", function (done) {
+                // Create a stub for the GET requests.
+                const stub = sinon.stub(request, "get");
+
+                // The second GET request is to retrieve the items, but returns an error.
+                const URI_ERROR = "Error getting the items.";
+                const err = null;
+                const res = {"statusCode": 407};
+                const body = URI_ERROR;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.getModifiedItems(null, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once with the lookup URI and once with the URI.
+                            expect(stub).to.have.been.calledOnce;
+                            expect(stub.firstCall.args[0].uri).to.contain("http");
+                            expect(stub.firstCall.args[0].json).to.equal(true);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.equal(URI_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting valid items", function (done) {
+                // Create a stub for GET requests
+                const stub = sinon.stub(request, "get");
+
+                // The first GET request is to retrieve the lookup URI.
+                const err = null;
+                const res = {"statusCode": 200};
+
+                // The second GET request is to retrieve the items metadata.
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                const item2 = UnitTest.getJsonObject(itemPath2);
+                const body = {"items": [item1, item2]};
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.getModifiedItems("some timestamp", UnitTest.DUMMY_OPTIONS)
+                    .then(function (items) {
+                        // Verify that the stub was called twice, first with the lookup URI and then with the URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("http");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(item1, items[0])).to.have.lengthOf(1);
+                        expect(diff.diffJson(item2, items[1])).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
     testGetItems (restApi, lookupUri, restName, itemPath1, itemPath2) {
         const self = this;
 
-        // Execute several failure cases to test the various ways the server might return an error. Subsequent tests do
-        // not need to repeat the test matrix, they can just execute one of these tests to verify an error is returned.
         describe("getItems", function() {
-
             it("should fail when getting items the fails with an error", function (done) {
                 // Create a stub for the GET requests.
                 const stub = sinon.stub(request, "get");

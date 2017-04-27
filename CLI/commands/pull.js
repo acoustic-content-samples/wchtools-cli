@@ -134,6 +134,9 @@ class PullCommand extends BaseCommand {
         }
         if (this._artifactsError > 0) {
             message += " " + i18n.__n('cli_pull_errors', this._artifactsError);
+
+            // Set the exit code for the process, to indicate that some artifacts had pull errors.
+            process.exitCode = this.CLI_ERROR_EXIT_CODE;
         }
         if ((this._artifactsCount > 0 || this._artifactsError > 0) && !this.getCommandLineOption("verbose")) {
             message += " " + i18n.__('cli_log_non_verbose');
@@ -249,7 +252,7 @@ class PullCommand extends BaseCommand {
                 })
                 .catch(function (err) {
                     const logger = self.getLogger();
-                    logger.info(err.message);
+                    logger.error(err.message);
                     deferredPull.resolve();
                 });
             return deferredPull.promise;
@@ -296,7 +299,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const assetPulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_asset_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_asset_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", assetPulledError);
 
@@ -345,7 +348,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const imageProfilePulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_image_profile_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_image_profile_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", imageProfilePulledError);
 
@@ -393,7 +396,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const renditionPulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_rendition_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_rendition_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", renditionPulledError);
 
@@ -441,7 +444,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const categoryPulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_cat_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_cat_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", categoryPulledError);
 
@@ -489,7 +492,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const itemTypePulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_type_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_type_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", itemTypePulledError);
 
@@ -537,7 +540,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const contentPulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_content_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_content_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", contentPulledError);
 
@@ -585,7 +588,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const sourcePulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_source_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_source_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", sourcePulledError);
 
@@ -633,7 +636,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const profilePulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_profile_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_profile_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", profilePulledError);
 
@@ -681,7 +684,7 @@ class PullCommand extends BaseCommand {
         // The api emits an event when there is a pull error, so we log it for the user.
         const siteRevisionPulledError = function (error, name) {
             self._artifactsError++;
-            self.getLogger().info(i18n.__('cli_pull_site_revision_pull_error', {name: name, message: error.message}));
+            self.getLogger().error(i18n.__('cli_pull_site_revision_pull_error', {name: name, message: error.message}));
         };
         helper.getEventEmitter().on("pulled-error", siteRevisionPulledError);
 

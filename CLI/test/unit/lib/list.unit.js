@@ -26,12 +26,13 @@ const fs = require("fs");
 const path = require("path");
 const rimraf = require("rimraf");
 const diff = require("diff");
+const prompt = require("prompt");
 const sinon = require("sinon");
 const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const hashes = require(UnitTest.API_PATH + "/lib/utils/hashes.js");
+const options = require("wchtools-api").options;
 
 class ListUnitTest extends UnitTest {
     constructor () {
@@ -65,6 +66,32 @@ class ListUnitTest extends UnitTest {
 
     testList (helper, switches, itemName1, itemName2, badItem) {
         describe("CLI-unit-listing", function () {
+            it("test list no options working", function (done) {
+                let error;
+
+                // Create a stub to return prompt values.
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"url": "http://www.ibm.com/foo/api"});
+
+                // Execute the command to list the default local items.
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and the expected message was returned.
+                        expect(msg).to.contain('artifacts listed');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the original methods.
+                        stubPrompt.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test list no mod param working", function (done) {
                 const stub = sinon.stub(helper, "listModifiedLocalItemNames");
                 stub.resolves([itemName1, itemName2, badItem]);
@@ -94,16 +121,30 @@ class ListUnitTest extends UnitTest {
 
     testListServer (helper, switches, itemName1, itemName2, badItem) {
         describe("CLI-unit-listing", function () {
-            it("test list server working", function (done) {
-                const stub = sinon.stub(helper, "listModifiedRemoteItemNames");
-                stub.resolves([itemName1, itemName2, badItem]);
+            it("test list server working with username and password defined", function (done) {
+                // Create a stub to return a value for the "username" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    if (key === "username") {
+                        return "foo";
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
 
-                // Execute the command to list the items to the download directory.
+                // Set the password for this test only.
+                const originalPassword = process.env.WCHTOOLS_PASSWORD;
+                process.env.WCHTOOLS_PASSWORD = "password";
+
+                const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
+                stubList.resolves([itemName1, itemName2, badItem]);
+
+                // Execute the command to list the items on the server.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and the expected message was returned.
-                        expect(stub).to.have.been.calledOnce;
+                        expect(stubList).to.have.been.calledOnce;
                         expect(msg).to.contain('artifacts listed 3');
                     })
                     .catch(function (err) {
@@ -111,8 +152,57 @@ class ListUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
-                        // Restore the helper's "listModifiedLocalItemNames" method.
-                        stub.restore();
+                        // Restore the original methods and values.
+                        stubGet.restore();
+                        stubList.restore();
+                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list server working with no username and password defined", function (done) {
+                // Create a stub to return a value for the "username" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    if (key === "username") {
+                        return undefined;
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
+
+                // Set the password for this test only.
+                const originalPassword = process.env.WCHTOOLS_PASSWORD;
+                process.env.WCHTOOLS_PASSWORD = "";
+
+                const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
+                stubList.resolves([itemName1, itemName2, badItem]);
+
+                // Create a stub to return prompt values.
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"username": "foo", "password": "password"});
+
+                // Execute the command to list the items on the server.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        expect(stubPrompt).to.have.been.calledOnce;
+                        expect(msg).to.contain('artifacts listed 3');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the original methods and values.
+                        stubGet.restore();
+                        stubList.restore();
+                        stubPrompt.restore();
+                        process.env.WCHTOOLS_PASSWORD = originalPassword;
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -126,6 +216,7 @@ class ListUnitTest extends UnitTest {
             it("test list mod param working", function (done) {
                 const stub = sinon.stub(helper, "listModifiedLocalItemNames");
                 stub.resolves([itemName1, itemName2, badItem]);
+
                 // Execute the command to list the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -180,11 +271,10 @@ class ListUnitTest extends UnitTest {
 
     testListParamFail (helper, switches, itemName1, itemName2, badItem) {
         describe("CLI-unit-listing", function() {
-            const command = 'list';
             it("test fail extra param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -209,7 +299,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--dir", "....", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--dir", "....", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -235,7 +325,7 @@ class ListUnitTest extends UnitTest {
             it("test fail path and not asset param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, "-c", "--path", "./", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", "-c", "--path", "./", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");

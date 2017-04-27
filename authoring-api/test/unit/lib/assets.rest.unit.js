@@ -626,7 +626,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(ASSET_ERROR);
+                            expect(err.message).to.contain("technical difficulties");
+                            expect(err.message).to.not.contain(ASSET_ERROR);
                         } catch (err) {
                             error = err;
                         }
@@ -684,7 +685,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(ASSET_ERROR);
+                            expect(err.message).to.contain("technical difficulties");
+                            expect(err.message).to.not.contain(ASSET_ERROR);
                         } catch (err) {
                             error = err;
                         }

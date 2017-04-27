@@ -147,14 +147,18 @@ class ListCommand extends BaseCommand {
      *
      * @returns {Boolean} A return value of true indicates that a login is required to execute this list command. A
      *          return value of false indicates that a login is not required to execute this list command.
+     *
+     * @private
      */
-    isLoginRequired (apiOptions) {
+    isLoginRequired () {
         // For now, login is only required if the --server option or the --del option has been specified on the command line.
-        // Login is also required if there is no (manually specified) tenant id available.
+        let retVal = false;
         const server = this.getCommandLineOption("server");
         const del = this.getCommandLineOption("del");
-        const tenant = options.getRelevantOption(apiOptions, "x-ibm-dx-tenant-id");
-        return (server || del || !tenant);
+        if (server || del) {
+            retVal = true;
+        }
+        return retVal;
     }
 
     /**
@@ -164,15 +168,22 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when the url has been specified.
      */
     handleUrlOption () {
-        const apiOptions = this.getApiOptions();
-        if (this.isLoginRequired(apiOptions)) {
+        if (this.isLoginRequired()) {
             // A login is required, so call the super method to handle the url option in the normal way.
             return super.handleUrlOption();
         } else {
-            // A login is not required, so just return a resolved promise.
-            const deferred = Q.defer();
-            deferred.resolve();
-            return deferred.promise;
+            // The base URL is used as a key in the hashes file when listing modified local artifacts.
+            const baseUrl = options.getRelevantOption(this.getApiOptions(), "x-ibm-dx-tenant-base-url");
+            const ignoreTimestamps = this.getCommandLineOption("ignoreTimestamps");
+            if (!baseUrl && !ignoreTimestamps) {
+                // A base URL has not been configured and not ignoring timestamps, so need to get a URL value.
+                return super.handleUrlOption();
+            } else {
+                // A login is not required, so just return a resolved promise.
+                const deferred = Q.defer();
+                deferred.resolve();
+                return deferred.promise;
+            }
         }
     }
 
@@ -183,8 +194,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when the username and password have been specified, if necessary.
      */
     handleAuthenticationOptions () {
-        const apiOptions = this.getApiOptions();
-        if (this.isLoginRequired(apiOptions)) {
+        if (this.isLoginRequired()) {
             // A login is required, so call the super method to handle the authentication options in the normal way.
             return super.handleAuthenticationOptions();
         } else {
@@ -203,7 +213,7 @@ class ListCommand extends BaseCommand {
      * @returns {Q.Promise} A promise to be fulfilled with the name of the logged in user.
      */
     handleLogin (apiOptions) {
-        if (this.isLoginRequired(apiOptions)) {
+        if (this.isLoginRequired()) {
             // A login is required, so use the loginREST object to login in the normal way.
             return login.login(apiOptions);
         } else {

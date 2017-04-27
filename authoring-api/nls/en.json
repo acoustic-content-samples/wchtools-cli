@@ -5,6 +5,7 @@
   "push_error_creating_item": "Push error creating item: ",
   "push_error_updating_item": "Push error updating item: ",
   "pushed_item_error": "Pushed item error: ",
+  "pushed_item_retry": "Retry pushing item '%(name)s'. Error: %(message)s",
   "invalid_path": "Invalid path: %(path)s",
   "timed_out_closing_read_stream": "timeout occurred waiting for read stream to close",
   "remote_asset_not_found": "Remote asset not found: ",

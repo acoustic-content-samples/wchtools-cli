@@ -1,5 +1,5 @@
 /*
- Copyright 2016 IBM Corporation
+ Copyright IBM Corporation 2016, 2017
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ const fs = require('fs');
 const path = require('path');
 const log4js = require('log4js');
 const oslocale = require("os-locale");
-const logLevel = process.env.WCHTOOLS_LOG_LEVEL || 'ERROR';
+const logLevel = process.env.WCHTOOLS_LOG_LEVEL || 'WARN';
 
 const Q = require("q");
 const async = require("async");
@@ -27,6 +27,7 @@ const async = require("async");
 const ProductName = "IBM Watson Content Hub";
 const ProductAbrev = "wchtools";
 const ProductVersion = require("../../package.json").version;
+const userAgent = ProductAbrev + "/" + ProductVersion;
 
 const i18nModule = require("i18n-2");
 const i18n = getI18N(__dirname, ".json", "en");
@@ -185,48 +186,55 @@ function getApiLogDir () {
 }
 
 /**
- * This function is used to set up the Error object that we log and return to the user
- * it adds a .log member to the Error which has all the info that we want logged
- * all parameters can be undefined
- * @param err the error object if it is available
- * @param body  the body of the response. used to get the errors passed from the services
- * @param response used to get amy response codes or status messages
- * @param requestOptions used to log the initial request info including the request id
+ * Get the Error object based on the specified values. The returned Error object may contain the response, statusCode,
+ * and log properties, which can be used to determine 1) how to respond to the error, and 2) what should be logged.
+ *
+ * @param {Error} err The error object, if available.
+ * @param {Object} body The response body, used for errors returned from the WCH API.
+ * @param {Object} response The reponse object, used for the status code and message.
+ * @param {Object} requestOptions The initial request options, used for logging.
  */
 function getError (err, body, response, requestOptions) {
     try {
         const error = getBaseError(err, body, response);
-        error.log = "Error Message: " + error.message;
-        if (response && response.statusMessage && response.statusCode) {
-            if (response.statusCode >= 500 && response.statusCode <= 599) {
+
+        // Set error values based on the response.
+        if (response && response.statusCode) {
+            error.response = response;
+            error.statusCode = response.statusCode;
+            if (response.statusCode === 408) {
+                error.message = i18n.__("service_unavailable") + i18n.__("please_try", {log_dir: getApiLogDir()});
+            } else if (response.statusCode === 409) {
+                error.message = i18n.__("conflict") + ' : ' + error.message;
+            } else if (response.statusCode >= 500) {
                 error.message = i18n.__("service_error") + i18n.__("please_try", {log_dir: getApiLogDir()});
             }
-            else if (response.statusCode === 408) {
-                error.message = i18n.__("service_unavailable") + i18n.__("please_try", {log_dir: getApiLogDir()});
-            }
-            else if (response.statusCode === 409) {
-                error.message = i18n.__("conflict") + ' : ' + error.message;
-            }
         }
+
+        // The log entry will contain the error message.
+        error.log = "Error Message: " + error.message;
+
+        // The log entry will contain the request options if they exist.
         try {
-            const rOpts = JSON.stringify(requestOptions);
-            error.log += " Request Options: " + rOpts;
+            error.log += " Request Options: " + JSON.stringify(requestOptions);
         } catch (e) {
             //do nothing
         }
+
+        // The log entry will contain the response body if it exists.
         try {
-            const jBody = JSON.stringify(body);
-            error.log += " Body: " + jBody;
+            error.log += " Body: " + JSON.stringify(body);
         } catch (e) {
             //do nothing
         }
+
+        // The log entry will contain the response if it exists.
         try {
-            const jResponse = JSON.stringify(response);
-            error.statusCode = response.statusCode;
-            error.log += " Response: " + jResponse;
+            error.log += " Response: " + JSON.stringify(response);
         } catch (e) {
             //do nothing
         }
+
         return error;
     }
     catch (e) {
@@ -388,7 +396,7 @@ function logWarnings (warning) {
 }
 
 /**
- * the logs debug info using the api log it marks the error object as logged and will only log an error once
+ * Log the debug info using the api log
  * @param info a sting of info you want logged as debug information
  * @param response an optional parameter if you want the response object logged for debug
  * @param requestOptions an optional parameter if you want the request object logged for debug
@@ -510,21 +518,27 @@ function throttledAll (promiseFns, limit) {
                 // Bind the first argument (error) to null
                 promise
                     .then(done.bind(null, null))
-                    .catch(function (e) {
-                        const errMessage = i18n.__("operation_failed");
-                        if (e instanceof Error) {
-                            logger.error(errMessage, e.message);
-                        } else if (typeof e === "object") {
-                            logger.error(errMessage, JSON.stringify(e));
-                        } else {
-                            logger.error(errMessage, e.toString());
+                    .catch(function (error) {
+                        // Any errors thrown while handling the promise functions should be logged as a debug entry, so
+                        // that developers can verify the behavior of the throttling process. However, the actual error
+                        // logging is the responsibility of the promise functions themselves.
+                        if (logger.isLevelEnabled('DEBUG')) {
+                            const message = i18n.__("operation_failed");
+                            if (error instanceof Error) {
+                                logger.debug(message, error.message);
+                            } else if (typeof error === "object") {
+                                logger.debug(message, JSON.stringify(error));
+                            } else {
+                                logger.debug(message, error.toString());
+                            }
                         }
 
-                        // call done with null to allow the rest of the parallel tasks to complete
+                        // Call done() with null, to allow the rest of the parallel tasks to complete.
                         done(null);
                     });
-            } catch (e) {
-                done(e);
+            } catch (error) {
+                // Call done() with an error, to stop the rest of the parallel tasks from completing.
+                done(error);
             }
         };
     });
@@ -594,6 +608,13 @@ function reset () {
     }
 }
 
+/**
+ * Return the User-Agent for use in HTTP request headers
+ */
+function getUserAgent() {
+    return userAgent;
+}
+
 const utils = {
     ProductName: ProductName,
     ProductAbrev: ProductAbrev,
@@ -619,7 +640,8 @@ const utils = {
     getRelativePath: getRelativePath,
     getHTTPLanguage: getHTTPLanguage,
     replaceAll: replaceAll,
-    reset: reset
+    reset: reset,
+    getUserAgent: getUserAgent
 };
 
 module.exports = utils;

@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -80,7 +80,8 @@ class LoginREST {
      */
     _getHeaders (opts) {
         const hdrs = {
-            "Connection": "keep-alive"
+            "Connection": "keep-alive",
+            "User-Agent": utils.getUserAgent()
         };
         // Allow for explicit tenant id set in dynamic or persistent config options
         if (!this._tenant_id)

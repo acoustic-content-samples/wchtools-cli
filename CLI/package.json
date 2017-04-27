@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "1.1.11",
+  "version": "1.1.13",
   "keywords": [
     "cli"
   ],
@@ -29,11 +29,12 @@
     "ora": "^0.2.3",
     "prompt": "1.0.0",
     "q": "1.4.1",
-    "request": "^2.81.0"
+    "request": "^2.81.0",
+    "update-notifier": "^2.1.0"
   },
   "devDependencies": {
     "chai": "~3.5",
-    "chai-as-promised": "~5.3",
+    "chai-as-promised": "^6.0.0",
     "cp": "^0.2.0",
     "cpr": "^2.0.0",
     "diff": "^3.0.0",

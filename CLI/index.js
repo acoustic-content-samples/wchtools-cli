@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ const program = require('./wchToolsCli').program;
 const toolsApi = require("wchtools-api");
 const utils = toolsApi.utils;
 const i18n = utils.getI18N(__dirname, ".json", "en");
+const updateNotifier = require('update-notifier');
+const pkg = require('./package.json');
 
 // The English versions of the localized strings. These are used to find localizable strings that are being displayed in
 // English. This object (containing localizable strings) will only be initialized if the current locale is not English.
@@ -83,6 +85,25 @@ const getLocalizedProgramHelp = function (helpText) {
 const getLocalizedCommandHelp = function (helpText) {
     return forcedLocalization(helpText);
 };
+
+const checkUpdateNotifier = function() {
+    // Checks for available update and returns an instance
+    const UPDATE_COMMAND = 'npm install -g wchtools-cli';
+    const update_command = (process.platform === 'win32') ? UPDATE_COMMAND : 'sudo ' + UPDATE_COMMAND;
+    const notifier = updateNotifier({pkg});
+    if (notifier.update) {
+        const upmsg = i18n.__('cli_update_notifier',
+                              {update_command: update_command,
+                               current_version: notifier.update.current,
+                               new_version: notifier.update.latest});
+        notifier.notify({message: upmsg });
+    }
+};
+
+if (typeof process.env.NO_UPDATE_NOTIFIER === "undefined") {
+    checkUpdateNotifier();
+}
+
 
 /************************************************************************************************************
  * outputHelp

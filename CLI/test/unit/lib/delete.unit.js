@@ -30,9 +30,6 @@ const sinon = require("sinon");
 const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 
-// Require the local modules that will be stubbed, mocked, and spied.
-const hashes = require(UnitTest.API_PATH + "/lib/utils/hashes.js");
-
 class DeleteUnitTest extends UnitTest {
     constructor () {
         super();
