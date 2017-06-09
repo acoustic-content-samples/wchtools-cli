@@ -180,18 +180,16 @@ const options = {
      *
      * @param opts - The options specified for the API call.
      * @param optionName - The name of the option.
+     * @param serviceName - optional service name.
      *
      * @return {*} The most relevant value for the specified option name, or null.
      */
-    getRelevantOption: function (opts, optionName) {
+    getRelevantOption: function (opts, optionName, serviceName) {
         let rVal;
 
-        // Remove the first 2 args.
-        const args = Array.prototype.slice.call(arguments).slice(2);
-
         // Get the value defined by the current options.
-        if (args.length > 0) {
-            rVal = this.getProperty(args[0], args[1]);
+        if (serviceName) {
+            rVal = this.getProperty(serviceName, optionName);
         } else {
             rVal = this.getProperty(optionName);
         }
@@ -201,7 +199,7 @@ const options = {
         if (glOpts) {
             const result = glOpts[optionName];
             if (result !== null && typeof result !== "undefined") {
-                rVal = glOpts[optionName];
+                rVal = result;
             }
         }
 
@@ -209,7 +207,7 @@ const options = {
         if (opts) {
             const result = opts[optionName];
             if (result !== null && typeof result !== "undefined") {
-                rVal = opts[optionName];
+                rVal = result;
             }
         }
 

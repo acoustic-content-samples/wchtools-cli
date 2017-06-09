@@ -29,6 +29,7 @@ const diff = require("diff");
 const prompt = require("prompt");
 const sinon = require("sinon");
 const toolsCli = require("../../../wchToolsCli");
+const BaseCommand = require("../../../lib/baseCommand");
 const mkdirp = require("mkdirp");
 
 // Require the local modules that will be stubbed, mocked, and spied.
@@ -121,6 +122,54 @@ class ListUnitTest extends UnitTest {
 
     testListServer (helper, switches, itemName1, itemName2, badItem) {
         describe("CLI-unit-listing", function () {
+            it("test list server failure", function (done) {
+                // Create a stub to return a value for the "username" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                    if (key === "username") {
+                        return "foo";
+                    } else {
+                        return originalGetProperty(key);
+                    }
+                });
+
+                // Set the password for this test only.
+                const originalPassword = process.env.WCHTOOLS_PASSWORD;
+                process.env.WCHTOOLS_PASSWORD = "password";
+
+                const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
+                const LIST_ERROR = "Error listing artifacts - expected by unit test.";
+                stubList.rejects(LIST_ERROR);
+
+                const spyConsole = sinon.spy(BaseCommand, "displayToConsole");
+
+                // Execute the command to list the items on the server.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        expect(msg).to.contain('artifacts listed 0');
+
+                        // Verify that the spy was called once with the expected message.
+                        expect(spyConsole.args[1][0]).to.contain(LIST_ERROR);
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the original methods and values.
+                        stubGet.restore();
+                        stubList.restore();
+                        spyConsole.restore();
+                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test list server working with username and password defined", function (done) {
                 // Create a stub to return a value for the "username" key.
                 const originalGetProperty = options.getProperty;

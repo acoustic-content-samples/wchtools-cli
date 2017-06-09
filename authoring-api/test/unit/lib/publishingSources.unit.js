@@ -21,7 +21,7 @@ limitations under the License.
 const UnitTest = require("./base.unit.js");
 
 class PublishingSourcesUnitTest extends UnitTest {
-    // File and directory constants used by all presentations unit tests.
+    // File and directory constants used by all unit tests.
     static get PUBLISHING_SOURCES_DIRECTORY() { return "publishing-sources/"; };
     static get VALID_PUBLISHING_SOURCES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PublishingSourcesUnitTest.PUBLISHING_SOURCES_DIRECTORY; };
     static get INVALID_PUBLISHING_SOURCES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PublishingSourcesUnitTest.PUBLISHING_SOURCES_DIRECTORY; };

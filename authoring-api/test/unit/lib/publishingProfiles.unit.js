@@ -21,7 +21,7 @@ limitations under the License.
 const UnitTest = require("./base.unit.js");
 
 class PublishingProfilesUnitTest extends UnitTest {
-    // File and directory constants used by all presentations unit tests.
+    // File and directory constants used by all unit tests.
     static get PUBLISHING_PROFILES_DIRECTORY() { return "publishing-profiles/"; };
     static get VALID_PUBLISHING_PROFILES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + PublishingProfilesUnitTest.PUBLISHING_PROFILES_DIRECTORY; };
     static get INVALID_PUBLISHING_PROFILES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + PublishingProfilesUnitTest.PUBLISHING_PROFILES_DIRECTORY; };

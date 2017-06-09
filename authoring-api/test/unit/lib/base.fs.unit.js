@@ -360,7 +360,8 @@ class BaseFsApiUnitTest extends UnitTest {
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("SyntaxError");
-                            expect(err.message).to.contain("Unexpected end of input");
+                            expect(err.message).to.contain("Unexpected end of");
+                            expect(err.message).to.contain("input");
                         } catch (err) {
                             error = err;
                         }

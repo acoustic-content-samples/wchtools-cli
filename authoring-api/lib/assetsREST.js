@@ -18,6 +18,7 @@ limitations under the License.
 const BaseREST = require("./BaseREST.js");
 const Q = require("q");
 const utils = require("./utils/utils.js");
+const options = require("./utils/options.js");
 const request = utils.getRequestWrapper();
 const mime = require('mime-types');
 const path = require('path');
@@ -118,11 +119,12 @@ class AssetsREST extends BaseREST {
     getAssetUpdateRequestOptions (id, opts) {
         const deferred = Q.defer();
         const headers = BaseREST.getHeaders();
+        const forceParam = (options.getRelevantOption(opts, "force-override")) ? "?forceOverride=true" : "";
 
         this.getRequestURI(opts)
             .then(function (uri) {
                 deferred.resolve({
-                    uri: uri + "/authoring/v1/assets/" + id,
+                    uri: uri + "/authoring/v1/assets/" + id + forceParam,
                     headers: headers,
                     json: true
                 });

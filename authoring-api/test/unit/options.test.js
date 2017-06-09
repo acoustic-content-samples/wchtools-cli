@@ -31,9 +31,8 @@ describe("options.js", function () {
             expect(_settings).to.be.an("object");
         });
 
-        it("should have uri properties for types and presentations", function () {
-            expect(options.getProperty("types")).to.not.have.property("uri");
-            expect(options.getProperty("presentations")).to.not.have.property("uri");
+        it("should have limit property for types", function () {
+            expect(options.getProperty("types")).to.have.property("limit");
         });
 
         it("should return null for unknown property", function () {

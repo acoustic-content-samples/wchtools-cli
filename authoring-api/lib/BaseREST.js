@@ -114,8 +114,8 @@ class BaseREST {
     _getItems (uriSuffix, queryParams, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const offset = options.getRelevantOption(opts, "offset", this.getServiceName(), "offset");
-        const limit = options.getRelevantOption(opts, "limit", this.getServiceName(), "limit");
+        const offset = options.getRelevantOption(opts, "offset", this.getServiceName());
+        const limit = options.getRelevantOption(opts, "limit", this.getServiceName());
         this.getRequestOptions(opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + (uriSuffix || "") + "?offset=" + offset + "&limit=" + limit;
@@ -197,12 +197,22 @@ class BaseREST {
         return deferred.promise;
     }
 
+    /*
+     * Does this WCH REST API currently support the forceOverride query param?
+     */
+    supportsForceOverride() {
+        return false;
+    }
+
     updateItem (item, opts) {
         const deferred = Q.defer();
         const restObject = this;
         this.getRequestOptions(opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + item.id;
+                if (restObject.supportsForceOverride() && options.getRelevantOption(opts, "force-override")) {
+                    requestOptions.uri += "?forceOverride=true";
+                }
                 requestOptions.body = item;
                 utils.logDebugInfo("Updating item with request options: ",undefined, requestOptions);
                 request.put(requestOptions, function (err, res, body) {

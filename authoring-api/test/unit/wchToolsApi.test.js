@@ -25,16 +25,6 @@ const UnitTest = require("./lib/base.unit.js");
 const toolsApi = require(UnitTest.API_PATH + "wchToolsApi.js");
 
 describe("Unit tests for wchToolsApi.js", function () {
-    describe("getPresentationsHelper", function () {
-        it("should be a valid helper", function (done) {
-            const helper = toolsApi.getPresentationsHelper();
-            expect(helper).to.be.ok;
-            expect(helper).to.have.property("getVirtualFolderName");
-            expect(helper).to.have.property("listModifiedLocalItemNames");
-            expect(helper).to.have.property("createLocalItem");
-            done();
-        });
-    });
 
     describe("getAssetsHelper", function () {
         it("should be a valid helper", function (done) {

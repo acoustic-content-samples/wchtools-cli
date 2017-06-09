@@ -1,12 +1,23 @@
 # Changelog
 
-### v1.1.13 Changes since 1.1.7
+### v1.2.0 Changes since 1.1.13
+
+ - Unit test tweak, to allow unit tests to be run from both Node 4.x and Node 6.x.
+ - Add --url option to the publish command.
+ - Add -f --force-override option to allow overriding revision conflicts when pushing authoring artifacts.
+ - Changes to the delete command to support deleting assets by path name.
+ - Changed category push/pull to skip out-of-the-box system categories.
+
+### v1.1.13 Changes since 1.1.11
 
  - Report syntax error in authoring artifact json to console not just wchtools-api.log when skipping over invalid files.
  - Make publishing job id to publish --status arg optional, so that you can leave it off if you don't know the value and get the status of the most recent publishing job instead of a specified publishing job.
  - Update some dependencies to recent versions.
  - Mismatched md5 checksum between what the server says it's downloading and what wchtools receives is now reported as an error, instead of a warning.
  - Mention 'sudo' for installing via npm on Mac and Linux, in the Readme install instructions.
+
+ ### v1.1.11 Changes since 1.1.7
+
  - Add user agent http header  (wchtools/version) to WCH REST requests
  - Add latent support for update-notifier to notify of future new versions of wchtools in npm registry, with ability to disable that by setting env var NO_UPDATE_NOTIFIER=true
  - Add retry support, for retrying push of content items that have reference errors (referring to not yet existing content) at the end of a push request,  to allow pushing packages of content containing references to each other, to a tenant that does not yet have any of those content items.

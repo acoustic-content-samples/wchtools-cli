@@ -148,7 +148,7 @@ class PullCommand extends BaseCommand {
                 message = i18n.__('cli_pull_complete_nothing_pulled');
             }
         }
-
+        logger.info(message);
         this.successMessage(message);
     }
 
@@ -310,14 +310,9 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", assetPulledError);
         });
 
-        // If a name is set, pull the named asset.
-        // If Ignore-timestampsis set then pull all assets. Otherwise only pull
-        // modified assets (which is the default behavior).
         const apiOptions = this.getApiOptions();
         let assetPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            assetPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             assetPromise = helper.pullAllItems(apiOptions);
         } else {
             assetPromise = helper.pullModifiedItems(apiOptions);
@@ -358,14 +353,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", imageProfilePulledError);
         });
 
-        // If a name is set, pull the named asset.
-        // If Ignore-timestamps is set then pull all assets. Otherwise only pull
-        // modified assets (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let imageProfilesPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            imageProfilesPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             imageProfilesPromise = helper.pullAllItems(apiOptions);
         } else {
             imageProfilesPromise = helper.pullModifiedItems(apiOptions);
@@ -406,14 +397,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", renditionPulledError);
         });
 
-        // If a name is set, pull the named category.
-        // If Ignore-timestamps is set then pull all categories. Otherwise only
-        // pull modified categories (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let renditionPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            renditionPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             renditionPromise = helper.pullAllItems(apiOptions);
         } else {
             renditionPromise = helper.pullModifiedItems(apiOptions);
@@ -454,14 +441,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", categoryPulledError);
         });
 
-        // If a name is set, pull the named category.
-        // If Ignore-timestamps is set then pull all categories. Otherwise only
-        // pull modified categories (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let categoryPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            categoryPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             categoryPromise = helper.pullAllItems(apiOptions);
         } else {
             categoryPromise = helper.pullModifiedItems(apiOptions);
@@ -502,14 +485,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", itemTypePulledError);
         });
 
-        // If a name is set, pull the named type.
-        // If Ignore-timestamps is set then pull all types. Otherwise only pull
-        // modified types (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let typePromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            typePromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             typePromise = helper.pullAllItems(apiOptions);
         } else {
             typePromise = helper.pullModifiedItems(apiOptions);
@@ -550,14 +529,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", contentPulledError);
         });
 
-        // If a name is set, pull the named content.
-        // If Ignore-timestamps is set then pull all content. Otherwise only pull
-        // modified content (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let contentPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            contentPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             contentPromise = helper.pullAllItems(apiOptions);
         } else {
             contentPromise = helper.pullModifiedItems(apiOptions);
@@ -598,14 +573,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", sourcePulledError);
         });
 
-        // If a name is set, pull the named source.
-        // If Ignore-timestamps is set then pull all sources. Otherwise only pull
-        // modified sources (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let sourcePromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            sourcePromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             sourcePromise = helper.pullAllItems(apiOptions);
         } else {
             sourcePromise = helper.pullModifiedItems(apiOptions);
@@ -646,14 +617,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", profilePulledError);
         });
 
-        // If a name is set, pull the named profile.
-        // If Ignore-timestamps is set then pull all profiles. Otherwise only pull
-        // modified profiles (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let profilesPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            profilesPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             profilesPromise = helper.pullAllItems(apiOptions);
         } else {
             profilesPromise = helper.pullModifiedItems(apiOptions);
@@ -694,14 +661,10 @@ class PullCommand extends BaseCommand {
             helper.getEventEmitter().removeListener("pulled-error", siteRevisionPulledError);
         });
 
-        // If a name is set, pull the named site revision
-        // If Ignore-timestamps is set then pull all site revisions. Otherwise only pull
-        // modified site revisions (which is the default behavior).
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let artifactPromise;
-        if (this.getCommandLineOption("id")) { // FUTURE Do we really support the "id" option?
-            artifactPromise = helper.pullItem(this.getCommandLineOption("id"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps")) {
             artifactPromise = helper.pullAllItems(apiOptions);
         } else {
             artifactPromise = helper.pullModifiedItems(apiOptions);

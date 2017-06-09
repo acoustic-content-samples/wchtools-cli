@@ -154,8 +154,10 @@ class PushCommand extends BaseCommand {
         }
 
         if (isError) {
+            this.getLogger().error(message);
             this.errorMessage(message);
         } else {
+            this.getLogger().info(message);
             this.successMessage(message);
         }
     }
@@ -168,6 +170,10 @@ class PushCommand extends BaseCommand {
     pushArtifacts () {
         const deferred = Q.defer();
         const self = this;
+
+        if (self.getCommandLineOption("forceOverride")) {
+            self.setApiOption("force-override", true);
+        }
 
         self.readyToPush()
             .then(function () {
@@ -826,6 +832,7 @@ function pushCommand (program) {
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-I --ignore-timestamps',i18n.__('cli_push_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_push_opt_all'))
+        .option('-f --force-override',   i18n.__('cli_push_opt_force_override'))
         .option('--named <named>',       i18n.__('cli_push_opt_named'))
         .option('--path <path>',         i18n.__('cli_push_opt_path'))
         .option('--dir <dir>',           i18n.__('cli_push_opt_dir'))

@@ -52,13 +52,13 @@ class RenditionsHelper extends BaseHelper {
     /**
      * Delete the specified remote item.
      *
-     * @param {String} id - The ID of the item to be deleted.
+     * @param {String} id - The item to be deleted.
      * @param {Object} opts - The options to be used for the delete operation.
      *
      * @returns {Q.Promise} A rejected promise indicating that renditions cannot be deleted.
      */
-    deleteRemoteItem(id, opts) {
-        const message = i18n.__("delete_rendition_error", {"id": id, "opts": JSON.stringify(opts ? opts : {})});
+    deleteRemoteItem(item, opts) {
+        const message = i18n.__("delete_rendition_error", {"id": item.id, "opts": JSON.stringify(opts ? opts : {})});
         return Q.reject(new Error(message));
     }
 }

@@ -46,7 +46,7 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
             it("should fail calling delete", function (done) {
                 // Call the method being tested.
                 let error;
-                helper.deleteRemoteItem(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                helper.deleteRemoteItem(UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -56,7 +56,7 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
                             expect(err.message).to.contain("Delete");
-                            expect(err.message).to.contain(UnitTest.DUMMY_ID);
+                            expect(err.message).to.contain(UnitTest.DUMMY_METADATA.id);
                         } catch (err) {
                             error = err;
                         }

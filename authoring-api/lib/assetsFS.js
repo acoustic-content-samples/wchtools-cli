@@ -358,7 +358,7 @@ class AssetsFS extends BaseFS {
                     // if web assets only filter out the dxdam resources
                     if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
                         files = files.filter(function (path) {
-                            if (!path.startsWith(CONTENT_RESOURCE_DIRECTORY)) {
+                            if (!path.startsWith("/" + CONTENT_RESOURCE_DIRECTORY)) {
                                 return path;
                             }
                         });
@@ -367,14 +367,14 @@ class AssetsFS extends BaseFS {
                     // if content assets only filter out the non dxdam resources
                     if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
                         files = files.filter(function (path) {
-                            if (path.startsWith(CONTENT_RESOURCE_DIRECTORY)) {
+                            if (path.startsWith("/" + CONTENT_RESOURCE_DIRECTORY)) {
                                 return path;
                             }
                         });
                     }
 
                     files = files.filter(function (path) {
-                        if (!path.endsWith(ASSET_METADATA_SUFFIX) && path !== hashes.FILENAME) {
+                        if (!path.endsWith(ASSET_METADATA_SUFFIX) && path !== hashes.FILENAME && path !== "/" + hashes.FILENAME) {
                             return path;
                         }
                     });
@@ -382,8 +382,8 @@ class AssetsFS extends BaseFS {
                     if (opts && opts.filterPath !== undefined) {
                         // make sure filter path is correct format
                         let filterPath = opts.filterPath.replace(/\\/g, '/');
-                        if (filterPath.indexOf('/') === 0) {
-                            filterPath = filterPath.slice(1);
+                        if (filterPath.charAt(0) !== '/') {
+                            filterPath = '/' + filterPath;
                         }
                         if (!filterPath.endsWith('/')) {
                             filterPath = filterPath + '/';
@@ -394,6 +394,7 @@ class AssetsFS extends BaseFS {
                             }
                         });
                     }
+
                     deferred.resolve(files);
                 }
             });

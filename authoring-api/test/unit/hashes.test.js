@@ -28,16 +28,17 @@ const logger = utils.getLogger(utils.apisLog);
 describe("hashes", function () {
     // Common test data.
     const TEST_TENANT_ID = "test-tenant-id";
+    const TEST_TENANT_BASE_URL = "test-tenant-base-url";
     const CURRENT_DATE = new Date();
     const TOMORROW_DATE = new Date(CURRENT_DATE.getTime() + 86400000);
-    const TEST_OPTS = {"x-ibm-dx-tenant-id": TEST_TENANT_ID};
+    const TEST_OPTS = {"x-ibm-dx-tenant-id": TEST_TENANT_ID, "x-ibm-dx-tenant-base-url": TEST_TENANT_BASE_URL};
     const TEST_DIRECTORY_PATH = __dirname + path.sep + "resources";
     const HASHES_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + hashes.FILENAME;
     const NONEXISENT_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + "foo.bar";
 
     // Test data for the text file.
-    const TEXT_FILE_RELATIVE_PATH = "bacon-ipsum.txt";
-    const TEXT_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + TEXT_FILE_RELATIVE_PATH;
+    const TEXT_FILE_RELATIVE_PATH = "/bacon-ipsum.txt";
+    const TEXT_FILE_PATH = TEST_DIRECTORY_PATH + TEXT_FILE_RELATIVE_PATH;
     const TEXT_FILE_MD5 = "6c5YOxPC+IbYaxtWY3rjDg==";
     const TEXT_FILE_ID = "test-text-id";
     const TEXT_FILE_REV = "test-text-rev";
@@ -48,8 +49,8 @@ describe("hashes", function () {
     const TEXT_FILE_METADATA = {"id": TEXT_FILE_ID, "rev": TEXT_FILE_REV, "lastModified": TEXT_FILE_LAST_MODIFIED, "resource": TEXT_FILE_RESOURCE_ID};
 
     // Test data for the image file.
-    const IMAGE_FILE_RELATIVE_PATH = "image.png";
-    const IMAGE_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + IMAGE_FILE_RELATIVE_PATH;
+    const IMAGE_FILE_RELATIVE_PATH = "/image.png";
+    const IMAGE_FILE_PATH = TEST_DIRECTORY_PATH + IMAGE_FILE_RELATIVE_PATH;
     const IMAGE_FILE_MD5 = "tJlPKh2tPlhDiCBYx+bTmw==";
     const IMAGE_FILE_ID = "test-image-id";
     const IMAGE_FILE_REV = "test-image-rev";

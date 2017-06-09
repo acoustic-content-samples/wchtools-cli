@@ -5,6 +5,7 @@
   "push_error_creating_item": "Erreur d'insertion lors de la création de l'élément : ",
   "push_error_updating_item": "Erreur d'insertion lors de la mise à jour de l'élément : ",
   "pushed_item_error": "Erreur d'élément inséré : ",
+  "pushed_item_retry": "Nouvelle tentative d'insertion de l'élément '%(name)s'. Erreur : %(message)s",
   "invalid_path": "Chemin non valide : %(path)s",
   "timed_out_closing_read_stream": "Expiration du délai d'attente de fermeture du flux de lecture",
   "remote_asset_not_found": "Actif éloigné introuvable : ",
@@ -13,7 +14,7 @@
   "error_cancelling_job": "Erreur lors de l'annulation du travail : id %(id)s",
   "error_fs_get_item": "Erreur dans le fichier système getItem",
   "error_fs_get_filestats": "Erreur dans la fonction getFileStats du système de fichiers pour %(name)s.",
-  "error_parsing_item": "Erreur lors de l'analyse syntaxique de l'élément pour le fichier %(name)s. %(message)s\n%(body)s",
+  "error_parsing_item": "Erreur lors de l'analyse syntaxique de l'élément pour le fichier %(name)s. %(message)s",
   "get_items_error": "Erreur lors de l'obtention des éléments %(service_name)s : ",
   "save_item_write_failed": "saveItem n'est pas parvenu à écrire dans le fichier %(path)s",
   "save_item_write_failed_bad_path": "saveItem n'est pas parvenu à écrire dans le fichier %(path)s ; chemin d'accès incorrect",
@@ -23,7 +24,6 @@
   "name_required": "Vous devez spécifier un nom.",
   "category_exists": "Il existe déjà une catégorie nommée %(name)s.",
   "template_required": "Le modèle doit être spécifié.",
-  "presentation_exists": "Il existe déjà une présentation nommée %(name)s.",
   "cannot_get_asset": "Impossible d'obtenir l'actif : %(path)s ; code de statut : %(code)s",
   "deleted_asset": "L'actif dont l'ID est %(id)s a été supprimé",
   "create_asset_metadata_error": "Erreur lors de la création des métadonnées d'actif : ",
@@ -36,6 +36,7 @@
   "error_tenant_map": "Erreur dans loadTenantMap : ",
   "error_save_hashes": "Erreur dans saveHashes : ",
   "error_update_hashes": "Erreur dans updateHashes : ",
+  "error_remove_hashes": "Erreur dans removeHashes : ",
   "error_set_last_pull_timestamp": "Erreur dans setLastPullTimestamp : ",
   "error_set_last_push_timestamp": "Erreur dans setLastPushTimestamp : ",
   "error_get_hashes_for_file": "Erreur dans getHashesForFile : ",
@@ -49,7 +50,7 @@
   "async_parallel_limit_results": "Résultats de l'appel parallelLimit asynchrone : ",
   "please_try": "Essayez à nouveau ultérieurement.  Si le problème persiste, contactez le service clients et incluez les informations de journal disponibles dans %(log_dir)s",
   "conflict":"Le service a rencontré et renvoyé une condition d'erreur lors du traitement de la demande pour cet artefact.",
-  "login_missing_authn":"Le service de connexion n'a pas réussi à répondre avec des informations d'authentification valides. ",
+  "login_missing_authn":"Le service de connexion n'a pas réussi à répondre avec des informations d'authentification valides.",
   "digest_mismatch": "Le prétraitement %(cli_digest)s de l'actif %(asset)s extrait ne correspond pas au prétraitement du serveur %(server_digest)s."
 }
 

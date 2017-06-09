@@ -16,7 +16,6 @@ limitations under the License.
 "use strict";
 
 const itemTypesHelper = require('./itemTypesHelper').instance;
-const presentationsHelper = require('./presentationsHelper').instance;
 const assetsHelper = require('./assetsHelper.js').instance;
 const contentHelper = require('./contentHelper').instance;
 const categoriesHelper = require('./categoriesHelper').instance;
@@ -33,11 +32,6 @@ const options = require('./lib/utils/options.js');
 module.exports.getItemTypeHelper = function (options) {
     itemTypesHelper.initGlobalOptions(options);
     return itemTypesHelper;
-};
-
-module.exports.getPresentationsHelper = function (options) {
-    presentationsHelper.initGlobalOptions(options);
-    return presentationsHelper;
 };
 
 module.exports.getAssetsHelper = function (options){

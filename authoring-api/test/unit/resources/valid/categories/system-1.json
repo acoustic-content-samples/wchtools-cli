@@ -1,0 +1,19 @@
+{
+  "id": "00000000-0000-0000-0000-000000c8e20",
+  "rev": "1-8664d63de08f3c2f5c05891ed7130982",
+  "name": "Usage rights",
+  "creatorId": "IBM",
+  "description": "IBM created Royalty Free category.",
+  "usageRightsBox": false,
+  "hideCategory": false,
+  "permanent": true,
+  "classification": "taxonomy",
+  "namePath": ["Usage rights"],
+  "links": {
+    "self": {
+      "href":"/authoring/v1/categories/00000000-0000-0000-0000-000000c8e20"
+    }
+  },
+  "created": "2017-03-21T17:53:44.437Z",
+  "lastModified": "2017-03-21T18:14:13.314Z"
+}
