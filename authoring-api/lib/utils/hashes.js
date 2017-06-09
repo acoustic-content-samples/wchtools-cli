@@ -95,8 +95,50 @@ function getHashesFilename(basePath) {
  *
  * @private
  */
-function getTenant(opts) {
+function getTenantID(opts) {
     return options.getRelevantOption(opts, "x-ibm-dx-tenant-id");
+}
+
+/**
+ * Get the base URL specified by the given options.
+ *
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {String} The base URL specified by the given options (may be undefined).
+ *
+ * @private
+ */
+function getBaseUrl(opts) {
+    return options.getRelevantOption(opts, "x-ibm-dx-tenant-base-url");
+}
+
+/**
+ * Get the tenant map key specified by the given options.
+ *
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {String} The tenant map key specified by the given options (may be undefined).
+ *
+ * @private
+ */
+function getTenantKey(tenantMap, opts) {
+    let tenantKey = getTenantID(opts);
+    if (!tenantKey) {
+        const tenantBaseUrl = getBaseUrl(opts);
+        if (tenantBaseUrl) {
+            // attempt to find tenantKey from stored mapping of baseUrls to tenantIDs
+            Object.keys(tenantMap).forEach(function (key) {
+                if (tenantMap[key] && tenantMap[key].baseUrls) {
+                    tenantMap[key].baseUrls.forEach(function (baseUrl) {
+                        if (baseUrl === tenantBaseUrl) {
+                            tenantKey = key;
+                        }
+                    });
+                }
+            });
+        }
+    }
+    return tenantKey;
 }
 
 /**
@@ -138,7 +180,32 @@ function loadTenantMap(basePath) {
  */
 function loadHashes(basePath, opts) {
     const tenantMap = loadTenantMap(basePath);
-    return tenantMap[getTenant(opts)] || {};
+    return tenantMap[getTenantKey(tenantMap, opts)] || {};
+}
+
+/**
+ * Updates the provided hashMap to create or append a baseUrls array to the data structure
+ * that contains the set of x-ibm-dx-tenant-base-url that have been used for the current
+ * x-ibm-dx-tenant-id.
+ *
+ * @param {Object} hashMap the map to augment with the baseUrls structure
+ * @param {Object} opts The options object that specifies the tenant data
+ *
+ * @return the modified hashMap
+ *
+ * @private
+ */
+function updateBaseUrls(hashMap, opts) {
+    const baseUrl = getBaseUrl(opts);
+    if (baseUrl) {
+        if (!hashMap.baseUrls) {
+            hashMap.baseUrls = [];
+        }
+        if (hashMap.baseUrls.indexOf(baseUrl) === -1) {
+            hashMap.baseUrls.push(baseUrl);
+        }
+    }
+    return hashMap;
 }
 
 /**
@@ -156,7 +223,8 @@ function saveHashes(basePath, hashMap, opts) {
     const hashesFilename = getHashesFilename(basePath);
     try {
         const tenantMap = loadTenantMap(basePath);
-        tenantMap[getTenant(opts)] = hashMap;
+        updateBaseUrls(hashMap, opts);
+        tenantMap[getTenantKey(tenantMap, opts)] = hashMap;
         const contents = JSON.stringify(tenantMap, null, "  ");
 
         // If the directory doesn't exist, there is nothing to push or pull so don't bother to save the hashes.
@@ -239,6 +307,50 @@ function updateHashes(basePath, filePath, item, opts) {
     } catch (err) {
         // Log the error and return the current state of the tenant map.
         utils.logErrors(i18n.__("error_update_hashes"), err);
+        return loadTenantMap(basePath);
+    }
+}
+
+/**
+ * Remove the metadata for the given file in the hashes file at the specified location.
+ *
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {Object} ids A list of ids to remove the metadata for.
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {Object} The updated tenant map for the hashes file at the given location, or an empty object.
+ *
+ * @public
+ */
+function removeHashes(basePath, ids, opts) {
+    try {
+        if (ids && ids.length > 0) {
+            // Get the existing tenant metadata at the specified location.
+            const hashMap = loadHashes(basePath, opts);
+
+            ids.forEach(function (id) {
+                // Get the entry to be removed.
+                const entry = hashMap[id];
+
+                if (entry && entry.path) {
+                    // Remove all matching entries for the current tenant (same unique path as the entry being removed).
+                    Object.keys(hashMap).forEach(function (key) {
+                        if (hashMap[key].path === entry.path) {
+                            hashMap[key] = undefined;
+                        }
+                    });
+                }
+            });
+
+            // Save the updated tenant metadata to the hashes file at the specified location, and return the tenant map.
+            return saveHashes(basePath, hashMap, opts);
+        } else {
+            // The tenant metadata was not updated, so just return the current state of the tenant map.
+            return loadTenantMap(basePath);
+        }
+    } catch (err) {
+        // Log the error and return the current state of the tenant map.
+        utils.logErrors(i18n.__("error_remove_hashes"), err);
         return loadTenantMap(basePath);
     }
 }
@@ -385,7 +497,7 @@ function listFiles(basePath, opts) {
     return Object.keys(hashMap)
         .filter(function (key){
             // Filter out the timestamp entries.
-            return (key !== "lastPullTimestamp" && key !== "lastPushTimestamp");
+            return (key !== "lastPullTimestamp" && key !== "lastPushTimestamp" && key !== "baseUrls");
         })
         .map(function (fileKey) {
             // Return the file path for each file entry.
@@ -530,6 +642,7 @@ const hashes = {
     generateMD5Hash: generateMD5Hash,
     compareMD5Hashes: compareMD5Hashes,
     updateHashes: updateHashes,
+    removeHashes: removeHashes,
     getLastPullTimestamp: getLastPullTimestamp,
     setLastPullTimestamp: setLastPullTimestamp,
     getLastPushTimestamp: getLastPushTimestamp,

@@ -53,7 +53,7 @@ class PublishCommand extends BaseCommand {
             });
     }
 
-    getJobIdFromStatusOption(status, helper) {
+    static getJobIdFromStatusOption(status, helper) {
         // If status is boolean==true then --status was specified without a job id so lookup most recent job
         if (status === true) {
             return helper.getPublishingJobs( { "offset": 0, "limit": 1 } )
@@ -74,53 +74,57 @@ class PublishCommand extends BaseCommand {
         const helper = toolsApi.getPublishingJobsHelper();
         const self = this;
 
-        // Handle the necessary command line options.
-        self.handleAuthenticationOptions().then(function () {
-            // Login using the current options.
-            const apiOptions = self.getApiOptions();
-            loginHelper.login(apiOptions)
-                .then(function (/*results*/) {
-                    if (status) {
-                        self.getJobIdFromStatusOption(status, helper)
-                            .then(jobId => {
-                                if (jobId && jobId !== 0) {
-                                    self.displayJobStatus(self, helper, logger, jobId, apiOptions);
-                                } else {
-                                    self.errorMessage(i18n.__('cli_publishing_no_jobs'));
-                                }
-                            });
-                    } else {
-                        BaseCommand.displayToConsole(i18n.__('cli_publishing_job_started'));
-                        self.spinner = ora();
-                        self.spinner.start();
-                        helper.createPublishingJob(jobParameters, apiOptions)
-                            .then(function (job) {
-                                const createIdMsg = i18n.__('cli_publishing_job_created', {id: job.id});
-                                if (self.spinner) {
-                                    self.spinner.stop();
-                                }
-                                self.successMessage(createIdMsg);
-                                if (self.getCommandLineOption("verbose")) {
-                                    logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
-                                }
-                                self.resetCommandLineOptions();
-                            })
-                            .catch(function (err) {
-                                const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                                if (self.spinner) {
-                                    self.spinner.stop();
-                                }
-                                self.errorMessage(curError);
-                                self.resetCommandLineOptions();
-                            });
-                    }
-                })
-                .catch(function (err) {
-                    const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                    self.errorMessage(curError);
-                    self.resetCommandLineOptions();
-                });
-        });
+        // Make sure the url option has been specified.
+        self.handleUrlOption()
+            .then(function () {
+                // Handle the necessary command line options.
+                return self.handleAuthenticationOptions();
+            })
+            .then(function () {
+                // Login using the current options.
+                return loginHelper.login(self.getApiOptions());
+            })
+            .then(function (/*results*/) {
+                if (status) {
+                    PublishCommand.getJobIdFromStatusOption(status, helper)
+                        .then(jobId => {
+                            if (jobId && jobId !== 0) {
+                                self.displayJobStatus(self, helper, logger, jobId, self.getApiOptions());
+                            } else {
+                                self.errorMessage(i18n.__('cli_publishing_no_jobs'));
+                            }
+                        });
+                } else {
+                    BaseCommand.displayToConsole(i18n.__('cli_publishing_job_started'));
+                    self.spinner = ora();
+                    self.spinner.start();
+                    helper.createPublishingJob(jobParameters, self.getApiOptions())
+                        .then(job => {
+                            const createIdMsg = i18n.__('cli_publishing_job_created', {id: job.id});
+                            if (self.spinner) {
+                                self.spinner.stop();
+                            }
+                            self.successMessage(createIdMsg);
+                            if (self.getCommandLineOption("verbose")) {
+                                logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
+                            }
+                            self.resetCommandLineOptions();
+                        })
+                        .catch(err => {
+                            const curError = i18n.__("cli_publishing_job_error", {message: err.message});
+                            if (self.spinner) {
+                                self.spinner.stop();
+                            }
+                            self.errorMessage(curError);
+                            self.resetCommandLineOptions();
+                        });
+                }
+            })
+            .catch(err => {
+                const curError = i18n.__("cli_publishing_job_error", {message: err.message});
+                self.errorMessage(curError);
+                self.resetCommandLineOptions();
+            });
     }
 
     /**
@@ -146,6 +150,7 @@ function publishCommand (program) {
         .option('--status [id]',         i18n.__('cli_publishing_opt_status'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
+        .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
         .action(function (options) {
             const command = new PublishCommand(program);
             if (command.setCommandLineOptions(options, this)) {

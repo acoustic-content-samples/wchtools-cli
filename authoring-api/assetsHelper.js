@@ -20,6 +20,8 @@ const Q = require("q");
 const events = require("events");
 const AssetsREST = require("./lib/assetsREST.js");
 const assetsREST = AssetsREST.instance;
+const SearchREST = require("./lib/authoringSearchREST.js");
+const searchREST = SearchREST.instance;
 const AssetsFS = require("./lib/assetsFS.js");
 const assetsFS = AssetsFS.instance;
 const options = require("./lib/utils/options.js");
@@ -301,7 +303,7 @@ class AssetsHelper {
                 }
 
                 // Throttle the number of assets to be pulled concurrently, using the currently configured limit.
-                const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", "assets", "concurrent-limit");
+                const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName);
                 const results = utils.throttledAll(assetList.map(function (asset) {
                     // Return a function that returns a promise for each asset being pulled.
                     return function () {
@@ -352,7 +354,7 @@ class AssetsHelper {
         }
 
         const currentChunkSize = pullInfo.length;
-        const maxChunkSize = options.getRelevantOption(opts, "limit", "assets", "limit");
+        const maxChunkSize = options.getRelevantOption(opts, "limit", this._artifactName);
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
             // with the accumulated results.
@@ -367,7 +369,7 @@ class AssetsHelper {
             }
 
             // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(opts, "offset", "assets", "offset");
+            const offset = options.getRelevantOption(opts, "offset", this._artifactName);
             opts.offset = offset +  maxChunkSize;
 
             // Pull the next chunk of assets from the content hub.
@@ -508,7 +510,7 @@ class AssetsHelper {
         const helper = this;
 
         // Throttle the number of assets to be pushed concurrently, using the currently configured limit.
-        const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", "assets", "concurrent-limit");
+        const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName);
         const results = utils.throttledAll(paths.map(function (name) {
             return function () {
                 return helper.pushItem(name, opts);
@@ -758,7 +760,7 @@ class AssetsHelper {
         }
 
         const currentChunkSize = listInfo.length;
-        const maxChunkSize = options.getRelevantOption(opts, "limit", "assets", "limit");
+        const maxChunkSize = options.getRelevantOption(opts, "limit", this._artifactName);
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
             // with the accumulated results.
@@ -773,7 +775,7 @@ class AssetsHelper {
             }
 
             // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(opts, "offset", "assets", "offset");
+            const offset = options.getRelevantOption(opts, "offset", this._artifactName);
             opts.offset = offset +  maxChunkSize;
 
             // List the next chunk of assets from the content hub.
@@ -783,6 +785,140 @@ class AssetsHelper {
                     helper._recurseList(listFn, deferred, results, listInfo, opts);
                 });
         }
+    }
+
+    searchRemote (path, recursive, searchOptions, opts) {
+        const deferred = Q.defer();
+
+        if (!searchOptions) {
+            searchOptions = {};
+        }
+        if (!searchOptions["q"]) {
+            searchOptions["q"] = "*:*";
+        }
+        if (!searchOptions["fl"]) {
+            searchOptions["fl"] = [];
+        } else if (!Array.isArray(searchOptions["fl"])) {
+            searchOptions["fl"] = [searchOptions["fl"]];
+        }
+        if (searchOptions["fl"].length === 0) {
+            searchOptions["fl"].push("*");
+        } else {
+            // always make sure id, path and document are present in the results
+            if (searchOptions["fl"].indexOf("id") === -1) {
+                searchOptions["fl"].push("id");
+            }
+            if (searchOptions["fl"].indexOf("path") === -1) {
+                searchOptions["fl"].push("path");
+            }
+            if (searchOptions["fl"].indexOf("document") === -1) {
+                searchOptions["fl"].push("document");
+            }
+        }
+        if (!searchOptions["fq"]) {
+            searchOptions["fq"] = [];
+        } else if (!Array.isArray(searchOptions["fq"])) {
+            searchOptions["fq"] = [searchOptions["fq"]];
+        }
+        searchOptions["fq"].push("classification:asset");
+        if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
+            searchOptions["fq"].push("isManaged:false");
+        } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
+            searchOptions["fq"].push("isManaged:true");
+        }
+        if (path.charAt(0) !== '/') {
+            path = "/" + path;
+        }
+        // '/' needs to be escaped with \\/ in the search path
+        let searchPath = path.replace(/\//g, "\\/");
+        // always make sure the search path terminates with '*' so we can do our own additional filtering with the recursive flag later
+        if (!searchPath.endsWith('*')) {
+            searchPath += "*";
+        }
+        searchOptions["fq"].push("path:" + searchPath);
+
+        // get the offset/limit for the search service from the configured options
+        const searchServiceName = searchREST.getServiceName();
+        const offset = options.getRelevantOption(opts, "offset", searchServiceName);
+        const limit = options.getRelevantOption(opts, "limit",  searchServiceName);
+        // set the search service's offset/limit values on a clone of the opts
+        opts = opts ? utils.clone(opts) : {};
+        opts.offset = offset;
+        opts.limit = limit;
+
+        // define a list function to work with the _listAssetChunk/_recurseList methods for handling paging
+        const listFn = function(opts) {
+            const listFnDeferred = Q.defer();
+            searchREST.search(searchOptions, opts)
+                .then(function (results) {
+                    if (!results.documents) {
+                        results.documents = [];
+                    }
+                    listFnDeferred.resolve(results.documents.map(function (result) {
+                        return JSON.parse(result.document);
+                    }));
+                })
+                .catch(function (err) {
+                    listFnDeferred.reject(err);
+                });
+            return listFnDeferred.promise;
+        };
+
+        // Get the first chunk of search results, and then recursively retrieve any additional chunks.
+        const helper = this;
+        helper._listAssetChunk(listFn, opts)
+            .then(function (listInfo) {
+                // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
+                // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
+                // deferred, so we have to handle that explicitly.
+                helper._recurseList(listFn, deferred, null, listInfo, opts);
+            })
+            .catch(function (err) {
+                // If the list function's promise is rejected, propogate that to the deferred that was returned.
+                deferred.reject(err);
+            });
+
+        return deferred.promise.then(function (results) {
+            // strip off any trailing '*' from the user provided path; we'll examine the remaining path independently
+            const searchPath = path.endsWith('*') ? path.substring(0, path.length - 1) : path;
+            // construct a regular expression replacing '*' with an expression to match any character except a path separator ('/')
+            // replace '.' with an expression that explicitly matches '.'
+            const regex = searchPath.replace(/\*/g, "(\[^\\/\]*)").replace(/\./g, "\[.\]");
+
+            // filter the search results based on the path searched for and the recursive flag
+            return results.filter(function (result) {
+                let keepResult = false;
+                const match = result.path.match(regex);
+                // make sure the regex matches - the search will return case-insensitive results
+                if (match && match.length === 1) {
+                    // get the remaining path after the portion that was matched
+                    const subPath = result.path.substring(match[0].length);
+
+                    // find the index of the first '/' in the sub path
+                    const slashIndex = subPath.indexOf('/');
+                    if (recursive) {
+                        if (path.endsWith('*')) {
+                            // recursive search and user's search path end with '*' matches everything
+                            keepResult = true;
+                        } else {
+                            // matches a descendant (recursive) of a fully specified folder (subPath must start with '/') or a single file exactly (subPath length must be 0)
+                            keepResult = (slashIndex === 0 || subPath.length === 0);
+                        }
+                    } else {
+                        // find the position of the next folder separator character
+                        const nextSlashIndex = subPath.indexOf('/', slashIndex + 1);
+                        if (path.endsWith('*')) {
+                            // matches an immediate child of a fully specified folder (subPath must start with '/' and subPath must not contain any additional '/' chars)
+                            keepResult = ((slashIndex === 0 && nextSlashIndex === -1) || slashIndex === -1);
+                        } else {
+                            // matches an immediate child of a fully specified folder (subPath must start with '/' and subPath must not contain any additional '/' chars) or a single file exactly (subPath length must be 0)
+                            keepResult = ((slashIndex === 0 && nextSlashIndex === -1) || subPath.length === 0);
+                        }
+                    }
+                }
+                return keepResult;
+            });
+        });
     }
 
     /**
@@ -818,7 +954,7 @@ class AssetsHelper {
             .then(function (assets) {
                 // Turn the retrieved list of assets (metadata) into a list of asset path values.
                 return assets.map(function (asset) {
-                    return utils.getRelativePath(helper._fsApi.getAssetsPath(opts), helper._fsApi.getPath(asset.path, opts));
+                    return asset.path;
                 });
             });
     }
@@ -880,9 +1016,9 @@ class AssetsHelper {
 
         return deferred.promise
             .then(function (items) {
-                // The list results contain the relative path of each modified asset.
+                // The list results contain the path of each modified asset.
                 const results = items.map(function (item) {
-                    return utils.getRelativePath(helper._fsApi.getAssetsPath(opts), helper._fsApi.getPath(item.path, opts));
+                    return item.path;
                 });
 
                 // Add the deleted assets if the flag was specified.
@@ -1028,28 +1164,23 @@ class AssetsHelper {
     /**
      * Delete the asset with the specified path on the content hub.
      *
-     * @param {String} path - An asset path on the content hub.
+     * @param {Object} asset - An asset on the content hub.
      * @param {Object} opts - The options to be used for the delete operation.
      *
      * @returns {Q.Promise} A promise that is resolved with a message describing the delete action.
      */
-    deleteRemoteItem (path, opts) {
+    deleteRemoteItem (asset, opts) {
         const helper = this;
-        return helper._restApi.getItems(opts)
-            .then(function (assets) {
-                // Find the specified remote asset.
-                return helper._findItemByPath(assets, path, opts);
-            })
-            .then(function (asset) {
-                // The asset was found, so delete it using its ID.
-                logger.trace("deleteRemoteItem found asset id: " + asset.id);
-                return helper._restApi.deleteItem(asset, opts);
-            })
+        return helper._restApi.deleteItem(asset, opts)
             .then(function (message) {
-                // The delete was successful, so resolve the promise with the message returned from the REST service.
-                helper._statusTracker.removeStatus(path, StatusTracker.EXISTS_REMOTELY);
+                // The delete was successful, so update the hashes and status tracker.
+                const basePath = helper._fsApi.getAssetsPath(opts);
+                hashes.removeHashes(basePath, [asset.id], opts);
+                helper._statusTracker.removeStatus(asset.path, StatusTracker.EXISTS_REMOTELY);
+
+                // Resolve the promise with the message returned from the REST service.
                 return message;
-            });
+            })
     }
 
     /**
@@ -1079,7 +1210,7 @@ class AssetsHelper {
         } else {
             // The specified asset was not found.
             const currentChunkSize = assets.length;
-            const maxChunkSize = options.getRelevantOption(opts, "limit", "assets", "limit");
+            const maxChunkSize = options.getRelevantOption(opts, "limit", this._artifactName);
 
             if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
                 // The current chunk is a partial chunk, so there are no more assets to be retrieved. Reject the promise
@@ -1095,7 +1226,7 @@ class AssetsHelper {
                 }
 
                 // Increase the offset so that the next chunk of assets will be retrieved.
-                const offset = options.getRelevantOption(opts, "offset", "assets", "offset");
+                const offset = options.getRelevantOption(opts, "offset", this._artifactName);
                 opts.offset = offset + maxChunkSize;
 
                 // Retrieve the next chunk of assets from the REST service.

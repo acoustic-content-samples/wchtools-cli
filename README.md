@@ -141,7 +141,21 @@ Then follow the Getting Started instructions below, to configure and start using
 
   Since non-managed (not located under assets/dxdam/...) web application assets are manipulated only via the wchtools CLI at this time and not by the Authoring UI, you must use wchtools to delete a web application asset, should you choose to do so.  To delete a web application asset, specify the portion of the asset path that was below the <working-directory>/assets/  folder, when you pushed the web resource, as shown in the following command.
 
-    wchtools delete -w --named js/mytestscript.js
+    wchtools delete -w --path js/mytestscript.js
+
+  The delete command supports the following options:
+
+    -p --path <path> this specifies the path to the artifacts to delete
+    -r --recursive this specifies whether the delete should apply recursively to all descendants of the matching path
+    -P --preview this specifies whether to simply preview the artifacts to be deleted, but does not actually execute the delete operation
+    -q --quiet this specifies whether the user should be prompted for each artifact to be deleted
+
+  The --path and --recursive options are interpreted by the delete command according to the following:
+
+  - If the path ends with the wildcard '*' and --recursive is supplied, the action will recursively match all artifacts that start with the supplied path
+  - If the path does not end with a '*' and --recursive is supplied, the action will recursively match all descendants of the supplied folder
+  - If the path ends with the wildcard '*' and --recursive is not supplied, the action will match all artifacts that start with the supplied path but will not match any children of the artifacts
+  - If the path does not end with a '*' and --recursive is not supplied, the action will match only the path supplied by the user.  If this path is a folder, the direct children of the folder will match.
 
 #### Triggering a publish job
   By default, authoring artifacts such as assets are published to the delivery system when they are uploaded and authoring artifacts such as content are moved from draft to ready state. Therefore, an explicit publish command is not necessary.   If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
@@ -157,7 +171,9 @@ Then follow the Getting Started instructions below, to configure and start using
 
   Both of the above publish commands display the publishing job id on successful creation of a publishing job.  The following command may be used (with or without --verbose) to see the current status of the specified publishing job.
 
-    wchtools publish --status <id> [--verbose]
+    wchtools publish --status [<id>] [--verbose]
+
+  If the optional id is not specified to the publish --status command, then the status of the most recent publishing job found will be shown.
 
 
 #### Defaults
@@ -247,8 +263,8 @@ After you disable auto-publishing, you may either invoke a publish manually with
 #### Limitations
   The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
 
-  - The authoring APIs and services do not allow you to push an update to an authoring artifact, where the "revision" field of the item you are trying to push does not match the current revision stored that is stored on the server by the authoring service. This action is enforced by the services to help prevent overwriting newer updates by another user through authoring UI with an older copy of an artifact. It is not currently possible to override this server side validation. If a wchtools push encounters such a 409 conflict error for an authoring artifact or artifacts, each conflicting copy is saved to the appropriate artifact subfolder with a "conflict" suffix. You can compare the files locally to determine which changes are appropriate. Then, fix up the local copy to contain the correct revision and server side modified fields, and then try to push again.
-
+  - The authoring APIs and services do not allow you to push an update to an authoring artifact, where the "revision" field of the item you are trying to push does not match the current revision stored that is stored on the server by the authoring service. This action is enforced by the services to help prevent overwriting newer updates by another user through authoring UI with an older copy of an artifact.  If a wchtools push encounters such a 409 conflict error for an authoring artifact or artifacts, each conflicting copy is saved to the appropriate artifact subfolder with a "conflict" suffix. You can compare the files locally to determine which changes are appropriate.  If you determine that it is safe to override the conflicting server changes with your local artifacts, you may try pushing again with the -f or --force-override options to ask the authoring services to override the revision conflict validation.
+  
   - The authoring content service does not allow pushing a "ready" state content item, if that content item currently has a "draft" outstanding. You can push a draft content item, whether a draft exists, or no artifact exists for that content ID. But you cannot push a "ready" content item if that item has a draft.  If you must push a ready item, for example, to recover from a server side mistake, where a draft exists, you can cancel the draft and try again. Or you can fix the issue with the authoring UI and then pull the content down to the local filesystem again for archiving.
 
   - Authoring artifacts refer to each other by internal identifiers (the 'id' field). The Watson Content Hub authoring services enforce validation of referential integrity as artifacts are created or updated through the public REST APIs.   For this reason, it is suggested that you use the -A or --All-authoring options when you push authoring artifacts. This option is not needed if you are pushing up only a new set of low level artifacts such as content types (where you could use -t to specify that's what what you want to push). Low-level artifacts are those artifacts without references to other types of artifacts. The all authoring artifact options push artifacts in order from those with no dependencies, to those with the most dependencies. This ordering helps avoid issues where dependent artifacts don't exist yet on the server, during a push.

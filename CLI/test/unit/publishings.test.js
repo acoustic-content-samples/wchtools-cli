@@ -70,7 +70,7 @@ describe("Test Publishing command", function () {
         stubGet.resolves({id: 'foo'});
 
         let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -95,7 +95,7 @@ describe("Test Publishing command", function () {
         stubGet.resolves({id: 'foo'});
 
         let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '-rv', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '-rv', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -120,7 +120,7 @@ describe("Test Publishing command", function () {
         stubGet.rejects("Error");
 
         let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The command should have failed.");
@@ -144,7 +144,7 @@ describe("Test Publishing command", function () {
     it("test fail extra param", function (done) {
         // Execute the command to list the items to the download directory.
         let error;
-        toolsCli.parseArgs(['', process.cwd() + "/index.js", 'publish', 'foo', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + "/index.js", 'publish', 'foo', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             // Handle a fulfilled promise.
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
@@ -173,7 +173,7 @@ describe("Test Publishing command", function () {
         stubGet.resolves({id: 'mypublishiingjobid', state: 'WAITING'});
 
         let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -202,7 +202,7 @@ describe("Test Publishing command", function () {
         stubGet.resolves({id: 'mypublishiingjobid', state: 'SUCCESS'});
 
         let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -228,7 +228,7 @@ describe("Test Publishing command", function () {
         const stubGet = sinon.stub(helper, "getPublishingJob");
         stubGet.resolves({id: 'mypublishiingjobid', state: 'WAITING'});
         let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '-v', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '-v', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
@@ -253,7 +253,7 @@ describe("Test Publishing command", function () {
         stubGet.rejects("Error");
 
         let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', 'badjobid', '--user', 'uname', '--password', 'pwd'])
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', 'badjobid', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The publish --status command with bad job id should have failed.");

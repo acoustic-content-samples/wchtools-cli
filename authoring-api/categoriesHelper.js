@@ -71,6 +71,36 @@ class CategoriesHelper extends BaseHelper {
     }
 
     /**
+     *  Determine whether the given item can be pulled.
+     *
+     *  @param {Object} item The item to be pulled.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
+     *                     indicates that the item cannot be pulled.
+     *
+     *  @override
+     */
+    canPullItem (item) {
+        // Don't pull system categories.
+        return (item && item["permanent"] !== true);
+    }
+
+    /**
+     *  Determine whether the given item can be pushed.
+     *
+     *  @param {Object} item The item to be pushed.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be pushed. A return value of false
+     *                     indicates that the item cannot be pushed.
+     *
+     *  @override
+     */
+    canPushItem (item) {
+        // Don't push system categories.
+        return (item && item["permanent"] !== true);
+    }
+
+    /**
      * Push the items with the given names one at a time.
      *
      * @param {Array} names - The names of the items to be pushed.

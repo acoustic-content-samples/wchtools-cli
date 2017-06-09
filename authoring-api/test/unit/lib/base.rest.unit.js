@@ -642,6 +642,76 @@ class BaseRestUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("should include forceOverride in update URL if force-override option passed", function (done) {
+                const err = null;
+                const res = {"statusCode": 200};
+                // The second GET request is to retrieve the items metadata.
+                const stub = sinon.stub(request, "put");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                let body = item1;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                const stubOverride = sinon.stub(restApi, "supportsForceOverride");
+                stubOverride.returns(true);
+                self.addTestDouble(stubOverride);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(item1, {"force-override": true})
+                    .then(function (item) {
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("forceOverride=true");
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+
+            it("should NOT include forceOverride in update URL if this rest API doesn't support override", function (done) {
+                const err = null;
+                const res = {"statusCode": 200};
+                // The second GET request is to retrieve the items metadata.
+                const stub = sinon.stub(request, "put");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                let body = item1;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                const stubOverride = sinon.stub(restApi, "supportsForceOverride");
+                stubOverride.returns(false);
+                self.addTestDouble(stubOverride);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(item1, {"force-override": true})
+                    .then(function (item) {
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.not.contain("forceOverride=true");
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
         });
     }
 

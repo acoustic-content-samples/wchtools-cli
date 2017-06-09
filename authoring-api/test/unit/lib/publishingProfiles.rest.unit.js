@@ -26,7 +26,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 // Require the local module being tested.
 const restApi = require(UnitTest.API_PATH + "lib/publishingProfilesREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
-// Get the "lookup" URI for presentations.
+// Get the "lookup" URI for profiles
 const lookupUri =  options.getProperty("profiles", "uri");
 const path1 = PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILES_DIRECTORY + PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILE_1;
 const path2 = PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILES_DIRECTORY + PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILE_2;

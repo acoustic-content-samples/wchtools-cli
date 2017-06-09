@@ -349,7 +349,13 @@ class BaseHelper {
         const helper = this;
         return helper._fsApi.getItem(name, opts)
             .then(function (item) {
-                return helper._uploadItem(item, opts);
+                // Check whether the item should be uploaded.
+                if (helper.canPushItem(item)) {
+                    return helper._uploadItem(item, opts);
+                } else {
+                    // This really shouldn't happen. But if we try to push an item that can't be pushed, add a log entry.
+                    logger.info(i18n.__("cannot_push_item" , {name: name}));
+                }
             })
             .catch(function (err) {
                 // Only emit the error event if it hasn't already been emitted and we won't be doing a retry.
@@ -413,14 +419,23 @@ class BaseHelper {
         const helper = this;
         return helper._restApi.getItem(id, opts)
             .then(function (item) {
-                return helper._fsApi.saveItem(item, opts);
+                // Check whether the item should be saved to file.
+                if (helper.canPullItem(item)) {
+                    return helper._fsApi.saveItem(item, opts);
+                } else {
+                    // If the item returned by the service cannot be pulled, add a log entry.
+                    logger.info(i18n.__("cannot_pull_item" , {name: helper.getName(item)}));
+                }
             })
             .then(function (item) {
-                // Use the event emitter to indicate that the item was successfully pulled.
-                helper.getEventEmitter().emit("pulled", helper.getName(item));
+                if (item) {
+                    // Use the event emitter to indicate that the item was successfully pulled.
+                    helper.getEventEmitter().emit("pulled", helper.getName(item));
 
-                // Keep track of the item's local status.
-                helper._addLocalStatus( item);
+                    // Keep track of the item's local status.
+                    helper._addLocalStatus(item);
+                }
+
                 return item;
             })
             .catch(function (err) {
@@ -728,14 +743,12 @@ class BaseHelper {
     /**
      * Delete the specified remote item.
      *
-     * @param {String} id - The ID of the item to be deleted.
+     * @param {String} item - The item to be deleted.
      * @param {Object} opts - The options to be used for the delete operation.
      *
      * @returns {Q.Promise} A promise for the deleted item.
      */
-    deleteRemoteItem (id, opts) {
-        const item = {id: id};
-
+    deleteRemoteItem (item, opts) {
         // This function exists mostly for testing purposes
         const helper = this;
         return helper._restApi.deleteItem(item, opts)
@@ -743,6 +756,30 @@ class BaseHelper {
                 helper._statusTracker.removeStatus(StatusTracker.EXISTS_REMOTELY);
                 return item;
             });
+    }
+
+    /**
+     *  Determine whether the given item can be pulled.
+     *
+     *  @param {Object} item The item to be pulled.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
+     *                     indicates that the item cannot be pulled.
+     */
+    canPullItem (item) {
+        return (item && typeof item === "object");
+    }
+
+    /**
+     *  Determine whether the given item can be pushed.
+     *
+     *  @param {Object} item The item to be pushed.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be pushed. A return value of false
+     *                     indicates that the item cannot be pushed.
+     */
+    canPushItem (item) {
+        return (item && typeof item === "object");
     }
 
     /**
@@ -886,7 +923,7 @@ class BaseHelper {
         const deferred = Q.defer();
 
         const helper = this;
-        const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName, "concurrent-limit");
+        const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName);
         const pushedItems = [];
         const pushItems = function (names, opts) {
             const results = utils.throttledAll(names.map(function (name) {
@@ -902,7 +939,9 @@ class BaseHelper {
                             return (promise.state === 'fulfilled');
                         })
                         .forEach(function (promise) {
-                            pushedItems.push(promise.value)
+                            if (promise.value) {
+                                pushedItems.push(promise.value);
+                            }
                         });
 
                     // Check to see if a retry is required.
@@ -970,6 +1009,17 @@ class BaseHelper {
         const helper = this;
         listFn.call(helper, opts)
             .then(function (itemList) {
+                // Filter the list to exclude any items that should not be saved to file.
+                itemList = itemList.filter(function (item) {
+                    const canPullItem = helper.canPullItem(item);
+                    if (!canPullItem) {
+                        // This item cannot be pulled, so add a log entry.
+                        logger.info(i18n.__("cannot_pull_item", {name: helper.getName(item)}));
+                    }
+
+                    return canPullItem;
+                });
+
                 const promises = itemList.map(function (item) {
                     const name = helper.getName(item);
                     return helper._fsApi.saveItem(item, opts)
@@ -1008,14 +1058,14 @@ class BaseHelper {
         //append the results from the previous chunk to the allItems array
         allItems.push.apply(allItems, items);
         const iLen = items.length;
-        const limit = options.getRelevantOption(opts, "limit", helper._artifactName, "limit");
+        const limit = options.getRelevantOption(opts, "limit", helper._artifactName);
         //test to see if we got less than the full chunk size
         if (iLen === 0 || iLen < limit) {
             //resolve the deferred with the allItems array
             deferred.resolve(allItems);
         } else {
             //get the next chunk
-            const offset = options.getRelevantOption(opts, "offset", helper._artifactName, "offset");
+            const offset = options.getRelevantOption(opts, "offset", helper._artifactName);
             // clone the opts to not affect the opts passed in
             const cOpts = utils.cloneOpts(opts);
             cOpts.offset = offset + limit;
@@ -1046,11 +1096,11 @@ class BaseHelper {
         }
 
         const iLen = listInfo.length;
-        const limit = options.getRelevantOption(opts, "limit", this._artifactName, "limit");
+        const limit = options.getRelevantOption(opts, "limit", this._artifactName);
         if (iLen === 0 || iLen < limit) {
             deferred.resolve(results);
         } else {
-            const offset = options.getRelevantOption(opts, "offset", this._artifactName, "offset");
+            const offset = options.getRelevantOption(opts, "offset", this._artifactName);
             // clone the opts to not change the passed in opts
             opts = utils.clone(opts);
             opts.offset = offset +  limit;

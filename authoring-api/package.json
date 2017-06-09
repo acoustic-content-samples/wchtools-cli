@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "1.1.13",
+  "version": "1.2.1",
   "keywords": [
     "api",
     "tools"
@@ -19,30 +19,30 @@
   },
   "main": "./wchToolsApi.js",
   "dependencies": {
-    "async": "^2.0.1",
+    "async": "^2.4.0",
     "deep-extend": "^0.4.1",
     "i18n-2": "^0.6.3",
-    "ignore": "^3.1.5",
-    "log4js": "^0.6.33",
-    "mime-types": "^2.1.12",
+    "ignore": "^3.3.0",
+    "log4js": "^1.1.1",
+    "mime-types": "^2.1.15",
     "mkdirp": "^0.5.1",
-    "q": "^1.4.1",
-    "recursive-readdir": "^2.1.0",
+    "q": "^1.5.0",
+    "recursive-readdir": "^2.1.1",
     "request": "^2.81.0",
-    "os-locale": "^1.4.0"
+    "os-locale": "^2.0.0"
   },
   "devDependencies": {
-    "chai": "~3.5",
+    "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
-    "cp": "~0.2",
-    "diff": "^3.0.0",
-    "istanbul": "~0.4",
-    "mocha": "^3.1.0",
+    "cp": "^0.2.0",
+    "diff": "^3.2.0",
+    "istanbul": "^0.4.5",
+    "mocha": "^3.3.0",
     "require-subvert": "^0.1.0",
     "rimraf": "^2.6.1",
-    "sinon": "~1",
-    "sinon-as-promised": "~4",
-    "sinon-chai": "~2.8"
+    "sinon": "^1.10.3",
+    "sinon-as-promised": "^4.0.3",
+    "sinon-chai": "^2.10.0"
   },
   "scripts": {
     "unit": "./node_modules/.bin/istanbul cover ./node_modules/mocha/bin/_mocha test/unit/**/*.test.js -- -R spec",

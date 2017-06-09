@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "1.1.13",
+  "version": "1.2.1",
   "keywords": [
     "cli"
   ],
@@ -21,30 +21,30 @@
     "wchtools": "./bin/wchtools"
   },
   "dependencies": {
-    "cli-table": "0.3.1",
-    "colors": "1.1.2",
-    "commander": "2.9.0",
+    "cli-table": "^0.3.1",
+    "colors": "^1.1.2",
+    "commander": "^2.9.0",
     "wchtools-api": "../authoring-api",
-    "log4js": "^0.6.33",
-    "ora": "^0.2.3",
-    "prompt": "1.0.0",
-    "q": "1.4.1",
+    "log4js": "^1.1.1",
+    "ora": "^1.2.0",
+    "prompt": "^1.0.0",
+    "q": "^1.5.0",
     "request": "^2.81.0",
     "update-notifier": "^2.1.0"
   },
   "devDependencies": {
-    "chai": "~3.5",
+    "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
     "cp": "^0.2.0",
-    "cpr": "^2.0.0",
-    "diff": "^3.0.0",
-    "istanbul": "~0.4",
+    "cpr": "^2.0.2",
+    "diff": "^3.2.0",
+    "istanbul": "^0.4.5",
     "mkdirp": "^0.5.1",
     "uuid": "^3.0.1",
     "rimraf": "^2.6.1",
-    "sinon": "~1",
-    "sinon-as-promised": "~4",
-    "sinon-chai": "~2.8"
+    "sinon": "^1.10.3",
+    "sinon-as-promised": "^4.0.3",
+    "sinon-chai": "^2.10.0"
   },
   "scripts": {
     "unit": "./node_modules/.bin/istanbul cover ../node_modules/mocha/bin/_mocha test/unit/*.test.js -- -R spec",

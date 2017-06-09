@@ -3484,155 +3484,25 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
     testDeleteRemoteAsset () {
         const self = this;
         describe("deleteRemoteItem", function () {
-            it("should fail when there are no remote assets.", function (done) {
-                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.resolves([]);
-
-                // The stub should be restored when the test is complete.
-                self.addTestDouble(stub);
-
-                // Call the method being tested.
-                let error;
-                assetsHelper.deleteRemoteItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*assets*/) {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The promise for the remote assets should have been rejected.");
-                    })
-                    .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once.
-                            expect(stub).to.be.calledOnce;
-
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("Remote asset not found");
-                        } catch (err) {
-                            error = err;
-                        }
-                    })
-                    .finally(function () {
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
-            it("should fail when the specified asset is not found.", function (done) {
-                // Read the contents of five test asset metadata files.
-                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
-                const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
-                const assetMetadataPath3 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_PNG_1;
-                const assetMetadataPath4 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
-                const assetMetadataPath5 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JAR_1;
-                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
-                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
-                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
-                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
-                const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
-
-                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4, assetMetadata5]);
-
-                // The stub should be restored when the test is complete.
-                self.addTestDouble(stub);
-
-                // Call the method being tested.
-                let error;
-                assetsHelper.deleteRemoteItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*assets*/) {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The promise for the remote assets should have been rejected.");
-                    })
-                    .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once.
-                            expect(stub).to.be.calledOnce;
-
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("Remote asset not found");
-                        } catch (err) {
-                            error = err;
-                        }
-                    })
-                    .finally(function () {
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
-            it("should fail when getting the specified asset fails.", function (done) {
-                // Create an assetsREST.getItems stub that returns an error.
-                const ASSET_ERROR = "There was an error getting the remote assets.";
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.rejects(ASSET_ERROR);
-
-                // The stub should be restored when the test is complete.
-                self.addTestDouble(stub);
-
-                // Call the method being tested.
-                let error;
-                assetsHelper.deleteRemoteItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*assets*/) {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The promise for the remote assets should have been rejected.");
-                    })
-                    .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once.
-                            expect(stub).to.be.calledOnce;
-
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(ASSET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
-                    })
-                    .finally(function () {
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
             it("should fail when deleting the specified asset fails.", function (done) {
-                // Read the contents of five test asset metadata files.
-                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
-                const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
-                const assetMetadataPath3 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_PNG_1;
-                const assetMetadataPath4 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
-                const assetMetadataPath5 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JAR_1;
-                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
-                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
-                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
-                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
-                const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
-
-                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stubGet = sinon.stub(assetsREST, "getItems");
-                stubGet.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4, assetMetadata5]);
-
                 // Create an assetsREST.deleteItem stub that returns an error.
                 const ASSET_ERROR = "There was an error deleting the remote asset.";
                 const stubDelete = sinon.stub(assetsREST, "deleteItem");
                 stubDelete.rejects(ASSET_ERROR);
 
-                // The stubs should be restored when the test is complete.
-                self.addTestDouble(stubGet);
+                // The stub should be restored when the test is complete.
                 self.addTestDouble(stubDelete);
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.deleteRemoteItem(assetMetadata3.path, UnitTest.DUMMY_OPTIONS)
+                assetsHelper.deleteRemoteItem(UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*assets*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the remote assets should have been rejected.");
                     })
                     .catch(function (err) {
                         try {
-                            // Verify that the stubs were each called once.
-                            expect(stubGet).to.be.calledOnce;
+                            // Verify that the stub was called once.
                             expect(stubDelete).to.be.calledOnce;
 
                             // Verify that the expected error is returned.
@@ -3649,47 +3519,27 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should succeed when deleting a remote asset.", function (done) {
-                // Read the contents of five test asset metadata files.
-                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
-                const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
-                const assetMetadataPath3 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_PNG_1;
-                const assetMetadataPath4 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
-                const assetMetadataPath5 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JAR_1;
-                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
-                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
-                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
-                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
-                const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
-
-                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stubGet = sinon.stub(assetsREST, "getItems");
-                stubGet.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4, assetMetadata5]);
-
                 // Create an assetsREST.deleteItem stub that returns a promise for the response message.
                 const DELETE_MESSAGE = "The asset was deleted.";
                 const stubDelete = sinon.stub(assetsREST, "deleteItem");
                 stubDelete.resolves(DELETE_MESSAGE);
 
-                // The stubs should be restored when the test is complete.
-                self.addTestDouble(stubGet);
+                // The stub should be restored when the test is complete.
                 self.addTestDouble(stubDelete);
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.deleteRemoteItem(assetMetadata3.path, UnitTest.DUMMY_OPTIONS)
+                assetsHelper.deleteRemoteItem(UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
                     .then(function (message) {
                         // Verify that the helper returned the expected message.
                         expect(message).to.equal(DELETE_MESSAGE);
 
-                        // Verify that the get stub was called once.
-                        expect(stubGet).to.have.been.calledOnce;
-
                         // Verify that the delete stub was called once with the expected id.
                         expect(stubDelete).to.have.been.calledOnce;
-                        expect(stubDelete.firstCall.args[0].id).to.equal(assetMetadata3.id);
+                        expect(stubDelete.firstCall.args[0].id).to.equal(UnitTest.DUMMY_METADATA.id);
 
                         // Verify that the remote asset is no longer registered with the helper.
-                        expect(assetsHelper.existsRemotely(assetMetadata3.path)).to.equal(false);
+                        expect(assetsHelper.existsRemotely(UnitTest.DUMMY_METADATA.path)).to.equal(false);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.

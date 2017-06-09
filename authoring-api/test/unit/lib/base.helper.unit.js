@@ -100,6 +100,7 @@ class BaseHelperUnitTest extends UnitTest {
             self.testListModifiedLocalItemNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testListModifiedRemoteItemNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteRemoteItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testFilterRetryPush(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
 
             // Execute any additional tests defined by a subclass. Executing the tests here allows them to be within the
             // same "describe" as the base helper tests, and allows them to leverage the same before and after functions.
@@ -2014,7 +2015,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                   // Call the method being tested.
                   let error;
-                  helper.deleteRemoteItem("123456")
+                  helper.deleteRemoteItem({"id": "123456"})
                       .then(function (res) {
                           // Verify that the stub was called once and that the helper returned the expected values.
                           expect(stub).to.have.been.calledOnce;
@@ -2029,6 +2030,29 @@ class BaseHelperUnitTest extends UnitTest {
                           // Call mocha's done function to indicate that the test is over.
                           done(error);
                       });
+            });
+        });
+    }
+
+    testFilterRetryPush (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        describe("filterRetryPush", function () {
+            it("should return false when retry push is not enabled.", function (done) {
+                if (helper.isRetryPushEnabled && !helper.isRetryPushEnabled()) {
+                    // Call the method being tested.
+                    let error;
+                    try {
+                        expect(helper.filterRetryPush(new Error("Retry Push"))).to.equal(false);
+                    } catch (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    } finally {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    }
+                } else {
+                    done();
+                }
             });
         });
     }

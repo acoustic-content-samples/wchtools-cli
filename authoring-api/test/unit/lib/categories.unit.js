@@ -29,6 +29,9 @@ class CategoriesUnitTest extends UnitTest {
     // Path values for test assets.
     static get VALID_CATEGORY_1() { return "category-1.json"; };
     static get VALID_CATEGORY_2() { return "category-2.json"; };
+    static get VALID_SYSTEM_CATEGORY_1() { return "system-1.json"; };
+    static get VALID_NON_SYSTEM_CATEGORY_1() { return "non-system-1.json"; };
+    static get VALID_NON_SYSTEM_CATEGORY_2() { return "non-system-2.json"; };
     static get INVALID_CATEGORY_BAD_NAME() { return "category-bad-name.json"; };
 
     constructor () {

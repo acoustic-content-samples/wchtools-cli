@@ -26,7 +26,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 // Require the local module being tested.
 const restApi = require(UnitTest.API_PATH + "lib/publishingSourcesREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
-// Get the "lookup" URI for presentations.
+// Get the "lookup" URI for sources
 const lookupUri =  options.getProperty("sources", "uri");
 const path1 = PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCES_DIRECTORY + PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_1;
 const path2 = PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCES_DIRECTORY + PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_2;

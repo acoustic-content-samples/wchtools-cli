@@ -233,7 +233,8 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("SyntaxError");
-                            expect(err.message).to.contain("Unexpected end of input");
+                            expect(err.message).to.contain("Unexpected end of");
+                            expect(err.message).to.contain("input");
                         } catch (err) {
                             error = err;
                         }
@@ -778,12 +779,12 @@ class AssetsFsUnitTest extends AssetsUnitTest {
         const err = null;
         const assetPaths = [
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1,
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "foo/bar/a.exclude",
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/foo/bar/a.exclude",
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_1,
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "foo/bar/x.remove",
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/foo/bar/x.remove",
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_2,
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "dxdam/foo.bar",
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + hashes.FILENAME
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/dxdam/foo.bar",
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/" + hashes.FILENAME
         ];
         stub.yields(err, assetPaths);
 
@@ -850,11 +851,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
         const err = null;
         const assetPaths = [
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1,
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "foo/bar/a.exclude",
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/foo/bar/a.exclude",
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_1,
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "foo/bar/x.remove",
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/foo/bar/x.remove",
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_2,
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "dxdam/foo.bar"
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/dxdam/foo.bar"
         ];
         stub.yields(err, assetPaths);
 

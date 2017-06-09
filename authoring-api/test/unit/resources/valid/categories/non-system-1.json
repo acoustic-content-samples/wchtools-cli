@@ -1,0 +1,19 @@
+{
+  "id": "2fc0eefb-0f3b-480d-a645-76215abba08d",
+  "rev": "1-e039e28b4d90a6cb69bc7b34d90cf3b7",
+  "name": "New taxonomy 1",
+  "creatorId": "0abd9508-5176-4383-b10b-d1b663ced825",
+  "description": null,
+  "usageRightsBox": false,
+  "hideCategory": false,
+  "permanent": false,
+  "classification":"taxonomy",
+  "namePath": ["New taxonomy 1"],
+  "links": {
+    "self": {
+      "href":"/authoring/v1/categories/2fc0eefb-0f3b-480d-a645-76215abba08d"
+    }
+  },
+  "created": "2017-05-18T18:25:30.557Z",
+  "lastModified": "2017-05-18T18:25:30.557Z"
+}

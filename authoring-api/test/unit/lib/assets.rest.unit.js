@@ -864,7 +864,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         // includes the new asset metadata id and a modified path.
                         expect(stubPost.args[0][0].uri).to.contain("/asset");
                         expect(stubPost.args[0][0].body.resource).to.equal(UnitTest.DUMMY_ID);
-                        expect(stubPost.args[0][0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubPost.args[0][0].body.path).to.equal(AssetsUnitTest.ASSET_JPG_1);
 
                         // Verify that the expected value is returned.
                         expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);

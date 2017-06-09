@@ -26,7 +26,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 // Require the local module being tested.
 const restApi = require(UnitTest.API_PATH + "lib/publishingSiteRevisionsREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
-// Get the "lookup" URI for presentations.
+// Get the "lookup" URI for site-revisions.
 const lookupUri =  options.getProperty("site-revisions", "uri");
 const path1 = PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISIONS_DIRECTORY + PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISION_1;
 const path2 = PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISIONS_DIRECTORY + PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISION_2;

@@ -37,6 +37,13 @@ class ItemTypesREST extends BaseREST {
         }
         return this[singleton];
     }
+    
+    /*
+     * Does this WCH REST API currently support the forceOverride query param?
+     */
+    supportsForceOverride() {
+        return true;
+    }
 
 }
 

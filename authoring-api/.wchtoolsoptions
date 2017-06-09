@@ -59,5 +59,10 @@
     "offset": 0,
     "limit": 200,
     "concurrent-limit": 10
+  },
+  "authoring-search": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
   }
 }

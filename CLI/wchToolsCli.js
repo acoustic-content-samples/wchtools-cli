@@ -98,18 +98,16 @@ program.displayInitializationErrors = function () {
 };
 
 // Create request wrapper
+/*istanbul ignore next*/
 program.request = function (opts, next) {
-    /*istanbul ignore next*/
     if (program.debug) {
         program.log('REQUEST: '.bold + JSON.stringify(opts, null, 2));
     } else {
   	    program.log(opts.uri);
     }
 
-    /*istanbul ignore next*/
     status.start();
 
-    /*istanbul ignore next*/
     return request(opts, function (err, res, body) {
         status.stop();
         if (err) {

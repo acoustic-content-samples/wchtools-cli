@@ -5,6 +5,7 @@
   "push_error_creating_item": "Errore push durante la creazione dell'elemento: ",
   "push_error_updating_item": "Errore push durante l'aggiornamento dell'elemento: ",
   "pushed_item_error": "Errore dell'elemento sottoposto a push: ",
+  "pushed_item_retry": "Ripetere il push dell'elemento '%(name)s'. Errore: %(message)s",
   "invalid_path": "Percorso non valido: %(path)s",
   "timed_out_closing_read_stream": "Si è verificato un timeout durante l'attesa della chiusura del flusso di lettura",
   "remote_asset_not_found": "Asset remoto non trovato: ",
@@ -13,7 +14,7 @@
   "error_cancelling_job": "Errore durante l'annullamento del lavoro: id %(id)s",
   "error_fs_get_item": "Errore nel getItem del file system",
   "error_fs_get_filestats": "Errore in getFileStats file system per %(name)s.",
-  "error_parsing_item": "Errore durante l'analisi del file: %(name)s. %(message)s\n%(body)s",
+  "error_parsing_item": "Errore durante l'analisi del file: %(name)s. %(message)s",
   "get_items_error": "Errore durante il richiamo degli elementi %(service_name)s: ",
   "save_item_write_failed": "saveItem non è riuscito a scrivere sul file %(path)s",
   "save_item_write_failed_bad_path": "saveItem non è riuscito a scrivere sul file %(path)s, percorso errato",
@@ -23,7 +24,6 @@
   "name_required": "È necessario specificare il nome.",
   "category_exists": "Una categoria con nome %(name)s esiste già.",
   "template_required": "È necessario specificare il modello.",
-  "presentation_exists": "Una presentazione con nome %(name)s esiste già.",
   "cannot_get_asset": "Impossibile richiamare l'asset: %(path)s; codice stato: %(code)s",
   "deleted_asset": "Eliminato l'asset con ID: %(id)s",
   "create_asset_metadata_error": "Errore durante la creazione dei metadati dell'asset: ",
@@ -36,6 +36,7 @@
   "error_tenant_map": "Errore in loadTenantMap: ",
   "error_save_hashes": "Errore in saveHashes: ",
   "error_update_hashes": "Errore in updateHashes: ",
+  "error_remove_hashes": "Errore in removeHashes: ",
   "error_set_last_pull_timestamp": "Errore in setLastPullTimestamp: ",
   "error_set_last_push_timestamp": "Errore in setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Errore in getHashesForFile: ",
@@ -49,7 +50,7 @@
   "async_parallel_limit_results": "Risultati di parallelLimit asincrono: ",
   "please_try": "Riprovare in seguito.  Se il problema persiste, contattare il supporto clienti e includere le informazioni del log disponibili in %(log_dir)s",
   "conflict":"Il servizio ha riscontrato e restituito una condizione di errore durante l'elaborazione della richiesta per questa risorsa.",
-  "login_missing_authn":"Il servizio di login non ha risposto con informazioni di autenticazione valide. ",
+  "login_missing_authn":"Il servizio di login non ha risposto con informazioni di autenticazione valide.",
   "digest_mismatch": "digest %(cli_digest)s per richiamato %(asset)s non corrispondente al digest server %(server_digest)s."
 }
 

@@ -577,7 +577,7 @@ function getRequestWrapper () {
  */
 function getRelativePath (dir, file) {
     // always use / as the path separator char
-    return path.relative(dir, file).replace(/\\/g, '/');
+    return "/" + path.relative(dir, file).replace(/\\/g, '/');
 }
 
 /**
