@@ -1,6 +1,6 @@
 # Changelog
 
-### v1.2.0 Changes since 1.1.13
+### v1.2.1 Changes since 1.1.13
 
  - Unit test tweak, to allow unit tests to be run from both Node 4.x and Node 6.x.
  - Add --url option to the publish command.
