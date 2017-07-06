@@ -40,24 +40,59 @@ class DeleteCommand extends BaseCommand {
      * Delete the specified artifact(s).
      */
     doDelete () {
-        // Make sure the path option (or the deprecated named option) has been specified.
-        const path = this.getCommandLineOption("path") || this.getCommandLineOption("named");
-        if (!path) {
-            this.errorMessage(i18n.__('cli_delete_wa_path_req'));
+        let helper;
+
+        // Make sure the artifact type options are valid.
+        this.handleArtifactTypes();
+        const webassets = this.getCommandLineOption("webassets");
+        const layouts = this.getCommandLineOption("layouts");
+        const layoutMappings = this.getCommandLineOption("layoutMappings");
+        if (this._optionArtifactCount > 1) {
+            // Attempting to delete multiple artifact types.
+            this.errorMessage(i18n.__('cli_delete_only_one_type'));
+            this.resetCommandLineOptions();
+            return;
+        } else if (webassets) {
+            helper = toolsApi.getAssetsHelper(this.getApiOptions());
+            this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
+        } else if (layouts) {
+            helper = toolsApi.getLayoutsHelper(this.getApiOptions());
+        } else if (layoutMappings) {
+            helper = toolsApi.getLayoutMappingsHelper(this.getApiOptions());
+        }
+
+        if (!helper) {
+            // Must specify one of the supported artifact types.
+            this.errorMessage(i18n.__('cli_delete_no_type'));
             this.resetCommandLineOptions();
             return;
         }
 
-        // Make sure the webassets option has been specified.
-        let helper;
-        if (!this.getCommandLineOption("webassets")) {
-            this.errorMessage(i18n.__('cli_delete_webAsset'));
+        // Make sure the id or path option (or the deprecated named option) has been specified correctly.
+        const id = this.getCommandLineOption("id");
+        const path = this.getCommandLineOption("path") || this.getCommandLineOption("named");
+        const recursive = this.getCommandLineOption("recursive");
+
+        if (!id && !path) {
+            this.errorMessage(i18n.__('cli_delete_no_id_or_path'));
             this.resetCommandLineOptions();
             return;
-        } else {
-            // We can currently only delete web assets.
-            helper = toolsApi.getAssetsHelper(this.getApiOptions());
-            this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
+        } else if (id && path) {
+            this.errorMessage(i18n.__('cli_delete_both_id_and_path'));
+            this.resetCommandLineOptions();
+            return;
+        } else if (id && !helper.supportsDeleteById()) {
+            this.errorMessage(i18n.__('cli_delete_by_id_not_supported'));
+            this.resetCommandLineOptions();
+            return;
+        } else if (path && !helper.supportsDeleteByPath() && !helper.supportsDeleteByPathRecursive()) {
+            this.errorMessage(i18n.__('cli_delete_by_path_not_supported'));
+            this.resetCommandLineOptions();
+            return;
+        } else if (recursive && !helper.supportsDeleteByPathRecursive()) {
+            this.errorMessage(i18n.__('cli_delete_recursive_not_supported'));
+            this.resetCommandLineOptions();
+            return;
         }
 
         // Make sure the "dir" option can be handled successfully.
@@ -68,7 +103,6 @@ class DeleteCommand extends BaseCommand {
         // Make sure the url option has been specified.
         const self = this;
         const logger = self.getLogger();
-        const recursive = self.getCommandLineOption("recursive");
         self.handleUrlOption()
             .then(function () {
                 // Make sure the user name and password have been specified.
@@ -79,97 +113,14 @@ class DeleteCommand extends BaseCommand {
                 return login.login(self.getApiOptions());
             })
             .then(function () {
-                // For each artifact returned, we only need the path and ID values.
-                const searchOptions = {"fl": ["path", "id"]};
-
-                // Get the specified search results.
-                return helper.searchRemote(path, recursive, searchOptions, self.getApiOptions());
-            })
-            .then(function (searchResults) {
-                // Use the search results to display or delete artifacts.
-                const opts = self.getApiOptions();
-
-                if (!searchResults || searchResults.length === 0) {
-                    // --------------------------------------------------------
-                    // The specified path did not match any existing artifacts.
-                    // --------------------------------------------------------
-                    self.errorMessage(i18n.__('cli_delete_no_match'));
-                } else if (self.getCommandLineOption("preview")) {
-                    // ------------------------------------------------------------
-                    // Preview the matching artifacts that would have been deleted.
-                    // ------------------------------------------------------------
-                    self.successMessage(i18n.__('cli_delete_preview'));
-                    searchResults.forEach(function (asset) {
-                        BaseCommand.displayToConsole(asset.path);
-                    });
-                } else if (!recursive && searchResults.length === 1) {
-                    // -------------------------------------------------------
-                    // Delete the single artifact that was specified via path.
-                    // -------------------------------------------------------
-                    const asset = searchResults[0];
-                    logger.info(i18n.__("cli_deleting_web_asset", {"path": path}));
-                    return helper.deleteRemoteItem(asset, opts)
-                        .then(function (message) {
-                            logger.info(message);
-                            self.successMessage(i18n.__('cli_delete_success', {name: asset.path}));
-                        })
-                        .catch(function (err) {
-                            logger.error(err);
-                            self.errorMessage(i18n.__("cli_delete_failure", {"name": asset.path, "err": err.message}));
-                        });
-                } else if (self.getCommandLineOption("quiet")) {
-                    // --------------------------------------------
-                    // Delete matching artifacts without prompting.
-                    // --------------------------------------------
-                    logger.info(i18n.__("cli_deleting_web_assets", {"path": path}));
-                    return self.deleteItems(helper, searchResults, opts);
-                } else {
-                    // -----------------------------------------
-                    // Delete matching artifacts with prompting.
-                    // -----------------------------------------
-                    logger.info(i18n.__("cli_deleting_web_assets", {"path": path}));
-
-                    // Display a prompt for each matching artifact, so the user can decide which ones should be deleted.
-                    const schemaInput = {};
-                    searchResults.forEach(function (item) {
-                        // For each matching file, add a confirmation prompt (keyed by the artifact id).
-                        schemaInput[item.id] =
-                            {
-                                description: i18n.__("cli_delete_confirm", {"path": item.path}),
-                                required: true
-                            };
-                    });
-
-                    // After all the prompts have been displayed, execute each of the confirmed delete operations.
-                    const deferred = Q.defer();
-                    const schemaProps = {properties: schemaInput};
-                    prompt.message = '';
-                    prompt.delimiter = ' ';
-                    prompt.start();
-                    prompt.get(schemaProps, function (err, result) {
-                        // Display a blank line to separate the prompt output from the delete output.
-                        BaseCommand.displayToConsole("");
-
-                        // Filter out the items that were not confirmed.
-                        searchResults = searchResults.filter(function (item) {
-                            return (result[item.id] === "y");
-                        });
-
-                        if (searchResults.length > 0) {
-                            self.deleteItems(helper, searchResults, opts)
-                                .then(function () {
-                                    deferred.resolve();
-                                })
-                                .catch(function (err) {
-                                    deferred.reject(err);
-                                });
-                        } else {
-                            self.successMessage(i18n.__("cli_delete_none_confirmed"));
-                            deferred.resolve();
-                        }
-                    });
-
-                    return deferred.promise;
+                if (layouts || layoutMappings) {
+                    if (id) {
+                        return self.deleteById(helper, id);
+                    } else {
+                        return self.deleteByPath(helper, path);
+                    }
+                } else if (webassets) {
+                    return self.deleteBySearch(helper, path);
                 }
             })
             .catch(function (err) {
@@ -179,6 +130,156 @@ class DeleteCommand extends BaseCommand {
             .finally(function () {
                 self.resetCommandLineOptions();
             });
+    }
+
+    /**
+     * Deletes artifacts by id.
+     *
+     * @param {Object} helper The helper for the artifact type.
+     * @param {String} id The id of the artifact to delete.
+     */
+    deleteById (helper, id) {
+        const item = {
+            id: id
+        };
+        return this.deleteMatchingItems(helper, [item], "id", undefined, this.getApiOptions());
+    }
+
+    /**
+     * Deletes artifacts by path.
+     *
+     * @param {Object} helper The helper for the artifact type.
+     * @param {String} path The path of the artifact to delete.
+     */
+    deleteByPath (helper, path) {
+        const self = this;
+        const opts = this.getApiOptions();
+
+        return helper.getRemoteItemByPath(path, opts)
+            .then(function (item) {
+                return self.deleteMatchingItems(helper, [item], "path", path, opts);
+            });
+    }
+
+    /**
+     * Deletes artifacts based on search results.
+     *
+     * @param {Object} helper The helper for the artifact type.
+     * @param {String} path The path to delete.
+     */
+    deleteBySearch (helper, path) {
+        const self = this;
+        const opts = this.getApiOptions();
+
+        // For each artifact returned, we only need the path and ID values.
+        const searchOptions = {"fl": ["path", "id"]};
+
+        const recursive = this.getCommandLineOption("recursive");
+
+        // Get the specified search results.
+        return helper.searchRemote(path, recursive, searchOptions, opts)
+            .then(function (searchResults) {
+                return self.deleteMatchingItems(helper, searchResults, "path", path, opts);
+            });
+    }
+
+    /**
+     * Deletes (or previews) the matching items.
+     *
+     * @param {Object} helper The helper for the artifact type to delete.
+     * @param {Array} items Array of items to be deleted.
+     * @param {String} displayField The name of the field to display for the items being deleted.
+     * @param {String} path The path of the items to be deleted.
+     * @param {Object} opts The API options to be used for the delete operation.
+     */
+    deleteMatchingItems (helper, items, displayField, path, opts) {
+        const self = this;
+        const logger = self.getLogger();
+
+        const recursive = this.getCommandLineOption("recursive");
+
+        if (!items || items.length === 0) {
+            // --------------------------------------------------------
+            // The specified path did not match any existing artifacts.
+            // --------------------------------------------------------
+            self.errorMessage(i18n.__('cli_delete_no_match'));
+        } else if (self.getCommandLineOption("preview")) {
+            // ------------------------------------------------------------
+            // Preview the matching artifacts that would have been deleted.
+            // ------------------------------------------------------------
+            self.successMessage(i18n.__('cli_delete_preview'));
+            items.forEach(function (item) {
+                BaseCommand.displayToConsole(item[displayField]);
+            });
+        } else if (!recursive && items.length === 1) {
+            // -------------------------------------------------------
+            // Delete the single artifact that was specified via path.
+            // -------------------------------------------------------
+            const item = items[0];
+            logger.info(i18n.__("cli_deleting_artifact", {"name": item[displayField]}));
+            return helper.deleteRemoteItem(item, opts)
+                .then(function (message) {
+                    logger.info(message);
+                    self.successMessage(i18n.__('cli_delete_success', {name: item[displayField]}));
+                })
+                .catch(function (err) {
+                    logger.error(err);
+                    self.errorMessage(i18n.__("cli_delete_failure", {"name": item[displayField], "err": err.message}));
+                });
+        } else if (self.getCommandLineOption("quiet")) {
+            // --------------------------------------------
+            // Delete matching artifacts without prompting.
+            // --------------------------------------------
+            logger.info(i18n.__("cli_deleting_web_assets", {"path": path}));
+            return self.deleteItems(helper, items, opts);
+        } else {
+            // -----------------------------------------
+            // Delete matching artifacts with prompting.
+            // -----------------------------------------
+            logger.info(i18n.__("cli_deleting_web_assets", {"path": path}));
+
+            // Display a prompt for each matching artifact, so the user can decide which ones should be deleted.
+            const schemaInput = {};
+            items.forEach(function (item) {
+                // For each matching file, add a confirmation prompt (keyed by the artifact id).
+                schemaInput[item.id] =
+                    {
+                        description: i18n.__("cli_delete_confirm", {"path": item[displayField]}),
+                        required: true
+                    };
+            });
+
+            // After all the prompts have been displayed, execute each of the confirmed delete operations.
+            const deferred = Q.defer();
+            const schemaProps = {properties: schemaInput};
+            prompt.message = '';
+            prompt.delimiter = ' ';
+            prompt.start();
+            prompt.get(schemaProps, function (err, result) {
+                // Display a blank line to separate the prompt output from the delete output.
+                BaseCommand.displayToConsole("");
+
+                // Filter out the items that were not confirmed.
+                items = items.filter(function (item) {
+                    return (result[item.id] === "y");
+                });
+
+                if (items.length > 0) {
+                    self.deleteItems(helper, items, opts)
+                        .then(function () {
+                            deferred.resolve();
+                        })
+                        .catch(function (err) {
+                            deferred.reject(err);
+                        });
+                } else {
+                    self.successMessage(i18n.__("cli_delete_none_confirmed"));
+                    deferred.resolve();
+                }
+            });
+
+            return deferred.promise;
+        }
     }
 
     /**
@@ -272,6 +373,9 @@ class DeleteCommand extends BaseCommand {
      */
     resetCommandLineOptions () {
         this.setCommandLineOption("webassets", undefined);
+        this.setCommandLineOption("layouts",  undefined);
+        this.setCommandLineOption("layoutMappings", undefined);
+        this.setCommandLineOption("id", undefined);
         this.setCommandLineOption("named", undefined);
         this.setCommandLineOption("path", undefined);
         this.setCommandLineOption("recursive", undefined);
@@ -286,7 +390,10 @@ function deleteCommand (program) {
         .command('delete')
         .description(i18n.__('cli_delete_description'))
         .option('-w --webassets',        i18n.__('cli_delete_opt_web_assets'))
+        .option('-l --layouts',          i18n.__('cli_delete_opt_layouts'))
+        .option('-m --layout-mappings',  i18n.__('cli_delete_opt_layout_mappings'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
+        .option('--id <id>',             i18n.__('cli_delete_opt_id'))
         .option('-p --path <path>',      i18n.__('cli_delete_opt_path'))
         .option('-r --recursive',        i18n.__('cli_delete_opt_recursive'))
         .option('-P --preview',          i18n.__('cli_delete_opt_preview'))

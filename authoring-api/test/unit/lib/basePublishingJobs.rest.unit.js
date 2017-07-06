@@ -77,11 +77,11 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
         describe("is a singleton", function () {
             it("should fail if try to create a rest Type", function (done) {
                 let error;
-                try{
-                    let foo = new restApi.constructor();
-                    error = "shouldn't get here";
+                try {
+                    // The constructor should fail, so we do not expect the assignment to occur.
+                    error = new restApi.constructor();
                 }
-                catch (e){
+                catch (e) {
                     expect(e).to.equal("An instance of singleton class " + restApi.constructor.name + " cannot be constructed");
                 }
                 // Call mocha's done function to indicate that the test is over.
@@ -101,9 +101,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 const stub = sinon.stub(request, "get");
                 // The second GET request is to retrieve the items, but returns an error.
                 const URI_ERROR = "Error getting the items.";
-                let err = new Error(URI_ERROR);
-                let res = null;
-                let body = null;
+                const err = new Error(URI_ERROR);
+                const res = null;
+                const body = null;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -140,9 +140,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 const stub = sinon.stub(request, "get");
                 // The second GET request is to retrieve the items, but returns an error.
                 const URI_ERROR = "Error getting the items.";
-                let err = null;
-                let res = {"statusCode": 407};
-                let body = URI_ERROR;
+                const err = null;
+                const res = {"statusCode": 407};
+                const body = URI_ERROR;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -181,9 +181,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // The second GET request is to retrieve the items metadata.
                 const item1 = UnitTest.getJsonObject(itemPath1);
                 const item2 = UnitTest.getJsonObject(itemPath2);
-                let err = null;
-                let res = {"statusCode": 200};
-                let body = {"items": [item1, item2]};
+                const err = null;
+                const res = {"statusCode": 200};
+                const body = {"items": [item1, item2]};
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -222,9 +222,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 const CANNOTFIND_ERROR = "cannot find item.";
                 const stub = sinon.stub(request, "get");
 
-                let err = new Error(CANNOTFIND_ERROR);
-                let res = {"statusCode": 404};
-                let body = null;
+                const err = new Error(CANNOTFIND_ERROR);
+                const res = {"statusCode": 404};
+                const body = null;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -254,12 +254,12 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
             it("should succeed when getting a valid resource", function (done) {
                 const stub = sinon.stub(request, "get");
-                let err = null;
-                let res = {"statusCode": 200};
+                const err = null;
+                const res = {"statusCode": 200};
 
                 // Read the contents of a test file.
                 const item =  UnitTest.getJsonObject(itemPath1);
-                let body = item;
+                const body = item;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -296,9 +296,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 const CANNOTFIND_ERROR = "cannot find item.";
                 const stub = sinon.stub(request, "get");
 
-                let err = new Error(CANNOTFIND_ERROR);
-                let res = {"statusCode": 404};
-                let body = null;
+                const err = new Error(CANNOTFIND_ERROR);
+                const res = {"statusCode": 404};
+                const body = null;
                 stub.onCall(0).yields(err, res, body);
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -326,12 +326,12 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
             it("should succeed when getting a valid publishing job status", function (done) {
                 const stub = sinon.stub(request, "get");
-                let err = null;
-                let res = {"statusCode": 200};
+                const err = null;
+                const res = {"statusCode": 200};
 
                 // Read the contents of a test file.
                 const item =  UnitTest.getJsonObject(itemPath1);
-                let body = item;
+                const body = item;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -367,9 +367,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // Create a stub for the DELETE request which returns an error.
                 const _ERROR = "Error creating the item.";
                 const stubCreate = sinon.stub(request, "post");
-                let err = new Error(_ERROR);
-                let res = {"statusCode": 401};
-                let body = null;
+                const err = new Error(_ERROR);
+                const res = {"statusCode": 401};
+                const body = null;
                 stubCreate.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -404,9 +404,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
             it("should succeed when creating a valid item specifies a body message", function (done) {
                 // Create a stub for the DELETE request to delete the specified item.
                 const stubCreate = sinon.stub(request, "post");
-                let err = null;
-                let res = {"statusCode": 201};
-                let body = "{\"id\", \"123456\"}";
+                const err = null;
+                const res = {"statusCode": 201};
+                const body = "{\"id\", \"123456\"}";
                 stubCreate.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -415,11 +415,10 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // Call the method being tested.
                 let error;
                 restApi.createPublishingJob({})
-                    .then(function (message) {
+                    .then(function () {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubCreate).to.have.been.calledOnce;
                         expect(stubCreate.firstCall.args[0].uri).to.contain("jobs");
-
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -441,9 +440,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // Create a stub for the DELETE request which returns an error.
                 const _ERROR = "Error deleting the item.";
                 const stubDelete = sinon.stub(request, "del");
-                let err = new Error(_ERROR);
-                let res = {"statusCode": 403};
-                let body = null;
+                const err = new Error(_ERROR);
+                const res = {"statusCode": 403};
+                const body = null;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -479,9 +478,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // Create a stub for the DELETE request to delete the specified item.
                 const DELETE_MESSAGE = "The item was deleted.";
                 const stubDelete = sinon.stub(request, "del");
-                let err = null;
-                let res = {"statusCode": 200};
-                let body = DELETE_MESSAGE;
+                const err = null;
+                const res = {"statusCode": 200};
+                const body = DELETE_MESSAGE;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -512,9 +511,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
             it("should succeed when deleting a valid item specifies no body message", function (done) {
                 // Create a stub for the DELETE request to delete the specified item.
                 const stubDelete = sinon.stub(request, "del");
-                let err = null;
-                let res = {"statusCode": 204};
-                let body = null;
+                const err = null;
+                const res = {"statusCode": 204};
+                const body = null;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -529,7 +528,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                         expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_ID);
 
                         // Verify that the REST API returned the expected value.
-//                        expect(message).to.contain(UnitTest.DUMMY_ID);
+                        expect(message).to.contain(UnitTest.DUMMY_ID);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -551,9 +550,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // Create a stub for the DELETE request which returns an error.
                 const _ERROR = "Error cancelling the item.";
                 const stubDelete = sinon.stub(request, "put");
-                let err = new Error(_ERROR);
-                let res = {"statusCode": 403};
-                let body = null;
+                const err = new Error(_ERROR);
+                const res = {"statusCode": 403};
+                const body = null;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -589,9 +588,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // Create a stub for the DELETE request to delete the specified item.
                 const DELETE_MESSAGE = "The item was deleted.";
                 const stubDelete = sinon.stub(request, "put");
-                let err = null;
-                let res = {"statusCode": 200};
-                let body = DELETE_MESSAGE;
+                const err = null;
+                const res = {"statusCode": 200};
+                const body = DELETE_MESSAGE;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -622,9 +621,9 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
             it("should succeed when cancelling a valid item specifies no body message", function (done) {
                 // Create a stub for the DELETE request to delete the specified item.
                 const stubDelete = sinon.stub(request, "put");
-                let err = null;
-                let res = {"statusCode": 204};
-                let body = null;
+                const err = null;
+                const res = {"statusCode": 204};
+                const body = null;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -633,7 +632,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // Call the method being tested.
                 let error;
                 restApi.cancelPublishingJob(UnitTest.DUMMY_ID)
-                    .then(function (message) {
+                    .then(function () {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubDelete).to.have.been.calledOnce;
                         expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_ID);

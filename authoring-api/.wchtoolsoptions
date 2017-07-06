@@ -64,5 +64,15 @@
     "offset": 0,
     "limit": 200,
     "concurrent-limit": 10
+  },
+  "layouts": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
+  },
+  "layout-mappings": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 10
   }
 }

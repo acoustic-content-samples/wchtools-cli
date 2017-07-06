@@ -241,13 +241,17 @@ class BaseCommand {
 
     /**
      * Determine how many artifact type options were specified. If none, then set the default artifact type option.
+     *
+     * @param {Array} [defaultArtifactTypes] The artifact types to use if no artifact types have been specified.
      */
-    handleArtifactTypes () {
+    handleArtifactTypes (defaultArtifactTypes) {
         // If all-Authoring was specified, set all authoring artifact types.
         if (this.getCommandLineOption("allAuthoring")) {
             this.setCommandLineOption("types", true);
             this.setCommandLineOption("assets", true);
             this.setCommandLineOption("webassets", true);
+            this.setCommandLineOption("layouts", true);
+            this.setCommandLineOption("layoutMappings", true);
             this.setCommandLineOption("content", true);
             this.setCommandLineOption("categories", true);
             this.setCommandLineOption("renditions", true);
@@ -263,6 +267,12 @@ class BaseCommand {
             this._optionArtifactCount++;
         }
         if (this.getCommandLineOption("webassets")) {
+            this._optionArtifactCount++;
+        }
+        if (this.getCommandLineOption("layouts")) {
+            this._optionArtifactCount++;
+        }
+        if (this.getCommandLineOption("layoutMappings")) {
             this._optionArtifactCount++;
         }
         if (this.getCommandLineOption("content")) {
@@ -288,10 +298,13 @@ class BaseCommand {
         }
 
         // If no object types were specified, set the default object type(s).
-        if (this._optionArtifactCount === 0) {
-            // Handle only assets by default.
-            this.setCommandLineOption("webassets", true);
-            this._optionArtifactCount = 1;
+        if (this._optionArtifactCount === 0 && defaultArtifactTypes) {
+            // Set the command line option for each of the default artifact types.
+            const self = this;
+            defaultArtifactTypes.forEach(function (type) {
+                self.setCommandLineOption(type, true);
+                self._optionArtifactCount++;
+            });
         }
     }
 

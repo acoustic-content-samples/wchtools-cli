@@ -35,6 +35,8 @@ const ListCategories =           PREFIX + i18n.__('cli_listing_categories') + SU
 const ListPublishingProfiles =   PREFIX + i18n.__('cli_listing_profiles') + SUFFIX;
 const ListPublishingSources =    PREFIX + i18n.__('cli_listing_sources') + SUFFIX;
 const ListImageProfiles =        PREFIX + i18n.__('cli_listing_image_profiles') + SUFFIX;
+const ListLayouts =              PREFIX + i18n.__('cli_listing_layouts') + SUFFIX;
+const ListLayoutMappings =       PREFIX + i18n.__('cli_listing_layout_mappings') + SUFFIX;
 const ListRenditions =           PREFIX + i18n.__('cli_listing_renditions') + SUFFIX;
 const ListPublishingSiteRevisions = PREFIX + i18n.__('cli_listing_site_revisions') + SUFFIX;
 
@@ -57,7 +59,7 @@ class ListCommand extends BaseCommand {
         const self = this;
 
         // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
-        self.handleArtifactTypes();
+        self.handleArtifactTypes(["webassets"]);
 
         // Make sure the "path" and "dir" options can be handled successfully.
         if (!self.handleDirOption() || !self.handlePathOption()) {
@@ -281,6 +283,16 @@ class ListCommand extends BaseCommand {
             promises.push(this.listImageProfiles());
         }
 
+        // Handle the layouts option.
+        if (this.getCommandLineOption("layouts")) {
+            promises.push(this.listLayouts());
+        }
+
+        // Handle the layout mappings option.
+        if (this.getCommandLineOption("layoutMappings")) {
+            promises.push(this.listLayoutMappings());
+        }
+
         // Handle the categories option.
         if (this.getCommandLineOption("categories")) {
             promises.push(this.listCategories());
@@ -414,6 +426,52 @@ class ListCommand extends BaseCommand {
         imageProfilesPromise
             .then(function (result) {
                 deferred.resolve({"type": ListImageProfiles, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    /**
+     * List the layouts artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of layouts artifacts.
+     */
+    listLayouts () {
+        const helper = toolsApi.getLayoutsHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper);
+        const layoutsPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        layoutsPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListLayouts, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    /**
+     * List the layout mapping artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of layout mappings artifacts.
+     */
+    listLayoutMappings () {
+        const helper = toolsApi.getLayoutMappingsHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper);
+        const layoutMappingsPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        layoutMappingsPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListLayoutMappings, "value": result});
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -594,6 +652,8 @@ class ListCommand extends BaseCommand {
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
+        this.setCommandLineOption("layouts", undefined);
+        this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
         this.setCommandLineOption("categories", undefined);
@@ -619,13 +679,15 @@ function listCommand (program) {
         .option('-t --types',            i18n.__('cli_list_opt_types'))
         .option('-a --assets',           i18n.__('cli_list_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_list_opt_web_assets'))
+        .option('-l --layouts',          i18n.__('cli_list_opt_layouts'))
+        .option('-m --layout-mappings',  i18n.__('cli_list_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_list_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_list_opt_content'))
         .option('-C --categories',       i18n.__('cli_list_opt_categories'))
+        .option('-r --renditions',       i18n.__('cli_list_opt_renditions'))
         .option('-P --publishing-profiles',i18n.__('cli_list_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_list_opt_site_revisions'))
         .option('-s --publishing-sources',i18n.__('cli_list_opt_sources'))
-        .option('-r --renditions',       i18n.__('cli_list_opt_renditions'))
         .option('-q --quiet',            i18n.__('cli_list_opt_quiet'))
         .option('-I --ignore-timestamps',i18n.__('cli_list_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_list_opt_all'))

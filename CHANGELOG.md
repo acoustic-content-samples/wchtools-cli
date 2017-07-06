@@ -1,5 +1,10 @@
 # Changelog
 
+### v1.3 Changes since 1.2.1
+
+  - Add support for pushing and pulling layouts and layout mappings.
+  - Add render command to kick off a render-only publishing job.
+
 ### v1.2.1 Changes since 1.1.13
 
  - Unit test tweak, to allow unit tests to be run from both Node 4.x and Node 6.x.

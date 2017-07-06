@@ -165,6 +165,43 @@ class BaseREST {
         return deferred.promise;
     }
 
+    /*
+     * Does this WCH REST API currently support the by-path end point?
+     */
+    supportsItemByPath () {
+        return false;
+    }
+
+    getItemByPath (path, opts) {
+        const deferred = Q.defer();
+        const serviceName = this.getServiceName();
+        if (this.supportsItemByPath()) {
+            this.getRequestOptions(opts)
+                .then(function (requestOptions) {
+                    requestOptions.uri = requestOptions.uri + "/by-path?path=" + path;
+                    request.get(requestOptions, function (err, res, body) {
+                        if ((err) || (res && res.statusCode !== 200)) {
+                            err = utils.getError(err, body, res, requestOptions);
+                            // special case where we are just seeing if the item does exisit and if not it's not an error
+                            if (!opts || opts.noErrorLog !== "true") {
+                                utils.logErrors(i18n.__("get_item_error", {"service_name": serviceName}), err);
+                            }
+                            deferred.reject(err);
+                        } else {
+                            deferred.resolve(body);
+                        }
+                    });
+                })
+                .catch(function (err) {
+                    deferred.reject(err);
+                });
+        } else {
+            // This is a programming error, no need to translate.
+            deferred.reject(new Error(i18n.__("error_unsupported_endpoint", {"service_name": serviceName, "endpoint": "by-path"})));
+        }
+        return deferred.promise;
+    }
+
     createItem (item, opts) {
         const restObject = this;
         const deferred = Q.defer();
@@ -200,7 +237,7 @@ class BaseREST {
     /*
      * Does this WCH REST API currently support the forceOverride query param?
      */
-    supportsForceOverride() {
+    supportsForceOverride () {
         return false;
     }
 

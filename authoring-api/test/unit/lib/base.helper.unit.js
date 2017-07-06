@@ -37,7 +37,7 @@ class BaseHelperUnitTest extends UnitTest {
         super();
     }
 
-    run (restApi,fsApi, helper, path1, path2, badPath) {
+    run (restApi, fsApi, helper, path1, path2, badPath) {
         const self = this;
         const type =  fsApi.getFolderName();
 
@@ -696,7 +696,7 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubGet = sinon.stub(restApi, "getItems");
                 stubGet.onCall(0).resolves([itemMetadata1]);
                 stubGet.onCall(1).resolves([itemMetadata2]);
-                stubGet.onCall(2).resolves([badMetadata]);
+                stubGet.onCall(2).resolves([UnitTest.DUMMY_METADATA]);
                 stubGet.onCall(3).resolves([]);
 
                 const WRITE_ERROR = "Error writing the item";
@@ -730,7 +730,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(spyPull.args[1][0]).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
-                        expect(spyError.args[0][1]).to.equal(badMetadata.id);
+                        expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -747,7 +747,7 @@ class BaseHelperUnitTest extends UnitTest {
                 // Create an restApi.getItems stub that returns a promise for the metadata of the items.
                 const stubGet = sinon.stub(restApi, "getItems");
                 stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2]);
-                stubGet.onCall(1).resolves([badMetadata]);
+                stubGet.onCall(1).resolves([UnitTest.DUMMY_METADATA]);
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
@@ -780,7 +780,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
-                        expect(spyError.args[0][1]).to.equal(badMetadata.id);
+                        expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -868,7 +868,7 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubGet = sinon.stub(restApi, "getModifiedItems");
                 stubGet.onCall(0).resolves([itemMetadata1]);
                 stubGet.onCall(1).resolves([itemMetadata2]);
-                stubGet.onCall(2).resolves([badMetadata]);
+                stubGet.onCall(2).resolves([UnitTest.DUMMY_METADATA]);
                 stubGet.onCall(3).resolves([]);
 
                 const WRITE_ERROR = "Error writing the item";
@@ -902,7 +902,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(spyPull.args[1][0]).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
-                        expect(spyError.args[0][1]).to.equal(badMetadata.id);
+                        expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -919,7 +919,7 @@ class BaseHelperUnitTest extends UnitTest {
                 // Create an restApi.getItems stub that returns a promise for the metadata of the items.
                 const stubGet = sinon.stub(restApi, "getModifiedItems");
                 stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2 ]);
-                stubGet.onCall(1).resolves([badMetadata]);
+                stubGet.onCall(1).resolves([UnitTest.DUMMY_METADATA]);
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
@@ -952,7 +952,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
-                        expect(spyError.args[0][1]).to.equal(badMetadata.id);
+                        expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -1193,11 +1193,11 @@ class BaseHelperUnitTest extends UnitTest {
                 // Call the method being tested.
                 let error;
                 helper.pushItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
-                    .then(function (item) {
+                    .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for creating the remote item should have been rejected.");
                     })
-                    .catch(function (err) {
+                    .catch(function (/*err*/) {
                         // Verify that the stubs were all called once.
                         expect(stubGet).to.have.been.calledOnce;
                         expect(stubrGet).to.have.been.calledOnce;
@@ -1601,8 +1601,7 @@ class BaseHelperUnitTest extends UnitTest {
         const self = this;
         describe("listLocalDeletedNames", function () {
             it("should get no items.", function (done) {
-                // Create an fsApi.listItemNames stub that returns an error.
-                const ITEM_ERROR = "There was an error getting the local items.";
+                // Create a hashes.listFiles stub that returns an empty list.
                 const stub = sinon.stub(hashes, "listFiles");
                 stub.returns([]);
 
@@ -1632,7 +1631,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed when getting item names succeeds.", function (done) {
                 // Create an fsApi.listItemNames stub that returns an a list.
                 const stub = sinon.stub(hashes, "listFiles");
-                let rVal = [
+                const rVal = [
                     "file1" + fsApi.getExtension(),
                     "file2" + fsApi.getExtension(),
                     "file3"
@@ -1704,7 +1703,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed when getting item names succeeds.", function (done) {
                 // Create an fsApi.listItemNames stub that returns an a list.
                 const stub = sinon.stub(hashes, "listFiles");
-                let rVal = [
+                const rVal = [
                     "file1" + fsApi.getExtension(),
                     "file2" + fsApi.getExtension(),
                     "file3"
@@ -1780,7 +1779,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("local modified & new should succeed when getting item names succeeds.", function (done) {
                 // Create an fsApi.listItemNames stub that returns an a list.
                 const stub = sinon.stub(fsApi, "listNames");
-                let rVal = [
+                const rVal = [
                     "file1",
                     "file2",
                     "file3"
@@ -1815,7 +1814,7 @@ class BaseHelperUnitTest extends UnitTest {
             });
             it("local deleted should succeed when getting item names succeeds.", function (done) {
                 const stub = sinon.stub(hashes, "listFiles");
-                let rVal = [
+                const rVal = [
                     "file1" + fsApi.getExtension(),
                     "file2" + fsApi.getExtension(),
                     "file3"
@@ -1913,7 +1912,7 @@ class BaseHelperUnitTest extends UnitTest {
             });
             it("Remote deleted should succeed when getting item names succeeds.", function (done) {
                 const stub = sinon.stub(hashes, "listFiles");
-                let rVal = [
+                const rVal = [
                     "file1" + fsApi.getExtension(),
                     "file2" + fsApi.getExtension(),
                     "file3"
@@ -1924,7 +1923,7 @@ class BaseHelperUnitTest extends UnitTest {
                 self.addTestDouble(stub);
 
                 const stub2 = sinon.stub(helper, "listRemoteDeletedNames");
-                let rVal2 = [
+                const rVal2 = [
                     "file1",
                     "file2",
                     "file3"

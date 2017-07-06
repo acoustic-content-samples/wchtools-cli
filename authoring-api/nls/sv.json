@@ -9,6 +9,8 @@
   "invalid_path": "Ogiltig sökväg: %(path)s",
   "timed_out_closing_read_stream": "timeout inträffade vid läsning av ström för att stänga",
   "remote_asset_not_found": "Fjärrtillgång hittades inte: ",
+  "cannot_push_item": "Objektet '%(name)s' kunde inte skickas.",
+  "cannot_pull_item": "Objektet '%(name)s' kunde inte hämtas.",
 
   "deleted_original_file": "Borttagen ursprunglig fil: %(old_name) ny fil: %(new_name)",
   "error_cancelling_job": "Fel vid avbrytande av jobb: ID %(id)",
@@ -41,14 +43,15 @@
   "error_set_last_push_timestamp": "Fel i setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Fel i getHashesForFile: ",
 
+  "error_unsupported_endpoint": "%(service_name)s API hanterar inte %(endpoint)s slutpunkt.",
   "unknown_error": "Okänt fel",
-  "service_unavailable": "En IBM Watson Content Hub-tjänst är inte tillgänglig för närvarande.  ",
-  "service_error": "En IBM Watson Content Hub-tjänst rapporterar tekniska svårigheter.  ",
+  "service_unavailable": "En IBM Watson Content Hub-tjänst är inte tillgänglig för närvarande. ",
+  "service_error": "En IBM Watson Content Hub-tjänst rapporterar tekniska svårigheter. ",
   "service_response_error": "En IBM Watson Content Hub-tjänst returnerade felkoden %(code)d och statusmeddelandet: %(message)s",
   "operation_failed": "Åtgärden misslyckades med fel: ",
   "async_parallel_limit_error": "Asynkront parallelLimit-anrop misslyckades med fel: ",
   "async_parallel_limit_results": "Asynkrona parallelLimit-resultat: ",
-  "please_try": "Försök igen senare.  Kontakta kundsupport och inkludera logginformationen som är tillgänglig på %(log_dir)s om problemet kvarstår",
+  "please_try": "Försök igen senare. Kontakta kundsupport och inkludera logginformationen som är tillgänglig på %(log_dir)s om problemet kvarstår",
   "conflict":"Tjänsten påträffade och returnerade ett feltillstånd under bearbetning av begäran för den här artefakten.",
   "login_missing_authn":"Inloggningstjänsten misslyckades med att svara med giltig autentiseringsinformation.",
   "digest_mismatch": "kondensatet %(cli_kondensat) för hämtad tillgång %(asset)s matchar inte serverns kondensat %(server_digest)s."

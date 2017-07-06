@@ -175,6 +175,26 @@ class BaseHelper {
     }
 
     /**
+     * Get the name to be displayed for the given item.
+     * Path by default, fallback to id then name
+     *
+     * Don't fallback to getName since that may have been overwritten to call
+     * this method, which could then cause infinite recursion
+     *
+     * @param {Object} item - The item for which to get the name.
+     *
+     * @returns {String} The name to be displayed for the given item.
+     */
+    getPathName (item) {
+        if (item.path)
+            return item.path;
+        else if (item.id) {
+            return item.id;
+        }
+        return item.name;
+    }
+
+    /**
      * Get the item on the local file system with the given name.
      *
      * @param {String} name - The name of the item.
@@ -741,6 +761,39 @@ class BaseHelper {
     }
 
     /**
+     * Used to determine if the helper supports deleting items by id.
+     */
+    supportsDeleteById(opts) {
+        return false;
+    }
+
+    /**
+     * Used to determine if the helper supports deleting items by path.
+     */
+    supportsDeleteByPath(opts) {
+        return false;
+    }
+
+    /**
+     * Used to determine if the helper supports deleting items by path.
+     */
+    supportsDeleteByPathRecursive(opts) {
+        return false;
+    }
+
+    /**
+     * Gets a remote item by path.
+     *
+     * @param {String} path The path of the item to find.
+     * @param {Object} opts The options to be used for the operation.
+     *
+     * @returns {Q.Promise} A promise for the item to find.
+     */
+    getRemoteItemByPath (path, opts) {
+        return this._restApi.getItemByPath(path, opts);
+    }
+
+    /**
      * Delete the specified remote item.
      *
      * @param {String} item - The item to be deleted.
@@ -892,15 +945,15 @@ class BaseHelper {
                                         throw(err);
                                     })
                                     .catch(function (error) {
-                                        logger.warn(error);
+                                        logger.warn(error.toString());
                                         // throw the original err for conflict
-                                        throw err;
+                                        throw(err);
                                     });
                             })
                             .catch(function (error) {
-                                logger.warn(error);
+                                logger.warn(error.toString());
                                 // throw the original err for conflict
-                                throw err;
+                                throw(err);
                             });
                     } else {
                         throw(err);

@@ -260,6 +260,66 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
   By default, the .wchtoolsoptions file can be found in the user's home directory after running the init command.
 
+#### Creating and managing templates, layouts and layout mappings
+
+ - Watson Content Hub now supports Handlebars templates for rendering purposes, where a content type and item can be mapped to a layout object, via layout mapping, where the layout object then refers to a handlebars template, that is associated with that content type.
+ 
+ - For example, you can create a handlebars template under working-dir/assets/templates/article.hbs  for the "Article" content type
+ 
+               <div>
+                 ...
+                   <img src="{{elements.image.url}}" alt="" width="360" height="225">
+                 ...
+                   <h4 style="color:#000;padding:25px 0px 5px 0px">
+                       <a>{{elements.title.value}}</a>
+                   </h4>
+               </div>
+   
+  - The above handlebars file then needs to be described to the Authoring and Publishing/Rendering system via a Layout, which provides additional metadata for those services to identify and find the template.  Create a Layout for your new Article template under workingdir/layouts/templates/article.json  with metadata like this:
+  
+           {
+             "id": "defaultArticleLayout",
+             "name": "Default Article Layout",
+             "prerender": true,
+             "template": "/templates/article.hbs"
+           }
+
+  - To let the Authoring and Publishing/Rendering services know that you want this new template and layout associated with your Article content type, you then need to create a "Layout Mapping" under workingdir/layout-mappings/templates/article.json like this:
+  
+           {
+             "id": "articleLayoutMapping",
+             "name": "My Article Layout Mapping",
+             "type": {
+               "name": "Article"
+             },
+             "mappings": [
+               {
+                 "defaultLayout": {
+                   "id": "defaultArticleLayout",
+                   "name": "Default Article Layout"
+                 },
+                 "layouts": [
+                   {
+                     "id": "defaultArticleLayout",
+                     "name": "Default Article Layout"
+                   }
+                 ]
+               }
+             ]
+           }
+  
+  - Note, the content "Type" can be referenced from the layout mapping by "name", but the "layout" has to be referenced by "id" at this point, so be sure to give your layout a developer readable and remember-able "id" field when you create it, so that you can easily reference it when creating the layout mapping metadata in the above format.
+  
+  - Now that you have created an hbs template, a layout object and a layout mapping object for your article type, you may push those all to Watson Content Hub with the following command:
+  
+             wchtools push -wlm -v --dir <some_working_directory>
+
+  - Note, push -A (for all Authoring artifacts) will also push the web assets, layouts and mapping.
+
+  - Note, the above sample using the "/templates" folder under assets, layouts and layout-mappings is an example for reference only.  You may choose another folder name and multiple subfolder levels if desired.  It is recommended that you keep the folder names and filenames under assets, layouts and layout-mappings,   and the name of the template, layout and layout mapping files similar and similar to the Type name that you are creating these artifacs for,  to make it easier to find when making further edits, and to make it easier for others on your team to understand the relationship between the files quickly and easily, when browsing the local artifacs in an IDE.
+  
+  - See the Watson Content Hub online documentation for more information on Layout, Layout Mapping syntax and metadata supported, and the Publishing and Rendering documentation, for how these artifacts are combined during a publishing and rendering job, to generate HTML.
+  
 #### Limitations
   The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
 
