@@ -9,6 +9,8 @@
   "invalid_path": "Caminho inválido %(path)s",
   "timed_out_closing_read_stream": "Ocorreu um tempo limite esperando fechamento de fluxo de leitura",
   "remote_asset_not_found": "Ativo remoto não localizado: ",
+  "cannot_push_item": "O item '%(name)s' não pôde ser mais enviado por push.",
+  "cannot_pull_item": "O item '%(name)s' não pôde ser puxado.",
 
   "deleted_original_file": "Excluído arquivo original: %(old_name)s novo arquivo: %(new_name)s",
   "error_cancelling_job": "Erro ao cancelar tarefa: ID %(id)s",
@@ -41,9 +43,10 @@
   "error_set_last_push_timestamp": "Erro em setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Erro em getHashesForFile: ",
 
+  "error_unsupported_endpoint": "O(s) %(service_name)s API não suporta(m) o(s) endpoint(s) %(endpoint)s.",
   "unknown_error": "Erros Desconhecido",
-  "service_unavailable": "Um serviço IBM Watson Content Hub atualmente está indisponível.  ",
-  "service_error": "Um serviço IBM Watson Content Hub está relatando dificuldades técnicas.  ",
+  "service_unavailable": "Um serviço do IBM Watson Content Hub está indisponível atualmente.  ",
+  "service_error": "Um serviço do IBM Watson Content Hub está relatando dificuldades técnicas.  ",
   "service_response_error": "Um serviço IBM Watson Content Hub retornou o código de erro %(code)d e mensagem de status: %(message)s",
   "operation_failed": "A operação falhou com o erro: ",
   "async_parallel_limit_error": "A chamada assíncrona parallelLimit falhou com o erro: ",

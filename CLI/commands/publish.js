@@ -53,10 +53,12 @@ class PublishCommand extends BaseCommand {
             });
     }
 
-    static getJobIdFromStatusOption(status, helper) {
+    static getJobIdFromStatusOption(self, status, helper) {
         // If status is boolean==true then --status was specified without a job id so lookup most recent job
         if (status === true) {
-            return helper.getPublishingJobs( { "offset": 0, "limit": 1 } )
+            const opts = self.getApiOptions();
+            opts.limit = 1;
+            return helper.getPublishingJobs( opts )
                 .then(jobs => { return (jobs ? jobs[0].id : 0) });
         } else {
             return Promise.resolve(status);
@@ -86,7 +88,7 @@ class PublishCommand extends BaseCommand {
             })
             .then(function (/*results*/) {
                 if (status) {
-                    PublishCommand.getJobIdFromStatusOption(status, helper)
+                    PublishCommand.getJobIdFromStatusOption(self, status, helper)
                         .then(jobId => {
                             if (jobId && jobId !== 0) {
                                 self.displayJobStatus(self, helper, logger, jobId, self.getApiOptions());

@@ -76,6 +76,15 @@ class JSONItemFS extends BaseFS {
     }
 
     /**
+     * Optionally prune fields out of the item that we don't want stored on disk
+     * @param {Object} item
+     * @param {Object} opts
+     */
+     pruneItem(item, opts) {
+         // Base class doesn't prune anything yet, but subclasses likely do.
+     }
+
+    /**
      * Locally saves the given item according to the config settings. The item will
      * be saved according to its name property.
      *
@@ -83,6 +92,7 @@ class JSONItemFS extends BaseFS {
      * @param {Object} opts -
      */
     saveItem(item, opts) {
+        const fsObject = this;
         let filepath = this.getItemPath(item, opts);
         this.handleRename(filepath, opts);
         if (opts && opts.conflict) {
@@ -103,9 +113,10 @@ class JSONItemFS extends BaseFS {
                     reject(err);
                 } else {
                     try {
+                        fsObject.pruneItem(item, opts);
                         fs.writeFileSync(filepath, JSON.stringify(item, null, "  "));
                         if (opts && !opts.conflict) {
-                            hashes.updateHashes(dir, filepath, item, opts);
+                            hashes.updateHashes(fsObject.getPath(opts), filepath, item, opts);
                         }
                         return resolve(item);
                     } catch (err) {

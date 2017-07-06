@@ -43,6 +43,7 @@
   "error_set_last_push_timestamp": "Error in setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Error in getHashesForFile: ",
 
+  "error_unsupported_endpoint": "The %(service_name)s API does not support the %(endpoint)s endpoint.",
   "unknown_error": "Unknown error",
   "service_unavailable": "An IBM Watson Content Hub service is currently not available.  ",
   "service_error": "An IBM Watson Content Hub service is reporting technical difficulties.  ",

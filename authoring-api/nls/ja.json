@@ -5,10 +5,12 @@
   "push_error_creating_item": "アイテムの作成でプッシュ・エラーが発生しました: ",
   "push_error_updating_item": "アイテムの更新でプッシュ・エラーが発生しました: ",
   "pushed_item_error": "プッシュ済みアイテム・エラー: ",
-  "pushed_item_retry": "アイテム '%(name)s' のプッシュを再試行してください。エラー: %(message)s",
+  "pushed_item_retry": "アイテム '%(name)s' のプッシュを再試行してください。 エラー: %(message)s",
   "invalid_path": "無効なパス: %(path)s",
   "timed_out_closing_read_stream": "読み取りストリームが閉じるのを待っているときにタイムアウトが発生しました",
   "remote_asset_not_found": "リモート・アセットが見つかりません: ",
+  "cannot_push_item": "アイテム '%(name)s' をプッシュできませんでした。",
+  "cannot_pull_item": "アイテム '%(name)s' をプルできませんでした。",
 
   "deleted_original_file": "元のファイル %(old_name)s を削除しました。新規ファイル: %(new_name)s",
   "error_cancelling_job": "次のジョブのキャンセルでエラーが発生しました: ID %(id)s",
@@ -41,6 +43,7 @@
   "error_set_last_push_timestamp": "setLastPushTimestamp でエラーが発生しました: ",
   "error_get_hashes_for_file": "getHashesForFile でエラーが発生しました: ",
 
+  "error_unsupported_endpoint": "%(service_name)s のAPI は %(endpoint)s のエンドポイントをサポートしていません。",
   "unknown_error": "不明なエラー",
   "service_unavailable": "IBM Watson Content Hub サービスは現在使用できません。  ",
   "service_error": "IBM Watson Content Hub サービスが技術的な問題を報告しています。  ",

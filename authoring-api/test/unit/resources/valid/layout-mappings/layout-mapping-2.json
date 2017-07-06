@@ -1,0 +1,21 @@
+{
+  "name": "layout mapping 2",
+  "id":   "layoutmapping2",
+  "type": {
+    "id": "24490027-e55b-4739-a5a9-5c091c5d4a72",
+    "name": "Article"
+  },
+  "mappings": [
+    {
+      "layoutMode": "Sample mode",
+      "defaultLayout": {
+        "id": "mylayout"
+      },
+      "layouts": [
+        {
+          "id": "mylayout"
+        }
+      ]
+    }
+  ]
+}

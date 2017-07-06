@@ -455,7 +455,7 @@ class DeleteUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // The expected error should have been returned.
-                            expect(err.message).to.contain('The web asset to be deleted must be specified with the');
+                            expect(err.message).to.contain('Either --id or --path must be specified.');
                         } catch (err) {
                             error = err;
                         }

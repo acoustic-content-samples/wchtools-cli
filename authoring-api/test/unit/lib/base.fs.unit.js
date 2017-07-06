@@ -730,7 +730,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    listNamesSuccess (fsApi, fsName,itemName1, itemName2, done) {
+    listNamesSuccess (fsApi, fsName, itemName1, itemName2, done) {
         // Set the current working directory to the "valid resources" directory.
         options.setGlobalOptions({"workingDir":UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY});
 

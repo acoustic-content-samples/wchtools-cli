@@ -231,9 +231,9 @@ class BaseRestUnitTest extends UnitTest {
 
                 // The second GET request is to retrieve the items, but returns an error.
                 const URI_ERROR = "Error getting the items.";
-                let err = new Error(URI_ERROR);
-                let res = null;
-                let body = null;
+                const err = new Error(URI_ERROR);
+                const res = null;
+                const body = null;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -272,9 +272,9 @@ class BaseRestUnitTest extends UnitTest {
 
                 // The second GET request is to retrieve the items, but returns an error.
                 const URI_ERROR = "Error getting the items.";
-                let err = null;
-                let res = {"statusCode": 407};
-                let body = URI_ERROR;
+                const err = null;
+                const res = {"statusCode": 407};
+                const body = URI_ERROR;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -318,7 +318,7 @@ class BaseRestUnitTest extends UnitTest {
                 // The second GET request is to retrieve the items metadata.
                 const item1 = UnitTest.getJsonObject(itemPath1);
                 const item2 = UnitTest.getJsonObject(itemPath2);
-                let body = {"items": [item1, item2]};
+                const body = {"items": [item1, item2]};
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -356,9 +356,9 @@ class BaseRestUnitTest extends UnitTest {
             it("should fail when the specified item does not exist", function (done) {
                 const CANNOTFIND_ERROR = "cannot find item.";
                 const stub = sinon.stub(request, "get");
-                let err = new Error(CANNOTFIND_ERROR);
-                let res = null;
-                let body = null;
+                const err = new Error(CANNOTFIND_ERROR);
+                const res = null;
+                const body = null;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -426,9 +426,9 @@ class BaseRestUnitTest extends UnitTest {
                 // Create a stub for the DELETE request which returns an error.
                 const _ERROR = "Error deleting the item.";
                 const stubDelete = sinon.stub(request, "del");
-                let err = new Error(_ERROR);
-                let res = {"statusCode": 403};
-                let body = null;
+                const err = new Error(_ERROR);
+                const res = {"statusCode": 403};
+                const body = null;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -464,9 +464,9 @@ class BaseRestUnitTest extends UnitTest {
                 // Create a stub for the DELETE request to delete the specified item.
                 const DELETE_MESSAGE = "The item was deleted.";
                 const stubDelete = sinon.stub(request, "del");
-                let err = null;
-                let res = {"statusCode": 200};
-                let body = DELETE_MESSAGE;
+                const err = null;
+                const res = {"statusCode": 200};
+                const body = DELETE_MESSAGE;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -497,9 +497,9 @@ class BaseRestUnitTest extends UnitTest {
             it("should succeed when deleting a valid item specifies no body message", function (done) {
                 // Create a stub for the DELETE request to delete the specified item.
                 const stubDelete = sinon.stub(request, "del");
-                let err = null;
-                let res = {"statusCode": 204};
-                let body = null;
+                const err = null;
+                const res = {"statusCode": 204};
+                const body = null;
                 stubDelete.yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -541,9 +541,9 @@ class BaseRestUnitTest extends UnitTest {
 
                 // The second GET request is to retrieve the items, but returns an error.
                 const UPDATE_ERROR = "Error updating the item.";
-                let err = new Error(UPDATE_ERROR);
-                let res = null;
-                let body = null;
+                const err = new Error(UPDATE_ERROR);
+                const res = null;
+                const body = null;
                 stub2.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -579,9 +579,9 @@ class BaseRestUnitTest extends UnitTest {
 
                 // The second GET request is to retrieve the items, but returns an error.
                 const UPDATE_ERROR = "Error updating the item.";
-                let err = null;
-                let res = {"statusCode": 407};
-                let body = UPDATE_ERROR;
+                const err = null;
+                const res = {"statusCode": 407};
+                const body = UPDATE_ERROR;
                 stub2.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -617,7 +617,7 @@ class BaseRestUnitTest extends UnitTest {
                 // The second GET request is to retrieve the items metadata.
                 const stub2 = sinon.stub(request, "put");
                 const item1 = UnitTest.getJsonObject(itemPath1);
-                let body = item1;
+                const body = item1;
                 stub2.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -727,9 +727,9 @@ class BaseRestUnitTest extends UnitTest {
 
                 // The second GET request is to retrieve the items, but returns an error.
                 const CREATE_ERROR = "Error creating the item.";
-                let err = new Error(CREATE_ERROR);
-                let res = null;
-                let body = null;
+                const err = new Error(CREATE_ERROR);
+                const res = null;
+                const body = null;
                 stub2.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -769,9 +769,9 @@ class BaseRestUnitTest extends UnitTest {
 
                 // The second GET request is to retrieve the items, but returns an error.
                 const UPDATE_ERROR = "Error creating the item.";
-                let err = null;
-                let res = {"statusCode": 407};
-                let body = UPDATE_ERROR;
+                const err = null;
+                const res = {"statusCode": 407};
+                const body = UPDATE_ERROR;
                 stub2.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -811,7 +811,7 @@ class BaseRestUnitTest extends UnitTest {
                 // The second GET request is to retrieve the items metadata.
                 const stub2 = sinon.stub(request, "post");
                 const item1 = UnitTest.getJsonObject(itemPath1);
-                let body = item1;
+                const body = item1;
                 stub2.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.

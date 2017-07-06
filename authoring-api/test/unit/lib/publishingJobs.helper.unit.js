@@ -115,7 +115,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
                 // Call the method being tested.
                 let error;
                 publishingJobsHelper.getPublishingJobs(UnitTest.DUMMY_OPTIONS)
-                    .then(function (jobs) {
+                    .then(function (/*jobs*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the publishing jobs should have been rejected.");
                     })
@@ -187,7 +187,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
                 // Call the method being tested.
                 let error;
                 publishingJobsHelper.getPublishingJob(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
-                    .then(function (job) {
+                    .then(function (/*job*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the publishing jobs should have been rejected.");
                     })
@@ -258,7 +258,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
                 // Call the method being tested.
                 let error;
                 publishingJobsHelper.getPublishingJobStatus(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
-                    .then(function (job) {
+                    .then(function (/*job*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the publishing job status should have been rejected.");
                     })
@@ -327,11 +327,11 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
                 // Call the method being tested.
                 let error;
                 publishingJobsHelper.createPublishingJob(null,UnitTest.DUMMY_OPTIONS)
-                    .then(function (item) {
+                    .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for creating the remote publishing job should have been rejected.");
                     })
-                    .catch(function (err) {
+                    .catch(function (/*err*/) {
                         try {
                             // Verify that the stub was called once.
                             expect(stub).to.be.calledOnce;
@@ -394,7 +394,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
                     // Call the method being tested.
                     let error;
                     publishingJobsHelper.deletePublishingJob(UnitTest.DUMMY_ID,UnitTest.DUMMY_OPTIONS)
-                        .then(function (item) {
+                        .then(function (/*item*/) {
                             // Verify that the stub was called once and that the helper returned the expected values.
                             expect(stub).to.have.been.calledOnce;
                         })
@@ -428,7 +428,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
                     // Call the method being tested.
                     let error;
                     publishingJobsHelper.cancelPublishingJob(UnitTest.DUMMY_ID,UnitTest.DUMMY_OPTIONS)
-                        .then(function (item) {
+                        .then(function (/*item*/) {
                             // Verify that the stub was called once and that the helper returned the expected values.
                             expect(stub).to.have.been.calledOnce;
                         })

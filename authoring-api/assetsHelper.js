@@ -787,6 +787,27 @@ class AssetsHelper {
         }
     }
 
+    /**
+     * Used to determine if the helper supports deleting items by id.
+     */
+    supportsDeleteById(opts) {
+        return false;
+    }
+
+    /**
+     * Used to determine if the helper supports deleting items by path.
+     */
+    supportsDeleteByPath(opts) {
+        return false;
+    }
+
+    /**
+     * Used to determine if the helper supports deleting items by path.
+     */
+    supportsDeleteByPathRecursive(opts) {
+        return true;
+    }
+
     searchRemote (path, recursive, searchOptions, opts) {
         const deferred = Q.defer();
 

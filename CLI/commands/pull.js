@@ -32,6 +32,8 @@ const PullingTypes =                PREFIX + i18n.__('cli_pull_pulling_types') +
 const PullingAssets =               PREFIX + i18n.__('cli_pull_pulling_assets') + SUFFIX;
 const PullingContentAssets =        PREFIX + i18n.__('cli_pull_pulling_content_assets') + SUFFIX;
 const PullingWebAssets =            PREFIX + i18n.__('cli_pull_pulling_web_assets') + SUFFIX;
+const PullingLayouts =              PREFIX + i18n.__('cli_pull_pulling_layouts') + SUFFIX;
+const PullingLayoutMappings =       PREFIX + i18n.__('cli_pull_pulling_layout_mappings') + SUFFIX;
 const PullingImageProfiles =        PREFIX + i18n.__('cli_pull_pulling_image_profiles') + SUFFIX;
 const PullingContents =             PREFIX + i18n.__('cli_pull_pulling_content') + SUFFIX;
 const PullingCategories =           PREFIX + i18n.__('cli_pull_pulling_categories') + SUFFIX;
@@ -64,7 +66,7 @@ class PullCommand extends BaseCommand {
         self._continueOnError = continueOnError;
 
         // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
-        self.handleArtifactTypes();
+        self.handleArtifactTypes(["webassets"]);
 
         // Make sure the "dir" option can be handled successfully.
         if (!self.handleDirOption()) {
@@ -175,6 +177,16 @@ class PullCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
                     return self.handlePullPromise(self.pullAssets());
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layouts")) {
+                    return self.handlePullPromise(self.pullLayouts());
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layoutMappings")) {
+                    return self.handlePullPromise(self.pullLayoutMappings());
                 }
             })
             .then(function() {
@@ -364,6 +376,94 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return imageProfilesPromise;
+    }
+
+    /**
+     * Pull the layout artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pulling the layout artifacts.
+     */
+    pullLayouts () {
+        const helper = toolsApi.getLayoutsHelper();
+        const self = this;
+
+        self.getLogger().info(PullingLayouts);
+
+        // The api emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_layout_pulled', {name: name}));
+        };
+        helper.getEventEmitter().on("pulled", artifactPulled);
+
+        // The api emits an event when there is a pull error, so we log it for the user.
+        const artifactPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_layout_pull_error', {name: name, message: error.message}));
+        };
+        helper.getEventEmitter().on("pulled-error", artifactPulledError);
+
+        // Cleanup function to remove the event listeners.
+        this.addCleanup(function () {
+            helper.getEventEmitter().removeListener("pulled", artifactPulled);
+            helper.getEventEmitter().removeListener("pulled-error", artifactPulledError);
+        });
+
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        const apiOptions = this.getApiOptions();
+        let artifactPromise;
+        if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactPromise = helper.pullAllItems(apiOptions);
+        } else {
+            artifactPromise = helper.pullModifiedItems(apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactPromise;
+    }
+
+    /**
+     * Pull the layout mapping artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pulling the artifacts.
+     */
+    pullLayoutMappings () {
+        const helper = toolsApi.getLayoutMappingsHelper();
+        const self = this;
+
+        self.getLogger().info(PullingLayoutMappings);
+
+        // The api emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_layout_mapping_pulled', {name: name}));
+        };
+        helper.getEventEmitter().on("pulled", artifactPulled);
+
+        // The api emits an event when there is a pull error, so we log it for the user.
+        const artifactPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_layout_mapping_pull_error', {name: name, message: error.message}));
+        };
+        helper.getEventEmitter().on("pulled-error", artifactPulledError);
+
+        // Cleanup function to remove the event listeners.
+        this.addCleanup(function () {
+            helper.getEventEmitter().removeListener("pulled", artifactPulled);
+            helper.getEventEmitter().removeListener("pulled-error", artifactPulledError);
+        });
+
+        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        const apiOptions = this.getApiOptions();
+        let artifactPromise;
+        if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactPromise = helper.pullAllItems(apiOptions);
+        } else {
+            artifactPromise = helper.pullModifiedItems(apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactPromise;
     }
 
     /**
@@ -685,6 +785,8 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
+        this.setCommandLineOption("layouts", undefined);
+        this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
         this.setCommandLineOption("categories", undefined);
@@ -704,6 +806,8 @@ function pullCommand (program) {
         .option('-t --types',            i18n.__('cli_pull_opt_types'))
         .option('-a --assets',           i18n.__('cli_pull_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_pull_opt_web_assets'))
+        .option('-l --layouts',          i18n.__('cli_pull_opt_layouts'))
+        .option('-m --layout-mappings',  i18n.__('cli_pull_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_pull_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_pull_opt_content'))
         .option('-C --categories',       i18n.__('cli_pull_opt_categories'))

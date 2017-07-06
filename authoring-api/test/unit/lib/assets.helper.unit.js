@@ -3336,13 +3336,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected value.
                         expect(names).to.have.lengthOf(7);
-                        expect(names[0]).to.equal(AssetsUnitTest.ASSET_HTML_1);
-                        expect(names[1]).to.equal(AssetsUnitTest.ASSET_HTML_2);
-                        expect(names[2]).to.equal(AssetsUnitTest.ASSET_HTML_3);
-                        expect(names[3]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                        expect(names[4]).to.equal(AssetsUnitTest.ASSET_CSS_2);
-                        expect(names[5]).to.equal(AssetsUnitTest.ASSET_HBS_1);
-                        expect(names[6]).to.equal(AssetsUnitTest.ASSET_HBS_2);
+                        expect(names[0]).to.be.oneOf(assetNames);
+                        expect(names[1]).to.be.oneOf(assetNames);
+                        expect(names[2]).to.be.oneOf(assetNames);
+                        expect(names[3]).to.be.oneOf(assetNames);
+                        expect(names[4]).to.be.oneOf(assetNames);
+                        expect(names[5]).to.be.oneOf(assetNames);
+                        expect(names[6]).to.be.oneOf(assetNames);
 
                         // Verify that the names stub was called once.
                         expect(stubNames).to.have.been.calledOnce;
@@ -3388,15 +3388,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected value.
                         expect(names).to.have.lengthOf(9);
-                        expect(names[0]).to.equal(AssetsUnitTest.ASSET_HTML_1);
-                        expect(names[1]).to.equal(AssetsUnitTest.ASSET_HTML_2);
-                        expect(names[2]).to.equal(AssetsUnitTest.ASSET_HTML_3);
-                        expect(names[3]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                        expect(names[4]).to.equal(AssetsUnitTest.ASSET_CSS_2);
-                        expect(names[5]).to.equal(AssetsUnitTest.ASSET_HBS_1);
-                        expect(names[6]).to.equal(AssetsUnitTest.ASSET_HBS_2);
-                        expect(names[7]).to.equal(AssetsUnitTest.ASSET_JPG_1);
-                        expect(names[8]).to.equal(AssetsUnitTest.ASSET_GIF_1);
+                        expect(names[0]).to.be.oneOf(assetNames);
+                        expect(names[1]).to.be.oneOf(assetNames);
+                        expect(names[2]).to.be.oneOf(assetNames);
+                        expect(names[3]).to.be.oneOf(assetNames);
+                        expect(names[4]).to.be.oneOf(assetNames);
+                        expect(names[5]).to.be.oneOf(assetNames);
+                        expect(names[6]).to.be.oneOf(assetNames);
+                        expect(names[7]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_GIF_1]);
+                        expect(names[8]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_GIF_1]);
 
                         // Verify that the names stub was called once.
                         expect(stubNames).to.have.been.calledOnce;
@@ -3457,10 +3457,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected value.
                         expect(names).to.have.lengthOf(4);
-                        expect(names[0]).to.equal(AssetsUnitTest.ASSET_HTML_2);
-                        expect(names[1]).to.equal(AssetsUnitTest.ASSET_HTML_3);
-                        expect(names[2]).to.equal(AssetsUnitTest.ASSET_CSS_2);
-                        expect(names[3]).to.equal(AssetsUnitTest.ASSET_HBS_2);
+                        expect(names[0]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[1]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[2]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[3]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
 
                         // Verify that the list files stub was called once.
                         expect(stubListFiles).to.have.been.calledOnce;

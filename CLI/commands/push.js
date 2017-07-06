@@ -29,6 +29,8 @@ const PREFIX = "========== ";
 const SUFFIX = " ===========";
 const PushingTypes =                PREFIX + i18n.__('cli_push_pushing_types') + SUFFIX;
 const PushingAssets =               PREFIX + i18n.__('cli_push_pushing_assets') + SUFFIX;
+const PushingLayouts =              PREFIX + i18n.__('cli_push_pushing_layouts') + SUFFIX;
+const PushingLayoutMappings =       PREFIX + i18n.__('cli_push_pushing_layout_mappings') + SUFFIX;
 const PushingContentAssets =        PREFIX + i18n.__('cli_push_pushing_content_assets') + SUFFIX;
 const PushingWebAssets =            PREFIX + i18n.__('cli_push_pushing_web_assets') + SUFFIX;
 const PushingContentItems =         PREFIX + i18n.__('cli_push_pushing_content') + SUFFIX;
@@ -65,7 +67,7 @@ class PushCommand extends BaseCommand {
         self._continueOnError = continueOnError;
 
         // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
-        self.handleArtifactTypes();
+        self.handleArtifactTypes(["webassets"]);
 
         // Make sure the "named", "dir" and "path" options can be handled successfully.
         if (!self.handleNamedOption() || !self.handleDirOption() || !self.handlePathOption()) {
@@ -189,6 +191,16 @@ class PushCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
                     return self.handlePushPromise(self.pushAssets());
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layouts")) {
+                    return self.handlePushPromise(self.pushLayouts());
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layoutMappings")) {
+                    return self.handlePushPromise(self.pushLayoutMappings());
                 }
             })
             .then(function() {
@@ -390,6 +402,115 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the action.
         return imageProfilesPromise;
     }
+
+
+    /**
+     * Push layouts
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
+     */
+    pushLayouts () {
+        const helper = toolsApi.getLayoutsHelper();
+        const self = this;
+
+        self.getLogger().info(PushingLayouts);
+
+        // The api emits an event when an item is pushed, so we log it for the user.
+        const layoutPushed = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_push_layout_pushed', {name: name}));
+        };
+        helper.getEventEmitter().on("pushed", layoutPushed);
+
+        // The api emits an event when there is a push error, so we log it for the user.
+        const layoutPushedError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_push_layout_push_error', {name: name, message: error.message}));
+        };
+        helper.getEventEmitter().on("pushed-error", layoutPushedError);
+
+        // Cleanup function to remove the event listeners.
+        this.addCleanup(function () {
+            helper.getEventEmitter().removeListener("pushed", layoutPushed);
+            helper.getEventEmitter().removeListener("pushed-error", layoutPushedError);
+        });
+
+        // If a name is specified, push the named layout.
+        // If ignore-timestamps is specified then push all artifacts of this type
+        // Otherwise only push modified artifacts (which is the default behavior).
+        const apiOptions = this.getApiOptions();
+
+        if (helper.doesDirectoryExist(apiOptions)) {
+            this._directoriesCount++;
+        }
+
+        let artifactsPromise;
+        if (this.getCommandLineOption("named")) {
+            artifactsPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactsPromise = helper.pushAllItems(apiOptions);
+        } else {
+            artifactsPromise = helper.pushModifiedItems(apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactsPromise;
+    }
+
+
+    /**
+     * Push layout mappings
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
+     */
+    pushLayoutMappings () {
+            const helper = toolsApi.getLayoutMappingsHelper();
+            const self = this;
+
+            self.getLogger().info(PushingLayoutMappings);
+
+            // The api emits an event when an item is pushed, so we log it for the user.
+            const artifactPushed = function (name) {
+                self._artifactsCount++;
+                self.getLogger().info(i18n.__('cli_push_layout_mapping_pushed', {name: name}));
+            };
+            helper.getEventEmitter().on("pushed", artifactPushed);
+
+            // The api emits an event when there is a push error, so we log it for the user.
+            const artifactPushedError = function (error, name) {
+                self._artifactsError++;
+                self.getLogger().error(i18n.__('cli_push_layout_mapping_push_error', {name: name, message: error.message}));
+            };
+            helper.getEventEmitter().on("pushed-error", artifactPushedError);
+
+            // Cleanup function to remove the event listeners.
+            this.addCleanup(function () {
+                helper.getEventEmitter().removeListener("pushed", artifactPushed);
+                helper.getEventEmitter().removeListener("pushed-error", artifactPushedError);
+            });
+
+            // If a name is specified, push the named artifact
+            // If ignore-timestamps is specified then push all artifacts of this type
+            // Otherwise only push modified artifacts (which is the default behavior).
+            const apiOptions = this.getApiOptions();
+
+            if (helper.doesDirectoryExist(apiOptions)) {
+                this._directoriesCount++;
+            }
+
+            let artifactsPromise;
+            if (this.getCommandLineOption("named")) {
+                artifactsPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            } else if (this.getCommandLineOption("ignoreTimestamps")) {
+                artifactsPromise = helper.pushAllItems(apiOptions);
+            } else {
+                artifactsPromise = helper.pushModifiedItems(apiOptions);
+            }
+
+            // Return the promise for the results of the action.
+            return artifactsPromise;
+        }
+
 
     /**
      * Push rendition artifacts.
@@ -801,6 +922,8 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
+        this.setCommandLineOption("layouts", undefined);
+        this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
         this.setCommandLineOption("categories", undefined);
@@ -822,6 +945,8 @@ function pushCommand (program) {
         .option('-t --types',            i18n.__('cli_push_opt_types'))
         .option('-a --assets',           i18n.__('cli_push_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_push_opt_web_assets'))
+        .option('-l --layouts',          i18n.__('cli_push_opt_layouts'))
+        .option('-m --layout-mappings',  i18n.__('cli_push_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_push_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_push_opt_content'))
         .option('-C --categories',       i18n.__('cli_push_opt_categories'))

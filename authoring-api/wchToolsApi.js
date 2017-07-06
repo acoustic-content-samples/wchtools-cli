@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ const publishingProfilesHelper = require('./publishingProfilesHelper').instance;
 const publishingSiteRevisionsHelper = require('./publishingSiteRevisionsHelper').instance;
 const renditionssHelper = require('./renditionsHelper').instance;
 const imageProfilesHelper = require('./imageProfilesHelper').instance;
+const layoutsHelper = require('./layoutsHelper').instance;
+const layoutMappingsHelper = require('./layoutMappingsHelper').instance;
 const login = require('./lib/loginREST').instance;
 const utils = require('./lib/utils/utils.js');
 const options = require('./lib/utils/options.js');
@@ -77,6 +79,16 @@ module.exports.getPublishingProfilesHelper = function (options) {
 module.exports.getPublishingSiteRevisionsHelper = function (options) {
     publishingSiteRevisionsHelper.initGlobalOptions(options);
     return publishingSiteRevisionsHelper;
+};
+
+module.exports.getLayoutsHelper = function (options) {
+    layoutsHelper.initGlobalOptions(options);
+    return layoutsHelper;
+};
+
+module.exports.getLayoutMappingsHelper = function (options) {
+    layoutMappingsHelper.initGlobalOptions(options);
+    return layoutMappingsHelper;
 };
 
 module.exports.getInitializationErrors = function () {

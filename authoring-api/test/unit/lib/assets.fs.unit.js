@@ -739,9 +739,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(3);
-                expect(paths[0]).to.equal(AssetsUnitTest.ASSET_JPG_1);
-                expect(paths[1]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                expect(paths[2]).to.equal(AssetsUnitTest.ASSET_CSS_2);
+                expect(paths[0]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[1]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[2]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -811,9 +811,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(3);
-                expect(paths[0]).to.equal(AssetsUnitTest.ASSET_JPG_1);
-                expect(paths[1]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                expect(paths[2]).to.equal(AssetsUnitTest.ASSET_CSS_2);
+                expect(paths[0]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[1]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[2]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -951,9 +951,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(3);
-                expect(paths[0]).to.equal(AssetsUnitTest.ASSET_JPG_1);
-                expect(paths[1]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                expect(paths[2]).to.equal(AssetsUnitTest.ASSET_CSS_2);
+                expect(paths[0]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[1]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[2]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -1022,9 +1022,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(3);
-                expect(paths[0]).to.equal(AssetsUnitTest.ASSET_JPG_1);
-                expect(paths[1]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                expect(paths[2]).to.equal(AssetsUnitTest.ASSET_CSS_2);
+                expect(paths[0]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[1]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[2]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -1099,8 +1099,8 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
-                expect(paths[0]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                expect(paths[1]).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                expect(paths[0]).to.be.oneOf([AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_HTML_1]);
+                expect(paths[1]).to.be.oneOf([AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_HTML_1]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -1175,8 +1175,8 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
-                expect(paths[0]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                expect(paths[1]).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                expect(paths[0]).to.be.oneOf([AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_HTML_1]);
+                expect(paths[1]).to.be.oneOf([AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_HTML_1]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -1330,8 +1330,8 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
-                expect(paths[0]).to.equal(AssetsUnitTest.ASSET_JPG_1);
-                expect(paths[1]).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                expect(paths[0]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_HTML_1]);
+                expect(paths[1]).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_HTML_1]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.

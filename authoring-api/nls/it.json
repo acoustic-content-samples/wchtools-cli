@@ -9,6 +9,8 @@
   "invalid_path": "Percorso non valido: %(path)s",
   "timed_out_closing_read_stream": "Si è verificato un timeout durante l'attesa della chiusura del flusso di lettura",
   "remote_asset_not_found": "Asset remoto non trovato: ",
+  "cannot_push_item": "Impossibile eseguire il push dell'elemento '%(name)s'.",
+  "cannot_pull_item": "Impossibile eseguire il pull dell'elemento '%(name)s'.",
 
   "deleted_original_file": "File originale eliminato: %(old_name)s nuovo file: %(new_name)s",
   "error_cancelling_job": "Errore durante l'annullamento del lavoro: id %(id)s",
@@ -41,6 +43,7 @@
   "error_set_last_push_timestamp": "Errore in setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Errore in getHashesForFile: ",
 
+  "error_unsupported_endpoint": "L'API %(service_name)s non supporta l'endpoint %(endpoint)s.",
   "unknown_error": "Errore sconosciuto",
   "service_unavailable": "Un servizio IBM Watson Content Hub non è attualmente disponibile.  ",
   "service_error": "Un servizio IBM Watson Content Hub sta notificando difficoltà tecniche.  ",

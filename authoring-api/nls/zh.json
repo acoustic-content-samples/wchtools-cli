@@ -9,6 +9,8 @@
   "invalid_path": "无效的路径：%(path)s",
   "timed_out_closing_read_stream": "等待读流关闭时发生超时",
   "remote_asset_not_found": "找不到远程资产：",
+  "cannot_push_item": "无法推送项“%(name)s”。",
+  "cannot_pull_item": "无法拉取项“%(name)s”。",
 
   "deleted_original_file": "已删除原始文件：%(old_name)s 新文件：%(new_name)s",
   "error_cancelling_job": "取消标识为 %(id)s 的作业时发生错误",
@@ -41,6 +43,7 @@
   "error_set_last_push_timestamp": "setLastPushTimestamp 中发生错误：",
   "error_get_hashes_for_file": "getHashesForFile 中发生错误：",
 
+  "error_unsupported_endpoint": "%(service_name)s API 不支持 %(endpoint)s 端点。",
   "unknown_error": "未知错误",
   "service_unavailable": "IBM Watson Content Hub 服务当前不可用。",
   "service_error": "IBM Watson Content Hub 服务报告技术问题。",
