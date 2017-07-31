@@ -27,7 +27,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 const restApi = require(UnitTest.API_PATH + "lib/contentREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for content.
-const lookupUri =  options.getProperty("content", "uri");
+const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "content", "uri");
 const path1 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_1;
 const path2 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_2;
 

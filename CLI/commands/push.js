@@ -17,9 +17,10 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const toolsApi = require("wchtools-api");
-const utils = toolsApi.utils;
-const login = toolsApi.login;
+const ToolsApi = require("wchtools-api");
+const utils = ToolsApi.getUtils();
+const login = ToolsApi.getLogin();
+const events = require("events");
 const Q = require("q");
 const ora = require("ora");
 
@@ -63,6 +64,10 @@ class PushCommand extends BaseCommand {
      * @param {boolean} continueOnError Whether to continue pushing other artifact types when there is an error.
      */
     doPush (continueOnError) {
+        // Create the context for pushing the artifacts of each specified type.
+        const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
+        const context = toolsApi.getContext();
+
         const self = this;
         self._continueOnError = continueOnError;
 
@@ -70,25 +75,30 @@ class PushCommand extends BaseCommand {
         self.handleArtifactTypes(["webassets"]);
 
         // Make sure the "named", "dir" and "path" options can be handled successfully.
-        if (!self.handleNamedOption() || !self.handleDirOption() || !self.handlePathOption()) {
+        if (!self.handleNamedOption() || !self.handleDirOption(context) || !self.handlePathOption()) {
+            return;
+        }
+
+        // Check to see if the initialization process was successful.
+        if (!self.handleInitialization(context)) {
             return;
         }
 
         // Make sure the url has been specified.
-        self.handleUrlOption()
+        self.handleUrlOption(context)
             .then(function() {
                 // Make sure the user name and password have been specified.
-                return self.handleAuthenticationOptions();
+                return self.handleAuthenticationOptions(context);
             })
             .then(function() {
                 // Login using the current options.
-                return login.login(self.getApiOptions());
+                return login.login(context, self.getApiOptions());
             })
             .then(function () {
                 // Start the display of the pushed artifacts.
                 self.startDisplay();
 
-                return self.pushArtifacts();
+                return self.pushArtifacts(context);
             })
             .then(function () {
                 // End the display of the pushed artifacts.
@@ -167,9 +177,11 @@ class PushCommand extends BaseCommand {
     /**
      * Push the artifacts for the types specified on the command line.
      *
+     * @param {Object} context The API context associated with this push command.
+     *
      * @return {Q.Promise} A promise that resolves when all artifacts of the specified types have been pushed.
      */
-    pushArtifacts () {
+    pushArtifacts (context) {
         const deferred = Q.defer();
         const self = this;
 
@@ -180,57 +192,57 @@ class PushCommand extends BaseCommand {
         self.readyToPush()
             .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
-                    return self.handlePushPromise(self.pushImageProfiles());
+                    return self.handlePushPromise(self.pushImageProfiles(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("categories")) {
-                    return self.handlePushPromise(self.pushCategories());
+                    return self.handlePushPromise(self.pushCategories(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
-                    return self.handlePushPromise(self.pushAssets());
-                }
-            })
-            .then(function() {
-                if (self.getCommandLineOption("layouts")) {
-                    return self.handlePushPromise(self.pushLayouts());
-                }
-            })
-            .then(function() {
-                if (self.getCommandLineOption("layoutMappings")) {
-                    return self.handlePushPromise(self.pushLayoutMappings());
+                    return self.handlePushPromise(self.pushAssets(context));
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("renditions")) {
-                    return self.handlePushPromise(self.pushRenditions());
+                    return self.handlePushPromise(self.pushRenditions(context));
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layouts")) {
+                    return self.handlePushPromise(self.pushLayouts(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("types")) {
-                    return self.handlePushPromise(self.pushTypes());
+                    return self.handlePushPromise(self.pushTypes(context));
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layoutMappings")) {
+                    return self.handlePushPromise(self.pushLayoutMappings(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("content")) {
-                    return self.handlePushPromise(self.pushContent());
+                    return self.handlePushPromise(self.pushContent(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSources")) {
-                    return self.handlePushPromise(self.pushSources());
+                    return self.handlePushPromise(self.pushSources(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingProfiles")) {
-                    return self.handlePushPromise(self.pushProfiles());
+                    return self.handlePushPromise(self.pushProfiles(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSiteRevisions")) {
-                    return self.handlePushPromise(self.pushSiteRevisions());
+                    return self.handlePushPromise(self.pushSiteRevisions(context));
                 }
             })
             .then(function () {
@@ -291,10 +303,13 @@ class PushCommand extends BaseCommand {
     /**
      * Push the asset artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the asset artifacts.
      */
-    pushAssets () {
-        const helper = toolsApi.getAssetsHelper();
+    pushAssets (context) {
+        const helper = ToolsApi.getAssetsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         if (this.getCommandLineOption("assets") && this.getCommandLineOption("webassets")) {
@@ -313,50 +328,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_asset_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", assetPushed);
+        emitter.on("pushed", assetPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const assetPushedError = function (error, path) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_asset_push_error', {name: path, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", assetPushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", assetPushed);
-            helper.getEventEmitter().removeListener("pushed-error", assetPushedError);
-        });
+        emitter.on("pushed-error", assetPushedError);
 
         // If a name is specified, push the named asset.
         // If ignore-timestamps is specified then push all assets.
         // Otherwise only push modified assets (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let assetsPromise;
         if (this.getCommandLineOption("named")) {
-            assetsPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            assetsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            assetsPromise = helper.pushAllItems(apiOptions);
+            assetsPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            assetsPromise = helper.pushModifiedItems(apiOptions);
+            assetsPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return assetsPromise;
+        return assetsPromise
+            .finally(function () {
+                emitter.removeListener("pushed", assetPushed);
+                emitter.removeListener("pushed-error", assetPushedError);
+            });
     }
 
     /**
      * Push image profile artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
      */
-    pushImageProfiles () {
-        const helper = toolsApi.getImageProfilesHelper();
+    pushImageProfiles (context) {
+        const helper = ToolsApi.getImageProfilesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingImageProfiles);
@@ -366,51 +382,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_image_profile_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", imageProfilePushed);
+        emitter.on("pushed", imageProfilePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const imageProfilePushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_image_profile_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", imageProfilePushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", imageProfilePushed);
-            helper.getEventEmitter().removeListener("pushed-error", imageProfilePushedError);
-        });
+        emitter.on("pushed-error", imageProfilePushedError);
 
         // If a name is specified, push the named asset.
         // If ignoretimestamps is specified then push all image profiles.
         // Otherwise only push modified image profiles(which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let imageProfilesPromise;
         if (this.getCommandLineOption("named")) {
-            imageProfilesPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            imageProfilesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            imageProfilesPromise = helper.pushAllItems(apiOptions);
+            imageProfilesPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            imageProfilesPromise = helper.pushModifiedItems(apiOptions);
+            imageProfilesPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return imageProfilesPromise;
+        return imageProfilesPromise
+            .finally(function () {
+                emitter.removeListener("pushed", imageProfilePushed);
+                emitter.removeListener("pushed-error", imageProfilePushedError);
+            });
     }
-
 
     /**
      * Push layouts
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
      */
-    pushLayouts () {
-        const helper = toolsApi.getLayoutsHelper();
+    pushLayouts (context) {
+        const helper = ToolsApi.getLayoutsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingLayouts);
@@ -420,105 +436,105 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_layout_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", layoutPushed);
+        emitter.on("pushed", layoutPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const layoutPushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_layout_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", layoutPushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", layoutPushed);
-            helper.getEventEmitter().removeListener("pushed-error", layoutPushedError);
-        });
+        emitter.on("pushed-error", layoutPushedError);
 
         // If a name is specified, push the named layout.
         // If ignore-timestamps is specified then push all artifacts of this type
         // Otherwise only push modified artifacts (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let artifactsPromise;
         if (this.getCommandLineOption("named")) {
-            artifactsPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactsPromise = helper.pushAllItems(apiOptions);
+            artifactsPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            artifactsPromise = helper.pushModifiedItems(apiOptions);
+            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return artifactsPromise;
+        return artifactsPromise
+            .finally(function () {
+                emitter.removeListener("pushed", layoutPushed);
+                emitter.removeListener("pushed-error", layoutPushedError);
+            });
     }
-
 
     /**
      * Push layout mappings
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
      */
-    pushLayoutMappings () {
-            const helper = toolsApi.getLayoutMappingsHelper();
-            const self = this;
+    pushLayoutMappings (context) {
+        const helper = ToolsApi.getLayoutMappingsHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
 
-            self.getLogger().info(PushingLayoutMappings);
+        self.getLogger().info(PushingLayoutMappings);
 
-            // The api emits an event when an item is pushed, so we log it for the user.
-            const artifactPushed = function (name) {
-                self._artifactsCount++;
-                self.getLogger().info(i18n.__('cli_push_layout_mapping_pushed', {name: name}));
-            };
-            helper.getEventEmitter().on("pushed", artifactPushed);
+        // The api emits an event when an item is pushed, so we log it for the user.
+        const artifactPushed = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_push_layout_mapping_pushed', {name: name}));
+        };
+        emitter.on("pushed", artifactPushed);
 
-            // The api emits an event when there is a push error, so we log it for the user.
-            const artifactPushedError = function (error, name) {
-                self._artifactsError++;
-                self.getLogger().error(i18n.__('cli_push_layout_mapping_push_error', {name: name, message: error.message}));
-            };
-            helper.getEventEmitter().on("pushed-error", artifactPushedError);
+        // The api emits an event when there is a push error, so we log it for the user.
+        const artifactPushedError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_push_layout_mapping_push_error', {name: name, message: error.message}));
+        };
+        emitter.on("pushed-error", artifactPushedError);
 
-            // Cleanup function to remove the event listeners.
-            this.addCleanup(function () {
-                helper.getEventEmitter().removeListener("pushed", artifactPushed);
-                helper.getEventEmitter().removeListener("pushed-error", artifactPushedError);
-            });
+        // If a name is specified, push the named artifact
+        // If ignore-timestamps is specified then push all artifacts of this type
+        // Otherwise only push modified artifacts (which is the default behavior).
+        const apiOptions = this.getApiOptions();
 
-            // If a name is specified, push the named artifact
-            // If ignore-timestamps is specified then push all artifacts of this type
-            // Otherwise only push modified artifacts (which is the default behavior).
-            const apiOptions = this.getApiOptions();
-
-            if (helper.doesDirectoryExist(apiOptions)) {
-                this._directoriesCount++;
-            }
-
-            let artifactsPromise;
-            if (this.getCommandLineOption("named")) {
-                artifactsPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
-            } else if (this.getCommandLineOption("ignoreTimestamps")) {
-                artifactsPromise = helper.pushAllItems(apiOptions);
-            } else {
-                artifactsPromise = helper.pushModifiedItems(apiOptions);
-            }
-
-            // Return the promise for the results of the action.
-            return artifactsPromise;
+        if (helper.doesDirectoryExist(context, apiOptions)) {
+            this._directoriesCount++;
         }
 
+        let artifactsPromise;
+        if (this.getCommandLineOption("named")) {
+            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactsPromise = helper.pushAllItems(context, apiOptions);
+        } else {
+            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactsPromise
+            .finally(function () {
+                emitter.removeListener("pushed", artifactPushed);
+                emitter.removeListener("pushed-error", artifactPushedError);
+            });
+    }
 
     /**
      * Push rendition artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
      */
-    pushRenditions () {
-        const helper = toolsApi.getRenditionsHelper();
+    pushRenditions (context) {
+        const helper = ToolsApi.getRenditionsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingRenditions);
@@ -528,50 +544,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_rendition_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", renditionPushed);
+        emitter.on("pushed", renditionPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const renditionPushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_rendition_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", renditionPushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", renditionPushed);
-            helper.getEventEmitter().removeListener("pushed-error", renditionPushedError);
-        });
+        emitter.on("pushed-error", renditionPushedError);
 
         // If a name is specified, push the named rendition.
         // If ignore-timestamps is specified then push all assets.
         // Otherwise only push modified renditions (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let renditionsPromise;
         if (this.getCommandLineOption("named")) {
-            renditionsPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            renditionsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            renditionsPromise = helper.pushAllItems(apiOptions);
+            renditionsPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            renditionsPromise = helper.pushModifiedItems(apiOptions);
+            renditionsPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return renditionsPromise;
+        return renditionsPromise
+            .finally(function () {
+                emitter.removeListener("pushed", renditionPushed);
+                emitter.removeListener("pushed-error", renditionPushedError);
+            });
     }
 
     /**
      * Push the category artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the category artifacts.
      */
-    pushCategories () {
-        const helper = toolsApi.getCategoriesHelper();
+    pushCategories (context) {
+        const helper = ToolsApi.getCategoriesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingCategories);
@@ -581,50 +598,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_cat_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", categoryPushed);
+        emitter.on("pushed", categoryPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const categoryPushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_cat_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", categoryPushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", categoryPushed);
-            helper.getEventEmitter().removeListener("pushed-error", categoryPushedError);
-        });
+        emitter.on("pushed-error", categoryPushedError);
 
         // If a name is specified, push the named category.
         // If Ignore-timestamps is specified then push all categories.
         // Otherwise only push modified categories (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let categoriesPromise;
         if (this.getCommandLineOption("named")) {
-            categoriesPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            categoriesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            categoriesPromise = helper.pushAllItems(apiOptions);
+            categoriesPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            categoriesPromise = helper.pushModifiedItems(apiOptions);
+            categoriesPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return categoriesPromise;
+        return categoriesPromise
+            .finally(function () {
+                emitter.removeListener("pushed", categoryPushed);
+                emitter.removeListener("pushed-error", categoryPushedError);
+            });
     }
 
     /**
      * Push the type artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the type artifacts.
      */
-    pushTypes () {
-        const helper = toolsApi.getItemTypeHelper();
+    pushTypes (context) {
+        const helper = ToolsApi.getItemTypeHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingTypes);
@@ -634,50 +652,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_type_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", itemTypePushed);
+        emitter.on("pushed", itemTypePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const itemTypePushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_type_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", itemTypePushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", itemTypePushed);
-            helper.getEventEmitter().removeListener("pushed-error", itemTypePushedError);
-        });
+        emitter.on("pushed-error", itemTypePushedError);
 
         // If a name is specified, push the named type.
         // If Ignore-timestamps is specified then push all types.
         // Otherwise only push modified types (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let typePromise;
         if (this.getCommandLineOption("named")) {
-            typePromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            typePromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            typePromise = helper.pushAllItems(apiOptions);
+            typePromise = helper.pushAllItems(context, apiOptions);
         } else {
-            typePromise = helper.pushModifiedItems(apiOptions);
+            typePromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return typePromise;
+        return typePromise
+            .finally(function () {
+                emitter.removeListener("pushed", itemTypePushed);
+                emitter.removeListener("pushed-error", itemTypePushedError);
+            });
     }
 
     /**
      * Push the content artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the content artifacts.
      */
-    pushContent () {
-        const helper = toolsApi.getContentHelper();
+    pushContent (context) {
+        const helper = ToolsApi.getContentHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingContentItems);
@@ -687,50 +706,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_content_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", contentPushed);
+        emitter.on("pushed", contentPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const contentPushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_content_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", contentPushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", contentPushed);
-            helper.getEventEmitter().removeListener("pushed-error", contentPushedError);
-        });
+        emitter.on("pushed-error", contentPushedError);
 
         // If a name is specified, push the named content.
         // If Ignore-timestamps is specified then push all content.
         // Otherwise only push modified content (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let contentsPromise;
         if (this.getCommandLineOption("named")) {
-            contentsPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            contentsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            contentsPromise = helper.pushAllItems(apiOptions);
+            contentsPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            contentsPromise = helper.pushModifiedItems(apiOptions);
+            contentsPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return contentsPromise;
+        return contentsPromise
+            .finally(function () {
+                emitter.removeListener("pushed", contentPushed);
+                emitter.removeListener("pushed-error", contentPushedError);
+            });
     }
 
     /**
      * Push the (publishing) source artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the source artifacts.
      */
-    pushSources () {
-        const helper = toolsApi.getPublishingSourcesHelper();
+    pushSources (context) {
+        const helper = ToolsApi.getPublishingSourcesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingPublishingSources);
@@ -740,50 +760,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_source_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", sourcePushed);
+        emitter.on("pushed", sourcePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const sourcePushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_source_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", sourcePushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", sourcePushed);
-            helper.getEventEmitter().removeListener("pushed-error", sourcePushedError);
-        });
+        emitter.on("pushed-error", sourcePushedError);
 
         // If a name is specified, push the named source.
         // If Ignore-timestamps is specified then push all sources. Otherwise only
         // push modified sources (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let sourcesPromise;
         if (this.getCommandLineOption("named")) {
-            sourcesPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            sourcesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            sourcesPromise = helper.pushAllItems(apiOptions);
+            sourcesPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            sourcesPromise = helper.pushModifiedItems(apiOptions);
+            sourcesPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return sourcesPromise;
+        return sourcesPromise
+            .finally(function () {
+                emitter.removeListener("pushed", sourcePushed);
+                emitter.removeListener("pushed-error", sourcePushedError);
+            });
     }
 
     /**
      * Push the (publishing) profile artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the profile artifacts.
      */
-    pushProfiles () {
-        const helper = toolsApi.getPublishingProfilesHelper();
+    pushProfiles (context) {
+        const helper = ToolsApi.getPublishingProfilesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingPublishingProfiles);
@@ -793,50 +814,51 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_profile_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", profilePushed);
+        emitter.on("pushed", profilePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const profilePushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_profile_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", profilePushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", profilePushed);
-            helper.getEventEmitter().removeListener("pushed-error", profilePushedError);
-        });
+        emitter.on("pushed-error", profilePushedError);
 
         // If a name is specified, push the named profile.
         // If Ignore-timestamps is specified then push all profiles. Otherwise only
         // push modified profiles (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let profilesPromise;
         if (this.getCommandLineOption("named")) {
-            profilesPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            profilesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            profilesPromise = helper.pushAllItems(apiOptions);
+            profilesPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            profilesPromise = helper.pushModifiedItems(apiOptions);
+            profilesPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return profilesPromise;
+        return profilesPromise
+            .finally(function () {
+                emitter.removeListener("pushed", profilePushed);
+                emitter.removeListener("pushed-error", profilePushedError);
+            });
     }
 
     /**
      * Push the (publishing) site revision artifacts.
      *
+     * @param {Object} context The API context to be used for the push operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the site revision artifacts.
      */
-    pushSiteRevisions () {
-        const helper = toolsApi.getPublishingSiteRevisionsHelper();
+    pushSiteRevisions (context) {
+        const helper = ToolsApi.getPublishingSiteRevisionsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PushingPublishingSiteRevisions);
@@ -846,41 +868,39 @@ class PushCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_push_site_revision_pushed', {name: name}));
         };
-        helper.getEventEmitter().on("pushed", siteRevisionPushed);
+        emitter.on("pushed", siteRevisionPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const siteRevisionPushedError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_site_revision_push_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pushed-error", siteRevisionPushedError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pushed", siteRevisionPushed);
-            helper.getEventEmitter().removeListener("pushed-error", siteRevisionPushedError);
-        });
+        emitter.on("pushed-error", siteRevisionPushedError);
 
         // If a name is specified, push the named profile.
         // If Ignore-timestamps is specified then push all profiles. Otherwise only
         // push modified profiles (which is the default behavior).
         const apiOptions = this.getApiOptions();
 
-        if (helper.doesDirectoryExist(apiOptions)) {
+        if (helper.doesDirectoryExist(context, apiOptions)) {
             this._directoriesCount++;
         }
 
         let artifactPromise;
         if (this.getCommandLineOption("named")) {
-            artifactPromise = helper.pushItem(this.getCommandLineOption("named"), apiOptions);
+            artifactPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
         } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactPromise = helper.pushAllItems(apiOptions);
+            artifactPromise = helper.pushAllItems(context, apiOptions);
         } else {
-            artifactPromise = helper.pushModifiedItems(apiOptions);
+            artifactPromise = helper.pushModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return artifactPromise;
+        return artifactPromise
+            .finally(function () {
+                emitter.removeListener("pushed", siteRevisionPushed);
+                emitter.removeListener("pushed-error", siteRevisionPushedError);
+            });
     }
 
     /**
@@ -964,9 +984,9 @@ function pushCommand (program) {
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
-        .action(function (options) {
+        .action(function (commandLineOptions) {
             const command = new PushCommand(program);
-            if (command.setCommandLineOptions(options, this)) {
+            if (command.setCommandLineOptions(commandLineOptions, this)) {
                 if(command.getCommandLineOption("ignoreTimestamps"))
                     command._modified = false;
                 command.doPush(true);

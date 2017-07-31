@@ -22,10 +22,6 @@ const helper = require("wchtools-api").getCategoriesHelper();
 const rest = require("../../../authoring-api/lib/categoriesREST.js").instance;
 const fs = require("../../../authoring-api/lib/categoriesFS.js").instance;
 
-if(!fs || !rest) {
-    console.log('Error could not load required');
-}
-
 // Presentations Tests with CLI
 const BASE_NAME = 'category';
 const PullUnitTest = require("./lib/pull.unit.js");

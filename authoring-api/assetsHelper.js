@@ -17,7 +17,6 @@ limitations under the License.
 
 const fs = require("fs");
 const Q = require("q");
-const events = require("events");
 const AssetsREST = require("./lib/assetsREST.js");
 const assetsREST = AssetsREST.instance;
 const SearchREST = require("./lib/authoringSearchREST.js");
@@ -25,10 +24,8 @@ const searchREST = SearchREST.instance;
 const AssetsFS = require("./lib/assetsFS.js");
 const assetsFS = AssetsFS.instance;
 const options = require("./lib/utils/options.js");
-const StatusTracker = require("./lib/utils/statusTracker.js");
 const utils = require("./lib/utils/utils.js");
 const path = require("path");
-const logger = utils.getLogger(utils.apisLog);
 const hashes = require("./lib/utils/hashes.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -54,6 +51,19 @@ const WAIT_FOR_CLOSE = process.env.WCHTOOLS_WAIT_FOR_CLOSE || false;
  */
 const isValidWindowsPathname = function (path) {
     return (path && !utils.isInvalidPath(path) && !path.includes("http:") && !path.includes("https:"));
+};
+
+/**
+ * Determine whether the specified file path is a hashes file.
+ *
+ * @param {String} path - The file path.
+ *
+ * @return {Boolean} A return value of true indicates the specified file path is a hashes file.
+ *
+ * @private
+ */
+const isHashesFile = function (path) {
+    return (path === hashes.FILENAME || path === "/" + hashes.FILENAME);
 };
 
 const singleton = Symbol();
@@ -96,16 +106,6 @@ class AssetsHelper {
         this._artifactName = "assets";
 
         /**
-         * @member {StatusTracker} _statusTracker - The object used to track the status of artifacts for this helper.
-         */
-        this._statusTracker = new StatusTracker();
-
-        /**
-         * @member {events.EventEmitter} _eventEmitter - The object used to emit events for this helper.
-         */
-        this._eventEmitter = new events.EventEmitter();
-
-        /**
          * @member {String} NEW - State flag indicating that an item is new.
          */
         this.NEW = hashes.NEW;
@@ -141,7 +141,7 @@ class AssetsHelper {
         this.ASSET_TYPES = AssetsFS.ASSET_TYPES;
     }
 
-    static get instance() {
+    static get instance () {
         if (!this[singleton]) {
             this[singleton] = new AssetsHelper(singletonEnforcer);
         }
@@ -149,12 +149,25 @@ class AssetsHelper {
     }
 
     /**
-     * Get the event emitter associated with the Assets Helper.
+     * Get the event emitter used by the Assets Helper.
      *
-     * @returns {Object} The event emitter associated with the Assets Helper.
+     * @param {Object} context The current context to be used by the API.
+     *
+     * @returns {Object} The event emitter used by the Assets Helper.
      */
-    getEventEmitter () {
-        return this._eventEmitter;
+    getEventEmitter (context) {
+        return context.eventEmitter;
+    }
+
+    /**
+     * Get the logger used by the Assets Helper.
+     *
+     * @param {Object} context The current context to be used by the API.
+     *
+     * @returns {Object} The logger used by the Assets Helper.
+     */
+    getLogger (context) {
+        return context.logger;
     }
 
     /**
@@ -171,25 +184,27 @@ class AssetsHelper {
      *
      * @returns {boolean}
      */
-    doesDirectoryExist (opts) {
-        const dir = this._fsApi.getAssetsPath(opts);
+    doesDirectoryExist (context, opts) {
+        const dir = this._fsApi.getAssetsPath(context, opts);
         return fs.existsSync(dir);
     }
 
     /**
      * Close the given stream.
      *
+     * @param {Object} context The current context to be used by the API.
      * @param {Readable} stream - The stream to be closed.
      * @param {Q.Deferred} [deferred] - The deferred to be resolved when the stream is closed.
      *
      * @private
      */
-    _closeStream (stream, deferred) {
+    _closeStream (context, stream, deferred) {
         if (stream) {
             try {
                 // Calling resume causes the stream to read fully to the end.
                 stream.resume();
             } catch (err) {
+                const logger = this.getLogger(context);
                 logger.debug(i18n.__("close_stream_failed"), err);
             }
 
@@ -203,21 +218,9 @@ class AssetsHelper {
     }
 
     /**
-     * Set the options to be used as global options for this helper.
-     *
-     * Note: This method should only be called from the wchToolsApi getter for this helper.
-     *
-     * @param {Object} opts - The options to be used as global options for this helper.
-     */
-    initGlobalOptions (opts) {
-        if (opts) {
-            options.setGlobalOptions(opts);
-        }
-    }
-
-    /**
      * Pull the specified asset from the content hub.
      *
+     * @param {Object} context - The context to be used for the push operation.
      * @param {Object} asset - The asset to be pulled,
      * @param {Object} opts - The options to be used for the pull operation.
      *
@@ -225,42 +228,42 @@ class AssetsHelper {
      *
      * @private
      */
-    _pullAsset (asset, opts) {
+    _pullAsset (context, asset, opts) {
         // Verify the pathname.
-        if (!isValidWindowsPathname(asset.path) || asset.path === hashes.FILENAME || asset.path === "/" + hashes.FILENAME) {
+        if (!isValidWindowsPathname(asset.path) || isHashesFile(asset.path)) {
             const deferred = Q.defer();
             deferred.reject(new Error(i18n.__("invalid_path", {path: asset.path})));
             return deferred.promise;
         } else {
             // Get the local file stream to be written.
             const helper = this;
-            return helper._fsApi.getItemWriteStream(asset.path, opts)
+            return helper._fsApi.getItemWriteStream(context, asset.path, opts)
                 .then(function (stream) {
                     // Download the specified asset contents and write them to the given stream.
-                    return helper._restApi.pullItem(asset, stream, opts)
+                    return helper._restApi.pullItem(context, asset, stream, opts)
                         .then(function (asset) {
-                            const basePath = helper._fsApi.getAssetsPath(opts);
-                            const filePath = helper._fsApi.getPath(asset.path, opts);
+                            const basePath = helper._fsApi.getAssetsPath(context, opts);
+                            const filePath = helper._fsApi.getPath(context, asset.path, opts);
 
                             const md5 = hashes.generateMD5Hash(filePath);
                             if (!hashes.compareMD5Hashes(md5, asset.digest)) {
                                 const err = i18n.__("digest_mismatch", {cli_digest: md5, asset: asset.path, server_digest: asset.digest});
+                                const logger = this.getLogger(context);
                                 logger.error(err);
                                 throw new Error(err);
                             }
-                            hashes.updateHashes(basePath, filePath, asset, opts);
+                            hashes.updateHashes(context, basePath, filePath, asset, opts);
 
                             // Notify any listeners that the asset at the given path was pulled.
-                            helper.getEventEmitter().emit("pulled", asset.path);
-
-                            // The specified asset exists both remotely and locally.
-                            helper.addRemoteStatus(asset.path);
-                            helper.addLocalStatus(asset.path);
+                            const emitter = helper.getEventEmitter(context);
+                            if (emitter) {
+                                emitter.emit("pulled", asset.path);
+                            }
 
                             // Save the asset metadata for content resources.
                             let result = asset;
                             if (helper._fsApi.isContentResource(asset)) {
-                                result = helper._fsApi.saveItem(asset, opts);
+                                result = helper._fsApi.saveItem(context, asset, opts);
                             }
                             return result;
                         });
@@ -271,6 +274,7 @@ class AssetsHelper {
     /**
      * Pull the chunk of assets retrieved by the given function.
      *
+     * @param {Object} context - The context to be used for the push operation.
      * @param {Function} listFn - A function that returns a promise for a chunk of remote assets to be pulled.
      * @param {Object} opts - The options to be used for the pull operations.
      *
@@ -278,7 +282,7 @@ class AssetsHelper {
      *
      * @private
      */
-    _pullItemsChunk (listFn, opts) {
+    _pullItemsChunk (context, listFn, opts) {
         // Get the next "chunk" of assets metadata from the content hub.
         const helper = this;
         return listFn(opts)
@@ -303,11 +307,11 @@ class AssetsHelper {
                 }
 
                 // Throttle the number of assets to be pulled concurrently, using the currently configured limit.
-                const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName);
-                const results = utils.throttledAll(assetList.map(function (asset) {
+                const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+                const results = utils.throttledAll(context, assetList.map(function (asset) {
                     // Return a function that returns a promise for each asset being pulled.
                     return function () {
-                        return helper._pullAsset(asset, opts);
+                        return helper._pullAsset(context, asset, opts);
                     };
                 }), concurrentLimit);
 
@@ -324,7 +328,11 @@ class AssetsHelper {
                             else {
                                 const error = promise.reason;
                                 assets.push(error);
-                                helper.getEventEmitter().emit("pulled-error", error, assetList[index].path);
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("pulled-error", error, assetList[index].path);
+                                }
+                                context.pullErrorCount++;
                             }
                         });
 
@@ -337,6 +345,7 @@ class AssetsHelper {
     /**
      * Recursive function to pull subsequent chunks of assets retrieved by the given function.
      *
+     * @param {Object} context - The context to be used for the push operation.
      * @param {Function} listFn - A function that returns a promise for a chunk of remote assets to be pulled.
      * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* assets pulled.
      * @param {Array} results - The accumulated results.
@@ -345,7 +354,7 @@ class AssetsHelper {
      *
      * @private
      */
-    _recursePull (listFn, deferred, results, pullInfo, opts) {
+    _recursePull (context, listFn, deferred, results, pullInfo, opts) {
         // If a results array is specified, accumulate the assets pulled.
         if (results) {
             results = results.concat(pullInfo.assets);
@@ -354,29 +363,24 @@ class AssetsHelper {
         }
 
         const currentChunkSize = pullInfo.length;
-        const maxChunkSize = options.getRelevantOption(opts, "limit", this._artifactName);
+        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
             // with the accumulated results.
             deferred.resolve(results);
         } else {
             // The current chunk is a full chunk, so there may be more assets to retrieve.
-            if (opts) {
-                // Clone the opts before modifying them, so that the original opts are not affected.
-                opts = utils.clone(opts);
-            } else {
-                opts = {};
-            }
+            const helper = this;
 
             // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(opts, "offset", this._artifactName);
+            const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
+            opts = utils.cloneOpts(opts);
             opts.offset = offset +  maxChunkSize;
 
             // Pull the next chunk of assets from the content hub.
-            const helper = this;
-            helper._pullItemsChunk(listFn, opts)
+            helper._pullItemsChunk(context, listFn, opts)
                 .then(function (pullInfo) {
-                    helper._recursePull(listFn, deferred, results, pullInfo, opts);
+                    helper._recursePull(context, listFn, deferred, results, pullInfo, opts);
                 });
         }
     }
@@ -384,27 +388,30 @@ class AssetsHelper {
     /**
      * Pull the asset with the specified path from the content hub.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {String} path - The path of the asset to be pulled.
      * @param {Object} opts - The options to be used for the pull operation.
      *
      * @returns {Q.Promise} A promise for the asset that was pulled.
      */
-    pullItem (path, opts) {
+    pullItem (context, path, opts) {
         // The content hub assets API does not support retrieving an item by path. So in order to pull a specific item,
         // get the items from the content hub one chunk at a time, and look for an asset with the specified path.
         const helper = this;
-        return this._restApi.getItems(opts)
+        return this._restApi.getItems(context, opts)
             .then(function (assets) {
                 // Find the asset with the specified path.
-                return helper._findItemByPath(assets, path, opts);
+                return helper._findItemByPath(context, assets, path, opts);
             })
             .then(function (asset) {
                 // The asset with the specified path was found, so pull it.
+                const logger = helper.getLogger(context);
                 logger.trace("Pull found asset: " + path);
-                return helper._pullAsset(asset, opts);
+                return helper._pullAsset(context, asset, opts);
             })
             .catch(function (err) {
                 // The asset with the specified name was not found.
+                const logger = helper.getLogger(context);
                 logger.trace("Pull could not find asset: " + path);
                 throw err;
             });
@@ -413,28 +420,26 @@ class AssetsHelper {
     /**
      * Pull all assets from the content hub.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the pull operations.
      *
      * @returns {Q.Promise} A promise for the assets that were pulled.
      */
-    pullAllItems (opts) {
+    pullAllItems (context, opts) {
         const deferred = Q.defer();
 
-        // Keep track of how many assets were not pulled.
-        let errorCount = 0;
-        const assetPulledError = function (/*error, name*/) {
-            errorCount++;
-        };
-        this.getEventEmitter().on("pulled-error", assetPulledError);
-
         // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
-        const listFn = this._restApi.getItems.bind(this._restApi);
+        const listFn = this._restApi.getItems.bind(this._restApi, context);
         const helper = this;
-        helper._pullItemsChunk(listFn, opts)
+
+        // Keep track of the error count.
+        context.pullErrorCount = 0;
+
+        helper._pullItemsChunk(context, listFn, opts)
             .then(function (pullInfo) {
                 // There are no results initially, so just pass null for the results. The accumulated array of asset
                 // metadata for all pulled items will be available when "deferred" has been resolved.
-                helper._recursePull(listFn, deferred, null, pullInfo, opts);
+                helper._recursePull(context, listFn, deferred, null, pullInfo, opts);
             })
             .catch(function (err) {
                 // There was a fatal issue, beyond a failure to pull one or more items.
@@ -442,42 +447,42 @@ class AssetsHelper {
             });
 
         // Handle any necessary actions once the pull operations have completed.
-        deferred.promise
-            .then(function (/*results*/) {
-                if (errorCount === 0) {
+        return deferred.promise
+            .then(function (items) {
+                if (context.pullErrorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
-                    helper._setLastPullTimestamps(opts);
+                    helper._setLastPullTimestamps(context, opts);
                 }
+                return items;
+            })
+            .finally(function () {
+                delete context.pullErrorCount;
             });
-
-        return deferred.promise;
     }
 
     /**
      * Pull all assets that have been modified on the content hub since the last pull.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the pull operations.
      *
      * @returns {Q.Promise} A promise for the assets that were pulled.
      */
-    pullModifiedItems (opts) {
+    pullModifiedItems (context, opts) {
         const deferred = Q.defer();
 
-        // Keep track of how many assets were not pulled.
-        let errorCount = 0;
-        const assetPulledError = function (/*error, name*/) {
-            errorCount++;
-        };
-        this.getEventEmitter().on("pulled-error", assetPulledError);
-
         // Use getModifiedRemoteItems() as the list function, so that only new and modified assets will be pulled.
-        const listFn = this.getModifiedRemoteItems.bind(this, [this.NEW, this.MODIFIED]);
+        const listFn = this.getModifiedRemoteItems.bind(this, context, [this.NEW, this.MODIFIED]);
         const helper = this;
-        helper._pullItemsChunk(listFn, opts)
+
+        // Keep track of the error count.
+        context.pullErrorCount = 0;
+
+        helper._pullItemsChunk(context, listFn, opts)
             .then(function (pullInfo) {
                 // There are no results initially, so just pass null for the results. The accumulated array of asset
                 // metadata for all pulled items will be available when "deferred" has been resolved.
-                helper._recursePull(listFn, deferred, null, pullInfo, opts);
+                helper._recursePull(context, listFn, deferred, null, pullInfo, opts);
             })
             .catch(function (err) {
                 // There was a fatal issue, beyond a failure to pull one or more items.
@@ -485,20 +490,23 @@ class AssetsHelper {
             });
 
         // Handle any necessary actions once the pull operations have completed.
-        deferred.promise
-            .then(function (/*results*/) {
-                if (errorCount === 0) {
+        return deferred.promise
+            .then(function (items) {
+                if (context.pullErrorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
-                    helper._setLastPullTimestamps(opts);
+                    helper._setLastPullTimestamps(context, opts);
                 }
+                return items;
+            })
+            .finally(function () {
+                delete context.pullErrorCount;
             });
-
-        return deferred.promise;
     }
 
     /**
      * Push the items with the given paths.
      *
+     * @param {Object} context - The context to be used for the push operation.
      * @param {Array} paths - The paths of the items to be pushed.
      * @param {Object} opts - The options to be used for the push operations.
      *
@@ -506,14 +514,14 @@ class AssetsHelper {
      *
      * @protected
      */
-    _pushNameList (paths, opts) {
+    _pushNameList (context, paths, opts) {
         const helper = this;
 
         // Throttle the number of assets to be pushed concurrently, using the currently configured limit.
-        const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName);
-        const results = utils.throttledAll(paths.map(function (name) {
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        const results = utils.throttledAll(context, paths.map(function (name) {
             return function () {
-                return helper.pushItem(name, opts);
+                return helper.pushItem(context, name, opts);
             };
         }), concurrentLimit);
 
@@ -525,13 +533,17 @@ class AssetsHelper {
                 const assets = [];
                 promises.forEach(function (promise, index) {
                     if (promise.state === "fulfilled") {
+                        const logger = helper.getLogger(context);
                         logger.trace("Pushed: " + JSON.stringify(promise.value));
                         assets.push(promise.value);
                     }
                     else {
 
                         // Rejected promises are logged by throttledAll(), so just emit the error event.
-                        helper.getEventEmitter().emit("pushed-error", promise.reason, paths[index]);
+                        const emitter = helper.getEventEmitter(context);
+                        if (emitter) {
+                            emitter.emit("pushed-error", promise.reason, paths[index]);
+                        }
                         errorCount++;
                     }
                 });
@@ -540,7 +552,7 @@ class AssetsHelper {
             .then(function (assets) {
                 // Keep track of the timestamp of this operation, but only if there were no errors.
                 if (errorCount === 0) {
-                    helper._setLastPushTimestamps(opts);
+                    helper._setLastPushTimestamps(context, opts);
                 }
                 return assets;
             });
@@ -549,41 +561,42 @@ class AssetsHelper {
     /**
      * Push the asset with the specified path to the content hub.
      *
+     * @param {Object} context - The context to be used for the push operation.
      * @param {String} path - The path of the asset to be pushed.
      * @param {Object} opts - The options to be used for the push operation.
      *
      * @returns {Q.Promise} A promise for the metadata of the asset that was pushed.
      */
-    pushItem (path, opts) {
+    pushItem (context, path, opts) {
         const deferred = Q.defer();
 
         // Begin the push process by determining the content length of the specified local file.
         const helper = this;
-        helper._fsApi.getContentLength(path, opts)
+        helper._fsApi.getContentLength(context, path, opts)
             .then(function (length) {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
-                const assetFile = helper._fsApi.getPath(path, opts);
-                const assetHashes = hashes.getHashesForFile(helper._fsApi.getAssetsPath(opts), assetFile, opts);
+                const assetFile = helper._fsApi.getPath(context, path, opts);
+                const assetHashes = hashes.getHashesForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
                 const isContentResource = helper._fsApi.isContentResource(path);
                 let resourceId;
                 let resourceMd5 = assetHashes ? assetHashes.md5 : undefined;
 
                 // In order to push the asset to the content hub, open a read stream for the asset file.
                 let streamOpened;
-                if (isContentResource && fs.existsSync(helper._fsApi.getMetadataPath(path, opts))) {
+                if (isContentResource && fs.existsSync(helper._fsApi.getMetadataPath(context, path, opts))) {
                     // There is a metadata file for the content asset, so start by reading the metadata file.
-                    streamOpened = helper._fsApi.getItem(path, opts)
+                    streamOpened = helper._fsApi.getItem(context, path, opts)
                         .then(function (asset) {
                             // Get the resource ID and the MD5 hash if they aren't already defined.
                             resourceId = resourceId || asset.resource;
                             resourceMd5 = resourceMd5 || hashes.generateMD5Hash(assetFile);
 
-                            // Create a clone of the original options, and keep track of the asset metadata.
-                            opts = opts ? utils.clone(opts) : {};
+                            // Keep track of the asset metadata.
+                            opts = utils.cloneOpts(opts);
                             opts.asset = asset;
 
                             // Open a read stream for the actual asset file (not the metadata file).
-                            return helper._fsApi.getItemReadStream(path, opts);
+                            return helper._fsApi.getItemReadStream(context, path, opts);
                         })
                         .catch(function (err) {
                             // Reject the top-level promise.
@@ -591,7 +604,7 @@ class AssetsHelper {
                         });
                 } else {
                     // There is no metadata file, so open a read stream for the asset file.
-                    streamOpened = helper._fsApi.getItemReadStream(path, opts);
+                    streamOpened = helper._fsApi.getItemReadStream(context, path, opts);
                 }
 
                 streamOpened
@@ -602,24 +615,23 @@ class AssetsHelper {
                             streamClosed.resolve(path);
                         });
 
-                        // Register that the asset file exists locally.
-                        helper.addLocalStatus(path);
-
                         // Determine how to set replaceContentReource - if the saved md5 doesn't match the md5 of the resource
                         const replaceContentResource = (resourceMd5 !== hashes.generateMD5Hash(assetFile));
+
                         // Push the asset to the content hub.
-                        helper._restApi.pushItem(isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
+                        helper._restApi.pushItem(context, isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
                             .then(function (asset) {
                                 // The push succeeded so emit a "pushed" event.
-                                helper.getEventEmitter().emit("pushed", path);
-
-                                // Register that the asset exists remotely.
-                                helper.addRemoteStatus(path);
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("pushed", path);
+                                }
 
                                 // Save the asset metadata to a local file.
-                                if (isContentResource) {
+                                const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
+                                if (isContentResource && rewriteOnPush) {
                                     // Don't wait for the metadata to be saved, and don't reject the push if the save fails.
-                                    helper._fsApi.saveItem(asset, opts);
+                                    helper._fsApi.saveItem(context, asset, opts);
                                 }
 
                                 // Once the metadata file has been saved, resolve the top-level promise.
@@ -634,12 +646,12 @@ class AssetsHelper {
                                 }
 
                                 // Update the hashes for the pushed asset.
-                                const assetPath = helper._fsApi.getPath(asset.path, opts);
-                                hashes.updateHashes(helper._fsApi.getAssetsPath(opts), assetPath, asset, opts);
+                                const assetPath = helper._fsApi.getPath(context, asset.path, opts);
+                                hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), assetPath, asset, opts);
                             })
                             .catch(function (err) {
                                 // Failed to push the asset file, so explicitly close the read stream.
-                                helper._closeStream(readStream, streamClosed);
+                                helper._closeStream(context, readStream, streamClosed);
 
                                 // Reject the top-level promise.
                                 if (WAIT_FOR_CLOSE) {
@@ -669,40 +681,43 @@ class AssetsHelper {
     /**
      * Push local assets to the content hub.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the push operation.
      *
      * @returns {Q.Promise} A promise for the list of assets that were successfully pushed.
      */
-    pushAllItems (opts) {
+    pushAllItems (context, opts) {
         // Get the list of local assets, based on the specified options.
         const helper = this;
-        return helper.listLocalItemNames(opts)
+        return helper.listLocalItemNames(context, opts)
             .then(function (names){
                 // Push the assets in the list.
-                return helper._pushNameList(names, opts);
+                return helper._pushNameList(context, names, opts);
             });
     }
 
     /**
      * Push modified local assets to the content hub.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the push operation.
      *
      * @returns {Q.Promise} A promise for the list of modified assets that were successfully pushed.
      */
-    pushModifiedItems (opts) {
+    pushModifiedItems (context, opts) {
         // Get the list of modified local assets, based on the specified options.
         const helper = this;
-        return helper.listModifiedLocalItemNames([this.NEW, this.MODIFIED], opts)
+        return helper.listModifiedLocalItemNames(context, [this.NEW, this.MODIFIED], opts)
             .then(function (names){
                 // Push the assets in the list.
-                return helper._pushNameList(names, opts);
+                return helper._pushNameList(context, names, opts);
             });
     }
 
     /**
      * List the chunk of assets retrieved by the given function.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Function} listFn - A function that returns a promise for a chunk of remote assets to be listed.
      * @param {Object} opts - The options to be used for the list operations.
      *
@@ -710,7 +725,7 @@ class AssetsHelper {
      *
      * @private
      */
-    _listAssetChunk (listFn, opts) {
+    _listAssetChunk (context, listFn, opts) {
         // Get the next "chunk" of assets metadata.
         const helper = this;
         return listFn(opts)
@@ -743,6 +758,7 @@ class AssetsHelper {
     /**
      * Recursive function to list subsequent chunks of assets retrieved by the given function.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Function} listFn - A function that returns a promise for a chunk of remote assets to be listed.
      * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* assets listed.
      * @param {Array} results - The accumulated results.
@@ -751,7 +767,7 @@ class AssetsHelper {
      *
      * @private
      */
-    _recurseList (listFn, deferred, results, listInfo, opts) {
+    _recurseList (context, listFn, deferred, results, listInfo, opts) {
         // If a results array is specified, accumulate the assets listed.
         if (results) {
             results = results.concat(listInfo.assets);
@@ -760,55 +776,50 @@ class AssetsHelper {
         }
 
         const currentChunkSize = listInfo.length;
-        const maxChunkSize = options.getRelevantOption(opts, "limit", this._artifactName);
+        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
             // with the accumulated results.
             deferred.resolve(results);
         } else {
             // The current chunk is a full chunk, so there may be more assets to retrieve.
-            if (opts) {
-                // Clone the opts before modifying them, so that the original opts are not affected.
-                opts = utils.clone(opts);
-            } else {
-                opts = {};
-            }
+            const helper = this;
 
             // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(opts, "offset", this._artifactName);
+            const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
+            opts = utils.cloneOpts(opts);
             opts.offset = offset +  maxChunkSize;
 
             // List the next chunk of assets from the content hub.
-            const helper = this;
-            helper._listAssetChunk(listFn, opts)
+            helper._listAssetChunk(context, listFn, opts)
                 .then(function (listInfo) {
-                    helper._recurseList(listFn, deferred, results, listInfo, opts);
+                    helper._recurseList(context, listFn, deferred, results, listInfo, opts);
                 });
         }
     }
 
     /**
-     * Used to determine if the helper supports deleting items by id.
+     * Determine whether the helper supports deleting items by id.
      */
-    supportsDeleteById(opts) {
+    supportsDeleteById () {
         return false;
     }
 
     /**
-     * Used to determine if the helper supports deleting items by path.
+     * Determine whether the helper supports deleting items by path.
      */
-    supportsDeleteByPath(opts) {
+    supportsDeleteByPath () {
         return false;
     }
 
     /**
-     * Used to determine if the helper supports deleting items by path.
+     * Determine whether the helper supports deleting items recursively by path.
      */
-    supportsDeleteByPathRecursive(opts) {
+    supportsDeleteByPathRecursive () {
         return true;
     }
 
-    searchRemote (path, recursive, searchOptions, opts) {
+    searchRemote (context, path, recursive, searchOptions, opts) {
         const deferred = Q.defer();
 
         if (!searchOptions) {
@@ -858,19 +869,10 @@ class AssetsHelper {
         }
         searchOptions["fq"].push("path:" + searchPath);
 
-        // get the offset/limit for the search service from the configured options
-        const searchServiceName = searchREST.getServiceName();
-        const offset = options.getRelevantOption(opts, "offset", searchServiceName);
-        const limit = options.getRelevantOption(opts, "limit",  searchServiceName);
-        // set the search service's offset/limit values on a clone of the opts
-        opts = opts ? utils.clone(opts) : {};
-        opts.offset = offset;
-        opts.limit = limit;
-
         // define a list function to work with the _listAssetChunk/_recurseList methods for handling paging
         const listFn = function(opts) {
             const listFnDeferred = Q.defer();
-            searchREST.search(searchOptions, opts)
+            searchREST.search(context, searchOptions, opts)
                 .then(function (results) {
                     if (!results.documents) {
                         results.documents = [];
@@ -885,14 +887,24 @@ class AssetsHelper {
             return listFnDeferred.promise;
         };
 
+        // get the offset/limit for the search service from the configured options
+        const searchServiceName = searchREST.getServiceName();
+        const offset = options.getRelevantOption(context, opts, "offset", searchServiceName);
+        const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
+
+        // set the search service's offset/limit values on a clone of the opts
+        opts = utils.cloneOpts(opts);
+        opts.offset = offset;
+        opts.limit = limit;
+
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
         const helper = this;
-        helper._listAssetChunk(listFn, opts)
+        helper._listAssetChunk(context, listFn, opts)
             .then(function (listInfo) {
                 // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
                 // deferred, so we have to handle that explicitly.
-                helper._recurseList(listFn, deferred, null, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
             })
             .catch(function (err) {
                 // If the list function's promise is rejected, propogate that to the deferred that was returned.
@@ -945,25 +957,26 @@ class AssetsHelper {
     /**
      * Get a list of the names of all remote assets.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for this operation.
      *
      * @returns {Q.Promise} - A promise for an array of the names of all remote assets.
      */
-    listRemoteItemNames (opts) {
+    listRemoteItemNames (context, opts) {
         // Create the deferred to be used for recursively retrieving assets.
         const deferred = Q.defer();
 
         // Recursively call AssetsREST.getItems() to retrieve all of the remote assets.
-        const listFn = this._restApi.getItems.bind(this._restApi);
+        const listFn = this._restApi.getItems.bind(this._restApi, context);
 
         // Get the first chunk of remote assets, and then recursively retrieve any additional chunks.
         const helper = this;
-        helper._listAssetChunk(listFn, opts)
+        helper._listAssetChunk(context, listFn, opts)
             .then(function (listInfo) {
                 // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
                 // deferred, so we have to handle that explicitly.
-                helper._recurseList(listFn, deferred, null, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
             })
             .catch(function (err) {
                 // If the list function's promise is rejected, propogate that to the deferred that was returned.
@@ -983,27 +996,30 @@ class AssetsHelper {
     /**
      * Get a list of the assets that have been modified on the content hub.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Array} flags - An array of the state (NEW, DELETED, MODIFIED) of the assets to be included in the list.
      * @param {Object} opts - The options to be used for this operation.
      *
      * @returns {Q.Promise} - A promise for a list of the assets that have been modified on the content hub.
      */
-    getModifiedRemoteItems (flags, opts) {
+    getModifiedRemoteItems (context, flags, opts) {
         // Get the local directory to use for comparison, based on the specified options.
-        const dir = this._fsApi.getAssetsPath(opts);
+        const dir = this._fsApi.getAssetsPath(context, opts);
 
         // Recursively call AssetsREST.getModifiedItems() to retrieve the remote assets modified since the last pull.
         const helper = this;
-        return helper._restApi.getModifiedItems(helper._getTimestamp(helper._getLastPullTimestamps(opts), opts), opts)
+        const lastPullTimestamps = helper._getLastPullTimestamps(context, opts);
+        const lastPullTimestamp = helper._getTimestamp(lastPullTimestamps, opts);
+        return helper._restApi.getModifiedItems(context, lastPullTimestamp, opts)
             .then(function (items) {
                 // Return a promise for the filtered list of remote modified assets.
                 return items.filter(function (item) {
                     try {
                         // Determine whether the remote asset was modified, based on the specified flags.
-                        const itemPath = helper._fsApi.getPath(item.path, opts);
-                        return hashes.isRemoteModified(flags, item, dir, itemPath, opts);
+                        const itemPath = helper._fsApi.getPath(context, item.path, opts);
+                        return hashes.isRemoteModified(context, flags, item, dir, itemPath, opts);
                     } catch (err) {
-                        utils.logErrors(i18n.__("error_filtering_remote_items"), err);
+                        utils.logErrors(context, i18n.__("error_filtering_remote_items"), err);
                     }
                 });
             });
@@ -1012,23 +1028,24 @@ class AssetsHelper {
     /**
      * Get a list of the names of all remote assets that have been modified.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Array} flags - An array of the state (NEW, DELETED, MODIFIED) of the assets to be included in the list.
      * @param {Object} opts - The options to be used for this operation.
      *
      * @returns {Q.Promise} - A promise for an array of the names of all remote assets that were modified since being
      *                        pushed/pulled.
      */
-    listModifiedRemoteItemNames (flags, opts) {
+    listModifiedRemoteItemNames (context, flags, opts) {
         const deferred = Q.defer();
 
         // Use getModifiedRemoteItems() as the list function, so that only modified assets will be pulled.
         const helper = this;
-        const listFn = helper.getModifiedRemoteItems.bind(this, flags);
-        helper._listAssetChunk(listFn, opts)
+        const listFn = helper.getModifiedRemoteItems.bind(this, context, flags);
+        helper._listAssetChunk(context, listFn, opts)
             .then(function (listInfo) {
                 // There are no results initially, so just pass null for the results. The accumulated array of asset
                 // metadata for all listed items will be available when "deferred" has been resolved.
-                helper._recurseList(listFn, deferred, null, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
             })
             .catch(function (err) {
                 // There was an error listing the assets.
@@ -1044,7 +1061,7 @@ class AssetsHelper {
 
                 // Add the deleted assets if the flag was specified.
                 if (flags.indexOf(helper.DELETED) !== -1) {
-                    return helper.listRemoteDeletedNames(opts)
+                    return helper.listRemoteDeletedNames(context, opts)
                         .then(function (itemNames) {
                             itemNames.forEach(function (itemName) {
                                 results.push(itemName);
@@ -1060,20 +1077,21 @@ class AssetsHelper {
     /**
      * Get a list of the names of all remote assets that have been deleted from the content hub.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the list operation.
      *
      * @returns {Q.Promise} - A promise for the names of all remote assets that have been deleted from the content hub.
      */
-    listRemoteDeletedNames (opts) {
+    listRemoteDeletedNames (context, opts) {
         const deferred = Q.defer();
 
         // Get the list of all remote assets.
         const helper = this;
-        helper.listRemoteItemNames(opts)
+        helper.listRemoteItemNames(context, opts)
             .then(function (remoteItemPaths) {
                 // Get the list of local assets that are known to have existed on the server.
-                const dir = helper._fsApi.getAssetsPath(opts);
-                const localItemPaths = hashes.listFiles(dir, opts);
+                const dir = helper._fsApi.getAssetsPath(context, opts);
+                const localItemPaths = hashes.listFiles(context, dir, opts);
 
                 // The deleted assets are the ones that exist in the local list but not in the remote list.
                 const deletedNames = localItemPaths
@@ -1095,48 +1113,42 @@ class AssetsHelper {
     /**
      * Get a list of local asset names, based on the specified options.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the list operation.
      *
      * @returns {Q.Promise} A promise for a list of local asset names, based on the specified options.
      */
-    listLocalItemNames (opts) {
+    listLocalItemNames (context, opts) {
         // Get the list of asset paths on the local file system.
-        const helper = this;
-        return this._fsApi.listNames(null, opts)
-            .then(function (paths) {
-                // Add the local status for each asset and return the original list of paths.
-                paths.forEach(function (path) {
-                    helper.addLocalStatus(path);
-                });
-                return paths;
-            });
+        return this._fsApi.listNames(context, null, opts);
     }
 
     /**
      * Get a list of modified local asset paths, based on the specified options.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Array} flags - An array of the state (NEW, DELETED, MODIFIED) of the assets to be included in the list.
      * @param {Object} opts - The options to be used for the list operation.
      *
      * @returns {Q.Promise} A promise for a list of modified local asset paths, based on the specified options.
      */
-    listModifiedLocalItemNames (flags, opts) {
+    listModifiedLocalItemNames (context, flags, opts) {
         // Get the list of local asset paths.
-        const dir = this._fsApi.getAssetsPath(opts);
+        const dir = this._fsApi.getAssetsPath(context, opts);
 
         const helper = this;
-        return helper._fsApi.listNames(null, opts)
+        return helper._fsApi.listNames(context, null, opts)
             .then(function (assetPaths) {
                 // Filter the list so that it only contains modified asset paths.
                 const results = assetPaths
                     .filter(function (assetPath) {
-                        const path = helper._fsApi.getPath(assetPath, opts);
-                        return hashes.isLocalModified(flags, dir, path, opts);
+                        const path = helper._fsApi.getPath(context, assetPath, opts);
+                        return hashes.isLocalModified(context, flags, dir, path, opts);
                     });
 
                 // Add the deleted asset paths if the flag was specified.
                 if (flags.indexOf(helper.DELETED) !== -1) {
-                    return helper.listLocalDeletedNames(opts)
+                    return helper.listLocalDeletedNames(context, opts)
                         .then(function (assetPaths) {
                             assetPaths.forEach(function (assetPath) {
                                 results.push(assetPath);
@@ -1152,16 +1164,17 @@ class AssetsHelper {
     /**
      * Get a list of the names of all local assets that have been deleted.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the list operation.
      *
      * @returns {Q.Promise} - A promise for the names of all local assets that have been deleted.
      */
-    listLocalDeletedNames (opts) {
+    listLocalDeletedNames (context, opts) {
         const deferred = Q.defer();
 
         // Get the list of local asset paths.
-        const dir = this._fsApi.getAssetsPath(opts);
-        const localAssetPaths = hashes.listFiles(dir, opts);
+        const dir = this._fsApi.getAssetsPath(context, opts);
+        const localAssetPaths = hashes.listFiles(context, dir, opts);
 
         // Get the list of deleted local assets.
         const deletedAssetPaths = localAssetPaths
@@ -1185,19 +1198,19 @@ class AssetsHelper {
     /**
      * Delete the asset with the specified path on the content hub.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} asset - An asset on the content hub.
      * @param {Object} opts - The options to be used for the delete operation.
      *
      * @returns {Q.Promise} A promise that is resolved with a message describing the delete action.
      */
-    deleteRemoteItem (asset, opts) {
+    deleteRemoteItem (context, asset, opts) {
         const helper = this;
-        return helper._restApi.deleteItem(asset, opts)
+        return helper._restApi.deleteItem(context, asset, opts)
             .then(function (message) {
-                // The delete was successful, so update the hashes and status tracker.
-                const basePath = helper._fsApi.getAssetsPath(opts);
-                hashes.removeHashes(basePath, [asset.id], opts);
-                helper._statusTracker.removeStatus(asset.path, StatusTracker.EXISTS_REMOTELY);
+                // The delete was successful, so update the hashes.
+                const basePath = helper._fsApi.getAssetsPath(context, opts);
+                hashes.removeHashes(context, basePath, [asset.id], opts);
 
                 // Resolve the promise with the message returned from the REST service.
                 return message;
@@ -1209,6 +1222,7 @@ class AssetsHelper {
      *
      * Note: The asset metadata will be retrieved from the REST service in chunks until the specified asset is found.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Array} assets An array of asset metadata objects that have been retrieved from the REST service.
      * @param {String} path The path of the asset to be found.
      * @param {Object} opts The options for the REST service requests.
@@ -1217,7 +1231,7 @@ class AssetsHelper {
      *
      * @private
      */
-    _findItemByPath (assets, path, opts) {
+    _findItemByPath (context, assets, path, opts) {
         // Find the asset with the specified path in the given array of assets.
         const asset = assets && assets.find(function (asset) {
                 // Determine whether the path of the current asset matches the specified path.
@@ -1231,7 +1245,7 @@ class AssetsHelper {
         } else {
             // The specified asset was not found.
             const currentChunkSize = assets.length;
-            const maxChunkSize = options.getRelevantOption(opts, "limit", this._artifactName);
+            const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
 
             if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
                 // The current chunk is a partial chunk, so there are no more assets to be retrieved. Reject the promise
@@ -1239,23 +1253,18 @@ class AssetsHelper {
                 deferred.reject(new Error(i18n.__("remote_asset_not_found") + path));
             } else {
                 // The current chunk is a full chunk, so there may be more assets to retrieve.
-                if (opts) {
-                    // Clone the opts before modifying them, so that the original opts are not affected.
-                    opts = utils.clone(opts);
-                } else {
-                    opts = {};
-                }
+                const helper = this;
 
                 // Increase the offset so that the next chunk of assets will be retrieved.
-                const offset = options.getRelevantOption(opts, "offset", this._artifactName);
+                const offset = options.getRelevantOption(context, opts, "offset", this._artifactName);
+                opts = utils.cloneOpts(opts);
                 opts.offset = offset + maxChunkSize;
 
                 // Retrieve the next chunk of assets from the REST service.
-                const helper = this;
-                helper._restApi.getItems(opts)
+                helper._restApi.getItems(context, opts)
                     .then(function (items) {
                         // Recursive call to find the specified asset in the newly retrieved chunk.
-                        return helper._findItemByPath(items, path, opts);
+                        return helper._findItemByPath(context, items, path, opts);
                     })
                     .then (function (asset) {
                         // The asset was found, so resolve the promise with it.
@@ -1274,13 +1283,14 @@ class AssetsHelper {
     /**
      * Returns the last pull timestamps, converting from a single timestamp to the new multi-value timestamp format if needed.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param opts
      *
      * @returns {{webAssets: String | Date, contentAssets: String | Date}}
      */
-    _getLastPullTimestamps (opts) {
-        const dir = this._fsApi.getAssetsPath(opts);
-        const timestamps = hashes.getLastPullTimestamp(dir, opts);
+    _getLastPullTimestamps (context, opts) {
+        const dir = this._fsApi.getAssetsPath(context, opts);
+        const timestamps = hashes.getLastPullTimestamp(context, dir, opts);
         // create the timestamps object now
         // we use the webAssets and contentAssets children of the timestamps read from .wchtoolshashes if they exist (new format)
         // otherwise fall back to copying the old format (a single timestamp) into each field
@@ -1293,13 +1303,14 @@ class AssetsHelper {
     /**
      * Returns the last push timestamps, converting from a single timestap to the new multi-value timestamp format if needed.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param opts
      *
      * @returns {{webAssets: String | Date, contentAssets: String | Date}}
      */
-    _getLastPushTimestamps (opts) {
-        const dir = this._fsApi.getAssetsPath(opts);
-        const timestamps = hashes.getLastPushTimestamp(dir, opts);
+    _getLastPushTimestamps (context, opts) {
+        const dir = this._fsApi.getAssetsPath(context, opts);
+        const timestamps = hashes.getLastPushTimestamp(context, dir, opts);
         // create the timestamps object now
         // we use the webAssets and contentAssets children of the timestamps read from .wchtoolshashes if they exist (new format)
         // otherwise fall back to copying the old format (a single timestamp) into each field
@@ -1312,10 +1323,11 @@ class AssetsHelper {
     /**
      * Sets the last pull timestamps.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param opts
      */
-    _setLastPullTimestamps(opts) {
-        const timestamps = this._getLastPullTimestamps(opts);
+    _setLastPullTimestamps (context, opts) {
+        const timestamps = this._getLastPullTimestamps(context, opts);
         if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
             timestamps.webAssets = new Date();
         } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
@@ -1323,16 +1335,17 @@ class AssetsHelper {
         } else {
             timestamps.webAssets = timestamps.contentAssets = new Date();
         }
-        hashes.setLastPullTimestamp(this._fsApi.getAssetsPath(opts), timestamps, opts);
+        hashes.setLastPullTimestamp(context, this._fsApi.getAssetsPath(context, opts), timestamps, opts);
     }
 
     /**
      * Sets the last push timestamps.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param opts
      */
-    _setLastPushTimestamps (opts) {
-        const timestamps = this._getLastPushTimestamps(opts);
+    _setLastPushTimestamps (context, opts) {
+        const timestamps = this._getLastPushTimestamps(context, opts);
         if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
             timestamps.webAssets = new Date();
         } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
@@ -1340,7 +1353,7 @@ class AssetsHelper {
         } else {
             timestamps.webAssets = timestamps.contentAssets = new Date();
         }
-        hashes.setLastPushTimestamp(this._fsApi.getAssetsPath(opts), timestamps, opts);
+        hashes.setLastPushTimestamp(context, this._fsApi.getAssetsPath(context, opts), timestamps, opts);
     }
 
     _getTimestamp (timestamps, opts) {
@@ -1365,63 +1378,11 @@ class AssetsHelper {
     }
 
     /**
-     * Register the specified asset as being available remotely.
-     *
-     * @param {Object} asset - An asset that exists remotely.
-     *
-     * @returns {Object} The asset passed in.
-     *
-     * @private
-     */
-    addRemoteStatus (asset) {
-        this._statusTracker.addStatus(asset, StatusTracker.EXISTS_REMOTELY);
-        return asset;
-    }
-
-    /**
-     * Register the specified asset as being available locally.
-     *
-     * @param {Object} asset - An asset that exists locally.
-     *
-     * @returns {Object} The asset passed in.
-     *
-     * @private
-     */
-    addLocalStatus (asset) {
-        this._statusTracker.addStatus(asset, StatusTracker.EXISTS_LOCALLY);
-        return asset;
-    }
-
-    /**
-     * Determine whether an asset with the specified path exists on the local file system.
-     *
-     * @param {String} path - An asset path on the local file system.
-     *
-     * @returns {Boolean} A return value of true indicates that an asset with the specified path exists on the local file system.
-     */
-    existsLocally (path) {
-        return this._statusTracker.existsLocally({name: path});
-    }
-
-    /**
-     * Determine whether an asset with the specified path exists on the content hub.
-     *
-     * @param {String} path - An asset path on the content hub.
-     *
-     * @returns {Boolean} A return value of true indicates that an asset with the specified path exists on the content hub.
-     */
-    existsRemotely (path) {
-        return this._statusTracker.existsRemotely({name: path});
-    }
-
-    /**
      * Reset the helper to its original state.
      *
      * Note: This is mostly useful for testing, so that each test can be sure of the helper's initial state.
      */
     reset () {
-        this._statusTracker = new StatusTracker();
-        this._eventEmitter = new events.EventEmitter();
     }
 }
 

@@ -23,7 +23,6 @@ const request = utils.getRequestWrapper();
 const mime = require('mime-types');
 const path = require('path');
 const querystring = require("querystring");
-const logger = utils.getLogger(utils.apisLog);
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
@@ -32,13 +31,16 @@ const singletonEnforcer = Symbol();
 /*
  * local utility method to do the asset metadata POST, called from multiple places in pushItem
  */
-function postAssetMetadata(reqOptions, deferred) {
+function postAssetMetadata(context, reqOptions, deferred) {
     request.post(reqOptions, function (err, res, body) {
-        if (err || (res && res.statusCode >= 400)) {
-            err = utils.getError(err, body, res, reqOptions);
-            utils.logErrors(i18n.__("create_asset_metadata_error"), err);
+        const response = res || {};
+        if (err || response.statusCode >= 400) {
+            err = utils.getError(err, body, response, reqOptions);
+            BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
+            utils.logErrors(context, i18n.__("create_asset_metadata_error"), err);
             deferred.reject(err);
         } else {
+            BaseREST.logRetryInfo(context, reqOptions, response.attempts);
             deferred.resolve(body);
         }
     });
@@ -80,7 +82,7 @@ class AssetsREST extends BaseREST {
         return this[singleton];
     }
 
-    static getResourceHeaders (name) {
+    static getResourceHeaders (context, name, opts) {
         const mtype = mime.lookup(name) || "text/plain";
         const headers = {
             "Accept": "application/json",
@@ -90,24 +92,28 @@ class AssetsREST extends BaseREST {
             "User-Agent": utils.getUserAgent()
         };
 
-        return headers;
+        return this.addHeaderOverrides(context, headers, opts);
     }
 
-    getDownloadRequestOptions (opts) {
+    getDownloadRequestOptions (context, opts) {
         const deferred = Q.defer();
+        const restObject = this;
         const headers = {
             "Accept": "*/*",
             "Accept-Language": utils.getHTTPLanguage(),
             "Connection": "keep-alive",
             "User-Agent": utils.getUserAgent()
         };
+        BaseREST.addHeaderOverrides(context, headers, opts);
 
-        this.getRequestURI(opts)
+        this.getRequestURI(context, opts)
             .then(function (uri) {
-                deferred.resolve({
+                uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
+                const requestOptions = {
                     uri: uri + "/authoring/v1/resources",
                     headers: headers
-                });
+                };
+                deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -116,18 +122,20 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
-    getAssetUpdateRequestOptions (id, opts) {
+    getAssetUpdateRequestOptions (context, id, opts) {
         const deferred = Q.defer();
-        const headers = BaseREST.getHeaders();
-        const forceParam = (options.getRelevantOption(opts, "force-override")) ? "?forceOverride=true" : "";
+        const restObject = this;
+        const headers = BaseREST.getHeaders(context, opts);
+        const forceParam = (options.getRelevantOption(context, opts, "force-override")) ? "?forceOverride=true" : "";
 
-        this.getRequestURI(opts)
+        this.getRequestURI(context, opts)
             .then(function (uri) {
-                deferred.resolve({
+                const requestOptions = {
                     uri: uri + "/authoring/v1/assets/" + id + forceParam,
                     headers: headers,
                     json: true
-                });
+                };
+                deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -136,17 +144,20 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
-    getResourcePOSTOptions (name, opts) {
+    getResourcePOSTOptions (context, name, opts) {
         const deferred = Q.defer();
-        const headers = AssetsREST.getResourceHeaders(name);
+        const restObject = this;
+        const headers = AssetsREST.getResourceHeaders(context, name, opts);
         const fname = path.basename(name);
 
-        this.getRequestURI(opts)
+        this.getRequestURI(context, opts)
             .then(function (uri) {
-                deferred.resolve({
+                uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
+                const requestOptions = {
                     uri: uri + "/authoring/v1/resources?name=" + querystring.escape(fname),
                     headers: headers
-                });
+                };
+                deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -155,19 +166,22 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
-    getResourcePUTOptions (resourceId, resourceMd5, name, opts) {
+    getResourcePUTOptions (context, resourceId, resourceMd5, name, opts) {
         const deferred = Q.defer();
-        const headers = AssetsREST.getResourceHeaders(name);
+        const restObject = this;
+        const headers = AssetsREST.getResourceHeaders(context, name, opts);
         const fname = path.basename(name);
 
-        this.getRequestURI(opts)
+        this.getRequestURI(context, opts)
             .then(function (uri) {
+                uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const uriIdPath = resourceId ? "/" + resourceId : "";
                 const paramMd5 = resourceMd5 ? "&md5=" + querystring.escape(resourceMd5) : "";
-                deferred.resolve({
+                const requestOptions = {
                     uri: uri + "/authoring/v1/resources" + uriIdPath + "?name=" + querystring.escape(fname) + paramMd5,
                     headers: headers
-                });
+                };
+                deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -179,17 +193,18 @@ class AssetsREST extends BaseREST {
     /**
      * Download the specified asset and save it to the given stream.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object} asset - metadata for the asset to be downloaded
      * @param {Object} stream - stream used to save the asset contents
      * @param {Object} [opts]
      *
      * @return {Q.Promise} A promise for the metadata of the pulled asset.
      */
-    pullItem (asset, stream, opts) {
+    pullItem (context, asset, stream, opts) {
         const deferred = Q.defer();
 
         // Initialize the request options.
-        this.getDownloadRequestOptions(opts)
+        this.getDownloadRequestOptions(context, opts)
             .then(function (reqOptions) {
                 reqOptions.uri = reqOptions.uri + "/" + asset.resource;
                 // Make the request and pipe the response to the specified stream.
@@ -198,7 +213,7 @@ class AssetsREST extends BaseREST {
 
                 // Check the "response" event to make sure the response was successful.
                 let error;
-                let sResponse;
+                let sResponse = {};
                 responseStream.on("response", function (response) {
                     sResponse = response;
                     const code = response.statusCode;
@@ -210,16 +225,18 @@ class AssetsREST extends BaseREST {
                 // Wait for the writable stream to "finish" before the promise is settled.
                 stream.on("finish", function () {
                     if (error) {
-                        utils.logErrors('AssetsRest.pullItem finish: ', utils.getError(error, undefined, sResponse, reqOptions));
+                        BaseREST.logRetryInfo(context, reqOptions, sResponse.attempts, error);
+                        utils.logErrors(context, 'AssetsRest.pullItem finish: ', utils.getError(error, undefined, sResponse, reqOptions));
                         deferred.reject(error);
                     } else {
+                        BaseREST.logRetryInfo(context, reqOptions, sResponse.attempts);
                         deferred.resolve(asset);
                     }
                 });
 
                 // Handle an "error" event on the response stream
                 responseStream.on("error", function (err) {
-                    utils.logErrors('AssetsREST.pullItem error: ', utils.getError(err, undefined, sResponse, reqOptions));
+                    utils.logErrors(context, 'AssetsREST.pullItem error: ', utils.getError(err, undefined, sResponse, reqOptions));
                     // set the error object which will get handled via the writable stream finish event.
                     error = err;
                     // If there was an error reading the response, the writable stream must be ended manually.
@@ -236,6 +253,7 @@ class AssetsREST extends BaseREST {
     /**
      * Push the specified asset.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param isContentResource - flag indicating if the resource is a content resource
      * @param replaceContentResource - flag indicating if a content resource should be replaced
      * @param resourceId
@@ -245,9 +263,10 @@ class AssetsREST extends BaseREST {
      * @param length
      * @param opts
      */
-    pushItem (isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+    pushItem (context, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
         const restObject = this;
-        //  if nothing to push then succeed
+
+        // Make sure the path name starts with a leading slash.
         if (pathname.startsWith("\\")) {
             pathname = "/" + pathname.slice(1);
         } else if (!pathname.startsWith("/")) {
@@ -255,24 +274,31 @@ class AssetsREST extends BaseREST {
         }
 
         // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
-        const resourceRequestOptions = isContentResource && !replaceContentResource && resourceId ? this.getResourcePUTOptions(resourceId, resourceMd5, pathname, opts) : this.getResourcePOSTOptions(pathname, opts);
+        const updateContentResource = isContentResource && !replaceContentResource && resourceId;
+        const resourceRequestOptions = updateContentResource ? this.getResourcePUTOptions(context, resourceId, resourceMd5, pathname, opts) : this.getResourcePOSTOptions(context, pathname, opts);
+
         // Asset creation requires two steps.  POST/PUT the binary to resource service followed by pushing asset metadata to the asset service
         const deferred = Q.defer();
         resourceRequestOptions
             .then(function (reqOptions) {
                 reqOptions.headers["Content-Length"] = length;
+
                 const resourceRequestCallback = function (err, res, body) {
-                    if (err || (res && res.statusCode >= 400)) {
-                        err = utils.getError(err, body, res, reqOptions);
-                        utils.logErrors("AssetsRest.pushItem resourceRequestCallback: ", err);
+                    const response = res || {};
+                    if (err || response.statusCode >= 400) {
+                        err = utils.getError(err, body, response, reqOptions);
+                        BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
+                        utils.logErrors(context, "AssetsRest.pushItem resourceRequestCallback: ", err);
                         deferred.reject(err);
                     } else {
+                        BaseREST.logRetryInfo(context, reqOptions, response.attempts);
+
                         // to replace the underlying resource, we need to parse the result body to get the new resource ID.
-                        const resourceMetadata = isContentResource && !replaceContentResource && resourceId ? { id: resourceId } : JSON.parse(body);
+                        const resourceMetadata = updateContentResource ? { id: resourceId } : JSON.parse(body);
                         // iff an asset object is passed in then attempt update it with the same asset id (Carlos Asset)
                         if (opts && opts.asset) {
                             const asset = opts.asset;
-                            restObject.getAssetUpdateRequestOptions(asset.id, opts)
+                            restObject.getAssetUpdateRequestOptions(context, asset.id, opts)
                                 .then(function (reqOptions) {
                                     asset.resource = resourceMetadata.id;
                                     delete asset.mediaType;
@@ -280,29 +306,32 @@ class AssetsREST extends BaseREST {
                                     reqOptions.body = asset;
                                     if (asset.id && asset.rev) {
                                         request.put(reqOptions, function (err, res, body) {
-                                            if (res && res.statusCode === 404) {
+                                            const response = res || {};
+                                            if (response.statusCode === 404) {
                                                 // We may be pushing an existing asset defn to a new tenant DB, so create the asset defn instead
                                                 reqOptions.uri = reqOptions.uri.substring(0, reqOptions.uri.lastIndexOf('/'));
                                                 delete reqOptions.body.rev;
-                                                postAssetMetadata(reqOptions, deferred);
-                                            } else if (err || (res && res.statusCode >= 400)) {
-                                                err = utils.getError(err, body, res, reqOptions);
-                                                utils.logErrors("AssetsREST.pushItem put: ", err);
+                                                postAssetMetadata(context, reqOptions, deferred);
+                                            } else if (err || response.statusCode >= 400) {
+                                                err = utils.getError(err, body, response, reqOptions);
+                                                BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
+                                                utils.logErrors(context, "AssetsREST.pushItem put: ", err);
                                                 deferred.reject(err);
                                             } else {
+                                                BaseREST.logRetryInfo(context, reqOptions, response.attempts);
                                                 deferred.resolve(body);
                                             }
                                         });
                                     } else {
-                                        postAssetMetadata(reqOptions, deferred);
+                                        postAssetMetadata(context, reqOptions, deferred);
                                     }
                                 });
                         } else {
                             // Creating new asset metadata defn for Fernando web asset
-                            restObject.getRequestOptions(opts)
+                            restObject.getRequestOptions(context, opts)
                                 .then(function (reqOptions) {
                                     reqOptions.body = {resource: resourceMetadata.id, path: pathname};
-                                    postAssetMetadata(reqOptions, deferred);
+                                    postAssetMetadata(context, reqOptions, deferred);
                                 });
                         }
                     }
@@ -310,7 +339,7 @@ class AssetsREST extends BaseREST {
 
                 // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
                 //noinspection JSUnresolvedFunction
-                stream.pipe(isContentResource && !replaceContentResource && resourceId ? request.put(reqOptions, resourceRequestCallback) : request.post(reqOptions, resourceRequestCallback));
+                stream.pipe(updateContentResource ? request.put(reqOptions, resourceRequestCallback) : request.post(reqOptions, resourceRequestCallback));
             })
             .catch (function (err) {
                 deferred.reject(err);

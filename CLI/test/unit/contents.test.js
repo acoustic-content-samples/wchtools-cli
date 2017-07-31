@@ -22,10 +22,6 @@ const helper = require("wchtools-api").getContentHelper();
 const rEST = require("../../../authoring-api/lib/contentREST.js").instance;
 const fS = require("../../../authoring-api/lib/contentFS.js").instance;
 
-if(!fS || !rEST) {
-    console.log('Error could not load required');
-}
-
 // Presentations Tests with CLI
 const BASE_NAME = 'content';
 const PullUnitTest = require("./lib/pull.unit.js");

@@ -28,14 +28,14 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 
 class AuthoringSearchREST extends BaseREST {
 
-    constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+    constructor (enforcer) {
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "AuthoringSearchREST"});
-
+        }
         super("authoring-search", "/authoring/v1/search", undefined, undefined);
     }
 
-    static get instance() {
+    static get instance () {
         if (!this[singleton]) {
             this[singleton] = new AuthoringSearchREST(singletonEnforcer);
         }
@@ -45,23 +45,27 @@ class AuthoringSearchREST extends BaseREST {
     /**
      * Execute the specified search query
      *
+     * @param {Object} context The API context to be used by the search operation.
      * @param {Object} searchQuery - valid authoring search query with pre-encoded query param values
      * @param {Object} [opts]
      *
      * @return {Q.Promise} A promise for the metadata of the matching assets.
      */
-    searchQuery(searchQuery, opts) {
+    searchQuery (context, searchQuery, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        this.getRequestOptions(opts)
+        this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "?" + searchQuery;
                 request.get(requestOptions, function (err, res, body) {
-                    if ((err) || (res && res.statusCode !== 200)) {
-                        err = utils.getError(err, body, res, requestOptions);
-                        utils.logErrors(i18n.__("authoring_search_error" , {service_name: restObject.getServiceName()}),err);
+                    const response = res || {};
+                    if (err || response.statusCode !== 200) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+                        utils.logErrors(context, i18n.__("authoring_search_error", {service_name: restObject.getServiceName()}), err);
                         deferred.reject(err);
                     } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         deferred.resolve(body);
                     }
                 });
@@ -82,11 +86,12 @@ class AuthoringSearchREST extends BaseREST {
      *   fl: string or array of strings
      *   fq: string or array of strings
      *
+     * @param {Object} context The API context to be used by the search operation.
      * @param {Object} [opts]
      *
      * @return {Q.Promise} A promise for the metadata of the matching assets.
      */
-    search(parameters, opts) {
+    search (context, parameters, opts) {
         let searchQuery = "";
         if (parameters["q"]) {
             searchQuery += "q=" + parameters["q"];
@@ -121,12 +126,12 @@ class AuthoringSearchREST extends BaseREST {
             });
         }
 
-        const offset = options.getRelevantOption(opts, "offset", this.getServiceName());
+        const offset = options.getRelevantOption(context, opts, "offset", this.getServiceName());
         searchQuery += "&start=" + offset;
-        const limit = options.getRelevantOption(opts, "limit",  this.getServiceName());
+        const limit = options.getRelevantOption(context, opts, "limit",  this.getServiceName());
         searchQuery += "&rows=" + limit;
 
-        return this.searchQuery(searchQuery, opts);
+        return this.searchQuery(context, searchQuery, opts);
     }
 }
 

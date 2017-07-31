@@ -27,7 +27,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 const restApi = require(UnitTest.API_PATH + "lib/layoutMappingsREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for layouts.
-const lookupUri =  options.getProperty("layout-mappings", "uri");
+const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "layout-mappings", "uri");
 const path1 = LayoutMappingsUnitTest.VALID_LAYOUTMAPPINGS_DIRECTORY + LayoutMappingsUnitTest.VALID_LAYOUTMAPPING_1;
 const path2 = LayoutMappingsUnitTest.VALID_LAYOUTMAPPINGS_DIRECTORY + LayoutMappingsUnitTest.VALID_LAYOUTMAPPING_2;
 

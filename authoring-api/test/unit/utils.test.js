@@ -21,8 +21,11 @@ const path = require('path');
 const oslocale = require("os-locale");
 const Q = require("q");
 const utils = require("../../lib/utils/utils.js");
+const BaseUnit = require("./lib/base.unit.js");
 
 describe("utils", function () {
+    const context = BaseUnit.DEFAULT_API_CONTEXT;
+
     describe("isInvalidPath", function () {
         it("should return false for a valid path", function (done) {
             let error;
@@ -470,7 +473,7 @@ describe("utils", function () {
                             doneFirst = doneFirst || 1;
                             return doneFirst;
                         }),
-                    utils.throttledAll(promises2, limit)
+                    utils.throttledAll(context, promises2, limit)
                         .then(function () {
                             doneFirst = doneFirst || 2;
                             return doneFirst;
@@ -499,7 +502,7 @@ describe("utils", function () {
             }
 
             // No limit is specified, so it will default to the length of the promises array (ie not really throttling).
-            return utils.throttledAll(promises)
+            return utils.throttledAll(context, promises)
                 .then(function () {
                     expect(count).to.equal(total);
                 });
@@ -527,7 +530,7 @@ describe("utils", function () {
                 });
             });
 
-            return utils.throttledAll(promises, limit);
+            return utils.throttledAll(context, promises, limit);
         });
 
         it("should fail with an invalid limit", function () {
@@ -546,14 +549,14 @@ describe("utils", function () {
                 promises2.push(reject);
             }
 
-            const limit = '2';
+            const limit = 2;
 
             return Q.all(
                 [
                     Q.all(promises1)
                         .then(function () {
                         }),
-                    utils.throttledAll(promises2, limit)
+                    utils.throttledAll(context, promises2, limit)
                         .then(function () {
                         })
                         .catch(function (err) {
@@ -588,7 +591,7 @@ describe("utils", function () {
             }
 
             const limit = 2;
-            return utils.throttledAll(promises3, limit)
+            return utils.throttledAll(context, promises3, limit)
                 .then(function (res) {
                     expect(count).to.equal(10);
                     for (let i = 0; i < 2; i++) {
@@ -609,7 +612,7 @@ describe("utils", function () {
             const promiseFunctions = [throwException];
             const limit = 2;
             let error;
-            utils.throttledAll(promiseFunctions, limit)
+            utils.throttledAll(context, promiseFunctions, limit)
                 .then(function () {
                     // This is not expected. Pass the error to the "done" function to indicate a failed test.
                     error = new Error("The promise for the throttled functions should have been rejected.");

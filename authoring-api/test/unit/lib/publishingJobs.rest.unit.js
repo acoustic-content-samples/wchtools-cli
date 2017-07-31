@@ -28,7 +28,7 @@ const restApi = require(UnitTest.API_PATH + "lib/publishingJobsREST.js").instanc
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Get the "lookup" URI.
-const lookupUri =  options.getProperty("publishing", "uri");
+const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "publishing", "uri");
 const path1 = PublishingJobsUnitTest.VALID_PUBLISHING_JOBS_DIRECTORY + PublishingJobsUnitTest.VALID_PUBLISHING_JOB_1;
 const path2 = PublishingJobsUnitTest.VALID_PUBLISHING_JOBS_DIRECTORY + PublishingJobsUnitTest.VALID_PUBLISHING_JOB_2;
 

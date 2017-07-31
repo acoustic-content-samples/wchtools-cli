@@ -48,7 +48,8 @@ global.expect = chai.expect;
 const loadPath = path.dirname(__filename);
 const cliPath = path.normalize(loadPath + path.sep + '../../../');
 const apiPath = path.normalize(loadPath + path.sep + '../../../../authoring-api');
-const toolsApi = require("wchtools-api");
+const ToolsApi = require("wchtools-api");
+const options = ToolsApi.getOptions();
 
 class UnitTest {
     // File and directory constants used by all unit tests.
@@ -96,10 +97,11 @@ class UnitTest {
 
     /**
      * Restore options to the initial state.
+     *
+     * @param {Object} context The current API context.
      */
-    static restoreOptions () {
-        const options = require(apiPath + "/lib/utils/options.js");
-        options.resetState();
+    static restoreOptions (context) {
+        options.initialize(context);
     }
 
     /**
@@ -162,7 +164,7 @@ class UnitTest {
     /**
     */
     getLoginHelper() {
-        return toolsApi.login;
+        return ToolsApi.getLogin();
     }
 }
 

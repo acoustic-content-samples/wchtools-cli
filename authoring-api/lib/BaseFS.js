@@ -47,37 +47,50 @@ class BaseFS {
 
     /**
      * Returns the path to the working directory based on the given options.
+     *
+     * @param {Object} context The API context to be used by the file operation.
      */
-    static getWorkingDir (opts) {
-        const workingDir = options.getRelevantOption(opts, "workingDir") || process.cwd();
+    static getWorkingDir (context, opts) {
+        const workingDir = options.getRelevantOption(context, opts, "workingDir") || process.cwd();
 
         return workingDir + path.sep;
     }
 
     /**
      * Returns the path to the item directory based on the given options, but does not create it.
+     *
+     * @param {Object} context The API context to be used by the file operation.
      */
-    getPath (opts) {
-        return BaseFS.getWorkingDir(opts) + this.getFolderName() + path.sep;
+    getPath (context, opts) {
+        return BaseFS.getWorkingDir(context, opts) + this.getFolderName() + path.sep;
     }
 
     /**
      * Returns the path to the item directory based on the given options, and creates it if necessary.
      */
-    getDir (opts) {
-        const dir = this.getPath(opts);
+    getDir (context, opts) {
+        const dir = this.getPath(context, opts);
         if (!fs.existsSync(dir)) {
             mkdirp.sync(dir);
         }
         return dir;
     }
 
-    getFileStats (name, opts) {
+    /**
+     *
+     * @param {Object} context The API context to be used by the file operation.
+     * @param name
+     * @param opts
+     *
+     * @returns {Q.Promise}
+     */
+    getFileStats (context, name, opts) {
         const deferred = Q.defer();
 
-        fs.stat(this.getItemPath(name, opts), function (err, stats) {
+        // TODO Need to refine this abstraction. The getItemPath method is defined by the JSONItemFS class.
+        fs.stat(this.getItemPath(context, name, opts), function (err, stats) {
             if (err) {
-                utils.logErrors(i18n.__("error_fs_get_filestats", {"name": name}), err);
+                utils.logErrors(context, i18n.__("error_fs_get_filestats", {"name": name}), err);
                 deferred.reject(err);
             } else {
                 deferred.resolve(stats);

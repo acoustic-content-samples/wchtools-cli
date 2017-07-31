@@ -36,14 +36,16 @@ const loggers = [];
 let httplang;
 
 // Enable the request module cookie jar so cookies can be shared across response, request with this request wrapper
-const requestWrapper = require("request").defaults({jar: true});
+const requestWrapper = require("requestretry").defaults({jar: true});
 
 /**
- * get the object that is used to localize string
+ * Get the object that is used to localize strings.
+ *
  * @param directory the directory that the search for the nls directory starts from, it looks up the tree for the nls directory
  * @param extension the extension of the file with localizations. Default to .json if not passed
  * @param defaultLocale the local to use as a default. en is used if not set
- * @returns {*|exports|module.exports}
+ *
+ * @returns {Object}
  */
 function getI18N (directory, extension, defaultLocale) {
     let dir = directory;
@@ -102,12 +104,13 @@ function getI18N (directory, extension, defaultLocale) {
 }
 
 /**
- * Enumerates the set of nls resources contained in the specified directory and
- * returns a list of supported locales.
+ * Enumerates the set of nls resources contained in the specified directory and returns a list of supported locales.
+ *
  * @param directory the directory to scan
  * @param extension the extension for nls resource files
  * @param defaultLocale the default locale
- * @returns {Array.<string>} list of supported locales
+ *
+ * @returns {Array} A list of supported locales.
  */
 function getLocales (directory, extension, defaultLocale) {
     const files = fs.readdirSync(directory);
@@ -178,10 +181,11 @@ function isInvalidPath (path) {
 }
 
 /**
- * Get the directory that the log file should be created in.  currently uses cwd but could be user home
- * @returns {string} the directory the log file is found in
+ * Get the path of the API log file.
+ *
+ * @returns {String} The path of the API log file.
  */
-function getApiLogDir () {
+function getApiLogPath () {
     return process.cwd() + '/' + ProductAbrev + '-api.log';
 }
 
@@ -193,6 +197,8 @@ function getApiLogDir () {
  * @param {Object} body The response body, used for errors returned from the WCH API.
  * @param {Object} response The reponse object, used for the status code and message.
  * @param {Object} requestOptions The initial request options, used for logging.
+ *
+ * @returns {Error} An error based on the given information.
  */
 function getError (err, body, response, requestOptions) {
     try {
@@ -203,11 +209,11 @@ function getError (err, body, response, requestOptions) {
             error.response = response;
             error.statusCode = response.statusCode;
             if (response.statusCode === 408) {
-                error.message = i18n.__("service_unavailable") + i18n.__("please_try", {log_dir: getApiLogDir()});
+                error.message = i18n.__("service_unavailable") + i18n.__("please_try", {log_dir: getApiLogPath()});
             } else if (response.statusCode === 409) {
                 error.message = i18n.__("conflict") + ' : ' + error.message;
             } else if (response.statusCode >= 500) {
-                error.message = i18n.__("service_error") + i18n.__("please_try", {log_dir: getApiLogDir()});
+                error.message = i18n.__("service_error") + i18n.__("please_try", {log_dir: getApiLogPath()});
             }
         }
 
@@ -247,7 +253,7 @@ function getError (err, body, response, requestOptions) {
  * @param err the error object if there was one
  * @param body the body of the response that is checked for error info
  * @param resp the response object is checked for status messages
- * @returns {*|Error} first error found
+ * @returns {Error} first error found
  */
 function getBaseError (err, body, resp) {
     return getErrorFromErr(err) || getErrorFromBody(body) || getErrorFromResponse(resp) || new Error(i18n.__("unknown_error"));
@@ -256,7 +262,7 @@ function getBaseError (err, body, resp) {
 /**
  * get the Error from the error object if there is one
  * @param error error object returned from the request
- * @returns {*} an error if one is found
+ * @returns {Error} an error if one is found
  */
 function getErrorFromErr (error) {
     if (error && error.code && (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET')) {
@@ -268,7 +274,7 @@ function getErrorFromErr (error) {
 /**
  * get the Error from the body if there is one
  * @param body the body of the response from the request
- * @returns {*} an error if one is found
+ * @returns {Error} an error if one is found
  */
 function getErrorFromBody (body) {
     let err;
@@ -305,7 +311,7 @@ function getErrorFromBody (body) {
 /**
  *  get the Error from the response if there is one
  * @param response the response from the request
- * @returns {*} an error if one is found
+ * @returns {Error} an error if one is found
  */
 function getErrorFromResponse (response) {
     let err;
@@ -329,7 +335,7 @@ if (buildTag && buildTag.indexOf('jenkins') !== -1) {
             },
             {
                 type: 'file',
-                filename: getApiLogDir(),
+                filename: getApiLogPath(),
                 category: apisLog,
                 maxLogSize: 500480,
                 backups: 5
@@ -345,7 +351,7 @@ if (buildTag && buildTag.indexOf('jenkins') !== -1) {
         appenders: [
             {
                 type: 'file',
-                filename: getApiLogDir(),
+                filename: getApiLogPath(),
                 category: apisLog,
                 maxLogSize: 500480,
                 backups: 5
@@ -359,22 +365,26 @@ if (buildTag && buildTag.indexOf('jenkins') !== -1) {
 }
 
 /**
- * the logs errors using the api log it marks the error object as logged and will only log an error once
- * @param heading text you want to label the error with
- * @param error the error that you want logged
+ * Log the specified error and heading using the logger specified by the context.
+ *
+ * Note: The error object is marked as logged, so that it will only be logged once.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} heading The text used to describe the error.
+ * @param {Error} error The error to be logged.
  */
-function logErrors (heading, error) {
+function logErrors (context, heading, error) {
     try {
         if (error instanceof Error) {
             // Only log a given error once.
             if (!error.isLogged) {
                 error.heading = heading;
-                getLogger(apisLog).error(heading + (error.log ? error.log : error.toString()));
+                context.logger.error(heading + (error.log ? error.log : error.toString()));
                 error.isLogged = true;
             }
         } else {
             // Not sure what this error is, so just log it as a string.
-            getLogger(apisLog).error(error.toString());
+            context.logger.error(error.toString());
         }
     }
     catch (e) {
@@ -383,12 +393,14 @@ function logErrors (heading, error) {
 }
 
 /**
- * the logs warnings using the api log
- * @param warning text you want to log as a warning
+ * Log the specified warning using the logger specified by the context.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} warning The warning to be logged.
  */
-function logWarnings (warning) {
+function logWarnings (context, warning) {
     try {
-        getLogger(apisLog).warn(warning);
+        context.logger.warn(warning);
     }
     catch (e) {
         // do nothing
@@ -396,15 +408,30 @@ function logWarnings (warning) {
 }
 
 /**
- * Log the debug info using the api log
+ * Log the specified info using the logger specified by the context.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} info The information to be logged.
+ */
+function logInfo (context, info) {
+    try {
+        context.logger.info(info);
+    } catch (e) {
+        // do nothing
+    }
+}
+
+/**
+ * Log the specified debug info using the logger specified by the context.
+ *
+ * @param {Object} context The current API context.
  * @param info a sting of info you want logged as debug information
  * @param response an optional parameter if you want the response object logged for debug
  * @param requestOptions an optional parameter if you want the request object logged for debug
  */
-function logDebugInfo (info, response, requestOptions) {
-    const logger = getLogger(apisLog);
+function logDebugInfo (context, info, response, requestOptions) {
     try {
-        if (logger.isLevelEnabled('DEBUG')) {
+        if (context.logger.isLevelEnabled('DEBUG')) {
             if (requestOptions instanceof Object) {
                 info += " Request Options: " + JSON.stringify(requestOptions);
             }
@@ -415,21 +442,19 @@ function logDebugInfo (info, response, requestOptions) {
     } catch (e) {
         // do nothing
     } finally {
-        logger.debug(info);
+        context.logger.debug(info);
     }
 }
 
 /**
- * quick way to clone the opts object so you can add an option without affecting what was passed in
- * @param {Object} opts The options object to be cloned.
- * @returns {{}} the cloned opts object
+ * Clone the opts object so you can add an option without affecting the shared object.
+ *
+ * @param {Object} opts The opts object to be cloned.
+ *
+ * @returns {Object} The cloned opts object.
  */
 function cloneOpts (opts) {
-    let cOpts = {};
-    if (opts) {
-        cOpts = clone(opts);
-    }
-    return cOpts;
+    return opts ? clone(opts) : {};
 }
 
 /**
@@ -437,8 +462,12 @@ function cloneOpts (opts) {
  * @param obj
  */
 function clone (obj) {
-    // fastest way to clone objects (that don't contain functions)
-    return JSON.parse(JSON.stringify(obj));
+    if (typeof obj === "object") {
+        // fastest way to clone objects (that don't contain functions)
+        return JSON.parse(JSON.stringify(obj));
+    } else {
+        return obj;
+    }
 }
 
 /**
@@ -458,18 +487,23 @@ function getUserHome () {
 }
 
 /**
- *  get the logger by name
- *  currently we only have the apiLogger but we could add different ones in the future api-debug?
- *  @param (name) name of the logger
- *  @param (config) if not the apiLogger the configuration for the logger of this name
- *  @returns (logger) the logger function for this log
+ * Get the logger with the specified name.
+ *
+ * Note: If there is no logger with the specified name, use the given config to create a new logger.
+ *
+ * @param {String} name The name of the logger.
+ * @param {Object} [config] The configuration to be used to create a new logger.
+ *
+ * @returns (Object) The logger with the specified name, or null.
  */
 function getLogger (name, config) {
     if (!loggers[name]) {
         if (apisLog === name) {
             configLogger(apisLogConfig);
-        } else {
+        } else if (config) {
             configLogger(config);
+        } else {
+            return null;
         }
         loggers[name] = log4js.getLogger(name)
     }
@@ -477,9 +511,10 @@ function getLogger (name, config) {
 }
 
 /**
- * Set the logging level for the named logger
- * @param name the name of the logger to get
- * @param level the level of logging (TRACE,DEBUG,INFO,WARN,ERROR,FATAL)
+ * Set the logging level for the logger with the specified name.
+ *
+ * @param {String} name The name of the logger.
+ * @param {String} level The logging level. (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
  */
 function setLoggerLevel (name, level) {
     getLogger(name).setLevel(level);
@@ -497,12 +532,13 @@ function configLogger (config) {
 /**
  * Like Q.allSettled, but with a concurrency limit.
  *
- * @param {Object} promiseFns - An array of functions that return a promise.
- * @param limit - If not provided, it defaults to promises.length.
+ * @param {Object} context The current API context.
+ * @param {Array} promiseFns - An array of functions that return a promise.
+ * @param {Number} limit - If not provided, it defaults to promises.length.
+ *
  * @returns {Q.Promise} a promise for an array of the promises as returned from promiseFns.
  */
-function throttledAll (promiseFns, limit) {
-    const logger = getLogger(apisLog);
+function throttledAll (context, promiseFns, limit) {
     const deferred = Q.defer();
     const promises = [];
 
@@ -519,22 +555,25 @@ function throttledAll (promiseFns, limit) {
                 promise
                     .then(done.bind(null, null))
                     .catch(function (error) {
-                        // Any errors thrown while handling the promise functions should be logged as a debug entry, so
-                        // that developers can verify the behavior of the throttling process. However, the actual error
-                        // logging is the responsibility of the promise functions themselves.
-                        if (logger.isLevelEnabled('DEBUG')) {
-                            const message = i18n.__("operation_failed");
-                            if (error instanceof Error) {
-                                logger.debug(message, error.message);
-                            } else if (typeof error === "object") {
-                                logger.debug(message, JSON.stringify(error));
-                            } else {
-                                logger.debug(message, error.toString());
+                        // Wrap this in try/finally to ensure done always gets invoked.
+                        try {
+                            // Any errors thrown while handling the promise functions should be logged as a debug entry, so
+                            // that developers can verify the behavior of the throttling process. However, the actual error
+                            // logging is the responsibility of the promise functions themselves.
+                            if (context.logger.isDebugEnabled()) {
+                                const message = i18n.__("operation_failed");
+                                if (error instanceof Error) {
+                                    logDebugInfo(context, message + error.message);
+                                } else if (typeof error === "object") {
+                                    logDebugInfo(context, message + JSON.stringify(error));
+                                } else {
+                                    logDebugInfo(context, message + error.toString());
+                                }
                             }
+                        } finally {
+                            // Call done() with null, to allow the rest of the parallel tasks to complete.
+                            done(null);
                         }
-
-                        // Call done() with null, to allow the rest of the parallel tasks to complete.
-                        done(null);
                     });
             } catch (error) {
                 // Call done() with an error, to stop the rest of the parallel tasks from completing.
@@ -546,10 +585,10 @@ function throttledAll (promiseFns, limit) {
     // Execute the callbacks in parallel (with a limit)
     async.parallelLimit(callbacks, limit, function (err, results) {
         if (err) {
-            logErrors(i18n.__("async_parallel_limit_error"), err);
+            logErrors(context, i18n.__("async_parallel_limit_error"), err);
             deferred.reject(err);
         } else {
-            logger.info(i18n.__("async_parallel_limit_results"), results);
+            logDebugInfo(context, i18n.__("async_parallel_limit_results") + results);
             // resolve the deferred object with the array of promise states
             Q.allSettled(promises)
                 .then(function (results) {
@@ -562,7 +601,7 @@ function throttledAll (promiseFns, limit) {
 }
 
 /**
- * This is used to get teh request wrapper that has the cookie jar for authentication
+ * This is used to get the request wrapper that has the cookie jar for authentication
  * @returns {*}
  */
 function getRequestWrapper () {
@@ -623,9 +662,9 @@ const utils = {
     isValidApiUrl: isValidApiUrl,
     isInvalidPath: isInvalidPath,
     getError: getError,
-    getApiLogDir: getApiLogDir,
-    clone: clone,
+    getApiLogPath: getApiLogPath,
     cloneOpts: cloneOpts,
+    clone: clone,
     pathNormalize: pathNormalize,
     getUserHome: getUserHome,
     getLogger: getLogger,
@@ -633,6 +672,7 @@ const utils = {
     configLogger: configLogger,
     logErrors: logErrors,
     logWarnings: logWarnings,
+    logInfo: logInfo,
     logDebugInfo: logDebugInfo,
     throttledAll: throttledAll,
     getI18N: getI18N,

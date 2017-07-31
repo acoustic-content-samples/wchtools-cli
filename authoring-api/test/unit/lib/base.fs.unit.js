@@ -25,7 +25,6 @@ const UnitTest = require("./base.unit.js");
 const fs = require("fs");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const mkdirp = require('mkdirp');
@@ -49,6 +48,8 @@ const DUMMY_STAT = {
     birthtime: DUMMY_DATE
 };
 
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class BaseFsApiUnitTest extends UnitTest {
     constructor() {
@@ -96,7 +97,6 @@ class BaseFsApiUnitTest extends UnitTest {
 
             // Run each of the tests defined in this class.
             self.testSingleton(fsApi, fsName,itemName1, itemName2);
-            self.testNewItem(fsApi, fsName,itemName1, itemName2);
             self.testGetItem(fsApi, fsName,itemName1, itemName2);
             self.testGetFileStats(fsApi, fsName,itemName1, itemName2);
             self.testGetPath(fsApi, fsName,itemName1, itemName2);
@@ -130,175 +130,6 @@ class BaseFsApiUnitTest extends UnitTest {
         done(error);
     }
 
-    testNewItem (fsApi, fsName,itemName1, itemName2) {
-        const self = this;
-        describe("Test new item", function () {
-            it("should fail if name doesn't exist", function(done) {
-                self.newItemNameDoesNotExist(fsApi, fsName,itemName1, itemName2 , done);
-            });
-            it("should fail presentations if template isn't specified", function(done) {
-                self.newItemTemplateNotSpecified(fsApi, fsName,itemName1, itemName2 , done);
-            });
-            it("should fail presentations if template doesn't exist", function(done) {
-                self.newItemTemplateDoesNotExist(fsApi, fsName,itemName1, itemName2 , done);
-            });
-            it("should fail if save item fails", function(done) {
-                self.newItemSaveError(fsApi, fsName,itemName1, itemName2 , done);
-            });
-            it("should pass if item saves", function(done) {
-                self.newItemSuccess(fsApi, fsName,itemName1, itemName2 , done);
-            });
-        });
-    }
-
-    newItemNameDoesNotExist (fsApi, fsName,itemName1, itemName2, done) {
-        let error;
-        if (fsApi.newItem) {
-            fsApi.newItem({})
-                .then(function (/*item*/) {
-                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                    error = new Error("The promise for the item should have been rejected.");
-                })
-                .catch(function (err) {
-                    try {
-                        // Verify that the expected error is returned.
-                        expect(err.message).to.contain("Name");
-                    } catch (err) {
-                        error = err;
-                    }
-                })
-                .finally(function () {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                });
-        } else {
-            // Call mocha's done function to indicate that the test is over.
-            // noinspection JSUnusedAssignment
-            done(error);
-        }
-    }
-
-    newItemTemplateNotSpecified (fsApi, fsName,itemName1, itemName2, done) {
-        let error;
-        if (fsApi.newItem  && fsName === 'presentationsFS') {
-            fsApi.newItem({name: 'foo'})
-                .then(function (/*item*/) {
-                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                    error = new Error("The promise for the item should have been rejected.");
-                })
-                .catch(function (err) {
-                    try {
-                        // Verify that the expected error is returned.
-                        expect(err.message).to.contain("Template");
-                    } catch (err) {
-                        error = err;
-                    }
-                })
-                .finally(function () {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                });
-        } else {
-            // Call mocha's done function to indicate that the test is over.
-            // noinspection JSUnusedAssignment
-            done(error);
-        }
-    }
-
-    newItemTemplateDoesNotExist (fsApi, fsName,itemName1, itemName2, done) {
-        let error;
-        if (fsApi.newItem) {
-            const stub = sinon.stub(fs, "stat");
-            const err = null;
-
-            stub.yields(err, DUMMY_STAT);
-            this.addTestDouble(stub);
-            fsApi.newItem({name: 'foo', template: 'bar'})
-                .then(function (/*item*/) {
-                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                    error = new Error("The promise for the item should have been rejected.");
-                })
-                .catch(function (err) {
-                    try {
-                        // Verify that the expected error is returned.
-                        expect(err.message).to.contain("exists");
-                    } catch (err) {
-                        error = err;
-                    }
-                })
-                .finally(function () {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                });
-        }
-        else {
-            // Call mocha's done function to indicate that the test is over.
-            // noinspection JSUnusedAssignment
-            done(error);
-        }
-    }
-
-    newItemSaveError (fsApi, fsName,itemName1, itemName2, done) {
-        let error;
-        if (fsApi.newItem) {
-            const stub = sinon.stub(fsApi, "saveItem");
-            stub.rejects(new Error('fail'));
-
-            // The stub should be restored when the test is complete.
-            this.addTestDouble(stub);
-
-            fsApi.newItem({name: 'foo', template: 'bar'})
-                .then(function (/*item*/) {
-                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                    error = new Error("The promise for the item should have been rejected.");
-                })
-                .catch(function (err) {
-                    try {
-                        // Verify that the expected error is returned.
-                        expect(err.message).to.contain("fail");
-                    } catch (err) {
-                        error = err;
-                    }
-                })
-                .finally(function () {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                });
-        }
-        else {
-            // Call mocha's done function to indicate that the test is over.
-            // noinspection JSUnusedAssignment
-            done(error);
-        }
-    }
-
-    newItemSuccess (fsApi, fsName,itemName1, itemName2, done) {
-        let error;
-        if (fsApi.newItem) {
-            const stub = sinon.stub(fsApi, "saveItem");
-            stub.resolves({});
-
-            // The stub should be restored when the test is complete.
-            this.addTestDouble(stub);
-            fsApi.newItem({name: 'foo', template: 'bar'})
-                .then(function (item) {
-                    expect(item).to.be.an.instanceof(Object);
-                })
-                .catch(function (err) {
-                    error = err;
-                })
-                .finally(function () {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                });
-        }
-        else {
-            // Call mocha's done function to indicate that the test is over.
-            // noinspection JSUnusedAssignment
-            done(error);
-        }
-    }
-
     testGetItem (fsApi, fsName, itemName1, itemName2) {
         const self = this;
 
@@ -314,7 +145,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                fsApi.getItem(itemName1, UnitTest.DUMMY_OPTIONS)
+                fsApi.getItem(context, itemName1, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset item should have been rejected.");
@@ -347,7 +178,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                fsApi.getItem(itemName2, UnitTest.DUMMY_OPTIONS)
+                fsApi.getItem(context, itemName2, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset item should have been rejected.");
@@ -382,7 +213,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                fsApi.getItem(itemName1, UnitTest.DUMMY_OPTIONS)
+                fsApi.getItem(context, itemName1, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // The stub should have been called once.
                         expect(stub).to.have.been.calledOnce;
@@ -428,7 +259,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Call the method being tested.
         let error;
-        fsApi.getFileStats(itemName1)
+        fsApi.getFileStats(context, itemName1)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the item stats should have been rejected.");
@@ -464,7 +295,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Call the method being tested.
         let error;
-        fsApi.getFileStats(itemName1)
+        fsApi.getFileStats(context, itemName1)
             .then(function (stats) {
                 // Verify that the stub was called once with the specified path.
                 expect(stub).to.have.been.calledOnce;
@@ -489,7 +320,7 @@ class BaseFsApiUnitTest extends UnitTest {
         describe("getPath", function () {
             // Restore options before running the unit tests.
             before(function (done) {
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Signal that the cleanup is complete.
                 done();
@@ -497,7 +328,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
             // Restore options after running the unit tests.
             after(function (done) {
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Signal that the cleanup is complete.
                 done();
@@ -511,13 +342,10 @@ class BaseFsApiUnitTest extends UnitTest {
 
     getPathSuccess (fsApi, fsName,itemName1, itemName2, done) {
         // Before setting the new working directory, the item path should not contain that directory.
-        expect(fsApi.getItemPath(UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
+        expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
 
-        // Set the new working directory.
-        options.setGlobalOptions({"workingDir": UnitTest.DUMMY_DIR});
-
-        // After setting the new working directory, the item path should contain that directory.
-        expect(fsApi.getItemPath(UnitTest.DUMMY_NAME)).to.contain(UnitTest.DUMMY_DIR);
+        // If the working dir is set in the opts object, then the item path should contain that directory.
+        expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR})).to.contain(UnitTest.DUMMY_DIR);
 
         done();
     }
@@ -547,7 +375,7 @@ class BaseFsApiUnitTest extends UnitTest {
         // Call the method being tested.
         let error;
         const INVALID_NAME = "http://foo.com/bar";
-        fsApi.saveItem(INVALID_NAME, UnitTest.DUMMY_OPTIONS)
+        fsApi.saveItem(context, INVALID_NAME, UnitTest.DUMMY_OPTIONS)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the saved item should have been rejected.");
@@ -579,7 +407,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Call the method being tested.
         let error;
-        fsApi.saveItem(UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS)
+        fsApi.saveItem(context, UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the saved item should have been rejected.");
@@ -619,7 +447,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Call the method being tested.
         let error;
-        fsApi.saveItem(UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS)
+        fsApi.saveItem(context, UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the saved item should have been rejected.");
@@ -657,7 +485,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Call the method being tested.
         let error;
-        fsApi.saveItem(itemName1, UnitTest.DUMMY_OPTIONS)
+        fsApi.saveItem(context, itemName1, UnitTest.DUMMY_OPTIONS)
             .then(function (content) {
                 // Verify that the stubs were each called once.
                 expect(stubDir).to.have.been.calledOnce;
@@ -706,7 +534,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Call the method being tested.
         let error;
-        fsApi.listNames(UnitTest.DUMMY_OPTIONS)
+        fsApi.listNames(context, UnitTest.DUMMY_OPTIONS)
             .then(function (/*names*/) {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the item names should have been rejected.");
@@ -731,9 +559,6 @@ class BaseFsApiUnitTest extends UnitTest {
     }
 
     listNamesSuccess (fsApi, fsName, itemName1, itemName2, done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir":UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY});
-
         // Create a stub that will return a list of item names from the recursive function.
         const stub = sinon.stub(fs, "readdir");
         const err = null;
@@ -748,7 +573,9 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Call the method being tested.
         let error;
-        fsApi.listNames(UnitTest.DUMMY_OPTIONS)
+
+        // Set the current working directory to the "valid resources" directory.
+        fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY})
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
@@ -766,7 +593,7 @@ class BaseFsApiUnitTest extends UnitTest {
             .finally(function () {
                 // noinspection JSUnresolvedFunction
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -789,7 +616,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                fsApi.getItems(UnitTest.DUMMY_OPTIONS)
+                fsApi.getItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the list stub was called once and the get stub was called twice.
                         expect(stubList).to.have.been.calledOnce;
@@ -806,7 +633,7 @@ class BaseFsApiUnitTest extends UnitTest {
                     .finally(function () {
                         // noinspection JSUnresolvedFunction
                         // Restore the default options.
-                        UnitTest.restoreOptions();
+                        UnitTest.restoreOptions(context);
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);

@@ -18,9 +18,9 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const toolsApi = require("wchtools-api");
-const utils = toolsApi.utils;
-const options = toolsApi.options;
+const ToolsApi = require("wchtools-api");
+const utils = ToolsApi.getUtils();
+const options = ToolsApi.getOptions();
 const prompt = require("prompt");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -37,11 +37,13 @@ class InitCommand extends BaseCommand {
     /**
      * Get the schema for the prompt data.
      *
+     * @param {Object} context The API context associated with this init command.
+     *
      * @returns {Object} The schema for the prompt data, or null if a prompt is not required.
      *
      * @private
      */
-    getInitPromptSchema () {
+    getInitPromptSchema (context) {
         const user = this.getCommandLineOption("user");
         const url = this.getCommandLineOption("url");
 
@@ -54,7 +56,7 @@ class InitCommand extends BaseCommand {
 
         // If the user option was not specified on the command line, add it to the prompt schema.
         if (!user) {
-            const defaultUser = options.getProperty("username");
+            const defaultUser = options.getProperty(context, "username");
 
             schema["username"] = {
                 description: i18n.__('cli_init_user_name'),
@@ -65,7 +67,7 @@ class InitCommand extends BaseCommand {
 
         // If the url option was not specified on the command line, add it to the prompt schema.
         if (!url) {
-            const defaultUrl = options.getProperty("x-ibm-dx-tenant-base-url");
+            const defaultUrl = options.getProperty(context, "x-ibm-dx-tenant-base-url");
 
             schema["x-ibm-dx-tenant-base-url"] = {
                 description: i18n.__('cli_init_url'),
@@ -80,11 +82,12 @@ class InitCommand extends BaseCommand {
     /**
      * Update the given options, and presist to file.
      *
+     * @param {Object} context The API context associated with this init command.
      * @param {Object} [promptedOptions] The options specified using a prompt.
      *
      * @private
      */
-    updateOptions (promptedOptions) {
+    updateOptions (context, promptedOptions) {
         // The new options to be persisted should include all of the values entered via prompt.
         const newOptions = promptedOptions || {};
 
@@ -100,7 +103,7 @@ class InitCommand extends BaseCommand {
         if (utils.isValidApiUrl(newOptions["x-ibm-dx-tenant-base-url"])) {
             // Update the appropriate options file and display the result.
             try {
-                const optionsFilePath = options.setOptions(newOptions, true, this.getCommandLineOption("dir"));
+                const optionsFilePath = options.setOptions(context, newOptions, true, this.getCommandLineOption("dir"));
                 this.getProgram().successMessage(i18n.__('cli_init_success', {"path": optionsFilePath}));
             } catch (e) {
                 this.getProgram().errorMessage(i18n.__('cli_init_error', {message: e.toString()}));
@@ -118,17 +121,23 @@ class InitCommand extends BaseCommand {
      * Initialize the configuration settings.
      */
     doInit () {
-        // Make sure only the changes specified by this command are written to the options file.
-        options.resetState();
+        // Create the context for initializing the WCH Tools options.
+        const toolsApi = new ToolsApi();
+        const context = toolsApi.getContext();
 
         // Extend the options using the options file in the specified directory.
         const dir = this.getCommandLineOption("dir");
         if (dir ) {
-            options.extendOptionsFromDirectory(dir);
+            options.extendOptionsFromDirectory(context, dir);
+        }
+
+        // Check to see if the initialization process was successful.
+        if (!this.handleInitialization(context)) {
+            return;
         }
 
         // Determine which options will require a command line prompt.
-        const promptSchema = this.getInitPromptSchema();
+        const promptSchema = this.getInitPromptSchema(context);
 
         if (promptSchema) {
             // Handle the case where some options were not specified and will be prompted for.
@@ -141,12 +150,12 @@ class InitCommand extends BaseCommand {
                 if (err) {
                     console.warn(err.message);
                 } else {
-                    self.updateOptions(results);
+                    self.updateOptions(context, results);
                 }
             });
         } else {
             // Handle the case where all options were specified and no prompt is required.
-            this.updateOptions();
+            this.updateOptions(context);
         }
     }
 

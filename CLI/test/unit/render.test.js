@@ -43,9 +43,9 @@ const path  = require("path");
 global.expect = chai.expect;
 const sinon = require("sinon");
 
-const toolsApi = require("wchtools-api");
-const helper = toolsApi.getPublishingJobsHelper();
-const loginHelper = toolsApi.login;
+const ToolsApi = require("wchtools-api");
+const helper = ToolsApi.getPublishingJobsHelper();
+const loginHelper = ToolsApi.getLogin();
 
 const toolsCli = require("../../wchToolsCli");
 const LONG_TIMEOUT = 80000;
@@ -74,8 +74,8 @@ describe("Test Render command", function () {
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubJob).to.have.been.calledOnce;
-                expect(stubJob.firstCall.args[0].mode).to.equal("UPDATE");
-                expect(stubJob.firstCall.args[0].jobDefinition.profile.enableRendering).to.equal(true);
+                expect(stubJob.firstCall.args[1].mode).to.equal("UPDATE");
+                expect(stubJob.firstCall.args[1].jobDefinition.profile.enableRendering).to.equal(true);
                 expect (msg).to.contain('foo');
             })
             .catch(function (err) {
@@ -101,7 +101,7 @@ describe("Test Render command", function () {
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubJob).to.have.been.calledOnce;
-                expect(stubJob.firstCall.args[0].mode).to.equal("REBUILD");
+                expect(stubJob.firstCall.args[1].mode).to.equal("REBUILD");
                 expect(msg).to.contain('foo');
             })
             .catch(function (err) {

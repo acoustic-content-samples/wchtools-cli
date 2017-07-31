@@ -27,7 +27,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 const restApi = require(UnitTest.API_PATH + "lib/imageProfilesREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for imageProfiles.
-const lookupUri =  options.getProperty("image-profiles", "uri");
+const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "image-profiles", "uri");
 const path1 = ImageProfilesUnitTest.VALID_IMAGE_PROFILES_DIRECTORY + ImageProfilesUnitTest.VALID_IMAGE_PROFILE_1;
 const path2 = ImageProfilesUnitTest.VALID_IMAGE_PROFILES_DIRECTORY + ImageProfilesUnitTest.VALID_IMAGE_PROFILE_2;
 

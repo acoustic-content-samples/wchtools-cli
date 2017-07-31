@@ -16,8 +16,8 @@ limitations under the License.
 "use strict";
 
 const program = require('./wchToolsCli').program;
-const toolsApi = require("wchtools-api");
-const utils = toolsApi.utils;
+const ToolsApi = require("wchtools-api");
+const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const updateNotifier = require('update-notifier');
 const pkg = require('./package.json');
@@ -174,7 +174,7 @@ program.commands.forEach(function (command) {
 if (process.argv.length <= 2) {
     // Output the help information.
     program.outputHelp();
-} else if (!program.displayInitializationErrors()) {
+} else {
     // Parse the specified arguments to invoke any matching commands.
     program.parse(process.argv);
 }

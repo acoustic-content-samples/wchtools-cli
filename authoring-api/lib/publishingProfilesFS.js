@@ -17,7 +17,6 @@ limitations under the License.
 
 const JSONItemFS = require("./JSONItemFS.js");
 const fs = require("fs");
-const Q = require("q");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -27,8 +26,9 @@ const singletonEnforcer = Symbol();
 class PublishingProfilesFS extends JSONItemFS {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "PublishingProfilesFS"});
+        }
         super("publishing-profiles", "publishing-profiles", "_ppmd.json");
     }
 

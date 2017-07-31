@@ -25,9 +25,9 @@ const singletonEnforcer = Symbol();
 class ItemTypesFS extends JSONItemFS {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ItemTypesFS"});
-
+        }
         super("types", "types", "_tmd.json");
     }
 
@@ -37,7 +37,6 @@ class ItemTypesFS extends JSONItemFS {
         }
         return this[singleton];
     }
-
 }
 
 module.exports = ItemTypesFS;

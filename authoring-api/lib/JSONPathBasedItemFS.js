@@ -16,14 +16,11 @@ limitations under the License.
 "use strict";
 
 const JSONItemFS = require("./JSONItemFS.js");
+
 const fs = require("fs");
 const Q = require("q");
 const utils = require("./utils/utils.js");
-const i18n = utils.getI18N(__dirname, ".json", "en");
 const recursiveReadDir = require("recursive-readdir");
-
-const singleton = Symbol();
-const singletonEnforcer = Symbol();
 
 class JSONPathBasedItemFS extends JSONItemFS {
 
@@ -40,8 +37,8 @@ class JSONPathBasedItemFS extends JSONItemFS {
      * @returns {Q.Promise} A promise that resolves with the requested item. The promise
      *                    will reject if the item doesn't exist.
      */
-    getItem(name, opts) {
-        return super.getItem(name, opts)
+    getItem(context, name, opts) {
+        return super.getItem(context, name, opts)
             .then(function(item) {
                 item.path = name;
                 return item;
@@ -68,30 +65,35 @@ class JSONPathBasedItemFS extends JSONItemFS {
     /**
      * Returns the file system path to the provided item named by arg.
      * Unlike id based items, if item.path exists use it, otherwise build path from name.
-     * @param arg can be a string with the name of the item or an item object
+     *
+     * @param {Object} context The current API context.
+     * @param item can be a string with the name of the item or an item object
+     *
      * @returns {string} the file system path to the provided item named by arg
      */
-    getItemPath(item, opts) {
+    getItemPath(context, item, opts) {
         let relpath;
         if (typeof item === "string") {
             relpath = item;
         } else if (typeof item === "object") {
             relpath = item.path || "/" + item.name + this.getExtension();
         }
-        let abspath = this.getPath(opts) + relpath;
+        const abspath = this.getPath(context, opts) + relpath;
         return abspath;
     }
 
     /**
-     * @returns {Promise} a promise that resolves with the list of all items stored
+     * @returns {Q.Promise} a promise that resolves with the list of all items stored
      *                    in the working dir.
      *                    There is no guarantee that the names refer to a valid file.
+     *
+     * @param {Object} context The API context to be used by the listt operation.
      */
-    listNames(opts) {
+    listNames(context, opts) {
         const fsObject = this;
-        const artifactDir = this.getPath(opts);
+        const artifactDir = this.getPath(context, opts);
         return Q.Promise(function(resolve, reject) {
-            const path = fsObject.getPath(opts);
+            const path = fsObject.getPath(context, opts);
             if (fs.existsSync(path)) {
                 recursiveReadDir(path, function(err, files) {
                     if (err) {
@@ -102,7 +104,7 @@ class JSONPathBasedItemFS extends JSONItemFS {
                             return file.endsWith(extension);
                         }).map(function(file) {
                             return utils.getRelativePath(artifactDir, file);
-                        });;
+                        });
                         resolve(names);
                     }
                 });

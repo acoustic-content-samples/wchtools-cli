@@ -22,8 +22,10 @@ const path = require("path");
 const utils = require("../../lib/utils/utils.js");
 const options = require("../../lib/utils/options.js");
 const hashes = require("../../lib/utils/hashes.js");
+const UnitTest = require("./lib/base.unit");
 
-const logger = utils.getLogger(utils.apisLog);
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 describe("hashes", function () {
     // Common test data.
@@ -73,7 +75,7 @@ describe("hashes", function () {
 
     describe("generateMD5Hash", function () {
         it("should work for a text file", function (done) {
-            let error;
+            let error = undefined;
             try {
                 const md5 = hashes.generateMD5Hash(TEXT_FILE_PATH);
                 expect(md5).to.equal(TEXT_FILE_MD5);
@@ -85,7 +87,7 @@ describe("hashes", function () {
         });
 
         it("should work for an image file", function (done) {
-            let error;
+            let error = undefined;
             try {
                 const md5 = hashes.generateMD5Hash(IMAGE_FILE_PATH);
                 expect(md5).to.equal(IMAGE_FILE_MD5);
@@ -99,9 +101,9 @@ describe("hashes", function () {
 
     describe("updateHashes", function () {
         it("should create a hashes file with metadata for the specified file", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.updateHashes(TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEXT_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEXT_FILE_METADATA, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -121,9 +123,9 @@ describe("hashes", function () {
 
         it("should add metadata for the specified file to the hashes file", function (done) {
             // At this point the hashes file should already contain information for the text file.
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.updateHashes(TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -142,9 +144,9 @@ describe("hashes", function () {
 
         it("should leave the hashes file unchanged if the specified file does not exist", function (done) {
             // At this point the hashes file should already contain information for the text and image files.
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.updateHashes(TEST_DIRECTORY_PATH, null, null, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, null, null, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -183,11 +185,11 @@ describe("hashes", function () {
             });
 
             // Stub the logger so that the error is not written.
-            const stubLog = sinon.stub(logger, "error");
+            const stubLog = sinon.stub(context.logger, "error");
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.updateHashes(TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEXT_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEXT_FILE_METADATA, TEST_OPTS);
 
                 // An error is logged each time the hashes file is read. The updateHashes method reads the hashes file
                 // twice -- the first time to get the metadata for the current tenant so that it can be modified, and
@@ -227,11 +229,11 @@ describe("hashes", function () {
             stubWrite.throws(new Error(SAVE_ERROR));
 
             // Stub the logger so that the error is not written.
-            const stubLog = sinon.stub(logger, "error");
+            const stubLog = sinon.stub(context.logger, "error");
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.updateHashes(TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in saveHashes");
@@ -266,11 +268,11 @@ describe("hashes", function () {
             stub.throws(new Error(UPDATE_ERROR));
 
             // Stub the logger so that the error is not written.
-            const stubLog = sinon.stub(logger, "error");
+            const stubLog = sinon.stub(context.logger, "error");
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.updateHashes(TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in updateHashes");
@@ -299,11 +301,11 @@ describe("hashes", function () {
         });
 
         it("should update the existing metadata for the specified file", function (done) {
-            let error;
+            let error = undefined;
             try {
                 const metadata = utils.clone(TEXT_FILE_METADATA);
                 metadata.resource = TEXT_FILE_RESOURCE_ID_2;
-                const result = hashes.updateHashes(TEST_DIRECTORY_PATH, TEXT_FILE_PATH, metadata, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, metadata, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -327,14 +329,15 @@ describe("hashes", function () {
             // At this point the hashes file should only contain information for the text file.
             const SET_ERROR = "Set timestamp error expected by unit test.";
             const stub = sinon.stub(options, "getRelevantOption");
-            stub.throws(new Error(SET_ERROR));
+            stub.onFirstCall().returns(true);
+            stub.onSecondCall().throws(new Error(SET_ERROR));
 
             // Stub the logger so that the error is not written.
-            const stubLog = sinon.stub(logger, "error");
+            const stubLog = sinon.stub(context.logger, "error");
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.setLastPullTimestamp(TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
+                const result = hashes.setLastPullTimestamp(context, TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in setLastPullTimestamp");
@@ -364,9 +367,9 @@ describe("hashes", function () {
         });
 
         it("should set the specified timestamp", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.setLastPullTimestamp(TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
+                const result = hashes.setLastPullTimestamp(context, TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -382,9 +385,9 @@ describe("hashes", function () {
 
     describe("getLastPullTimestamp", function () {
         it("should return the timestamp that was set", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const lastPullTimestamp = hashes.getLastPullTimestamp(TEST_DIRECTORY_PATH, TEST_OPTS);
+                const lastPullTimestamp = hashes.getLastPullTimestamp(context, TEST_DIRECTORY_PATH, TEST_OPTS);
                 expect(lastPullTimestamp).to.exist;
                 const lastPullDate = new Date(lastPullTimestamp);
                 expect(lastPullDate.getTime()).to.equal(CURRENT_DATE.getTime());
@@ -401,14 +404,15 @@ describe("hashes", function () {
             // At this point the hashes file should only contain information for the text file and the pull timestamp.
             const SET_ERROR = "Set timestamp error expected by unit test.";
             const stub = sinon.stub(options, "getRelevantOption");
-            stub.throws(new Error(SET_ERROR));
+            stub.onFirstCall().returns(true);
+            stub.onSecondCall().throws(new Error(SET_ERROR));
 
             // Stub the logger so that the error is not written.
-            const stubLog = sinon.stub(logger, "error");
+            const stubLog = sinon.stub(context.logger, "error");
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.setLastPushTimestamp(TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
+                const result = hashes.setLastPushTimestamp(context, TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in setLastPushTimestamp");
@@ -440,9 +444,9 @@ describe("hashes", function () {
         });
 
         it("should set the specified timestamp", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.setLastPushTimestamp(TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
+                const result = hashes.setLastPushTimestamp(context, TEST_DIRECTORY_PATH, CURRENT_DATE, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -458,9 +462,9 @@ describe("hashes", function () {
 
     describe("getLastPushTimestamp", function () {
         it("should return the timestamp that was set", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const lastPushTimestamp = hashes.getLastPushTimestamp(TEST_DIRECTORY_PATH, TEST_OPTS);
+                const lastPushTimestamp = hashes.getLastPushTimestamp(context, TEST_DIRECTORY_PATH, TEST_OPTS);
                 expect(lastPushTimestamp).to.exist;
                 const lastPushDate = new Date(lastPushTimestamp);
                 expect(lastPushDate.getTime()).to.equal(CURRENT_DATE.getTime());
@@ -474,9 +478,9 @@ describe("hashes", function () {
 
     describe("getHashesForFile", function () {
         it("should get the exisitng metadata from the hashes file", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.getHashesForFile(TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.getHashesForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.exist;
                 expect(result.id).to.equal(TEXT_FILE_ID);
                 expect(result.rev).to.equal(TEXT_FILE_REV);
@@ -491,9 +495,9 @@ describe("hashes", function () {
         });
 
         it("should not get a result for a file that has no metadata", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.getHashesForFile(TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.getHashesForFile(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.not.exist;
             } catch (err) {
                 error = err;
@@ -506,14 +510,15 @@ describe("hashes", function () {
             // At this point the hashes file should only contain information for the text file.
             const RETRIEVE_ERROR = "Hashes file retrieval error expected by unit test.";
             const stub = sinon.stub(options, "getRelevantOption");
-            stub.throws(new Error(RETRIEVE_ERROR));
+            stub.onFirstCall().returns(true);
+            stub.onSecondCall().throws(new Error(RETRIEVE_ERROR));
 
             // Stub the logger so that the error is not written.
-            const stubLog = sinon.stub(logger, "error");
+            const stubLog = sinon.stub(context.logger, "error");
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.getHashesForFile(TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.getHashesForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in getHashesForFile");
@@ -533,9 +538,9 @@ describe("hashes", function () {
 
     describe("listFiles", function () {
         it("should list the files with existing metadata", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.listFiles(TEST_DIRECTORY_PATH, TEST_OPTS);
+                const result = hashes.listFiles(context, TEST_DIRECTORY_PATH, TEST_OPTS);
                 expect(result).to.exist;
                 expect(result.length).to.equal(1);
                 expect(result[0]).to.equal(TEXT_FILE_RELATIVE_PATH);
@@ -549,9 +554,9 @@ describe("hashes", function () {
 
     describe("isLocalModified", function () {
         it("should return false (not new or modified) for an existing local file that has not been modified", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isLocalModified(null, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, null, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -584,9 +589,9 @@ describe("hashes", function () {
                 }
             });
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isLocalModified([hashes.MODIFIED], TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;
@@ -609,9 +614,9 @@ describe("hashes", function () {
                 return result;
             });
 
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isLocalModified([hashes.MODIFIED], TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
                 // Note that this test will modify the metadata in the hashes file. The last modified date for the text
                 // file will now be the "tomorrow" date.
@@ -624,9 +629,9 @@ describe("hashes", function () {
         });
 
         it("should return false (not modified) for a local file that has no metadata", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isLocalModified([hashes.MODIFIED], TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -636,9 +641,9 @@ describe("hashes", function () {
         });
 
         it("should return true (is new) for a local file that has no metadata", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isLocalModified([hashes.NEW], TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.NEW], TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;
@@ -648,9 +653,9 @@ describe("hashes", function () {
         });
 
         it("should return false (not modified) for a local file that does not exist", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isLocalModified([hashes.MODIFIED], TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -660,9 +665,9 @@ describe("hashes", function () {
         });
 
         it("should return false (not new) for a local file that does not exist", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isLocalModified([hashes.NEW], TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.NEW], TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -674,9 +679,9 @@ describe("hashes", function () {
 
     describe("isRemoteModified", function () {
         it("should return false (not new or modified) for a remote file that exists locally and has not been modified", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isRemoteModified(null, TEXT_FILE_METADATA, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, null, TEXT_FILE_METADATA, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -686,9 +691,9 @@ describe("hashes", function () {
         });
 
         it("should return false (not modified) for a remote file that has no local metadata", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isRemoteModified([hashes.MODIFIED], IMAGE_FILE_METADATA, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, [hashes.MODIFIED], IMAGE_FILE_METADATA, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -698,11 +703,11 @@ describe("hashes", function () {
         });
 
         it("should return true (is modified) for a remote file that has a different revision", function (done) {
-            let error;
+            let error = undefined;
             try {
                 const modifiedMetadata = utils.clone(TEXT_FILE_METADATA);
                 modifiedMetadata.rev = TEXT_FILE_MODIFIED_REV;
-                const result = hashes.isRemoteModified([hashes.MODIFIED], modifiedMetadata, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, [hashes.MODIFIED], modifiedMetadata, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;
@@ -712,9 +717,9 @@ describe("hashes", function () {
         });
 
         it("should return true (is new) for a remote file that does not exist locally", function (done) {
-            let error;
+            let error = undefined;
             try {
-                const result = hashes.isRemoteModified([hashes.NEW], {}, TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, [hashes.NEW], {}, TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;

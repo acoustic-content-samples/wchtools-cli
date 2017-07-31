@@ -17,10 +17,10 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const toolsApi = require("wchtools-api");
-const options = toolsApi.options;
-const utils = toolsApi.utils;
-const login = toolsApi.login;
+const ToolsApi = require("wchtools-api");
+const options = ToolsApi.getOptions();
+const utils = ToolsApi.getUtils();
+const login = ToolsApi.getLogin();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
 const Q = require("q");
@@ -40,10 +40,14 @@ class DeleteCommand extends BaseCommand {
      * Delete the specified artifact(s).
      */
     doDelete () {
-        let helper;
+        // Create the context for deleting the specified artifact(s).
+        const toolsApi = new ToolsApi();
+        const context = toolsApi.getContext();
 
         // Make sure the artifact type options are valid.
         this.handleArtifactTypes();
+
+        let helper;
         const webassets = this.getCommandLineOption("webassets");
         const layouts = this.getCommandLineOption("layouts");
         const layoutMappings = this.getCommandLineOption("layoutMappings");
@@ -53,12 +57,12 @@ class DeleteCommand extends BaseCommand {
             this.resetCommandLineOptions();
             return;
         } else if (webassets) {
-            helper = toolsApi.getAssetsHelper(this.getApiOptions());
+            helper = ToolsApi.getAssetsHelper();
             this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
         } else if (layouts) {
-            helper = toolsApi.getLayoutsHelper(this.getApiOptions());
+            helper = ToolsApi.getLayoutsHelper();
         } else if (layoutMappings) {
-            helper = toolsApi.getLayoutMappingsHelper(this.getApiOptions());
+            helper = ToolsApi.getLayoutMappingsHelper();
         }
 
         if (!helper) {
@@ -96,31 +100,36 @@ class DeleteCommand extends BaseCommand {
         }
 
         // Make sure the "dir" option can be handled successfully.
-        if (!this.handleDirOption()) {
+        if (!this.handleDirOption(context)) {
+            return;
+        }
+
+        // Check to see if the initialization process was successful.
+        if (!this.handleInitialization(context)) {
             return;
         }
 
         // Make sure the url option has been specified.
         const self = this;
         const logger = self.getLogger();
-        self.handleUrlOption()
+        self.handleUrlOption(context)
             .then(function () {
                 // Make sure the user name and password have been specified.
-                return self.handleAuthenticationOptions();
+                return self.handleAuthenticationOptions(context);
             })
             .then(function () {
                 // Login using the current options.
-                return login.login(self.getApiOptions());
+                return login.login(context, self.getApiOptions());
             })
             .then(function () {
                 if (layouts || layoutMappings) {
                     if (id) {
-                        return self.deleteById(helper, id);
+                        return self.deleteById(helper, context, id);
                     } else {
-                        return self.deleteByPath(helper, path);
+                        return self.deleteByPath(helper, context, path);
                     }
                 } else if (webassets) {
-                    return self.deleteBySearch(helper, path);
+                    return self.deleteBySearch(helper, context, path);
                 }
             })
             .catch(function (err) {
@@ -136,28 +145,30 @@ class DeleteCommand extends BaseCommand {
      * Deletes artifacts by id.
      *
      * @param {Object} helper The helper for the artifact type.
+     * @param {Object} context The API context associated with this delete command.
      * @param {String} id The id of the artifact to delete.
      */
-    deleteById (helper, id) {
+    deleteById (helper, context, id) {
         const item = {
             id: id
         };
-        return this.deleteMatchingItems(helper, [item], "id", undefined, this.getApiOptions());
+        return this.deleteMatchingItems(helper, context, [item], "id", undefined, this.getApiOptions());
     }
 
     /**
      * Deletes artifacts by path.
      *
      * @param {Object} helper The helper for the artifact type.
+     * @param {Object} context The API context associated with this delete command.
      * @param {String} path The path of the artifact to delete.
      */
-    deleteByPath (helper, path) {
+    deleteByPath (helper, context, path) {
         const self = this;
         const opts = this.getApiOptions();
 
-        return helper.getRemoteItemByPath(path, opts)
+        return helper.getRemoteItemByPath(context, path, opts)
             .then(function (item) {
-                return self.deleteMatchingItems(helper, [item], "path", path, opts);
+                return self.deleteMatchingItems(helper, context, [item], "path", path, opts);
             });
     }
 
@@ -165,9 +176,10 @@ class DeleteCommand extends BaseCommand {
      * Deletes artifacts based on search results.
      *
      * @param {Object} helper The helper for the artifact type.
+     * @param {Object} context The API context associated with this delete command.
      * @param {String} path The path to delete.
      */
-    deleteBySearch (helper, path) {
+    deleteBySearch (helper, context, path) {
         const self = this;
         const opts = this.getApiOptions();
 
@@ -177,9 +189,9 @@ class DeleteCommand extends BaseCommand {
         const recursive = this.getCommandLineOption("recursive");
 
         // Get the specified search results.
-        return helper.searchRemote(path, recursive, searchOptions, opts)
+        return helper.searchRemote(context, path, recursive, searchOptions, opts)
             .then(function (searchResults) {
-                return self.deleteMatchingItems(helper, searchResults, "path", path, opts);
+                return self.deleteMatchingItems(helper, context, searchResults, "path", path, opts);
             });
     }
 
@@ -187,12 +199,13 @@ class DeleteCommand extends BaseCommand {
      * Deletes (or previews) the matching items.
      *
      * @param {Object} helper The helper for the artifact type to delete.
+     * @param {Object} context The API context associated with this delete command.
      * @param {Array} items Array of items to be deleted.
      * @param {String} displayField The name of the field to display for the items being deleted.
      * @param {String} path The path of the items to be deleted.
      * @param {Object} opts The API options to be used for the delete operation.
      */
-    deleteMatchingItems (helper, items, displayField, path, opts) {
+    deleteMatchingItems (helper, context, items, displayField, path, opts) {
         const self = this;
         const logger = self.getLogger();
 
@@ -217,7 +230,7 @@ class DeleteCommand extends BaseCommand {
             // -------------------------------------------------------
             const item = items[0];
             logger.info(i18n.__("cli_deleting_artifact", {"name": item[displayField]}));
-            return helper.deleteRemoteItem(item, opts)
+            return helper.deleteRemoteItem(context, item, opts)
                 .then(function (message) {
                     logger.info(message);
                     self.successMessage(i18n.__('cli_delete_success', {name: item[displayField]}));
@@ -231,7 +244,7 @@ class DeleteCommand extends BaseCommand {
             // Delete matching artifacts without prompting.
             // --------------------------------------------
             logger.info(i18n.__("cli_deleting_web_assets", {"path": path}));
-            return self.deleteItems(helper, items, opts);
+            return self.deleteItems(helper, context, items, opts);
         } else {
             // -----------------------------------------
             // Delete matching artifacts with prompting.
@@ -265,7 +278,7 @@ class DeleteCommand extends BaseCommand {
                 });
 
                 if (items.length > 0) {
-                    self.deleteItems(helper, items, opts)
+                    self.deleteItems(helper, context, items, opts)
                         .then(function () {
                             deferred.resolve();
                         })
@@ -286,12 +299,13 @@ class DeleteCommand extends BaseCommand {
      * Delete the specified items.
      *
      * @param {Object} helper The helper to use for deleting items.
+     * @param {Object} context The API context associated with this delete command.
      * @param {Array} items The list of items to be deleted.
      * @param {Object} opts The API options to be used for the delete operations.
      *
      * @returns {Q.Promise} A promise that the specified delete operations have been completed.
      */
-    deleteItems (helper, items, opts) {
+    deleteItems (helper, context, items, opts) {
         // Throttle the delete operations to the configured concurrency limit.
         const self = this;
         const logger = self.getLogger();
@@ -302,12 +316,12 @@ class DeleteCommand extends BaseCommand {
             self.spinner.start();
         }
 
-        const concurrentLimit = options.getRelevantOption(opts, "concurrent-limit", helper._artifactName);
-        return utils.throttledAll(items.map(function (item) {
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        return utils.throttledAll(context, items.map(function (item) {
             // For each item, return a function that returns a promise.
             return function () {
                 // Delete the specified item and display a success or failure message.
-                return helper.deleteRemoteItem(item, opts)
+                return helper.deleteRemoteItem(context, item, opts)
                     .then(function (message) {
                         // Track the number of successful delete operations.
                         self._artifactsCount++;
@@ -403,9 +417,9 @@ function deleteCommand (program) {
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
         .option('--named <path>',        i18n.__('cli_delete_opt_named'))
-        .action(function (options) {
+        .action(function (commandLineOptions) {
             const command = new DeleteCommand(program);
-            if (command.setCommandLineOptions(options, this)) {
+            if (command.setCommandLineOptions(commandLineOptions, this)) {
                 command.doDelete();
             }
         });

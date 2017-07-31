@@ -22,10 +22,6 @@ const helper = require("wchtools-api").getAssetsHelper();
 const rest = require("../../../authoring-api/lib/assetsREST.js");
 const fs = require("../../../authoring-api/lib/assetsFS.js").instance;
 
-if(!fs || !rest) {
-    console.log('Error could not load required');
-}
-
 // Presentations Tests with CLI
 const BASE_NAME = 'type';
 const PullUnitTest = require("./lib/pull.unit.js");

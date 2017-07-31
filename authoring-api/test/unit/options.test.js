@@ -22,47 +22,41 @@ const path = require("path");
 const fs = require("fs");
 const sinon = require("sinon");
 const options = require("../../lib/utils/options.js");
+const BaseUnit = require("./lib/base.unit.js");
 
 describe("options.js", function () {
+    const context = BaseUnit.DEFAULT_API_CONTEXT;
+
     describe("getProperty()", function () {
         it("should return something synchronously", function () {
             // call getSettings() again to make sure it's synchronous
-            const _settings = options.getProperty("assets");
+            const _settings = options.getProperty(context, "assets");
             expect(_settings).to.be.an("object");
         });
 
         it("should have limit property for types", function () {
-            expect(options.getProperty("types")).to.have.property("limit");
+            expect(options.getProperty(context, "types")).to.have.property("limit");
         });
 
         it("should return null for unknown property", function () {
-            expect(options.getProperty("red")).to.be.a('null');
+            expect(options.getProperty(context, "red")).to.be.a('null');
         });
     });
 
     describe("setOptions()", function () {
-        it("set options should not call getproperty if the parameter is undefined", function () {
-            const spy = sinon.spy(fs, "writeFileSync");
-            options.setOptions(undefined, true);
-            expect(spy).to.have.not.been.calledOnce;
-            spy.restore();
-        });
-
-        it("should return a prop for set user property", function () {
+        it("should not write to file if the options parameter is undefined", function () {
             const stub = sinon.stub(fs, "writeFileSync");
-            stub.returns('foo');
-            options.setOptions("types", true);
-            expect(stub).to.have.been.calledOnce;
+            options.setOptions(context, undefined, true);
+            expect(stub).to.not.have.been.called;
             stub.restore();
         });
-    });
 
-    describe("setGlobalOptions()", function () {
-        it("set options should not call getproperty if the parameter is undefined", function () {
-            const spy = sinon.spy(options, "getProperty");
-            options.setGlobalOptions();
-            expect(spy).to.not.have.been.called;
-            spy.restore();
+        it("should write to file if the options property is defined", function () {
+            const stub = sinon.stub(fs, "writeFileSync");
+            stub.returns('foo');
+            options.setOptions(context, "options-test-property", true);
+            expect(stub).to.have.been.calledOnce;
+            stub.restore();
         });
     });
 
@@ -70,20 +64,18 @@ describe("options.js", function () {
         const defaultFilename = path.resolve(__dirname + "./../../" + ".wchtoolsoptions");
         const localFilename = process.cwd() + path.sep + ".wchtoolsoptions";
         const userFilename = utils.getUserHome() + path.sep + ".wchtoolsoptions";
-        const oldUserFilename1 = utils.getUserHome() + path.sep + ".wchtoolsuseroptions";
-        const oldUserFilename2 = utils.getUserHome() + path.sep + "dx_user_options.json";
 
         after(function () {
             // Reset the options to the normal state so that subsequent tests can use them.
-            options.resetState();
+            options.initialize(context);
         });
 
         it("should not have initialization errors", function (done) {
-            options.resetState();
+            options.initialize(context);
 
-            let error;
+            let error = undefined;
             try {
-                expect(options.getInitializationErrors()).to.have.lengthOf(0);
+                expect(options.getInitializationErrors(context)).to.have.lengthOf(0);
             } catch (err) {
                 error = err;
             } finally {
@@ -105,13 +97,9 @@ describe("options.js", function () {
                     } else {
                         return true;
                     }
-                } else if (filename === localFilename) {
-                    return false;
                 } else if (filename === userFilename) {
                     return true;
-                } else if (filename === oldUserFilename1) {
-                    return false;
-                } else if (filename === oldUserFilename2) {
+                } else if (filename === localFilename) {
                     return false;
                 } else {
                     return originalExistsSync.call(fs, filename);
@@ -134,17 +122,20 @@ describe("options.js", function () {
                 }
             });
 
-            options.resetState();
+            options.initialize(context);
 
-            let error;
+            let error = undefined;
             try {
-                const errors = options.getInitializationErrors();
+                const errors = options.getInitializationErrors(context);
                 expect(errors).to.have.lengthOf(2);
                 expect(errors[0].message).to.contain(defaultFilename);
                 expect(errors[1].message).to.contain(userFilename);
             } catch (err) {
                 error = err;
             } finally {
+                // Remove the initialization errors added by this test.
+                delete context.initErrors;
+
                 stubExists.restore();
                 stubRead.restore();
                 done(error);
@@ -168,10 +159,6 @@ describe("options.js", function () {
                 } else if (filename === localFilename) {
                     return true;
                 } else if (filename === userFilename) {
-                    return false;
-                } else if (filename === oldUserFilename1) {
-                    return false;
-                } else if (filename === oldUserFilename2) {
                     return false;
                 } else {
                     return originalExistsSync.call(fs, filename);
@@ -199,228 +186,22 @@ describe("options.js", function () {
                 }
             });
 
-            options.resetState();
+            options.initialize(context);
 
-            let error;
+            let error = undefined;
             try {
-                const errors = options.getInitializationErrors();
+                const errors = options.getInitializationErrors(context);
                 expect(errors).to.have.lengthOf(2);
                 expect(errors[0].message).to.contain(defaultFilename);
                 expect(errors[1].message).to.contain(localFilename);
             } catch (err) {
                 error = err;
             } finally {
+                // Remove the initialization errors added by this test.
+                delete context.initErrors;
+
                 stubExists.restore();
                 stubRead.restore();
-                done(error);
-            }
-        });
-
-        it("should have one initialization errors for invalid old (1) user options file", function (done) {
-            // Create a stub for fs.existsSync that will return true for the user options file after it has been renamed.
-            const originalExistsSync = fs.existsSync;
-            let defaultFilenameExistsCount = 0;
-            let userFilenameExists = false;
-            const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === defaultFilename) {
-                    // The default filename should always exist. But if this test is running in the default directory,
-                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
-                    // true the first time it is called, and false the second time it is called.
-                    if (defaultFilename === localFilename) {
-                        return (defaultFilenameExistsCount++ < 1);
-                    } else {
-                        return true;
-                    }
-                } else if (filename === localFilename) {
-                    return false;
-                } else if (filename === userFilename) {
-                    return userFilenameExists;
-                } else if (filename === oldUserFilename1) {
-                    return true;
-                } else if (filename === oldUserFilename2) {
-                    return false;
-                } else {
-                    return originalExistsSync.call(fs, filename);
-                }
-            });
-
-            // Create a stub for fs.readFileSync that will return invalid JSON for the user options file.
-            const originalReadFileSync = fs.readFileSync;
-            const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
-                if (filename === defaultFilename) {
-                    return '{"foo": "bar", "fuz":{}}';
-                } else if (filename === userFilename) {
-                    return '{"foo": "bar", "foz":{}';
-                } else {
-                    // Return the contents of the specified file.
-                    return originalReadFileSync.call(fs, filename, options);
-                }
-            });
-
-            // Create a stub for fs.renameSync.
-            const stubRename = sinon.stub(fs, "renameSync", function (oldName, newName) {
-                // After the old user options file is renamed, then the user options file exists.
-                if (newName === userFilename) {
-                    userFilenameExists = true;
-                }
-            });
-
-            options.resetState();
-
-            let error;
-            try {
-                // Verify that the rename stub was called with the expected values.
-                expect(stubRename).to.have.been.calledOnce;
-                expect(stubRename.firstCall.args[0]).to.contain(oldUserFilename1);
-                expect(stubRename.firstCall.args[1]).to.contain(userFilename);
-
-                // Expect there to be one initialization error.
-                const errors = options.getInitializationErrors();
-                expect(errors).to.have.lengthOf(1);
-                expect(errors[0].message).to.contain(userFilename);
-            } catch (err) {
-                error = err;
-            } finally {
-                stubExists.restore();
-                stubRead.restore();
-                stubRename.restore();
-                done(error);
-            }
-        });
-
-        it("should have one initialization errors for invalid old (2) user options file", function (done) {
-            // Create a stub for fs.existsSync that will return true for the user options file after it has been renamed.
-            const originalExistsSync = fs.existsSync;
-            let defaultFilenameExistsCount = 0;
-            let userFilenameExists = false;
-            const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === defaultFilename) {
-                    // The default filename should always exist. But if this test is running in the default directory,
-                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
-                    // true the first time it is called, and false the second time it is called.
-                    if (defaultFilename === localFilename) {
-                        return (defaultFilenameExistsCount++ < 1);
-                    } else {
-                        return true;
-                    }
-                } else if (filename === localFilename) {
-                    return false;
-                } else if (filename === userFilename) {
-                    return userFilenameExists;
-                } else if (filename === oldUserFilename1) {
-                    return false;
-                } else if (filename === oldUserFilename2) {
-                    return true;
-                } else {
-                    return originalExistsSync.call(fs, filename);
-                }
-            });
-
-            // Create a stub for fs.readFileSync that will return invalid JSON for the user options file.
-            const originalReadFileSync = fs.readFileSync;
-            const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
-                if (filename === defaultFilename) {
-                    return '{"foo": "bar", "fuz":{}}';
-                } else if (filename === userFilename) {
-                    return '{"foo": "bar", "foz":{}';
-                } else {
-                    // Return the contents of the specified file.
-                    return originalReadFileSync.call(fs, filename, options);
-                }
-            });
-
-            // Create a stub for fs.renameSync.
-            const stubRename = sinon.stub(fs, "renameSync", function (oldName, newName) {
-                // After the old user options file is renamed, then the user options file exists.
-                if (newName === userFilename) {
-                    userFilenameExists = true;
-                }
-            });
-
-            options.resetState();
-
-            let error;
-            try {
-                // Verify that the rename stub was called with the expected values.
-                expect(stubRename).to.have.been.calledOnce;
-                expect(stubRename.firstCall.args[0]).to.contain(oldUserFilename2);
-                expect(stubRename.firstCall.args[1]).to.contain(userFilename);
-
-                // Expect there to be one initialization error.
-                const errors = options.getInitializationErrors();
-                expect(errors).to.have.lengthOf(1);
-                expect(errors[0].message).to.contain(userFilename);
-            } catch (err) {
-                error = err;
-            } finally {
-                stubExists.restore();
-                stubRead.restore();
-                stubRename.restore();
-                done(error);
-            }
-        });
-
-        it("should delete old user options files", function (done) {
-            // Create a stub for fs.existsSync that will return true for all user options files.
-            const originalExistsSync = fs.existsSync;
-            let defaultFilenameExistsCount = 0;
-            const stubExists = sinon.stub(fs, "existsSync", function (filename) {
-                if (filename === defaultFilename) {
-                    // The default filename should always exist. But if this test is running in the default directory,
-                    // the defaultFilename and the localFilename will be the same. In that case, the stub should return
-                    // true the first time it is called, and false the second time it is called.
-                    if (defaultFilename === localFilename) {
-                        return (defaultFilenameExistsCount++ < 1);
-                    } else {
-                        return true;
-                    }
-                } else if (filename === localFilename) {
-                    return false;
-                } else if (filename === userFilename) {
-                    return true;
-                } else if (filename === oldUserFilename1) {
-                    return true;
-                } else if (filename === oldUserFilename2) {
-                    return true;
-                } else {
-                    return originalExistsSync.call(fs, filename);
-                }
-            });
-
-            // Create a stub for fs.readFileSync that will return invalid JSON for the user options file.
-            const originalReadFileSync = fs.readFileSync;
-            const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
-                if (filename === defaultFilename) {
-                    return '{"foo": "bar", "fuz":{}}';
-                } else if (filename === userFilename) {
-                    return '{"foo": "bar", "fuz":{}}';
-                } else {
-                    // Return the contents of the specified file.
-                    return originalReadFileSync.call(fs, filename, options);
-                }
-            });
-
-            // Create a stub for fs.unlinkSync.
-            const stubUnlink = sinon.stub(fs, "unlinkSync");
-
-            options.resetState();
-
-            let error;
-            try {
-                // Verify that the rename stub was called with the expected values.
-                expect(stubUnlink).to.have.been.calledTwice;
-                expect(stubUnlink.firstCall.args[0]).to.contain(oldUserFilename1);
-                expect(stubUnlink.secondCall.args[0]).to.contain(oldUserFilename2);
-
-                // Expect there to be no initialization errors.
-                const errors = options.getInitializationErrors();
-                expect(errors).to.have.lengthOf(0);
-            } catch (err) {
-                error = err;
-            } finally {
-                stubExists.restore();
-                stubRead.restore();
-                stubUnlink.restore();
                 done(error);
             }
         });

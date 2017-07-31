@@ -19,7 +19,6 @@ const BaseHelper = require("./baseHelper.js");
 const rest = require("./lib/layoutsREST").instance;
 const fS = require("./lib/layoutsFS").instance;
 const utils = require("./lib/utils/utils.js");
-const logger = utils.getLogger(utils.apisLog);
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
@@ -61,19 +60,22 @@ class LayoutsHelper extends BaseHelper {
     }
 
     /**
-     * Used to determine if the helper supports deleting items by id.
+     * Determine whether the helper supports deleting items by id.
+     *
+     * @override
      */
-    supportsDeleteById(opts) {
+    supportsDeleteById() {
         return true;
     }
 
     /**
-     * Used to determine if the helper supports deleting items by path.
+     * Determine whether the helper supports deleting items by path.
+     *
+     * @override
      */
-    supportsDeleteByPath(opts) {
+    supportsDeleteByPath() {
         return true;
     }
-
 }
 
 /**

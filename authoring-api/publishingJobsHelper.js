@@ -17,7 +17,6 @@ limitations under the License.
 
 const rest = require("./lib/publishingJobsREST").instance;
 const utils = require("./lib/utils/utils.js");
-const options = require("./lib/utils/options.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
@@ -46,39 +45,32 @@ class PublishingJobsHelper {
         return this[singleton];
     }
 
-    // only to be called from wchToolsApi getter
-    initGlobalOptions (opts) {
-        if (opts) {
-            options.setGlobalOptions(opts);
-        }
-    }
-
     reset () {
     }
 
-    createPublishingJob (jobParameters, opts) {
-        return rest.createPublishingJob(jobParameters, opts);
+    createPublishingJob (context, jobParameters, opts) {
+        return rest.createPublishingJob(context, jobParameters, opts);
     }
 
-    getPublishingJobs (opts) {
+    getPublishingJobs (context, opts) {
         // FUTURE - handle paging chunks
-        return rest.getPublishingJobs(opts);
+        return rest.getPublishingJobs(context, opts);
     }
 
-    getPublishingJob (id, opts) {
-        return rest.getPublishingJob(id, opts);
+    getPublishingJob (context, id, opts) {
+        return rest.getPublishingJob(context, id, opts);
     }
 
-    getPublishingJobStatus (id, opts) {
-        return rest.getPublishingJobStatus(id, opts);
+    getPublishingJobStatus (context, id, opts) {
+        return rest.getPublishingJobStatus(context, id, opts);
     }
 
-    deletePublishingJob (id, opts) {
-        return rest.deletePublishingJob(id, opts);
+    deletePublishingJob (context, id, opts) {
+        return rest.deletePublishingJob(context, id, opts);
     }
 
-    cancelPublishingJob (id, opts) {
-        return rest.cancelPublishingJob(id, opts);
+    cancelPublishingJob (context, id, opts) {
+        return rest.cancelPublishingJob(context, id, opts);
     }
 }
 

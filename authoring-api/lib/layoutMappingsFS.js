@@ -25,9 +25,9 @@ const singletonEnforcer = Symbol();
 class LayoutMappingsFS extends JSONPathBasedItemFS {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "LayoutMappingsFS"});
-
+        }
         super("layout-mappings", "layout-mappings", ".json");
     }
 
@@ -37,7 +37,6 @@ class LayoutMappingsFS extends JSONPathBasedItemFS {
         }
         return this[singleton];
     }
-
 }
 
 module.exports = LayoutMappingsFS;

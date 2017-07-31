@@ -33,6 +33,9 @@ const path1 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID
 const path2 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_2;
 const badPath = ContentsUnitTest.INVALID_CONTENTS_DIRECTORY + ContentsUnitTest.INVALID_CONTENT_BAD_NAME;
 
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
+
 class ContentsHelperUnitTest extends BaseHelperUnit {
     constructor() {
         super();
@@ -52,7 +55,7 @@ class ContentsHelperUnitTest extends BaseHelperUnit {
                 // Call the method being tested.
                 let error;
                 try {
-                    expect(helper.filterRetryPush()).to.equal(false);
+                    expect(helper.filterRetryPush(context)).to.equal(false);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -70,7 +73,7 @@ class ContentsHelperUnitTest extends BaseHelperUnit {
                     const PUSH_ERROR = "There was a push error - expected by the unit test.";
                     const pushError = new Error(PUSH_ERROR);
                     pushError.response = {"statusCode": 400};
-                    expect(helper.filterRetryPush(pushError)).to.equal(false);
+                    expect(helper.filterRetryPush(context, pushError)).to.equal(false);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -88,7 +91,7 @@ class ContentsHelperUnitTest extends BaseHelperUnit {
                     const PUSH_ERROR = "There was a push error - expected by the unit test.";
                     const pushError = new Error(PUSH_ERROR);
                     pushError.response = {"statusCode": 400, "body": {"errors": [{"code": 7000}]}};
-                    expect(helper.filterRetryPush(pushError)).to.equal(false);
+                    expect(helper.filterRetryPush(context, pushError)).to.equal(false);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -106,8 +109,8 @@ class ContentsHelperUnitTest extends BaseHelperUnit {
                     // Create an error that will cause the item to be retried.
                     const PUSH_ERROR = "There was a push error - expected by the unit test.";
                     const pushError = new Error(PUSH_ERROR);
-                    pushError.response = {"statusCode": 400, "body": {"errors": [{"code": 6000}]}};
-                    expect(helper.filterRetryPush(pushError)).to.equal(true);
+                    pushError.response = {"statusCode": 400, "body": {"errors": [{"code": 2012}]}};
+                    expect(helper.filterRetryPush(context, pushError)).to.equal(true);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -156,16 +159,16 @@ class ContentsHelperUnitTest extends BaseHelperUnit {
 
                 // Call the method being tested.
                 let error;
-                helper.pushAllItems(UnitTest.DUMMY_OPTIONS)
+                helper.pushAllItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stubs were called the expected number of times.
                         expect(stubList).to.have.been.calledOnce;
                         expect(stubPush).to.have.been.calledThrice;
 
                         // Verify that pushItem method was called with the expected values.
-                        expect(diff.diffJson(stubPush.args[0][0], helper.getName(itemMetadata1))).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubPush.args[1][0], helper.getName(itemMetadata2))).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubPush.args[2][0], helper.getName(itemMetadata2))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[0][1], helper.getName(itemMetadata1))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[1][1], helper.getName(itemMetadata2))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[2][1], helper.getName(itemMetadata2))).to.have.lengthOf(1);
 
                         // Verify that the expected values were returned.
                         expect(diff.diffJson(items[0], itemMetadata1)).to.have.lengthOf(1);

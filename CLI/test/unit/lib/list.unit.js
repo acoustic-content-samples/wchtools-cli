@@ -33,7 +33,7 @@ const BaseCommand = require("../../../lib/baseCommand");
 const mkdirp = require("mkdirp");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const options = require("wchtools-api").options;
+const options = require("wchtools-api").getOptions();
 
 class ListUnitTest extends UnitTest {
     constructor () {
@@ -125,11 +125,11 @@ class ListUnitTest extends UnitTest {
             it("test list server failure", function (done) {
                 // Create a stub to return a value for the "username" key.
                 const originalGetProperty = options.getProperty;
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "foo";
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 
@@ -173,11 +173,11 @@ class ListUnitTest extends UnitTest {
             it("test list server working with username and password defined", function (done) {
                 // Create a stub to return a value for the "username" key.
                 const originalGetProperty = options.getProperty;
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "foo";
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 
@@ -214,11 +214,11 @@ class ListUnitTest extends UnitTest {
             it("test list server working with no username and password defined", function (done) {
                 // Create a stub to return a value for the "username" key.
                 const originalGetProperty = options.getProperty;
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return undefined;
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 

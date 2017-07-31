@@ -25,9 +25,9 @@ const singletonEnforcer = Symbol();
 class ItemTypesREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ItemTypesREST"});
-
+        }
         super("types", "/authoring/v1/types", undefined, "/views/by-modified");
     }
 
@@ -37,14 +37,13 @@ class ItemTypesREST extends BaseREST {
         }
         return this[singleton];
     }
-    
+
     /*
      * Does this WCH REST API currently support the forceOverride query param?
      */
     supportsForceOverride() {
         return true;
     }
-
 }
 
 module.exports = ItemTypesREST;

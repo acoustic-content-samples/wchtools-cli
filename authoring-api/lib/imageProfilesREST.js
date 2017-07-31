@@ -26,9 +26,9 @@ const singletonEnforcer = Symbol();
 class ImageProfilesREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
-        throw i18n.__("singleton_construct_error", {classname: "ImageProfilesREST"});
-
+        if (enforcer !== singletonEnforcer) {
+            throw i18n.__("singleton_construct_error", {classname: "ImageProfilesREST"});
+        }
         super("image-profiles", "/authoring/v1/image-profiles", undefined, "/views/by-modified");
     }
 
@@ -45,7 +45,6 @@ class ImageProfilesREST extends BaseREST {
     supportsForceOverride() {
         return true;
     }
-
 }
 
 module.exports = ImageProfilesREST;

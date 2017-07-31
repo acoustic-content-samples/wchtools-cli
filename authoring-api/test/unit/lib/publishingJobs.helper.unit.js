@@ -27,7 +27,6 @@ const fs = require("fs");
 const stream = require("stream");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const publishingJobsREST = require(UnitTest.API_PATH + "lib/publishingJobsREST.js").instance;
@@ -36,6 +35,9 @@ const publishingJobsREST = require(UnitTest.API_PATH + "lib/publishingJobsREST.j
 const publishingJobsHelper = require(UnitTest.API_PATH + "publishingJobsHelper.js").instance;
 const path1 = PublishingJobsUnitTest.VALID_PUBLISHING_JOBS_DIRECTORY + PublishingJobsUnitTest.VALID_PUBLISHING_JOB_1;
 const path2 = PublishingJobsUnitTest.VALID_PUBLISHING_JOBS_DIRECTORY + PublishingJobsUnitTest.VALID_PUBLISHING_JOB_2;
+
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
@@ -62,41 +64,12 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
             });
 
             // Run each of the tests defined in this class.
-            self.testInit();
             self.testGetPublishingJobs();
             self.testGetPublishingJob();
             self.testGetPublishingJobStatus();
             self.testCreatePublishingJob();
             self.testCancelPublishingJob();
             self.testDeletePublishingJob();
-        });
-    }
-
-    testInit () {
-        const self = this;
-        describe("init", function () {
-            // Restore common resourses after running the unit tests.
-            after(function (done) {
-                UnitTest.restoreOptions();
-
-                // Signal that the cleanup is complete.
-                done();
-            });
-
-            it("should initialize the global options", function () {
-                // Setup the spies and stubs needed for testing the init() method.
-                const spy = sinon.spy(options, "setGlobalOptions");
-
-                // The spy and stubs should be restored when the test is complete.
-                self.addTestDouble(spy);
-
-                // Call the method being tested.
-                publishingJobsHelper.initGlobalOptions({"workingDir": UnitTest.DUMMY_DIR});
-
-                // Verify that the spy was called once with the expected parameter value.
-                expect(spy).to.have.been.calledOnce;
-                expect(spy.firstCall.args[0].workingDir).to.equal(UnitTest.DUMMY_DIR);
-            });
         });
     }
 
@@ -114,7 +87,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                publishingJobsHelper.getPublishingJobs(UnitTest.DUMMY_OPTIONS)
+                publishingJobsHelper.getPublishingJobs(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*jobs*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the publishing jobs should have been rejected.");
@@ -152,7 +125,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                publishingJobsHelper.getPublishingJobs(UnitTest.DUMMY_OPTIONS)
+                publishingJobsHelper.getPublishingJobs(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (jobs) {
                         // Verify that the stub was called once and that the helper returned the expected values.
                         expect(stub).to.have.been.calledOnce;
@@ -186,7 +159,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                publishingJobsHelper.getPublishingJob(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                publishingJobsHelper.getPublishingJob(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*job*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the publishing jobs should have been rejected.");
@@ -223,7 +196,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                publishingJobsHelper.getPublishingJob(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                publishingJobsHelper.getPublishingJob(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function (job) {
                         // Verify that the stub was called once and that the helper returned the expected values.
                         expect(stub).to.have.been.calledOnce;
@@ -257,7 +230,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                publishingJobsHelper.getPublishingJobStatus(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                publishingJobsHelper.getPublishingJobStatus(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*job*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the publishing job status should have been rejected.");
@@ -293,7 +266,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                publishingJobsHelper.getPublishingJobStatus(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                publishingJobsHelper.getPublishingJobStatus(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function (job) {
                         // Verify that the stub was called once and that the helper returned the expected values.
                         expect(stub).to.have.been.calledOnce;
@@ -326,7 +299,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                publishingJobsHelper.createPublishingJob(null,UnitTest.DUMMY_OPTIONS)
+                publishingJobsHelper.createPublishingJob(context, null,UnitTest.DUMMY_OPTIONS)
                     .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for creating the remote publishing job should have been rejected.");
@@ -358,7 +331,7 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
 
                     // Call the method being tested.
                     let error;
-                    publishingJobsHelper.createPublishingJob(itemMetadata1,UnitTest.DUMMY_OPTIONS)
+                    publishingJobsHelper.createPublishingJob(context, itemMetadata1,UnitTest.DUMMY_OPTIONS)
                         .then(function (item) {
                             // Verify that the stub was called once and that the helper returned the expected values.
                             expect(stub).to.have.been.calledOnce;
@@ -373,78 +346,77 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
                             // Call mocha's done function to indicate that the test is over.
                             done(error);
                         });
+            });
+        });
+    }
+
+    testDeletePublishingJob () {
+        const self = this;
+        describe("deletePublishingJob", function () {
+            it("should succeed when deleting a publishing job.", function (done) {
+                // Read the contents of five test item metadata files.
+                const itemMetadata1 = UnitTest.getJsonObject(path1);
+
+                // Create an restApi.getItems stub that returns a promise for the metadata of the items.
+                const stub = sinon.stub(publishingJobsREST, "deleteItem");
+                stub.resolves(itemMetadata1);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                publishingJobsHelper.deletePublishingJob(context, UnitTest.DUMMY_ID,UnitTest.DUMMY_OPTIONS)
+                    .then(function (/*item*/) {
+                        // Verify that the stub was called once and that the helper returned the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
                 });
-            });
-        }
+        });
+    }
 
-        testDeletePublishingJob () {
-            const self = this;
-            describe("deletePublishingJob", function () {
-                it("should succeed when deleting a publishing job.", function (done) {
-                    // Read the contents of five test item metadata files.
-                    const itemMetadata1 = UnitTest.getJsonObject(path1);
+    testCancelPublishingJob () {
+        const self = this;
+        describe("cancelPublishingJob", function () {
+            it("should succeed when cancelling a publishing job.", function (done) {
+                // Read the contents of five test item metadata files.
+                const itemMetadata1 = UnitTest.getJsonObject(path1);
 
-                    // Create an restApi.getItems stub that returns a promise for the metadata of the items.
-                    const stub = sinon.stub(publishingJobsREST, "deleteItem");
-                    stub.resolves(itemMetadata1);
+                // Create an restApi.getItems stub that returns a promise for the metadata of the items.
+                const stub = sinon.stub(publishingJobsREST, "cancelPublishingJob");
+                stub.resolves(itemMetadata1);
 
-                    // The stub should be restored when the test is complete.
-                    self.addTestDouble(stub);
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
 
-                    // Call the method being tested.
-                    let error;
-                    publishingJobsHelper.deletePublishingJob(UnitTest.DUMMY_ID,UnitTest.DUMMY_OPTIONS)
-                        .then(function (/*item*/) {
-                            // Verify that the stub was called once and that the helper returned the expected values.
-                            expect(stub).to.have.been.calledOnce;
-                        })
-                        .catch (function (err) {
-                            // NOTE: A failed expectation from above will be handled here.
-                            // Pass the error to the "done" function to indicate a failed test.
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
+                // Call the method being tested.
+                let error;
+                publishingJobsHelper.cancelPublishingJob(context, UnitTest.DUMMY_ID,UnitTest.DUMMY_OPTIONS)
+                    .then(function (/*item*/) {
+                        // Verify that the stub was called once and that the helper returned the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
                     });
-            });
-        }
-
-        testCancelPublishingJob () {
-            const self = this;
-            describe("cancelPublishingJob", function () {
-                it("should succeed when cancelling a publishing job.", function (done) {
-                    // Read the contents of five test item metadata files.
-                    const itemMetadata1 = UnitTest.getJsonObject(path1);
-
-                    // Create an restApi.getItems stub that returns a promise for the metadata of the items.
-                    const stub = sinon.stub(publishingJobsREST, "cancelPublishingJob");
-                    stub.resolves(itemMetadata1);
-
-                    // The stub should be restored when the test is complete.
-                    self.addTestDouble(stub);
-
-                    // Call the method being tested.
-                    let error;
-                    publishingJobsHelper.cancelPublishingJob(UnitTest.DUMMY_ID,UnitTest.DUMMY_OPTIONS)
-                        .then(function (/*item*/) {
-                            // Verify that the stub was called once and that the helper returned the expected values.
-                            expect(stub).to.have.been.calledOnce;
-                        })
-                        .catch (function (err) {
-                            // NOTE: A failed expectation from above will be handled here.
-                            // Pass the error to the "done" function to indicate a failed test.
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
-                    });
-            });
-        }
-
+                });
+        });
+    }
 }
 
 module.exports = PublishingJobsHelperUnitTest;

@@ -26,8 +26,9 @@ const singletonEnforcer = Symbol();
 class ImageProfilesFS extends JSONItemFS {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ImageProfilesFS"});
+        }
         super("image-profiles", "image-profiles", "_ipmd.json");
     }
 
@@ -37,7 +38,6 @@ class ImageProfilesFS extends JSONItemFS {
         }
         return this[singleton];
     }
-
 }
 
 module.exports = ImageProfilesFS;

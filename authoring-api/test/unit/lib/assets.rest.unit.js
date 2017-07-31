@@ -27,7 +27,6 @@ const fs = require("fs");
 const Stream = require("stream");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
@@ -40,6 +39,9 @@ const assetsREST = AssetsREST.instance;
 const DUMMY_HTML_FILE_NAME = "dummy.html";
 const DUMMY_MD5_HASH = "1234567890";
 const DUMMY_REQUEST_OPTIONS = {"x-ibm-dx-tenant-base-url": "dummy-url"};
+
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class AssetsRestUnitTest extends AssetsUnitTest {
     constructor() {
@@ -108,9 +110,9 @@ class AssetsRestUnitTest extends AssetsUnitTest {
     testGetResourceHeaders () {
         describe("getResourceHeaders", function () {
             it("should succeed when a name is specified", function (done) {
-                let error;
+                let error = undefined;
                 try {
-                    const headers = AssetsREST.getResourceHeaders("dummy.jpg");
+                    const headers = AssetsREST.getResourceHeaders(context, "dummy.jpg");
                     expect(headers).to.exist;
                     expect(headers["Accept"]).to.equal("application/json");
                     expect(headers["Accept-Language"]).to.contain("en");
@@ -125,9 +127,9 @@ class AssetsRestUnitTest extends AssetsUnitTest {
             });
 
             it("should succeed when no name is specified", function (done) {
-                let error;
+                let error = undefined;
                 try {
-                    const headers = AssetsREST.getResourceHeaders();
+                    const headers = AssetsREST.getResourceHeaders(context);
                     expect(headers).to.exist;
                     expect(headers["Accept"]).to.equal("application/json");
                     expect(headers["Accept-Language"]).to.contain("en");
@@ -149,15 +151,15 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         describe("getDownloadRequestOptions", function () {
             it("should succeed with valid options", function (done) {
                 let error;
-                assetsREST.getDownloadRequestOptions(DUMMY_REQUEST_OPTIONS)
-                    .then(function (options) {
-                        expect(options).to.exist;
-                        expect(options.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
-                        expect(options.uri).to.contain("/authoring/v1/resources");
-                        expect(options.headers).to.exist;
-                        expect(options.headers["Accept"]).to.equal("*/*");
-                        expect(options.headers["Accept-Language"]).to.contain("en");
-                        expect(options.headers["Connection"]).to.equal("keep-alive");
+                assetsREST.getDownloadRequestOptions(context, DUMMY_REQUEST_OPTIONS)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.uri).to.contain("/authoring/v1/resources");
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("*/*");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
                     })
                     .catch(function (err) {
                         error = err;
@@ -179,7 +181,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getDownloadRequestOptions(DUMMY_REQUEST_OPTIONS)
+                assetsREST.getDownloadRequestOptions(context, DUMMY_REQUEST_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -209,16 +211,16 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         describe("getAssetUpdateRequestOptions", function () {
             it("should succeed with a valid ID and options", function (done) {
                 let error;
-                assetsREST.getAssetUpdateRequestOptions(UnitTest.DUMMY_ID, DUMMY_REQUEST_OPTIONS)
-                    .then(function (options) {
-                        expect(options).to.exist;
-                        expect(options.uri).to.contain("/authoring/v1/assets");
-                        expect(options.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
-                        expect(options.headers).to.exist;
-                        expect(options.headers["Accept"]).to.equal("application/json");
-                        expect(options.headers["Accept-Language"]).to.contain("en");
-                        expect(options.headers["Content-Type"]).to.equal("application/json");
-                        expect(options.headers["Connection"]).to.equal("keep-alive");
+                assetsREST.getAssetUpdateRequestOptions(context, UnitTest.DUMMY_ID, DUMMY_REQUEST_OPTIONS)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain("/authoring/v1/assets");
+                        expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("application/json");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Content-Type"]).to.equal("application/json");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
                     })
                     .catch(function (err) {
                         error = err;
@@ -240,7 +242,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getAssetUpdateRequestOptions(UnitTest.DUMMY_ID, DUMMY_REQUEST_OPTIONS)
+                assetsREST.getAssetUpdateRequestOptions(context, UnitTest.DUMMY_ID, DUMMY_REQUEST_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the request URI should have been rejected.");
@@ -270,17 +272,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         describe("getResourcePOSTOptions", function () {
             it("should succeed with a valid name and options", function (done) {
                 let error;
-                assetsREST.getResourcePOSTOptions(DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
-                    .then(function (options) {
-                        expect(options).to.exist;
-                        expect(options.uri).to.contain("/authoring/v1/resources");
-                        expect(options.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
-                        expect(options.uri).to.contain(DUMMY_HTML_FILE_NAME);
-                        expect(options.headers).to.exist;
-                        expect(options.headers["Accept"]).to.equal("application/json");
-                        expect(options.headers["Accept-Language"]).to.contain("en");
-                        expect(options.headers["Content-Type"]).to.equal("text/html");
-                        expect(options.headers["Connection"]).to.equal("keep-alive");
+                assetsREST.getResourcePOSTOptions(context, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain("/authoring/v1/resources");
+                        expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.uri).to.contain(DUMMY_HTML_FILE_NAME);
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("application/json");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Content-Type"]).to.equal("text/html");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
                     })
                     .catch(function (err) {
                         error = err;
@@ -302,7 +304,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getResourcePOSTOptions(DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
+                assetsREST.getResourcePOSTOptions(context, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the request URI should have been rejected.");
@@ -332,19 +334,19 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         describe("getResourcePUTOptions", function () {
             it("should succeed with all parameters specified", function (done) {
                 let error;
-                assetsREST.getResourcePUTOptions(UnitTest.DUMMY_ID, DUMMY_MD5_HASH, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
-                    .then(function (options) {
-                        expect(options).to.exist;
-                        expect(options.uri).to.contain("/authoring/v1/resources");
-                        expect(options.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
-                        expect(options.uri).to.contain(UnitTest.DUMMY_ID);
-                        expect(options.uri).to.contain(DUMMY_HTML_FILE_NAME);
-                        expect(options.uri).to.contain(DUMMY_MD5_HASH);
-                        expect(options.headers).to.exist;
-                        expect(options.headers["Accept"]).to.equal("application/json");
-                        expect(options.headers["Accept-Language"]).to.contain("en");
-                        expect(options.headers["Content-Type"]).to.equal("text/html");
-                        expect(options.headers["Connection"]).to.equal("keep-alive");
+                assetsREST.getResourcePUTOptions(context, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain("/authoring/v1/resources");
+                        expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.uri).to.contain(UnitTest.DUMMY_ID);
+                        expect(requestOptions.uri).to.contain(DUMMY_HTML_FILE_NAME);
+                        expect(requestOptions.uri).to.contain(DUMMY_MD5_HASH);
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("application/json");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Content-Type"]).to.equal("text/html");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
                     })
                     .catch(function (err) {
                         error = err;
@@ -357,17 +359,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
             it("should succeed with no ID or MD5 parameters specified", function (done) {
                 let error;
-                assetsREST.getResourcePUTOptions(null, null, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
-                    .then(function (options) {
-                        expect(options).to.exist;
-                        expect(options.uri).to.contain("/authoring/v1/resources");
-                        expect(options.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
-                        expect(options.uri).to.contain(DUMMY_HTML_FILE_NAME);
-                        expect(options.headers).to.exist;
-                        expect(options.headers["Accept"]).to.equal("application/json");
-                        expect(options.headers["Accept-Language"]).to.contain("en");
-                        expect(options.headers["Content-Type"]).to.equal("text/html");
-                        expect(options.headers["Connection"]).to.equal("keep-alive");
+                assetsREST.getResourcePUTOptions(context, null, null, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain("/authoring/v1/resources");
+                        expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.uri).to.contain(DUMMY_HTML_FILE_NAME);
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("application/json");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Content-Type"]).to.equal("text/html");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
                     })
                     .catch(function (err) {
                         error = err;
@@ -389,7 +391,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getResourcePUTOptions(UnitTest.DUMMY_ID, DUMMY_MD5_HASH, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
+                assetsREST.getResourcePUTOptions(context, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, DUMMY_HTML_FILE_NAME, DUMMY_REQUEST_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the request URI should have been rejected.");
@@ -419,51 +421,12 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         // Execute several failure cases to test the various ways the server might return an error. Subsequent tests do
         // not need to repeat the test matrix, they can just execute one of these tests to verify an error is returned.
         describe("getItems", function() {
-            it("should fail when getting the assets URI fails with an error", function (done) {
-                // Create a stub for the GET request to return an error.
-                const ASSETS_URI_ERROR = "Error getting the assets URI.";
-                const stub = sinon.stub(request, "get");
-                const err = new Error(ASSETS_URI_ERROR);
-                const res = null;
-                const body = null;
-                stub.yields(err, res, body);
-
-                // The stub should be restored when the test is complete.
-                self.addTestDouble(stub);
-
-                // Call the method being tested.
-                let error;
-                assetsREST.getItems(UnitTest.DUMMY_OPTIONS)
-                    .then(function () {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The promise for the asset request URI should have been rejected.");
-                    })
-                    .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the specified URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
-
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(ASSETS_URI_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
-                    })
-                    .finally(function () {
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
             it("should fail when getting the assets fails with an error", function (done) {
                 // Create a stub for the GET requests.
                 const stub = sinon.stub(request, "get");
-                const ASSETS_URI_ERROR = "Error getting the assets.";
-                const err = new Error(ASSETS_URI_ERROR);
-                const res = null;
+                const GET_ERROR = "Error getting the assets.";
+                const err = new Error(GET_ERROR);
+                const res = {};
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
@@ -472,7 +435,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getItems(UnitTest.DUMMY_OPTIONS)
+                assetsREST.getItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -486,7 +449,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(ASSETS_URI_ERROR);
+                            expect(err.message).to.equal(GET_ERROR);
                         } catch (err) {
                             error = err;
                         }
@@ -502,10 +465,10 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const stub = sinon.stub(request, "get");
 
                 // The GET request is to retrieve the assets, but returns an error.
-                const ASSETS_URI_ERROR = "Error getting the assets.";
+                const GET_ERROR = "Error getting the assets.";
                 const err = null;
                 const res = {"statusCode": 407};
-                const body = ASSETS_URI_ERROR;
+                const body = GET_ERROR;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -513,7 +476,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getItems(UnitTest.DUMMY_OPTIONS)
+                assetsREST.getItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -527,7 +490,210 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(ASSETS_URI_ERROR);
+                            expect(err.message).to.equal(GET_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request is retried the maximum number of times", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the assets, but returns an error.
+                const REQUEST_ERROR = "Error getting the assets.";
+                const err = new Error(REQUEST_ERROR);
+                const body = null;
+                stub.onCall(0).yields(err, {"statusCode": 429}, body);
+                stub.onCall(1).yields(err, {"statusCode": 500}, body);
+                stub.onCall(2).yields(err, {"statusCode": 502}, body);
+                stub.onCall(3).yields(err, {"statusCode": 503}, body);
+                stub.onCall(4).yields(err, {"statusCode": 504}, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                let error;
+                assetsREST.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                            expect(stub).to.have.callCount(5);
+                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                            expect(stub.firstCall.args[0].json).to.equal(true);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain("technical difficulties");
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request is retried then fails", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the assets, but returns an error.
+                const REQUEST_ERROR = "Error getting the assets.";
+                const err = new Error(REQUEST_ERROR);
+                const body = null;
+                stub.onCall(0).yields(err, {"statusCode": 500}, body);
+                stub.onCall(1).yields(err, {"statusCode": 400}, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                let error;
+                assetsREST.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                            expect(stub).to.have.callCount(2);
+                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                            expect(stub.firstCall.args[0].json).to.equal(true);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain("technical difficulties");
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when the request is retried then succeeds", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the assets, but returns an error.
+                const REQUEST_ERROR = "Error getting the assets.";
+                const err = new Error(REQUEST_ERROR);
+                const body = {};
+                stub.onCall(0).yields(err, {"statusCode": 429}, body);
+                stub.onCall(1).yields(null, {"statusCode": 200}, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                let error;
+                assetsREST.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                    .then(function () {
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(2);
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request is retried the maximum number of times with custom status codes", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the assets, but returns an error.
+                const REQUEST_ERROR = "Error getting the assets.";
+                const err = new Error(REQUEST_ERROR);
+                const body = null;
+                const otherCodes = [491, 492, 493, 494, 495];
+                stub.onCall(0).yields(err, {"statusCode": otherCodes[0]}, body);
+                stub.onCall(1).yields(err, {"statusCode": otherCodes[1]}, body);
+                stub.onCall(2).yields(err, {"statusCode": otherCodes[2]}, body);
+                stub.onCall(3).yields(err, {"statusCode": otherCodes[3]}, body);
+                stub.onCall(4).yields(err, {"statusCode": otherCodes[4]}, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                let error;
+                assetsREST.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100, retryFactor: 0, retryRandomize: true, retryStatusCodes: otherCodes})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                            expect(stub).to.have.callCount(5);
+                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                            expect(stub.firstCall.args[0].json).to.equal(true);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain(REQUEST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail without retry when the error contains no status code", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the assets, but returns an error but no status code.
+                const REQUEST_ERROR = "Error getting the assets.";
+                const err = new Error(REQUEST_ERROR);
+                const res = {};
+                const body = null;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                let error;
+                assetsREST.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                            expect(stub).to.have.been.calledOnce;
+                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                            expect(stub.firstCall.args[0].json).to.equal(true);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain(REQUEST_ERROR);
                         } catch (err) {
                             error = err;
                         }
@@ -565,7 +731,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getItems({offset: 10, limit:5})
+                assetsREST.getItems(context, {offset: 10, limit:5})
                     .then(function (assets) {
                         // Verify that the stub was called twice, first with the lookup URI and then with the asset URI.
                         expect(stub).to.have.been.calledOnce;
@@ -613,7 +779,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(false, false, undefined, undefined, AssetsUnitTest.ASSET_HBS_1, AssetsUnitTest.DUMMY_STREAM, 0)
+                assetsREST.pushItem(context, false, false, undefined, undefined, AssetsUnitTest.ASSET_HBS_1, AssetsUnitTest.DUMMY_STREAM, 0)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset should have been rejected.");
@@ -664,7 +830,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(false, false, undefined, undefined, "\\" + AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.DUMMY_STREAM, 0)
+                assetsREST.pushItem(context, false, false, undefined, undefined, "\\" + AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.DUMMY_STREAM, 0)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset should have been rejected.");
@@ -751,7 +917,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
+                assetsREST.pushItem(context, false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
                         // Verify that the post stub was called twice.
                         expect(stubPost).to.have.been.calledTwice;
@@ -843,7 +1009,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
+                assetsREST.pushItem(context, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
                         // Verify that the put stub was called once and the post stub was called once.
                         expect(stubPut).to.have.been.calledOnce;
@@ -934,7 +1100,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, {"asset": {"id": "test", "rev": "test"}})
+                assetsREST.pushItem(context, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, {"asset": {"id": "test", "rev": "test"}})
                     .then(function (asset) {
                         // Verify that the put stub was called twice.
                         expect(stubPut).to.have.been.calledTwice;
@@ -993,7 +1159,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 // Call the method being tested.
                 let error;
                 const asset = {path: "test.txt", resource:  AssetsUnitTest.ASSET_JPG_3};
-                assetsREST.pullItem(asset, AssetsUnitTest.DUMMY_WRITE_STREAM)
+                assetsREST.pullItem(context, asset, AssetsUnitTest.DUMMY_WRITE_STREAM)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -1036,7 +1202,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 // Call the method being tested.
                 let error;
                 const asset = {path: "test.txt", resource: AssetsUnitTest.ASSET_JPG_3};
-                assetsREST.pullItem(asset, AssetsUnitTest.DUMMY_WRITE_STREAM)
+                assetsREST.pullItem(context, asset, AssetsUnitTest.DUMMY_WRITE_STREAM)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -1072,7 +1238,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 // Call the method being tested.
                 let error;
                 const asset = {path: "test.txt", resource: AssetsUnitTest.ASSET_JPG_3};
-                assetsREST.pullItem(asset, AssetsUnitTest.DUMMY_WRITE_STREAM)
+                assetsREST.pullItem(context, asset, AssetsUnitTest.DUMMY_WRITE_STREAM)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -1128,7 +1294,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 // Call the method being tested.
                 let error;
                 const asset = {path: AssetsUnitTest.ASSET_JPG_3, resource: AssetsUnitTest.ASSET_JPG_3};
-                assetsREST.pullItem(asset, fileStream)
+                assetsREST.pullItem(context, asset, fileStream)
                     .then(function (asset) {
                         // Verify that the stub was called once with the lookup URI and once with the generated URI.
                         expect(stub).to.have.been.calledOnce;
@@ -1172,7 +1338,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.deleteItem(UnitTest.DUMMY_METADATA)
+                assetsREST.deleteItem(context, UnitTest.DUMMY_METADATA)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset should have been rejected.");
@@ -1210,7 +1376,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.deleteItem(UnitTest.DUMMY_METADATA)
+                assetsREST.deleteItem(context, UnitTest.DUMMY_METADATA)
                     .then(function (message) {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubDelete).to.have.been.calledOnce;
@@ -1243,7 +1409,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.deleteItem(UnitTest.DUMMY_METADATA)
+                assetsREST.deleteItem(context, UnitTest.DUMMY_METADATA)
                     .then(function (message) {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubDelete).to.have.been.calledOnce;

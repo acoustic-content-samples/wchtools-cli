@@ -36,6 +36,9 @@ const nonSystemPath1 = CategoriesUnitTest.VALID_CATEGORIES_DIRECTORY + Categorie
 const nonSystemPath2 = CategoriesUnitTest.VALID_CATEGORIES_DIRECTORY + CategoriesUnitTest.VALID_NON_SYSTEM_CATEGORY_2;
 const badPath = CategoriesUnitTest.INVALID_CATEGORIES_DIRECTORY + CategoriesUnitTest.INVALID_CATEGORY_BAD_NAME;
 
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
+
 class CategoriesHelperUnitTest extends BaseHelperUnitTest {
     constructor() {
         super();
@@ -63,7 +66,7 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
                 self.addTestDouble(stub);
 
                 let error;
-                helper.createLocalItem(category)
+                helper.createLocalItem(context, category, UnitTest.DUMMY_OPTIONS)
                     .then(function(cat) {
                         expect(cat).to.not.be.empty;
                         expect(cat.name).to.equal(category.name);
@@ -86,7 +89,7 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
                 self.addTestDouble(stub);
 
                 let error;
-                helper.createLocalItem({"BAD":"STUFF"})
+                helper.createLocalItem(context, {"BAD":"STUFF"}, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for createLocalItem should have been rejected.");
@@ -209,16 +212,16 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushModifiedItems(UnitTest.DUMMY_OPTIONS)
+                helper.pushModifiedItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stubs were called the expected number of times.
                         expect(stubList).to.have.been.calledOnce;
                         expect(stubPush).to.have.been.calledThrice;
 
                         // Verify that pushItem method was called with the expected values.
-                        expect(diff.diffJson(stubPush.args[0][0], helper.getName(itemMetadata1))).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubPush.args[1][0], helper.getName(itemMetadata2))).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubPush.args[2][0], helper.getName(itemMetadata3))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[0][1], helper.getName(itemMetadata1))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[1][1], helper.getName(itemMetadata2))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[2][1], helper.getName(itemMetadata3))).to.have.lengthOf(1);
 
                         // Verify that the expected values were returned.
                         expect(diff.diffJson(items[0], itemMetadata2)).to.have.lengthOf(1);
@@ -264,15 +267,15 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushModifiedItems(UnitTest.DUMMY_OPTIONS)
+                helper.pushModifiedItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stubs were called the expected number of times.
                         expect(stubList).to.have.been.calledOnce;
                         expect(stubPush).to.have.been.calledTwice;
 
                         // Verify that pushItem method was called with the expected values.
-                        expect(diff.diffJson(stubPush.args[0][0], helper.getName(itemMetadata1))).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubPush.args[1][0], helper.getName(itemMetadata2))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[0][1], helper.getName(itemMetadata1))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[1][1], helper.getName(itemMetadata2))).to.have.lengthOf(1);
 
                         // Verify that the expected values were returned.
                         expect(diff.diffJson(items[0], itemMetadata1)).to.have.lengthOf(1);

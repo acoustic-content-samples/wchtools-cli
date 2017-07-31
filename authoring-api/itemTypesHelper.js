@@ -47,6 +47,48 @@ class ItemTypesHelper extends BaseHelper {
         }
         return this[singleton];
     }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @returns {Boolean} A return value of true indicates that retry push is enabled.
+     *
+     * @override
+     */
+    isRetryPushEnabled () {
+        return true;
+    }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @param {Object} context The current context to be used by the API.
+     * @param {Error} error The error returned from the failed push operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the push should be retried.
+     *
+     * @override
+     */
+    filterRetryPush (context, error) {
+        let retVal = false;
+        // A reference error has a response code of 400 and an error code equal to 2012, or in the range 6000 - 7000.
+        if (error && error["response"] && (error["response"]["statusCode"] === 400)) {
+            const responseBody = error["response"]["body"];
+
+            if (responseBody && responseBody["errors"] && responseBody["errors"].length > 0) {
+                // The response has returned one or more errors. If any of these is a reference error, then return true.
+                // That means we will retry the push again, even though any non-reference errors might not benefit from
+                // the retry. This shouldn't be an issue though, because if the retry does not push at least one item, a
+                // subsequent retry will not be attempted.
+                retVal = responseBody["errors"].some(function (error) {
+                    const typeRefNotFound = (error["code"] === 2504); // Referenced type not available yet?
+                    return typeRefNotFound;
+                });
+            }
+        }
+
+        return retVal;
+    }
 }
 
 /**

@@ -32,7 +32,6 @@ class BaseREST {
     }
 
     reset () {
-        this._uri = undefined;
     }
 
     getServiceName () {
@@ -43,50 +42,203 @@ class BaseREST {
         return this._uriPath;
     }
 
-    static getHeaders () {
-        return {
+    static getHeaders (context, opts) {
+        const hdrs = {
             "Accept": "application/json",
             "Accept-Language": utils.getHTTPLanguage(),
             "Content-Type": "application/json",
             "Connection": "keep-alive",
             "User-Agent": utils.getUserAgent()
         };
+
+        return this.addHeaderOverrides(context, hdrs, opts);
     }
 
-    getRequestURI (opts) {
+    static addHeaderOverrides(context, hdrs, opts) {
+        options.getPropertyKeys(context, opts).forEach(function (key) {
+            if (key.startsWith("x-ibm-dx-") && key !== "x-ibm-dx-tenant-base-url") {
+                const value = options.getRelevantOption(context, opts, key);
+                if (value && typeof value === "string") {
+                    hdrs[key] = value;
+                }
+            }
+        });
+        return hdrs;
+    }
+
+    getRequestURI (context, opts) {
         // Promise based to allow for lookup of URI if necdessary going forward
         const deferred = Q.defer();
+        let baseUrl = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", this.getServiceName());
 
-        if (!this._uri) {
-            const baseUrl = options.getRelevantOption(opts, "x-ibm-dx-tenant-base-url");
-
-            /*istanbul ignore next*/
-            if (baseUrl) {
-                this._uri = baseUrl;
-            } else {
-                // FUTURE This fallback code will eventually be obsolete.
-                const gateway = options.getRelevantOption(opts, "dx-api-gateway");
-                const tenantId = options.getRelevantOption(opts, "x-ibm-dx-tenant-id");
-                this._uri = gateway + "/" + tenantId;
-            }
+        /*istanbul ignore next*/
+        if (!baseUrl) {
+            // FUTURE This fallback code will eventually be obsolete.
+            const gateway = options.getRelevantOption(context, opts, "dx-api-gateway");
+            const tenantId = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
+            baseUrl = gateway + "/" + tenantId;
         }
-        deferred.resolve(this._uri);
+        deferred.resolve(baseUrl);
 
         return deferred.promise;
     }
 
-    getRequestOptions (opts) {
+    /**
+     * Add the retry options for this service to the given request options.
+     *
+     * @param {Object} context The API context to be used for the current request.
+     * @param {Object} requestOptions The request options to be used for the current request.
+     * @param {Object} opts The override options specified for the current request.
+     *
+     * @returns {Object} The given request options with the retry options for this artifact type.
+     *
+     * @protected
+     */
+    addRetryOptions (context, requestOptions, opts) {
+        // Each of the retry options can be specified per service.
+        const serviceName = this.getServiceName();
+
+        // Get the retry options defined on the context or overridden on the opts.
+        const maxAttempts = options.getRelevantOption(context, opts, "retryMaxAttempts", serviceName);
+        const minTimeout = options.getRelevantOption(context, opts, "retryMinTimeout", serviceName);
+        const maxTimeout = options.getRelevantOption(context, opts, "retryMaxTimeout", serviceName);
+        const factor = options.getRelevantOption(context, opts, "retryFactor", serviceName);
+        const randomize = (options.getRelevantOption(context, opts, "retryRandomize", serviceName) === true);
+
+        /**
+         * Determine whether the given error and response values indicate that the current request should be retried.
+         *
+         * @param {Error} err The error that occurred for the current request.
+         * @param {Object} response The response received from the server.
+         * @param {Object} body The response body received from the server.
+         *
+         * @returns {Boolean} A return value of true indicates that the request should be retried. A return value of false
+         *                    indicates that the request should not be retried.
+         */
+        const retryStrategy = function (err, response, body) {
+            let retVal = false;
+
+            // Get the error into the standard format.
+            const error = utils.getError(err, body, response);
+
+            if (error && error.statusCode) {
+                // Determine whether the request should be retried, based on the status code for the error.
+                switch (error.statusCode) {
+                    // 403 Forbidden - Handle the special case that sometimes occurs during authorization. In general we
+                    // wouldn't retry on this error, but if it happens during authorization, a retry frequently succeeds.
+                    case 403:
+                    // 429 Too Many Requests - The user has sent too many requests in a given amount of time ("rate limiting").
+                    case 429:
+                    // 500 Internal Server Error - The server has encountered a situation it doesn't know how to handle.
+                    case 500:
+                    // 502 Bad Gateway - The server is working as a gateway and got an invalid response needed to handle the request.
+                    case 502:
+                    // 503 Service Unavailable - The server is not ready to handle the request. It could be down for maintenance or just overloaded.
+                    case 503:
+                    // 504 Gateway Timeout - The server is acting as a gateway and cannot get a response in time.
+                    case 504: {
+                        retVal = true;
+                        break;
+                    }
+                    default: {
+                        // Look for any other status codes that should be retried for this service.
+                        const otherCodes = options.getRelevantOption(context, opts, "retryStatusCodes", serviceName);
+                        retVal = otherCodes && (otherCodes.length > 0) && (otherCodes.indexOf(error.statusCode) !== -1);
+                    }
+                }
+            }
+
+            // Add a log warning for the retry.
+            if (retVal) {
+                utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.message}));
+            }
+
+            return retVal;
+        };
+
+        /**
+         * Determine how long to wait until the next retry attempt for the current request.
+         *
+         * @param {Error} err The error that occurred for the current request.
+         * @param {Object} response The response received from the server.
+         * @param {Object} body The response body received from the server.
+         *
+         * @returns {Number} The number of milliseconds to wait until the next retry attempt for the current request.
+         */
+        const delayStrategy = function (err, response, body) {
+            // The delay is set to the minimum timeout by default.
+            let delay = minTimeout;
+
+            // If the delay is being randomized, multiply by a random factor between 1 and 2.
+            if (randomize === true) {
+                const randomnessFactor = 1.0 + Math.random();
+                delay = randomnessFactor * delay;
+            }
+
+            // Use an exponential backoff strategy if a factor has been defined.
+            const attempt = response.attempts;
+            if (factor !== 0) {
+                const backoffFactor = Math.pow(factor, attempt - 1);
+                delay = backoffFactor * delay;
+            }
+
+            // Make sure the delay is not longer than the maximum timeout.
+            delay = Math.min(delay, maxTimeout);
+
+            // Add a debug entry to the log for the delay that was calculated.
+            utils.logDebugInfo(context, i18n.__("retry_next_attempt", {id: requestOptions.instanceId, attempt: attempt, delay: delay}));
+
+            return delay;
+        };
+
+        // Add the necessary retry options.
+        requestOptions.maxAttempts = maxAttempts;
+        requestOptions.retryStrategy = retryStrategy;
+        requestOptions.delayStrategy = delayStrategy;
+
+        // Add a somewhat unique ID (between 0 and 1000000) so that log entries can be correlated.
+        requestOptions.instanceId = Math.floor(Math.random() * 1000001);
+
+        return requestOptions;
+    }
+
+    static logRetryInfo (context, requestOptions, attempts, err) {
+        if (err) {
+            // The request failed, check to see if there were any retries.
+            if (attempts >= requestOptions.maxAttempts) {
+                // Add a log entry if the request failed after the maximum number of retries.
+                utils.logInfo(context, i18n.__("retry_max_attempts", {id: requestOptions.instanceId}));
+            } else if (attempts > 1) {
+                // Add a log entry if the request failed after less than the maximum number of retries.
+                utils.logInfo(context, i18n.__("retry_failed_retry", {
+                    id: requestOptions.instanceId,
+                    attempt: attempts,
+                    message: err.message
+                }));
+            }
+        } else {
+            // The request succeeded, check to see if there were any retries.
+            if (attempts > 1) {
+                // Add a log entry if the request suceeded after retry.
+                utils.logInfo(context, i18n.__("retry_success", {id: requestOptions.instanceId, attempt: attempts}));
+            }
+        }
+    }
+
+    getRequestOptions (context, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const headers = BaseREST.getHeaders();
+        const headers = BaseREST.getHeaders(context, opts);
 
-        this.getRequestURI(opts)
+        this.getRequestURI(context, opts)
             .then(function (uri) {
-                deferred.resolve({
+                // Resolve the promise with the standard request options and the retry options.
+                const requestOptions = {
                     uri: uri + restObject.getUriPath(),
                     json: true,
                     headers: headers
-                });
+                };
+                deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -94,29 +246,30 @@ class BaseREST {
         return deferred.promise;
     }
 
-    getModifiedItems (lastPullTimestamp, opts) {
+    getModifiedItems (context, lastPullTimestamp, opts) {
         const params = {};
         if (lastPullTimestamp) {
             params.start = lastPullTimestamp;
         }
-        return this._getItems(this._modifiedUriSuffix, params, opts);
+        return this._getItems(context, this._modifiedUriSuffix, params, opts);
     }
 
     /**
      *
+     * @param context
      * @param opts
      * @returns {Q.Promise}
      */
-    getItems (opts) {
-        return this._getItems(this._allUriSuffix, undefined, opts);
+    getItems (context, opts) {
+        return this._getItems(context, this._allUriSuffix, undefined, opts);
     }
 
-    _getItems (uriSuffix, queryParams, opts) {
+    _getItems (context, uriSuffix, queryParams, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const offset = options.getRelevantOption(opts, "offset", this.getServiceName());
-        const limit = options.getRelevantOption(opts, "limit", this.getServiceName());
-        this.getRequestOptions(opts)
+        const offset = options.getRelevantOption(context, opts, "offset", this.getServiceName());
+        const limit = options.getRelevantOption(context, opts, "limit", this.getServiceName());
+        this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + (uriSuffix || "") + "?offset=" + offset + "&limit=" + limit;
                 if (queryParams) {
@@ -125,11 +278,14 @@ class BaseREST {
                     });
                 }
                 request.get(requestOptions, function (err, res, body) {
-                    if ((err) || (res && res.statusCode !== 200)) {
-                        err = utils.getError(err, body, res, requestOptions);
-                        utils.logErrors(i18n.__("get_items_error" , {service_name: restObject.getServiceName()}),err);
+                    const response = res || {};
+                    if (err || response.statusCode !== 200) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+                        utils.logErrors(context, i18n.__("get_items_error", {service_name: restObject.getServiceName()}), err);
                         deferred.reject(err);
                     } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         deferred.resolve(body.items);
                     }
                 });
@@ -141,20 +297,25 @@ class BaseREST {
         return deferred.promise;
     }
 
-    getItem (id, opts) {
+    getItem (context, id, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        this.getRequestOptions(opts)
+        this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + id;
                 request.get(requestOptions, function (err, res, body) {
-                    if ((err) || (res && res.statusCode !== 200)) {
-                        err = utils.getError(err, body, res, requestOptions);
+                    const response = res || {};
+                    if (err || response.statusCode !== 200) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+
                         // special case where we ar just seeing if the item does exisit and if not it's not an error
-                        if(!opts || opts.noErrorLog !== "true")
-                            utils.logErrors(i18n.__("get_item_error", {service_name: restObject.getServiceName()}), err);
+                        if (!opts || opts.noErrorLog !== "true") {
+                            utils.logErrors(context, i18n.__("get_item_error", {service_name: restObject.getServiceName()}), err);
+                        }
                         deferred.reject(err);
                     } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         deferred.resolve(body);
                     }
                 });
@@ -172,22 +333,26 @@ class BaseREST {
         return false;
     }
 
-    getItemByPath (path, opts) {
+    getItemByPath (context, path, opts) {
         const deferred = Q.defer();
         const serviceName = this.getServiceName();
         if (this.supportsItemByPath()) {
-            this.getRequestOptions(opts)
+            this.getRequestOptions(context, opts)
                 .then(function (requestOptions) {
                     requestOptions.uri = requestOptions.uri + "/by-path?path=" + path;
                     request.get(requestOptions, function (err, res, body) {
-                        if ((err) || (res && res.statusCode !== 200)) {
-                            err = utils.getError(err, body, res, requestOptions);
+                        const response = res || {};
+                        if (err || response.statusCode !== 200) {
+                            err = utils.getError(err, body, response, requestOptions);
+                            BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+
                             // special case where we are just seeing if the item does exisit and if not it's not an error
                             if (!opts || opts.noErrorLog !== "true") {
-                                utils.logErrors(i18n.__("get_item_error", {"service_name": serviceName}), err);
+                                utils.logErrors(context, i18n.__("get_item_error", {"service_name": serviceName}), err);
                             }
                             deferred.reject(err);
                         } else {
+                            BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                             deferred.resolve(body);
                         }
                     });
@@ -202,28 +367,31 @@ class BaseREST {
         return deferred.promise;
     }
 
-    createItem (item, opts) {
+    createItem (context, item, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        this.getRequestOptions(opts)
+        this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.body = item;
-                utils.logDebugInfo("Creating item with request options: ",undefined, requestOptions);
+                utils.logDebugInfo(context, "Creating item with request options: ", undefined, requestOptions);
                 request.post(requestOptions, function (err, res, body) {
-                    if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
-                        err = utils.getError(err, body, res, requestOptions);
+                    const response = res || {};
+                    if (err || response.statusCode < 200 || response.statusCode > 299) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
 
                         // Check to see if this operation should be retried.
-                        if (opts && opts.filterRetryPush && opts.filterRetryPush(err)) {
+                        if (context.filterRetryPush && context.filterRetryPush(context, err)) {
                             // The operation will be retried, so do not log the error yet.
                             err.retry = true;
                         } else {
                             // The operation will not be retried, so log the error.
-                            utils.logErrors(i18n.__("create_item_error", {service_name: restObject.getServiceName()}), err);
+                            utils.logErrors(context, i18n.__("create_item_error", {service_name: restObject.getServiceName()}), err);
                         }
                         deferred.reject(err);
                     } else {
-                        utils.logDebugInfo('create item:' + restObject.getServiceName(),  res);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        utils.logDebugInfo(context, 'create item:' + restObject.getServiceName(), response);
                         deferred.resolve(body);
                     }
                 });
@@ -241,34 +409,37 @@ class BaseREST {
         return false;
     }
 
-    updateItem (item, opts) {
+    updateItem (context, item, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        this.getRequestOptions(opts)
+        this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + item.id;
-                if (restObject.supportsForceOverride() && options.getRelevantOption(opts, "force-override")) {
+                if (restObject.supportsForceOverride() && options.getRelevantOption(context, opts, "force-override")) {
                     requestOptions.uri += "?forceOverride=true";
                 }
                 requestOptions.body = item;
-                utils.logDebugInfo("Updating item with request options: ",undefined, requestOptions);
+                utils.logDebugInfo(context, "Updating item with request options: ",undefined, requestOptions);
                 request.put(requestOptions, function (err, res, body) {
-                    if (res && res.statusCode === 404) {
-                        deferred.resolve(restObject.createItem(item, opts));
-                    } else if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
-                        err = utils.getError(err, body, res, requestOptions);
+                    const response = res || {};
+                    if (response.statusCode === 404) {
+                        deferred.resolve(restObject.createItem(context, item, opts));
+                    } else if ((err) || response.statusCode < 200 || response.statusCode > 299) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
 
                         // Check to see if this operation should be retried.
-                        if (opts && opts.filterRetryPush && opts.filterRetryPush(err)) {
+                        if (context.filterRetryPush && context.filterRetryPush(context, err)) {
                             // The operation will be retried, so do not log the error yet.
                             err.retry = true;
                         } else {
                             // The operation will not be retried, so log the error.
-                            utils.logErrors(i18n.__("update_item_error", {service_name: restObject.getServiceName()}), err);
+                            utils.logErrors(context, i18n.__("update_item_error", {service_name: restObject.getServiceName()}), err);
                         }
                         deferred.reject(err);
                     } else {
-                        utils.logDebugInfo('update item:' + restObject.getServiceName(),  res);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        utils.logDebugInfo(context, 'update item:' + restObject.getServiceName(), response);
                         if (body)
                             deferred.resolve(body);
                         else
@@ -285,31 +456,35 @@ class BaseREST {
     /**
      * Delete the given item.
      *
+     * @param {Object} context - The API context to be used for the delete operation.
      * @param {Object} item The item to be deleted.
-     * @param {Object} [opts] The options to be used for the delete request.
+     * @param {Object} [opts] The options to be used for the delete operation.
      *
      * @return {Q.Promise} A promise to delete the given item.
      */
-    deleteItem (item, opts) {
+    deleteItem (context, item, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        this.getRequestOptions(opts)
+        this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + item.id;
-                utils.logDebugInfo('delete item:' + restObject.getServiceName(),undefined,requestOptions);
+                utils.logDebugInfo(context, 'delete item:' + restObject.getServiceName(), undefined, requestOptions);
 
                 // del ==> delete
-                return request.del(requestOptions, function (err, res, body) {
-                    if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
-                        err = utils.getError(err, body, res, requestOptions);
-                        utils.logErrors(i18n.__("delete_item_error", {service_name: restObject.getServiceName()}), err);
+                request.del(requestOptions, function (err, res, body) {
+                    const response = res || {};
+                    if (err || response.statusCode < 200 || response.statusCode > 299) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+                        utils.logErrors(context, i18n.__("delete_item_error", {service_name: restObject.getServiceName()}), err);
                         deferred.reject(err);
                     } else {
-                        if (res.statusCode === 204 && (!body)) {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        if (response.statusCode === 204 && (!body)) {
                             body = i18n.__("deleted_item", {id: item.id});
                         }
-                        res["body"] = body;
-                        utils.logDebugInfo('delete ' + restObject.getServiceName(), res);
+                        response["body"] = body;
+                        utils.logDebugInfo(context, 'delete ' + restObject.getServiceName(), response);
                         deferred.resolve(body);
                     }
                 });

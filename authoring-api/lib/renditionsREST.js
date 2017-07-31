@@ -40,31 +40,28 @@ class RenditionsREST extends BaseREST {
     }
 
     // renditions cannot be updated they only can be created
-    updateItem (item, opts) {
-        return this.createItem(item, opts);
+    updateItem (context, item, opts) {
+        return this.createItem(context, item, opts);
     }
 
-    deleteItem (item, opts) {
+    deleteItem (context, item, opts) {
         return Q.reject(new Error(i18n.__("delete_rendition_error", {"id": item.id, "opts": JSON.stringify(opts ? opts : {})})));
     }
 
-    createItem (item, opts) {
-        const cOpts = utils.cloneOpts(opts);
-
+    createItem (context, item, opts) {
         // Bind the super method so that we can call it later.
         const parentMethod = super.createItem.bind(this);
 
-        // make sure if get item fails we don't log the error we expect it to fail if the item was not created yet
-        // renditions never get deleted so getting the item is more likely to work
-        // instead of trying to create and have the item fail with a 409 and that being logged as an error
+        // If getting the item fails, do not log the error. It is expected to fail if the item was not created yet.
+        const cOpts = utils.cloneOpts(opts);
         cOpts.noErrorLog = "true";
-        return this.getItem(item.id, cOpts)
+        return this.getItem(context, item.id, cOpts)
             .then(function (item) {
-                utils.logDebugInfo('This item already exists: ' + item.id + ' :renditionRest');
+                utils.logDebugInfo(context, 'This item already exists: ' + item.id + ' :renditionRest');
                 return item;
             })
             .catch(function () {
-                return parentMethod(item, opts)
+                return parentMethod(context, item, opts)
                     .then(function (item) {
                         return item;
                     })

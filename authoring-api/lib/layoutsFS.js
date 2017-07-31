@@ -17,10 +17,8 @@ limitations under the License.
 
 const JSONPathBasedItemFS = require("./JSONPathBasedItemFS.js");
 const fs = require("fs");
-const Q = require("q");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
-const recursiveReadDir = require("recursive-readdir");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
@@ -28,9 +26,9 @@ const singletonEnforcer = Symbol();
 class LayoutsFS extends JSONPathBasedItemFS {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "LayoutsFS"});
-
+        }
         super("layouts", "layouts", ".json");
     }
 
@@ -40,7 +38,6 @@ class LayoutsFS extends JSONPathBasedItemFS {
         }
         return this[singleton];
     }
-
 }
 
 module.exports = LayoutsFS;

@@ -16,8 +16,8 @@ limitations under the License.
 /**
  * Unit tests for the publishingSiteRevisionsHelper object.
  *
- * NOTE: The StatusTracker and EventEmitter objects used by the helper object
- * are used to execute some of the tests, so the provided functionality is not stubbed out.
+ * NOTE: The EventEmitter used by the assetsHelper object is used to execute some of the tests,
+ *       so the provided functionality is not stubbed out.
  */
 "use strict";
 
