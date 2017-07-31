@@ -27,9 +27,12 @@ const BaseRestUnit = require("./base.rest.unit.js");
 const restApi = require(UnitTest.API_PATH + "lib/renditionsREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for renditions
-const lookupUri =  options.getProperty("renditions", "uri");
+const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "renditions", "uri");
 const path1 = RenditionsUnitTest.VALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.VALID_RENDITION_1;
 const path2 = RenditionsUnitTest.VALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.VALID_RENDITION_2;
+
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class RenditionsRestUnitTest extends BaseRestUnit {
     constructor() {
@@ -47,7 +50,7 @@ class RenditionsRestUnitTest extends BaseRestUnit {
             it("should fail calling delete", function (done) {
                 // Call the method being tested.
                 let error;
-                restApi.deleteItem({id: UnitTest.DUMMY_ID}, UnitTest.DUMMY_OPTIONS)
+                restApi.deleteItem(context, {id: UnitTest.DUMMY_ID}, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");

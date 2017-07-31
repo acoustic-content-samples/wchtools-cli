@@ -17,9 +17,7 @@ limitations under the License.
 
 const BaseREST = require("./BaseREST.js");
 
-const Q = require("q");
 const utils = require("./utils/utils.js");
-const request = utils.getRequestWrapper();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
@@ -28,9 +26,9 @@ const singletonEnforcer = Symbol();
 class LayoutsREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "LayoutsREST"});
-
+        }
         super("layouts", "/authoring/v1/layouts", undefined, "/views/by-modified");
     }
 

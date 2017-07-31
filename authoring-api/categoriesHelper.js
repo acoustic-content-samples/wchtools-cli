@@ -19,7 +19,6 @@ const BaseHelper = require("./baseHelper.js");
 const rest = require("./lib/categoriesREST").instance;
 const fS = require("./lib/categoriesFS").instance;
 const utils = require("./lib/utils/utils.js");
-const logger = utils.getLogger(utils.apisLog);
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
@@ -52,20 +51,19 @@ class CategoriesHelper extends BaseHelper {
     /**
      * Create the given item in the local file system.
      *
+     * @param {Object} context The API context to be used by the create operation.
      * @param {Object} category - The metadata of the local item to be created.
      * @param {Object} opts - The options to be used for the create operation.
      *
      * @returns {Q.Promise} A promise for the item to be created.
      */
-    createLocalItem (category, opts) {
-        const helper = this;
+    createLocalItem (context, category, opts) {
+        const logger = this.getLogger(context);
         logger.trace('enter createLocalItem' + category.toString());
-        return this._fsApi.newItem(category, opts)
-            .then(function (item) {
-                return helper._addLocalStatus(item);
-            })
+
+        return this._fsApi.newItem(context, category, opts)
             .catch(function (err) {
-                utils.logErrors( i18n.__("create_local_item_error"), err);
+                utils.logErrors(context, i18n.__("create_local_item_error"), err);
                 throw err;
             });
     }
@@ -103,38 +101,39 @@ class CategoriesHelper extends BaseHelper {
     /**
      * Push the items with the given names one at a time.
      *
+     * @param {Object} context The current context to be used by the API.
      * @param {Array} names - The names of the items to be pushed.
      * @param {Object} opts - The options to be used for the push operations.
      *
-     * @returns {Promise} A promise for the items that were pushed.
+     * @returns {Q.Promise} A promise for the items that were pushed.
      *
      * @private
      */
-    _pushNameListSerial(names, opts) {
-        // Clone the options so that the original options are not affected.
-        const cOpts = utils.cloneOpts(opts);
-
+    _pushNameListSerial(context, names, opts) {
         // Set the concurrent limit to 1 to force serialized updates for dependency ordering.
-        cOpts["concurrent-limit"] = 1;
+        opts = utils.cloneOpts(opts);
+        opts["concurrent-limit"] = 1;
 
         // Call the super class method to do the push.
-        return super._pushNameList(names, cOpts);
+        return super._pushNameList(context, names, opts);
     }
 
     /**
      * Push the items with the given names.
      *
+     * @param {Object} context The API context to be used by the push operations.
      * @param {Array} names - The names of the items to be pushed.
      * @param {Object} opts - The options to be used for the push operations.
      *
      * @returns {Promise} A promise for the items that were pushed.
      *
+     * @override
      * @protected
      */
-    _pushNameList(names, opts) {
+    _pushNameList(context, names, opts) {
         const helper = this;
         return Promise.all(names.map(function (name) {
-            return helper.getLocalItem(name, opts);
+            return helper.getLocalItem(context, name, opts);
         }))
             .then(function (items) {
                 // Sort categories/taxonomies by hierarchy.
@@ -148,7 +147,7 @@ class CategoriesHelper extends BaseHelper {
                 names = items.map(function (item) {
                     return helper.getName(item);
                 });
-                return helper._pushNameListSerial(names, opts);
+                return helper._pushNameListSerial(context, names, opts);
             });
     }
 }

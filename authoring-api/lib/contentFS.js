@@ -25,9 +25,9 @@ const singletonEnforcer = Symbol();
 class ContentFS extends JSONItemFS {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ContentFS"});
-
+        }
         super("content", "content", "_cmd.json");
     }
 
@@ -41,7 +41,6 @@ class ContentFS extends JSONItemFS {
     getFileName(content) {
         return content.id;
     }
-
 }
 
 module.exports = ContentFS;

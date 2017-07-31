@@ -27,11 +27,13 @@ const fs = require("fs");
 const stream = require("stream");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const request = utils.getRequestWrapper();
+
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
     constructor() {
@@ -102,7 +104,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 // The second GET request is to retrieve the items, but returns an error.
                 const URI_ERROR = "Error getting the items.";
                 const err = new Error(URI_ERROR);
-                const res = null;
+                const res = {};
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
@@ -111,7 +113,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.getPublishingJobs(UnitTest.DUMMY_OPTIONS)
+                restApi.getPublishingJobs(context, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the request URI should have been rejected.");
@@ -150,7 +152,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.getPublishingJobs(UnitTest.DUMMY_OPTIONS)
+                restApi.getPublishingJobs(context, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the request URI should have been rejected.");
@@ -191,7 +193,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.getPublishingJobs(UnitTest.DUMMY_OPTIONS)
+                restApi.getPublishingJobs(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called twice, first with the lookup URI and then with the URI.
                         expect(stub).to.have.been.calledOnce;
@@ -232,7 +234,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.getPublishingJob(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                restApi.getPublishingJob(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -267,7 +269,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.getPublishingJob(item.id, UnitTest.DUMMY_OPTIONS)
+                restApi.getPublishingJob(context, item.id, UnitTest.DUMMY_OPTIONS)
                     .then(function (rContent) {
                         // Verify that the item stub was called once with the expected value.
                         expect(stub).to.have.been.calledOnce;
@@ -304,7 +306,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 self.addTestDouble(stub);
                 // Call the method being tested.
                 let error;
-                restApi.getPublishingJobStatus(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                restApi.getPublishingJobStatus(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -339,7 +341,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.getPublishingJobStatus(item.id, UnitTest.DUMMY_OPTIONS)
+                restApi.getPublishingJobStatus(context, item.id, UnitTest.DUMMY_OPTIONS)
                     .then(function (rContent) {
                         // Verify that the item stub was called once with the expected value.
                         expect(stub).to.have.been.calledOnce;
@@ -377,7 +379,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.createPublishingJob({})
+                restApi.createPublishingJob(context, {})
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -414,7 +416,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.createPublishingJob({})
+                restApi.createPublishingJob(context, {})
                     .then(function () {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubCreate).to.have.been.calledOnce;
@@ -450,7 +452,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.deletePublishingJob(UnitTest.DUMMY_ID)
+                restApi.deletePublishingJob(context, UnitTest.DUMMY_ID)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -488,7 +490,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.deletePublishingJob(UnitTest.DUMMY_ID)
+                restApi.deletePublishingJob(context, UnitTest.DUMMY_ID)
                     .then(function (message) {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubDelete).to.have.been.calledOnce;
@@ -521,7 +523,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.deletePublishingJob(UnitTest.DUMMY_ID)
+                restApi.deletePublishingJob(context, UnitTest.DUMMY_ID)
                     .then(function (message) {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubDelete).to.have.been.calledOnce;
@@ -560,7 +562,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.cancelPublishingJob(UnitTest.DUMMY_ID)
+                restApi.cancelPublishingJob(context, UnitTest.DUMMY_ID)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -598,7 +600,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.cancelPublishingJob(UnitTest.DUMMY_ID)
+                restApi.cancelPublishingJob(context, UnitTest.DUMMY_ID)
                     .then(function (message) {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubDelete).to.have.been.calledOnce;
@@ -631,7 +633,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
                 // Call the method being tested.
                 let error;
-                restApi.cancelPublishingJob(UnitTest.DUMMY_ID)
+                restApi.cancelPublishingJob(context, UnitTest.DUMMY_ID)
                     .then(function () {
                         // Verify that the delete stub was called once with a URI that contains the specified ID.
                         expect(stubDelete).to.have.been.calledOnce;
@@ -649,7 +651,6 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
             });
         });
     }
-
 }
 
 module.exports = BasePublishingJobsRestUnitTest;

@@ -25,11 +25,13 @@ const BaseFsUnit = require("./base.fs.unit.js");
 
 // Require the node modules used in this test file.
 const fs = require("fs");
-const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 const sinon = require("sinon");
 
 // Require the local module being tested.
 const fsApi = require(UnitTest.API_PATH + "lib/layoutsFS.js").instance;
+
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class LayoutsFsUnitTest extends BaseFsUnit {
     constructor () {
@@ -42,9 +44,6 @@ class LayoutsFsUnitTest extends BaseFsUnit {
 
     // Override the base FS test to handle the difference between names (layouts return a path instead of a name).
     listNamesSuccess (fsApi, fsName, itemName1, itemName2, done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir":UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY});
-
         // Create a stub that will return a list of item names from the recursive function.
         const stub = sinon.stub(fs, "readdir");
         const err = null;
@@ -59,7 +58,9 @@ class LayoutsFsUnitTest extends BaseFsUnit {
 
         // Call the method being tested.
         let error;
-        fsApi.listNames(UnitTest.DUMMY_OPTIONS)
+
+        // Set the current working directory to the "valid resources" directory.
+        fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY})
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
@@ -77,7 +78,7 @@ class LayoutsFsUnitTest extends BaseFsUnit {
             .finally(function () {
                 // noinspection JSUnresolvedFunction
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);

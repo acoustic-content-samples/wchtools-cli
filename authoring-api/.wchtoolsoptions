@@ -74,5 +74,11 @@
     "offset": 0,
     "limit": 200,
     "concurrent-limit": 10
-  }
+  },
+  "retryMaxAttempts": 5,
+  "retryMinTimeout": 1000,
+  "retryMaxTimeout": 16000,
+  "retryFactor": 2,
+  "retryRandomize": false,
+  "retryStatusCodes": []
 }

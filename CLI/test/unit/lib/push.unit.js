@@ -32,9 +32,10 @@ const Q = require("q");
 const sinon = require("sinon");
 const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
+const events = require("events");
 
 // Require the local modules that will be stubbed, mocked, and spied.
-const options = require("wchtools-api").options;
+const options = require("wchtools-api").getOptions();
 
 class PushUnitTest extends UnitTest {
     constructor () {
@@ -70,11 +71,11 @@ class PushUnitTest extends UnitTest {
         describe("CLI-unit-pushing", function () {
             it("test emitters working", function (done) {
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
@@ -110,11 +111,11 @@ class PushUnitTest extends UnitTest {
 
             it("test generic push working", function (done) {
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
@@ -263,11 +264,11 @@ class PushUnitTest extends UnitTest {
                 }
 
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed", itemName1);
                         stubDeferred.resolve();
                     }, 0);
@@ -301,11 +302,11 @@ class PushUnitTest extends UnitTest {
                 }
 
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -335,11 +336,11 @@ class PushUnitTest extends UnitTest {
 
             it("test push ignore-timestamps working", function (done) {
                 // Stub the helper.pushAllItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pushAllItems", function () {
+                const stub = sinon.stub(helper, "pushAllItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
                         stubDeferred.resolve();
@@ -377,12 +378,12 @@ class PushUnitTest extends UnitTest {
                 // Stub the options.getProperty method to return a base URL value.
                 const originalGetProperty = options.getProperty;
                 const BASE_URL = "http://www.ibm.com/foo/api";
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     // When the stubbed method is called with the key for the base URL, return a known value.
                     if (key === "x-ibm-dx-tenant-base-url") {
                         return BASE_URL;
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 
@@ -390,11 +391,11 @@ class PushUnitTest extends UnitTest {
                 const stubPrompt = sinon.stub(prompt, "get");
 
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stubPush = sinon.stub(helper, "pushModifiedItems", function () {
+                const stubPush = sinon.stub(helper, "pushModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
@@ -408,7 +409,7 @@ class PushUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the get stub was called with the expected value.
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-base-url");
 
                         // Verify that the prompt stub was not called.
                         expect(stubPrompt).to.not.have.been.called;
@@ -437,7 +438,7 @@ class PushUnitTest extends UnitTest {
                 // Stub the options.getProperty method to return a tenant ID value.
                 const originalGetProperty = options.getProperty;
                 const TENANT_ID = "1234567890";
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     // When the stubbed method is called with the key for the base URL, return null.
                     // When the stubbed method is called with the key for the tenant ID, return a known value.
                     if (key === "x-ibm-dx-tenant-base-url") {
@@ -445,7 +446,7 @@ class PushUnitTest extends UnitTest {
                     } else if (key === "x-ibm-dx-tenant-id") {
                         return TENANT_ID;
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 
@@ -453,11 +454,11 @@ class PushUnitTest extends UnitTest {
                 const stubPrompt = sinon.stub(prompt, "get");
 
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stubPush = sinon.stub(helper, "pushModifiedItems", function () {
+                const stubPush = sinon.stub(helper, "pushModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
@@ -471,8 +472,8 @@ class PushUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the get stub was called with the expected values.
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-id");
 
                         // Verify that the prompt stub was not called.
                         expect(stubPrompt).to.not.have.been.called;
@@ -500,12 +501,12 @@ class PushUnitTest extends UnitTest {
             it("test generic push with URL prompt failure", function (done) {
                 // Stub the options.getProperty method to return a base URL value.
                 const originalGetProperty = options.getProperty;
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     // When the stubbed method is called with the key for the base URL or the tenant ID, return null.
                     if (key === "x-ibm-dx-tenant-base-url" || key === "x-ibm-dx-tenant-id") {
                         return null;
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 
@@ -523,8 +524,8 @@ class PushUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the get stub was called with the expected values.
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-id");
 
                         // Verify that the prompt stub was called once.
                         expect(stubPrompt).to.have.been.calledOnce;
@@ -549,12 +550,12 @@ class PushUnitTest extends UnitTest {
             it("test generic push with invalid prompted URL", function (done) {
                 // Stub the options.getProperty method to return a base URL value.
                 const originalGetProperty = options.getProperty;
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     // When the stubbed method is called with the key for the base URL or the tenant ID, return null.
                     if (key === "x-ibm-dx-tenant-base-url" || key === "x-ibm-dx-tenant-id") {
                         return null;
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 
@@ -571,8 +572,8 @@ class PushUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the get stub was called with the expected values.
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-id");
 
                         // Verify that the prompt stub was called once.
                         expect(stubPrompt).to.have.been.calledOnce;
@@ -597,12 +598,12 @@ class PushUnitTest extends UnitTest {
             it("test generic push with prompted URL", function (done) {
                 // Stub the options.getProperty method to return a base URL value.
                 const originalGetProperty = options.getProperty;
-                const stubGet = sinon.stub(options, "getProperty", function (key) {
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     // When the stubbed method is called with the key for the base URL or the tenant ID, return null.
                     if (key === "x-ibm-dx-tenant-base-url" || key === "x-ibm-dx-tenant-id") {
                         return null;
                     } else {
-                        return originalGetProperty(key);
+                        return originalGetProperty(context, key);
                     }
                 });
 
@@ -612,11 +613,11 @@ class PushUnitTest extends UnitTest {
                 stubPrompt.yields(null, {"url": BASE_URL});
 
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stubPush = sinon.stub(helper, "pushModifiedItems", function () {
+                const stubPush = sinon.stub(helper, "pushModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed", itemName1);
                         emitter.emit("pushed", itemName2);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
@@ -630,8 +631,8 @@ class PushUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the get stub was called with the expected values.
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-base-url");
-                        expect(stubGet).to.have.been.calledWith("x-ibm-dx-tenant-id");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-base-url");
+                        expect(stubGet).to.have.been.calledWith(sinon.match.any, "x-ibm-dx-tenant-id");
 
                         // Verify that the prompt stub was called once.
                         expect(stubPrompt).to.have.been.calledOnce;

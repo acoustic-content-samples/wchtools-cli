@@ -18,15 +18,14 @@ limitations under the License.
 const fs = require('fs');
 const util = require('util');
 const Q = require('q');
-const request = require('request');
+Q.longStackSupport = true;
 const program = require('commander');
 const colors = require('colors');
 
-const status = require('./lib/status');
 const commands = require('./commands')(program);
 const packageJson = require('./package.json');
-const toolsApi = require("wchtools-api");
-const utils = toolsApi.utils;
+const ToolsApi = require("wchtools-api");
+const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 program.LOG_PATH = process.cwd() + '/.cli-log';
@@ -74,57 +73,6 @@ program.errorMessage = function () {
     displayToConsole(msg.red);
 };
 
-/**
- * Display any errors that occurred during initialization.
- *
- * @returns {Array} An array of initialization errors, or null if there were no errors.
- */
-program.displayInitializationErrors = function () {
-    // Get the initialization errors from the tools API. (For now this is the only source of initialization errors.)
-    const errors = toolsApi.getInitializationErrors();
-    if (errors && errors.length > 0) {
-        // There was one or more errors, so send each one to the errorMessage method.
-        errors.forEach(function (error, index) {
-            program.errorMessage(error.message);
-
-            // If this is not the final error to be displayed, add an empty line for separation.
-            if (index < errors.length - 1) {
-                program.errorMessage("");
-            }
-        });
-        return errors;
-    }
-    return null;
-};
-
-// Create request wrapper
-/*istanbul ignore next*/
-program.request = function (opts, next) {
-    if (program.debug) {
-        program.log('REQUEST: '.bold + JSON.stringify(opts, null, 2));
-    } else {
-  	    program.log(opts.uri);
-    }
-
-    status.start();
-
-    return request(opts, function (err, res, body) {
-        status.stop();
-        if (err) {
-            if (program.debug) {
-                program.errorMessage(err.message);
-            }
-            return next(err, res, body);
-        } else {
-            if (program.debug) {
-                program.log('RESPONSE: '.bold + JSON.stringify(res.headers, null, 2));
-                program.log('BODY: '.bold + JSON.stringify(res.body, null, 2));
-            }
-            return next(err, res, body);
-        }
-    });
-};
-
 program.on('*', function() {
     displayToConsole('Unknown Command: ' + program.args.join(' '));
 	program.help();
@@ -144,42 +92,20 @@ const parseArgs = function (argv) {
     // Create a promise for this command.
     const deferred = Q.defer();
 
-    const errors = program.displayInitializationErrors();
-    if (errors && errors.length > 0) {
-        // There were initialization errors, so the returned promise should be rejected.
-        let error;
-        if (errors.length === 1) {
-            // There was a single error.
-            error = errors[0];
-        } else {
-            // There were multiple errors, so combine their messages into a single error.
-            let message = "";
-            errors.forEach(function (error, index) {
-                if (index === 0) {
-                    message = error.message;
-                } else {
-                    message = message + "\n\n" + error.message;
-                }
-            });
-            error = new Error(message);
-        }
-        deferred.reject(error);
-    } else {
-        // Override the successMessage method to resolve the promise.
-        program.successMessage = function (msg) {
-            program.successMessageSave(msg);
-            deferred.resolve(i18n.__("cli_success_message", {"message": msg}));
-        };
+    // Override the successMessage method to resolve the promise.
+    program.successMessage = function (msg) {
+        program.successMessageSave(msg);
+        deferred.resolve(i18n.__("cli_success_message", {"message": msg}));
+    };
 
-        // Override the errorMessage method to reject the promise.
-        program.errorMessage = function (msg) {
-            program.errorMessageSave(msg);
-            deferred.reject(new Error(msg));
-        };
+    // Override the errorMessage method to reject the promise.
+    program.errorMessage = function (msg) {
+        program.errorMessageSave(msg);
+        deferred.reject(new Error(msg));
+    };
 
-        // Execute the command (asynchronously).
-        program.parse(argv);
-    }
+    // Execute the command (asynchronously).
+    program.parse(argv);
 
     // Return the promise for this command.
     return deferred.promise;

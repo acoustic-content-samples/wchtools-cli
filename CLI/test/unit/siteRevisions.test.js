@@ -23,10 +23,6 @@ const helper = require("wchtools-api").getPublishingSiteRevisionsHelper();
 const rest = require("../../../authoring-api/lib/publishingSiteRevisionsREST.js").instance;
 const fs = require("../../../authoring-api/lib/publishingSiteRevisionsFS.js").instance;
 
-if(!fs || !rest) {
-    console.log('Error could not load required');
-}
-
 // PublishingSources Tests with CLI
 const BASE_NAME = 'publishing-siterevision';
 const PullUnitTest = require("./lib/pull.unit.js");

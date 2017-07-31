@@ -20,8 +20,6 @@ const crypto = require("crypto");
 const path = require("path");
 const utils = require("./utils.js");
 const options = require("./options.js");
-
-const logger = utils.getLogger(utils.apisLog);
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const NEW = "new";
@@ -40,7 +38,7 @@ const FILENAME = ".wchtoolshashes";
  *
  * @private
  */
-function generateMD5Hash(filename) {
+function generateMD5Hash (filename) {
     const hash = crypto.createHash("md5");
     const content = fs.readFileSync(filename); // returns a Buffer
     hash.update(content);
@@ -58,7 +56,7 @@ function generateMD5Hash(filename) {
  *
  * @private
  */
-function compareMD5Hashes(hash1, hash2) {
+function compareMD5Hashes (hash1, hash2) {
     return (hash1 && hash2) &&
             ((hash1 === hash2) ||
             Buffer.compare(new Buffer(hash1, 'base64'), new Buffer(hash2, 'base64')) === 0);
@@ -75,7 +73,7 @@ function compareMD5Hashes(hash1, hash2) {
  *
  * @private
  */
-function getHashesFilename(basePath) {
+function getHashesFilename (basePath) {
     const filename = basePath + "/" + FILENAME;
     if (!fs.existsSync(filename)) {
         const oldFilename = basePath + "/" + OLD_FILENAME;
@@ -89,55 +87,58 @@ function getHashesFilename(basePath) {
 /**
  * Get the tenant ID specified by the given options.
  *
+ * @param {Object} context The current API context.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
  * @returns {String} The tenant ID specified by the given options (may be undefined).
  *
  * @private
  */
-function getTenantID(opts) {
-    return options.getRelevantOption(opts, "x-ibm-dx-tenant-id");
+function getTenantID (context, opts) {
+    return options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
 }
 
 /**
  * Get the base URL specified by the given options.
  *
+ * @param {Object} context The current API context.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
  * @returns {String} The base URL specified by the given options (may be undefined).
  *
  * @private
  */
-function getBaseUrl(opts) {
-    return options.getRelevantOption(opts, "x-ibm-dx-tenant-base-url");
+function getBaseUrl (context, opts) {
+    return options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url");
 }
 
 /**
  * Get the tenant map key specified by the given options.
  *
+ * @param {Object} context The current API context.
+ * @param {Object} tenantMap The tenant map from a hashes file.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
  * @returns {String} The tenant map key specified by the given options (may be undefined).
  *
  * @private
  */
-function getTenantKey(tenantMap, opts) {
-    let tenantKey = getTenantID(opts);
-    if (!tenantKey) {
-        const tenantBaseUrl = getBaseUrl(opts);
-        if (tenantBaseUrl) {
-            // attempt to find tenantKey from stored mapping of baseUrls to tenantIDs
-            Object.keys(tenantMap).forEach(function (key) {
-                if (tenantMap[key] && tenantMap[key].baseUrls) {
-                    tenantMap[key].baseUrls.forEach(function (baseUrl) {
-                        if (baseUrl === tenantBaseUrl) {
-                            tenantKey = key;
-                        }
-                    });
-                }
-            });
-        }
+function getTenantKey (context, tenantMap, opts) {
+    let tenantKey = getTenantID(context, opts);
+    const tenantBaseUrl = getBaseUrl(context, opts);
+    if (!tenantKey && tenantBaseUrl) {
+        // attempt to find tenantKey from stored mapping of baseUrls to tenantIDs
+        Object.keys(tenantMap).forEach(function (key) {
+            if (tenantMap[key] && tenantMap[key].baseUrls) {
+                tenantMap[key].baseUrls.forEach(function (baseUrl) {
+                    if (baseUrl === tenantBaseUrl) {
+                        tenantKey = key;
+                    }
+                });
+            }
+        });
     }
+
     return tenantKey;
 }
 
@@ -146,13 +147,14 @@ function getTenantKey(tenantMap, opts) {
  *
  * Note: The tenant map contains metadata for multiple tenants, keyed by tenant ID.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  *
  * @returns {Object} The tenant map from the hashes file at the given location, or an empty object.
  *
  * @private
  */
-function loadTenantMap(basePath) {
+function loadTenantMap (context, basePath) {
     let tenantMap = {};
     const hashesFilename = getHashesFilename(basePath);
     try {
@@ -163,7 +165,7 @@ function loadTenantMap(basePath) {
         }
     } catch (err) {
         // Log the error and return an empty tenant map.
-        utils.logErrors(i18n.__("error_tenant_map"), err);
+        utils.logErrors(context, i18n.__("error_tenant_map"), err);
     }
     return tenantMap;
 }
@@ -171,6 +173,7 @@ function loadTenantMap(basePath) {
 /**
  * Load the metadata for the specified tenant from the hashes file at the given location.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
@@ -178,9 +181,9 @@ function loadTenantMap(basePath) {
  *
  * @private
  */
-function loadHashes(basePath, opts) {
-    const tenantMap = loadTenantMap(basePath);
-    return tenantMap[getTenantKey(tenantMap, opts)] || {};
+function loadHashes (context, basePath, opts) {
+    const tenantMap = loadTenantMap(context, basePath);
+    return tenantMap[getTenantKey(context, tenantMap, opts)] || {};
 }
 
 /**
@@ -188,15 +191,16 @@ function loadHashes(basePath, opts) {
  * that contains the set of x-ibm-dx-tenant-base-url that have been used for the current
  * x-ibm-dx-tenant-id.
  *
+ * @param {Object} context The current API context.
  * @param {Object} hashMap the map to augment with the baseUrls structure
  * @param {Object} opts The options object that specifies the tenant data
  *
- * @return the modified hashMap
+ * @return {Object} the modified hashMap
  *
  * @private
  */
-function updateBaseUrls(hashMap, opts) {
-    const baseUrl = getBaseUrl(opts);
+function updateBaseUrls (context, hashMap, opts) {
+    const baseUrl = getBaseUrl(context, opts);
     if (baseUrl) {
         if (!hashMap.baseUrls) {
             hashMap.baseUrls = [];
@@ -211,6 +215,7 @@ function updateBaseUrls(hashMap, opts) {
 /**
  * Save the given tenant metadata to the hashes file at the given location.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Object} hashMap The metadata for the specified tenant.
  * @param {Object} opts The options object that specifies which tenant is being used.
@@ -219,12 +224,12 @@ function updateBaseUrls(hashMap, opts) {
  *
  * @private
  */
-function saveHashes(basePath, hashMap, opts) {
+function saveHashes (context, basePath, hashMap, opts) {
     const hashesFilename = getHashesFilename(basePath);
     try {
-        const tenantMap = loadTenantMap(basePath);
-        updateBaseUrls(hashMap, opts);
-        tenantMap[getTenantKey(tenantMap, opts)] = hashMap;
+        const tenantMap = loadTenantMap(context, basePath);
+        updateBaseUrls(context, hashMap, opts);
+        tenantMap[getTenantKey(context, tenantMap, opts)] = hashMap;
         const contents = JSON.stringify(tenantMap, null, "  ");
 
         // If the directory doesn't exist, there is nothing to push or pull so don't bother to save the hashes.
@@ -237,14 +242,15 @@ function saveHashes(basePath, hashMap, opts) {
         return tenantMap;
     } catch (err) {
         // Log the error, and return the current state of the tenant map.
-        utils.logErrors(i18n.__("error_save_hashes"), err);
-        return loadTenantMap(basePath);
+        utils.logErrors(context, i18n.__("error_save_hashes"), err);
+        return loadTenantMap(context, basePath);
     }
 }
 
 /**
  * Update the metadata for the given file in the hashes file at the specified location.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {String} filePath The local path for the file whose metadata is being updated.
  * @param {Object} item The metadata for the specified file.
@@ -254,7 +260,12 @@ function saveHashes(basePath, hashMap, opts) {
  *
  * @public
  */
-function updateHashes(basePath, filePath, item, opts) {
+function updateHashes (context, basePath, filePath, item, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
     try {
         let md5 = undefined;
         let mtime = undefined;
@@ -286,7 +297,7 @@ function updateHashes(basePath, filePath, item, opts) {
             }
 
             // Get the existing tenant metadata at the specified location.
-            const hashMap = loadHashes(basePath, opts);
+            const hashMap = loadHashes(context, basePath, opts);
 
             // Remove any stale entries for the current tenant (same unique path as the entry being updated).
             Object.keys(hashMap).forEach(function (key) {
@@ -299,21 +310,22 @@ function updateHashes(basePath, filePath, item, opts) {
             hashMap[item.id] = entry;
 
             // Save the updated tenant metadata to the hashes file at the specified location, and return the tenant map.
-            return saveHashes(basePath, hashMap, opts);
+            return saveHashes(context, basePath, hashMap, opts);
         } else {
             // The tenant metadata was not updated, so just return the current state of the tenant map.
-            return loadTenantMap(basePath);
+            return loadTenantMap(context, basePath);
         }
     } catch (err) {
         // Log the error and return the current state of the tenant map.
-        utils.logErrors(i18n.__("error_update_hashes"), err);
-        return loadTenantMap(basePath);
+        utils.logErrors(context, i18n.__("error_update_hashes"), err);
+        return loadTenantMap(context, basePath);
     }
 }
 
 /**
  * Remove the metadata for the given file in the hashes file at the specified location.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Object} ids A list of ids to remove the metadata for.
  * @param {Object} opts The options object that specifies which tenant is being used.
@@ -322,11 +334,16 @@ function updateHashes(basePath, filePath, item, opts) {
  *
  * @public
  */
-function removeHashes(basePath, ids, opts) {
+function removeHashes (context, basePath, ids, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
     try {
         if (ids && ids.length > 0) {
             // Get the existing tenant metadata at the specified location.
-            const hashMap = loadHashes(basePath, opts);
+            const hashMap = loadHashes(context, basePath, opts);
 
             ids.forEach(function (id) {
                 // Get the entry to be removed.
@@ -343,15 +360,15 @@ function removeHashes(basePath, ids, opts) {
             });
 
             // Save the updated tenant metadata to the hashes file at the specified location, and return the tenant map.
-            return saveHashes(basePath, hashMap, opts);
+            return saveHashes(context, basePath, hashMap, opts);
         } else {
             // The tenant metadata was not updated, so just return the current state of the tenant map.
-            return loadTenantMap(basePath);
+            return loadTenantMap(context, basePath);
         }
     } catch (err) {
         // Log the error and return the current state of the tenant map.
-        utils.logErrors(i18n.__("error_remove_hashes"), err);
-        return loadTenantMap(basePath);
+        utils.logErrors(context, i18n.__("error_remove_hashes"), err);
+        return loadTenantMap(context, basePath);
     }
 }
 
@@ -360,6 +377,7 @@ function removeHashes(basePath, ids, opts) {
  *
  * Example: "2017-01-16T22:30:05.928Z"
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
@@ -367,9 +385,14 @@ function removeHashes(basePath, ids, opts) {
  *
  * @public
  */
-function getLastPullTimestamp(basePath, opts) {
+function getLastPullTimestamp (context, basePath, opts) {
+    // If the context specifies that hashes should not be used, return a null timestamp.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return null;
+    }
+
     // Get the tenant metadata from the hashes file at the specified location.
-    const hashMap = loadHashes(basePath, opts);
+    const hashMap = loadHashes(context, basePath, opts);
 
     // Return the pull timestamp for the tenant.
     return hashMap.lastPullTimestamp;
@@ -378,6 +401,7 @@ function getLastPullTimestamp(basePath, opts) {
 /**
  * Set the timestamp of the last pull for the specified tenant.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Date | String} timestamp The timestamp of the last pull for the specified tenant.
  * @param {Object} opts The options object that specifies which tenant is being used.
@@ -386,18 +410,23 @@ function getLastPullTimestamp(basePath, opts) {
  *
  * @public
  */
-function setLastPullTimestamp(basePath, timestamp, opts) {
+function setLastPullTimestamp (context, basePath, timestamp, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
     try {
         // Get the tenant metadata from the hashes file at the specified location.
-        const hashMap = loadHashes(basePath, opts);
+        const hashMap = loadHashes(context, basePath, opts);
 
         // Update the tenant metadata with the timestamp value and save it to the hashes file in the specified location.
         hashMap.lastPullTimestamp = timestamp;
-        return saveHashes(basePath, hashMap, opts);
+        return saveHashes(context, basePath, hashMap, opts);
     } catch (err) {
         // Log the error and return the current state of the tenant map.
-        utils.logErrors(i18n.__("error_set_last_pull_timestamp"), err);
-        return loadTenantMap(basePath);
+        utils.logErrors(context, i18n.__("error_set_last_pull_timestamp"), err);
+        return loadTenantMap(context, basePath);
     }
 }
 
@@ -406,6 +435,7 @@ function setLastPullTimestamp(basePath, timestamp, opts) {
  *
  * Example: "2017-01-16T22:30:05.928Z"
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
@@ -413,9 +443,14 @@ function setLastPullTimestamp(basePath, timestamp, opts) {
  *
  * @public
  */
-function getLastPushTimestamp(basePath, opts) {
+function getLastPushTimestamp (context, basePath, opts) {
+    // If the context specifies that hashes should not be used, return a null timestamp.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return null;
+    }
+
     // Get the tenant metadata from the hashes file at the specified location.
-    const hashMap = loadHashes(basePath, opts);
+    const hashMap = loadHashes(context, basePath, opts);
 
     // Return the pull timestamp for the tenant.
     return hashMap.lastPushTimestamp;
@@ -424,6 +459,7 @@ function getLastPushTimestamp(basePath, opts) {
 /**
  * Set the timestamp of the last push for the specified tenant.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Date | String} timestamp The timestamp of the last push for the specified tenant.
  * @param {Object} opts The options object that specifies which tenant is being used.
@@ -432,38 +468,49 @@ function getLastPushTimestamp(basePath, opts) {
  *
  * @public
  */
-function setLastPushTimestamp(basePath, timestamp, opts) {
+function setLastPushTimestamp (context, basePath, timestamp, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
     try {
         // Get the tenant metadata from the hashes file at the specified location.
-        const hashMap = loadHashes(basePath, opts);
+        const hashMap = loadHashes(context, basePath, opts);
 
         // Update the tenant metadata with the timestamp value and save it to the hashes file in the specified location.
         hashMap.lastPushTimestamp = timestamp;
-        return saveHashes(basePath, hashMap, opts);
+        return saveHashes(context, basePath, hashMap, opts);
     } catch (err) {
         // Log the error and return the current state of the tenant map.
-        utils.logErrors(i18n.__("error_set_last_push_timestamp"), err);
-        return loadTenantMap(basePath);
+        utils.logErrors(context, i18n.__("error_set_last_push_timestamp"), err);
+        return loadTenantMap(context, basePath);
     }
 }
 
 /**
  * Get the metadata for the given file from the hashes file at the specified location for the specified tenant.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {String} filePath The local path for the file.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
  * @returns {Object} The metadata for the given file from the hashes file at the specified location for the specified
- *          tenant, or undefined if the metadata is not found.
+ *          tenant, or null if the metadata is not found.
  *
  * @public
  */
-function getHashesForFile(basePath, filePath, opts) {
+function getHashesForFile (context, basePath, filePath, opts) {
+    // If the context specifies that hashes should not be used, return null.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return null;
+    }
+
     const relative = utils.getRelativePath(basePath, filePath);
     try {
         // Get the tenant metadata from the hashes file at the specified location.
-        const hashMap = loadHashes(basePath, opts);
+        const hashMap = loadHashes(context, basePath, opts);
 
         // Find the key of the hash map entry containing the metadata for the specified file.
         const fileKey = Object.keys(hashMap)
@@ -475,13 +522,15 @@ function getHashesForFile(basePath, filePath, opts) {
         return hashMap[fileKey];
     } catch (err) {
         // Log the error and return an empty object.
-        utils.logErrors(i18n.__("error_get_hashes_for_file"), err);
+        utils.logErrors(context, i18n.__("error_get_hashes_for_file"), err);
+        return null;
     }
 }
 
 /**
  * Get an array of file paths from the hashes file at the specified location for the specified tenant.
  *
+ * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
@@ -489,9 +538,14 @@ function getHashesForFile(basePath, filePath, opts) {
  *
  * @public
  */
-function listFiles(basePath, opts) {
+function listFiles (context, basePath, opts) {
+    // If the context specifies that hashes should not be used, return an empty array of files.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return [];
+    }
+
     // Get the tenant metadata from the hashes file at the specified location.
-    const hashMap = loadHashes(basePath, opts);
+    const hashMap = loadHashes(context, basePath, opts);
 
     // Return an array of file paths.
     return Object.keys(hashMap)
@@ -508,6 +562,7 @@ function listFiles(basePath, opts) {
 /**
  * Determine whether the specified local file is modified (or new).
  *
+ * @param {Object} context The current API context.
  * @param {Array} flags A set that can include NEW and/or MODIFIED.
  * @param {String} basePath The path where the hashes file is located.
  * @param {String} filePath The local path for the file.
@@ -518,13 +573,18 @@ function listFiles(basePath, opts) {
  *
  * @public
  */
-function isLocalModified(flags, basePath, filePath, opts) {
+function isLocalModified (context, flags, basePath, filePath, opts) {
+    // If the context specifies that hashes should not be used, return false.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return false;
+    }
+
     // Check for both new and modified by default.
     flags = flags || [NEW, MODIFIED];
-    logger.debug("hashes.isLocalModified", flags, filePath);
+    context.logger.debug("hashes.isLocalModified", flags, filePath);
 
     // Get the metadata for the given file from the hashes file at the specified location.
-    const fileHashes = getHashesForFile(basePath, filePath, opts);
+    const fileHashes = getHashesForFile(context, basePath, filePath, opts);
 
     // Get the stat values for the specified file, if it exists.
     let stat;
@@ -537,25 +597,25 @@ function isLocalModified(flags, basePath, filePath, opts) {
     // Determine whether the local file is modified.
     let modified = false;
     if (flags.indexOf(MODIFIED) !== -1) {
-        logger.debug("hashes.isLocalModified MODIFIED fileHashes", (fileHashes !== undefined));
-        logger.debug("hashes.isLocalModified MODIFIED fileHashes localLastModified", fileHashes ? Date.parse(fileHashes.localLastModified) : undefined);
-        logger.debug("hashes.isLocalModified MODIFIED stat.mtime", stat ? stat.mtime.getTime() : undefined);
+        context.logger.debug("hashes.isLocalModified MODIFIED fileHashes", (fileHashes !== undefined));
+        context.logger.debug("hashes.isLocalModified MODIFIED fileHashes localLastModified", fileHashes ? Date.parse(fileHashes.localLastModified) : undefined);
+        context.logger.debug("hashes.isLocalModified MODIFIED stat.mtime", stat ? stat.mtime.getTime() : undefined);
 
         // For performance first compare the timestamps. If the timestamps are equal, assume the file is not modified.
         if (fileHashes && fileHashes.localLastModified && stat && stat.mtime.getTime() !== Date.parse(fileHashes.localLastModified)) {
             // The timestamps don't match so check the md5 hashes.
             const md5 = generateMD5Hash(filePath);
-            logger.debug("hashes.isLocalModified MODIFIED fileHashes md5", fileHashes.md5);
-            logger.debug("hashes.isLocalModified MODIFIED md5", md5);
+            context.logger.debug("hashes.isLocalModified MODIFIED fileHashes md5", fileHashes.md5);
+            context.logger.debug("hashes.isLocalModified MODIFIED md5", md5);
 
             if (fileHashes.md5 && md5 !== fileHashes.md5) {
                 // The md5 hashes don't match so the file is modified.
-                logger.debug("hashes.isLocalModified MODIFIED file is modified");
+                context.logger.debug("hashes.isLocalModified MODIFIED file is modified");
                 modified = true;
             } else {
                 // The md5 hashes match, but the timestamps did not. Update the timestamp in hashes so that we may not
                 // need to generate the md5 hash next time.
-                const hashMap = loadHashes(basePath, opts);
+                const hashMap = loadHashes(context, basePath, opts);
                 Object.keys(hashMap)
                     .forEach(function (key) {
                         // Match on the path field and sanity check that md5 matches.
@@ -563,25 +623,25 @@ function isLocalModified(flags, basePath, filePath, opts) {
                             hashMap[key].localLastModified = stat.mtime;
                         }
                     });
-                saveHashes(basePath, hashMap, opts);
+                saveHashes(context, basePath, hashMap, opts);
             }
         }
     }
 
     // Determine whether the local file is new.
     if (flags.indexOf(NEW) !== -1) {
-        logger.debug("hashes.isLocalModified NEW fileHashes", (fileHashes !== undefined));
-        logger.debug("hashes.isLocalModified NEW fileHashes localLastModified", fileHashes ? fileHashes.localLastModified : undefined);
-        logger.debug("hashes.isLocalModified NEW fileHashes md5", fileHashes ? fileHashes.md5 : undefined);
+        context.logger.debug("hashes.isLocalModified NEW fileHashes", (fileHashes !== undefined));
+        context.logger.debug("hashes.isLocalModified NEW fileHashes localLastModified", fileHashes ? fileHashes.localLastModified : undefined);
+        context.logger.debug("hashes.isLocalModified NEW fileHashes md5", fileHashes ? fileHashes.md5 : undefined);
 
         // The local file is new if it exists but the metadata in the hashes file does not exist.
         if (stat && (!fileHashes || !fileHashes.localLastModified || !fileHashes.md5)) {
-            logger.debug("hashes.isLocalModified NEW file is new");
+            context.logger.debug("hashes.isLocalModified NEW file is new");
             modified = true;
         }
     }
 
-    logger.debug("hashes.isLocalModified returning", modified, flags, filePath);
+    context.logger.debug("hashes.isLocalModified returning", modified, flags, filePath);
 
     return modified;
 }
@@ -589,6 +649,7 @@ function isLocalModified(flags, basePath, filePath, opts) {
 /**
  * Determine whether the specified remote file is modified (or new).
  *
+ * @param {Object} context The current API context.
  * @param {Array} flags A set that can include NEW and/or MODIFIED.
  * @param {Object} item The metadata for the specified file.
  * @param {String} basePath The path where the hashes file is located.
@@ -600,40 +661,45 @@ function isLocalModified(flags, basePath, filePath, opts) {
  *
  * @public
  */
-function isRemoteModified(flags, item, basePath, filePath, opts) {
+function isRemoteModified (context, flags, item, basePath, filePath, opts) {
+    // If the context specifies that hashes should not be used, return false.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return false;
+    }
+
     // Check for both new and modified by default.
     flags = flags || [NEW, MODIFIED];
-    logger.debug("hashes.isRemoteModified", flags, filePath);
+    context.logger.debug("hashes.isRemoteModified", flags, filePath);
 
     // Get the metadata for the given file from the hashes file at the specified location.
-    const fileHashes = getHashesForFile(basePath, filePath, opts);
+    const fileHashes = getHashesForFile(context, basePath, filePath, opts);
 
     // Determine whether the remote file is modified.
     let modified = false;
     if (flags.indexOf(MODIFIED) !== -1) {
-        logger.debug("hashes.isRemoteModified MODIFIED fileHashes", (fileHashes !== undefined));
-        logger.debug("hashes.isRemoteModified MODIFIED fileHashes rev", fileHashes ? fileHashes.rev : undefined);
-        logger.debug("hashes.isRemoteModified MODIFIED rev", item.rev);
+        context.logger.debug("hashes.isRemoteModified MODIFIED fileHashes", (fileHashes !== undefined));
+        context.logger.debug("hashes.isRemoteModified MODIFIED fileHashes rev", fileHashes ? fileHashes.rev : undefined);
+        context.logger.debug("hashes.isRemoteModified MODIFIED rev", item.rev);
 
         // The remote file is modified if the rev ids don't match.
         if (fileHashes && fileHashes.rev !== item.rev) {
-            logger.debug("hashes.isRemoteModified MODIFIED file is modified");
+            context.logger.debug("hashes.isRemoteModified MODIFIED file is modified");
             modified = true;
         }
     }
 
     // Determine whether the remote file is new.
     if (flags.indexOf(NEW) !== -1) {
-        logger.debug("hashes.isRemoteModified NEW fileHashes", (fileHashes !== undefined));
+        context.logger.debug("hashes.isRemoteModified NEW fileHashes", (fileHashes !== undefined));
 
         // The remote file is new if the file hashes is empty.
         if (!fileHashes) {
-            logger.debug("hashes.isRemoteModified NEW file is new");
+            context.logger.debug("hashes.isRemoteModified NEW file is new");
             modified = true;
         }
     }
 
-    logger.debug("hashes.isRemoteModified returning", modified, flags, filePath);
+    context.logger.debug("hashes.isRemoteModified returning", modified, flags, filePath);
 
     return modified;
 }

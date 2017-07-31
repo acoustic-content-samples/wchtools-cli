@@ -29,6 +29,7 @@ const diff = require("diff");
 const Q = require("q");
 const sinon = require("sinon");
 const toolsCli = require("../../../wchToolsCli");
+const events = require("events");
 const mkdirp = require("mkdirp");
 
 class PullUnitTest extends UnitTest {
@@ -65,11 +66,11 @@ class PullUnitTest extends UnitTest {
         describe("CLI-unit-pulling " + switches, function () {
             it("test emitters working", function (done) {
                 // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pullModifiedItems", function () {
+                const stub = sinon.stub(helper, "pullModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pulled", itemName1);
                         emitter.emit("pulled", itemName2);
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
@@ -108,11 +109,11 @@ class PullUnitTest extends UnitTest {
                 }
 
                 // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pullModifiedItems", function () {
+                const stub = sinon.stub(helper, "pullModifiedItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pulled", itemName1);
                         emitter.emit("pulled", itemName2);
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
@@ -145,11 +146,11 @@ class PullUnitTest extends UnitTest {
 
             it("test pull ignore-timestamps working", function (done) {
                 // Stub the helper.pullAllItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pullAllItems", function () {
+                const stub = sinon.stub(helper, "pullAllItems", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter();
+                        const emitter = helper.getEventEmitter(context);
                         emitter.emit("pulled", itemName1);
                         emitter.emit("pulled", itemName2);
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);

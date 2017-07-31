@@ -27,7 +27,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 const restApi = require(UnitTest.API_PATH + "lib/itemTypesREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for types
-const lookupUri =  options.getProperty("types", "uri");
+const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "types", "uri");
 const path1 = TypesUnitTest.VALID_TYPES_DIRECTORY + TypesUnitTest.VALID_TYPE_1;
 const path2 = TypesUnitTest.VALID_TYPES_DIRECTORY + TypesUnitTest.VALID_TYPE_2;
 

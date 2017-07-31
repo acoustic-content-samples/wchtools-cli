@@ -17,10 +17,10 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const toolsApi = require("wchtools-api");
-const utils = toolsApi.utils;
-const login = toolsApi.login;
-const options = toolsApi.options;
+const ToolsApi = require("wchtools-api");
+const utils = ToolsApi.getUtils();
+const login = ToolsApi.getLogin();
+const options = ToolsApi.getOptions();
 const Q = require("q");
 const ora = require("ora");
 
@@ -40,7 +40,6 @@ const ListLayoutMappings =       PREFIX + i18n.__('cli_listing_layout_mappings')
 const ListRenditions =           PREFIX + i18n.__('cli_listing_renditions') + SUFFIX;
 const ListPublishingSiteRevisions = PREFIX + i18n.__('cli_listing_site_revisions') + SUFFIX;
 
-
 class ListCommand extends BaseCommand {
     /**
      * Create a ListCommand object.
@@ -55,26 +54,33 @@ class ListCommand extends BaseCommand {
      * List the specified artifacts.
      */
     doList () {
-        // List the artifacts of each specified type.
-        const self = this;
+        // Create the context for listing the artifacts of each specified type.
+        const toolsApi = new ToolsApi();
+        const context = toolsApi.getContext();
 
         // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
+        const self = this;
         self.handleArtifactTypes(["webassets"]);
 
         // Make sure the "path" and "dir" options can be handled successfully.
-        if (!self.handleDirOption() || !self.handlePathOption()) {
+        if (!self.handleDirOption(context) || !self.handlePathOption()) {
+            return;
+        }
+
+        // Check to see if the initialization process was successful.
+        if (!self.handleInitialization(context)) {
             return;
         }
 
         // Make sure the url has been specified, if login is required for this list command.
-        self.handleUrlOption()
+        self.handleUrlOption(context)
             .then(function () {
                 // Make sure the user name and password have been specified, if login is required for this list command.
-                return self.handleAuthenticationOptions();
+                return self.handleAuthenticationOptions(context);
             })
             .then(function () {
                 // Login using the current options, if login is required for this list command.
-                return self.handleLogin(self.getApiOptions());
+                return self.handleLogin(context, self.getApiOptions());
             })
             .then(function () {
                 // List the modified and new artifacts by default.
@@ -86,7 +92,7 @@ class ListCommand extends BaseCommand {
                 // Start the display of the list.
                 self.startDisplay();
 
-                return Q.allSettled(self.listArtifacts());
+                return Q.allSettled(self.listArtifacts(context));
             })
             .then(function (results) {
                 let artifactsCount = 0;
@@ -99,7 +105,7 @@ class ListCommand extends BaseCommand {
                             msg = result.reason.heading + ' ' + result.reason.message;
                         }
                         else {
-                           msg =result.reason.toString();
+                           msg = result.reason.toString();
                         }
                         if (!self.getCommandLineOption("quiet")) {
                             BaseCommand.displayToConsole(msg);
@@ -167,19 +173,21 @@ class ListCommand extends BaseCommand {
      * Handle the url option. It can be specified as a command line option or user option ("x-ibm-dx-tenant-base-url").
      * If the url is not specified by either of these methods, a prompt will be displayed to enter the value.
      *
+     * @param {Object} context The API context associated with this init command.
+     *
      * @returns {Q.Promise} A promise that is resolved when the url has been specified.
      */
-    handleUrlOption () {
+    handleUrlOption (context) {
         if (this.isLoginRequired()) {
             // A login is required, so call the super method to handle the url option in the normal way.
-            return super.handleUrlOption();
+            return super.handleUrlOption(context);
         } else {
             // The base URL is used as a key in the hashes file when listing modified local artifacts.
-            const baseUrl = options.getRelevantOption(this.getApiOptions(), "x-ibm-dx-tenant-base-url");
+            const baseUrl = options.getRelevantOption(context, this.getApiOptions(), "x-ibm-dx-tenant-base-url");
             const ignoreTimestamps = this.getCommandLineOption("ignoreTimestamps");
             if (!baseUrl && !ignoreTimestamps) {
                 // A base URL has not been configured and not ignoring timestamps, so need to get a URL value.
-                return super.handleUrlOption();
+                return super.handleUrlOption(context);
             } else {
                 // A login is not required, so just return a resolved promise.
                 const deferred = Q.defer();
@@ -193,12 +201,14 @@ class ListCommand extends BaseCommand {
      * Handle the authentication options. These can be specified as command line options, user property (username), or
      * environment variable (password). If either value is missing, the user will be prompted for the missing value(s).
      *
+     * @param {Object} context The API context associated with this init command.
+     *
      * @returns {Q.Promise} A promise that is resolved when the username and password have been specified, if necessary.
      */
-    handleAuthenticationOptions () {
+    handleAuthenticationOptions (context) {
         if (this.isLoginRequired()) {
             // A login is required, so call the super method to handle the authentication options in the normal way.
-            return super.handleAuthenticationOptions();
+            return super.handleAuthenticationOptions(context);
         } else {
             // A login is not required, so just return a resolved promise.
             const deferred = Q.defer();
@@ -210,14 +220,15 @@ class ListCommand extends BaseCommand {
     /**
      * Handle the login, if necessary.
      *
+     * @param {Object} context The API context associated with this list command.
      * @param {Object} apiOptions - Optional API settings.
      *
      * @returns {Q.Promise} A promise to be fulfilled with the name of the logged in user.
      */
-    handleLogin (apiOptions) {
+    handleLogin (context, apiOptions) {
         if (this.isLoginRequired()) {
             // A login is required, so use the loginREST object to login in the normal way.
-            return login.login(apiOptions);
+            return login.login(context, apiOptions);
         } else {
             // A login is not required, so just return a resolved promise.
             const deferred = Q.defer();
@@ -267,65 +278,67 @@ class ListCommand extends BaseCommand {
     /**
      * List the artifacts for the types specified on the command line.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @return {Array} An array of promises, each resolving to the result of listing one type of artifact.
      */
-    listArtifacts () {
+    listArtifacts (context) {
         // Keep track of the different promises so we can finish the command after all promises are resolved.
         const promises = [];
 
         // Handle the assets option.
         if (this.getCommandLineOption("assets") || this.getCommandLineOption("webassets")) {
-            promises.push(this.listAssets());
+            promises.push(this.listAssets(context));
         }
 
         // Handle the imageProfiles option.
         if (this.getCommandLineOption("imageProfiles")) {
-            promises.push(this.listImageProfiles());
+            promises.push(this.listImageProfiles(context));
         }
 
         // Handle the layouts option.
         if (this.getCommandLineOption("layouts")) {
-            promises.push(this.listLayouts());
+            promises.push(this.listLayouts(context));
         }
 
         // Handle the layout mappings option.
         if (this.getCommandLineOption("layoutMappings")) {
-            promises.push(this.listLayoutMappings());
+            promises.push(this.listLayoutMappings(context));
         }
 
         // Handle the categories option.
         if (this.getCommandLineOption("categories")) {
-            promises.push(this.listCategories());
+            promises.push(this.listCategories(context));
         }
 
         // Handle the renditions option.
         if (this.getCommandLineOption("renditions")) {
-            promises.push(this.listRenditions());
+            promises.push(this.listRenditions(context));
         }
 
         // Handle the types option.
         if (this.getCommandLineOption("types")) {
-            promises.push(this.listTypes());
+            promises.push(this.listTypes(context));
         }
 
         // Handle the content option.
         if (this.getCommandLineOption("content")) {
-            promises.push(this.listContent());
+            promises.push(this.listContent(context));
         }
 
         // Handle the publishing sources option.
         if (this.getCommandLineOption("publishingSources")) {
-            promises.push(this.listSources());
+            promises.push(this.listSources(context));
         }
 
         // Handle the publishing profiles option.
         if (this.getCommandLineOption("publishingProfiles")) {
-            promises.push(this.listProfiles());
+            promises.push(this.listProfiles(context));
         }
 
         // Handle the publishing profiles option.
         if (this.getCommandLineOption("publishingSiteRevisions")) {
-            promises.push(this.listSiteRevisions());
+            promises.push(this.listSiteRevisions(context));
         }
 
         return promises;
@@ -361,11 +374,12 @@ class ListCommand extends BaseCommand {
      *      listRemoteItemNames
      *      listModifiedRemoteItemNames
      *
-     * @param helper {BaseHelper} The helper used to retrieve items.
+     * @param {BaseHelper} helper The helper used to retrieve items.
+     * @param {Object} context The API context associated with this list command.
      *
      * @returns {Function|void|any|(function(this:*))|*} The (bound) function to be called to retrieve a list of items.
      */
-    getListFunction (helper) {
+    getListFunction (helper, context) {
         // if Ignore-timestamps is specified then list all items, otherwise only list modified items (which is the default behavior)
         // if server is specified then list remote items, otherwise list local items (the default)
         const functionName = "list" +
@@ -373,19 +387,21 @@ class ListCommand extends BaseCommand {
                              ((this.getCommandLineOption("server")) ? "Remote" : "Local") +
                              "ItemNames";
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            return helper[functionName].bind(helper);
+            return helper[functionName].bind(helper, context);
         } else {
-            return helper[functionName].bind(helper, this.getFlags(helper));
+            return helper[functionName].bind(helper, context, this.getFlags(helper));
         }
     }
 
     /**
      * List the "asset" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "asset" artifacts.
      */
-    listAssets () {
-        const helper = toolsApi.getAssetsHelper();
+    listAssets (context) {
+        const helper = ToolsApi.getAssetsHelper();
 
         if (this.getCommandLineOption("assets") && this.getCommandLineOption("webassets")) {
             this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_BOTH);
@@ -396,7 +412,7 @@ class ListCommand extends BaseCommand {
         }
 
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const assetsPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -414,12 +430,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "image profile" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "image profile" artifacts.
      */
-    listImageProfiles () {
-        const helper = toolsApi.getImageProfilesHelper();
+    listImageProfiles (context) {
+        const helper = ToolsApi.getImageProfilesHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const imageProfilesPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -437,12 +455,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the layouts artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of layouts artifacts.
      */
-    listLayouts () {
-        const helper = toolsApi.getLayoutsHelper();
+    listLayouts (context) {
+        const helper = ToolsApi.getLayoutsHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const layoutsPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -460,12 +480,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the layout mapping artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of layout mappings artifacts.
      */
-    listLayoutMappings () {
-        const helper = toolsApi.getLayoutMappingsHelper();
+    listLayoutMappings (context) {
+        const helper = ToolsApi.getLayoutMappingsHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const layoutMappingsPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -483,12 +505,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "category" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "category" artifacts.
      */
-    listCategories () {
-        const helper = toolsApi.getCategoriesHelper();
+    listCategories (context) {
+        const helper = ToolsApi.getCategoriesHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const categoriesPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -506,12 +530,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "rendition" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "rendition" artifacts.
      */
-    listRenditions () {
-        const helper = toolsApi.getRenditionsHelper();
+    listRenditions (context) {
+        const helper = ToolsApi.getRenditionsHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const renditionsPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -529,12 +555,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "type" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "type" artifacts.
      */
-    listTypes () {
-        const helper = toolsApi.getItemTypeHelper();
+    listTypes (context) {
+        const helper = ToolsApi.getItemTypeHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const typePromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -552,12 +580,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "content" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "content" artifacts.
      */
-    listContent () {
-        const helper = toolsApi.getContentHelper();
+    listContent (context) {
+        const helper = ToolsApi.getContentHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const contentsPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -575,12 +605,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "publishing source" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing source" artifacts.
      */
-    listSources () {
-        const helper = toolsApi.getPublishingSourcesHelper();
+    listSources (context) {
+        const helper = ToolsApi.getPublishingSourcesHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const sourcesPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -598,12 +630,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "publishing profile" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing profile" artifacts.
      */
-    listProfiles () {
-        const helper = toolsApi.getPublishingProfilesHelper();
+    listProfiles (context) {
+        const helper = ToolsApi.getPublishingProfilesHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const profilesPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -621,12 +655,14 @@ class ListCommand extends BaseCommand {
     /**
      * List the "publishing site revision" artifacts.
      *
+     * @param {Object} context The API context associated with this list command.
+     *
      * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing site revision" artifacts.
      */
-    listSiteRevisions () {
-        const helper = toolsApi.getPublishingSiteRevisionsHelper();
+    listSiteRevisions (context) {
+        const helper = ToolsApi.getPublishingSiteRevisionsHelper();
         const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper);
+        const listFunction = this.getListFunction(helper, context);
         const artifactPromise = listFunction(apiOptions);
         const deferred = Q.defer();
 
@@ -700,9 +736,9 @@ function listCommand (program) {
         .option('--mod',                 i18n.__('cli_list_opt_modified'))
         .option('--server',              i18n.__('cli_list_opt_server'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
-        .action(function (options) {
+        .action(function (commandLineOptions) {
             const command = new ListCommand(program);
-            if (command.setCommandLineOptions(options, this)) {
+            if (command.setCommandLineOptions(commandLineOptions, this)) {
                 command.doList();
             }
         });

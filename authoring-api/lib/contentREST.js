@@ -25,9 +25,9 @@ const singletonEnforcer = Symbol();
 class ContentREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ContentREST"});
-
+        }
         super("content", "/authoring/v1/content", undefined, "/views/by-modified");
     }
 
@@ -44,7 +44,6 @@ class ContentREST extends BaseREST {
     supportsForceOverride() {
         return true;
     }
-
 }
 
 module.exports = ContentREST;

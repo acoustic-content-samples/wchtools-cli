@@ -16,8 +16,8 @@ limitations under the License.
 /**
  * Unit tests for the base helper object.
  *
- * NOTE: The StatusTracker and EventEmitter objects used by the helper object are
- * used to execute some of the tests, so the provided functionality is not stubbed out.
+ * NOTE: The EventEmitter used by the assetsHelper object is used to execute some of the tests,
+ *       so the provided functionality is not stubbed out.
  */
 "use strict";
 
@@ -29,8 +29,10 @@ const fs = require("fs");
 const rimraf = require("rimraf");
 const diff = require("diff");
 const sinon = require("sinon");
-const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
+
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class BaseHelperUnitTest extends UnitTest {
     constructor () {
@@ -49,9 +51,10 @@ class BaseHelperUnitTest extends UnitTest {
             // Initialize common resourses before running the unit tests.
             before(function (done) {
                 helper.reset();
+                UnitTest.restoreOptions(context);
 
                 // Remove the artifact folder before the tests are run.
-                rimraf.sync(fsApi.getPath());
+                rimraf.sync(fsApi.getPath(context));
 
                 // Signal that the cleanup is complete.
                 done();
@@ -72,7 +75,7 @@ class BaseHelperUnitTest extends UnitTest {
             // Cleanup common resourses after running the tests.
             after(function (done) {
                 // Remove the artifact folder.
-                rimraf.sync(fsApi.getPath());
+                rimraf.sync(fsApi.getPath(context));
 
                 // Signal that the cleanup is complete.
                 done();
@@ -82,7 +85,6 @@ class BaseHelperUnitTest extends UnitTest {
             self.testSingleton(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testEventEmitter(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetVirtualFolderName(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
-            self.testInit(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetLocalItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetLocalItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetRemoteItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
@@ -142,7 +144,7 @@ class BaseHelperUnitTest extends UnitTest {
                 const spyC = sinon.spy();
 
                 // Use some events that are just for testing, they don't need to correspond to actual system events.
-                const eventEmitter = helper.getEventEmitter();
+                const eventEmitter = helper.getEventEmitter(context);
                 eventEmitter.on("A", spyA1);
                 eventEmitter.on("A", spyA2);
                 eventEmitter.on("B", spyB);
@@ -173,6 +175,11 @@ class BaseHelperUnitTest extends UnitTest {
                 expect(spyC.secondCall.args[0]).to.equal(2);
                 expect(spyC.thirdCall.args[0]).to.equal(3);
                 expect(spyC).to.have.been.calledAfter(spyB);
+
+                eventEmitter.removeListener("A", spyA1);
+                eventEmitter.removeListener("A", spyA2);
+                eventEmitter.removeListener("B", spyB);
+                eventEmitter.removeListener("C", spyC);
             });
         });
    }
@@ -202,34 +209,6 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testInit (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
-        const self = this;
-        describe("init", function () {
-            // Restore common resourses after running the unit tests.
-            after(function (done) {
-                UnitTest.restoreOptions();
-
-                // Signal that the cleanup is complete.
-                done();
-            });
-
-            it("should also initialize the REST and FS modules", function () {
-                // Setup the spies and stubs needed for testing the init() method.
-                const spy = sinon.spy(options, "setGlobalOptions");
-
-                // The spy and stubs should be restored when the test is complete.
-                self.addTestDouble(spy);
-
-                // Call the method being tested.
-                helper.initGlobalOptions({"workingDir": UnitTest.DUMMY_DIR});
-
-                // Verify that the spy was called once with the expected parameter value.
-                expect(spy).to.have.been.calledOnce;
-                expect(spy.firstCall.args[0].workingDir).to.equal(UnitTest.DUMMY_DIR);
-            });
-        });
-    }
-
     testGetLocalItem (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("getLocalItem", function () {
@@ -244,7 +223,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.getLocalItem("jdfjkfd", UnitTest.DUMMY_OPTIONS)
+                helper.getLocalItem(context, "jdfjkfd", UnitTest.DUMMY_OPTIONS)
                     .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");
@@ -274,14 +253,11 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.getLocalItem(itemMetadata1.name, UnitTest.DUMMY_OPTIONS)
+                helper.getLocalItem(context, itemMetadata1.name, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // Verify that the stub was called once and that the helper returned the expected values.
                         expect(stub).to.have.been.calledOnce;
                         expect(diff.diffJson(itemMetadata1, item)).to.have.lengthOf(1);
-
-                        const el = helper.existsLocally(item);
-                        expect(el).to.equal(true);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -310,7 +286,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.getLocalItems(UnitTest.DUMMY_OPTIONS)
+                helper.getLocalItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the items should have been rejected.");
@@ -339,7 +315,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.getLocalItems(UnitTest.DUMMY_OPTIONS)
+                helper.getLocalItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once and that the helper returned the expected values.
                         expect(stub).to.have.been.calledOnce;
@@ -373,7 +349,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.getRemoteItems(UnitTest.DUMMY_OPTIONS)
+                helper.getRemoteItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the remote items should have been rejected.");
@@ -402,15 +378,12 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.getRemoteItems(UnitTest.DUMMY_OPTIONS)
+                helper.getRemoteItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once and that the helper returned the expected values.
                         expect(stub).to.have.been.calledOnce;
                         expect(diff.diffJson(itemMetadata1, items[0])).to.have.lengthOf(1);
                         expect(diff.diffJson(itemMetadata2, items[1])).to.have.lengthOf(1);
-
-                        const el = helper.existsRemotely(items[0]);
-                        expect(el).to.equal(true);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -439,7 +412,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.createRemoteItem(null,UnitTest.DUMMY_OPTIONS)
+                helper.createRemoteItem(context, null, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the remote items should have been rejected.");
@@ -468,7 +441,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.createRemoteItem(itemMetadata1, UnitTest.DUMMY_OPTIONS)
+                helper.createRemoteItem(context, itemMetadata1, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // Verify that the stub was called once and that the helper returned the expected values.
                         expect(stub).to.have.been.calledOnce;
@@ -497,15 +470,16 @@ class BaseHelperUnitTest extends UnitTest {
                 stub.rejects(ITEM_ERROR);
 
                 // Create a spy to listen for the "pulled-error" event.
+                const emitter = helper.getEventEmitter(context);
                 const spy = sinon.spy();
-                helper.getEventEmitter().on("pulled-error", spy);
+                emitter.on("pulled-error", spy);
 
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stub);
 
                 // Call the method being tested.
                 let error;
-                helper.pullItem(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                helper.pullItem(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the pulled item should have been rejected.");
@@ -523,6 +497,8 @@ class BaseHelperUnitTest extends UnitTest {
                         }
                     })
                     .finally(function () {
+                        emitter.removeListener("pulled-error", spy);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -539,8 +515,9 @@ class BaseHelperUnitTest extends UnitTest {
                 stubFs.rejects(ITEM_ERROR);
 
                 // Create a spy to listen for the "pulled-error" event.
+                const emitter = helper.getEventEmitter(context);
                 const spy = sinon.spy();
-                helper.getEventEmitter().on("pulled-error", spy);
+                emitter.on("pulled-error", spy);
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubRest);
@@ -548,7 +525,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullItem(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                helper.pullItem(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the pulled item should have been rejected.");
@@ -565,7 +542,7 @@ class BaseHelperUnitTest extends UnitTest {
                             expect(stubFs).to.have.been.calledBefore(spy);
 
                             // Verify that the specified item was passed to the FS API.
-                            expect(diff.diffJson(stubFs.args[0][0], itemMetadata1)).to.have.lengthOf(1);
+                            expect(diff.diffJson(stubFs.args[0][1], itemMetadata1)).to.have.lengthOf(1);
 
                             // Verify that the expected error is returned.
                             expect(err.message).to.equal(ITEM_ERROR);
@@ -574,6 +551,8 @@ class BaseHelperUnitTest extends UnitTest {
                         }
                     })
                     .finally(function () {
+                        emitter.removeListener("pulled-error", spy);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -589,8 +568,9 @@ class BaseHelperUnitTest extends UnitTest {
                 stubFs.resolves(itemMetadata1);
 
                 // Create a spy to listen for the "pulled" event.
+                const emitter = helper.getEventEmitter(context);
                 const spy = sinon.spy();
-                helper.getEventEmitter().on("pulled", spy);
+                emitter.on("pulled", spy);
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubRest);
@@ -598,7 +578,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullItem(UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                helper.pullItem(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // Verify that the stubs and the spy were called in the correct order.
                         expect(stubRest).to.have.been.called;
@@ -616,6 +596,8 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pulled", spy);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -637,7 +619,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullAllItems(UnitTest.DUMMY_OPTIONS)
+                helper.pullAllItems(context)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the remote items should have been rejected.");
@@ -669,7 +651,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullAllItems({offset: 0, limit: 2})
+                helper.pullAllItems(context, {offset: 0, limit: 2})
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledOnce;
@@ -709,17 +691,18 @@ class BaseHelperUnitTest extends UnitTest {
                 self.addTestDouble(stubHashes);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = helper.getEventEmitter(context);
                 const spyPull = sinon.spy();
-                helper.getEventEmitter().on("pulled", spyPull);
+                emitter.on("pulled", spyPull);
                 const spyError = sinon.spy();
-                helper.getEventEmitter().on("pulled-error", spyError);
+                emitter.on("pulled-error", spyError);
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
 
                 // Call the method being tested.
                 let error;
-                helper.pullAllItems({offset: 0, limit: 1})
+                helper.pullAllItems(context, {offset: 0, limit: 1})
                     .then(function (/*items*/) {
                         // Verify that the get stub was called 4 times.
                         expect(stubGet).to.have.callCount(4);
@@ -738,6 +721,9 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -762,14 +748,15 @@ class BaseHelperUnitTest extends UnitTest {
                 self.addTestDouble(stubHashes);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = helper.getEventEmitter(context);
                 const spyPull = sinon.spy();
-                helper.getEventEmitter().on("pulled", spyPull);
+                emitter.on("pulled", spyPull);
                 const spyError = sinon.spy();
-                helper.getEventEmitter().on("pulled-error", spyError);
+                emitter.on("pulled-error", spyError);
 
                 // Call the method being tested.
                 let error;
-                helper.pullAllItems({offset: 0, limit: 2, validateName: true})
+                helper.pullAllItems(context, {offset: 0, limit: 2, validateName: true})
                     .then(function (items) {
                         // Verify that the get stub was called 2 times.
                         expect(stubGet).to.have.callCount(2);
@@ -788,6 +775,9 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -809,7 +799,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullModifiedItems(UnitTest.DUMMY_OPTIONS)
+                helper.pullModifiedItems(context)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the remote items should have been rejected.");
@@ -841,7 +831,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullModifiedItems({offset: 0, limit: 2})
+                helper.pullModifiedItems(context, {offset: 0, limit: 2})
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledOnce;
@@ -879,10 +869,11 @@ class BaseHelperUnitTest extends UnitTest {
                 stubHashes.returns("");
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = helper.getEventEmitter(context);
                 const spyPull = sinon.spy();
-                helper.getEventEmitter().on("pulled", spyPull);
+                emitter.on("pulled", spyPull);
                 const spyError = sinon.spy();
-                helper.getEventEmitter().on("pulled-error", spyError);
+                emitter.on("pulled-error", spyError);
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubGet);
@@ -891,7 +882,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullModifiedItems({offset: 0, limit: 1})
+                helper.pullModifiedItems(context, {offset: 0, limit: 1})
                     .then(function (/*items*/) {
                         // Verify that the get stub was called 4 times.
                         expect(stubGet).to.have.callCount(4);
@@ -910,6 +901,9 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -934,14 +928,15 @@ class BaseHelperUnitTest extends UnitTest {
                 self.addTestDouble(stubHashes);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = helper.getEventEmitter(context);
                 const spyPull = sinon.spy();
-                helper.getEventEmitter().on("pulled", spyPull);
+                emitter.on("pulled", spyPull);
                 const spyError = sinon.spy();
-                helper.getEventEmitter().on("pulled-error", spyError);
+                emitter.on("pulled-error", spyError);
 
                 // Call the method being tested.
                 let error;
-                helper.pullModifiedItems({offset: 0, limit: 2, validateName: true})
+                helper.pullModifiedItems(context, {offset: 0, limit: 2, validateName: true})
                     .then(function (items) {
                         // Verify that the get stub was called 2 times.
                         expect(stubGet).to.have.callCount(2);
@@ -960,6 +955,9 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -985,7 +983,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                helper.pushItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the local item should have been rejected.");
@@ -1026,7 +1024,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                helper.pushItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for updating the remote item should have been rejected.");
@@ -1038,7 +1036,7 @@ class BaseHelperUnitTest extends UnitTest {
                             expect(stubUpdate).to.be.calledOnce;
 
                             // Verify that the update was called with the expected value.
-                            expect(diff.diffJson(stubUpdate.args[0][0], itemMetadata1)).to.have.lengthOf(1);
+                            expect(diff.diffJson(stubUpdate.args[0][1], itemMetadata1)).to.have.lengthOf(1);
 
                             // Verify that the expected error is returned.
                             expect(err.message).to.equal(ITEM_ERROR);
@@ -1068,7 +1066,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                helper.pushItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for creating the remote item should have been rejected.");
@@ -1080,7 +1078,7 @@ class BaseHelperUnitTest extends UnitTest {
                             expect(stubCreate).to.be.calledOnce;
 
                             // Verify that the update was called with the expected value.
-                            expect(diff.diffJson(stubCreate.args[0][0], itemMetadata2)).to.have.lengthOf(1);
+                            expect(diff.diffJson(stubCreate.args[0][1], itemMetadata2)).to.have.lengthOf(1);
 
                             // Verify that the expected error is returned.
                             expect(err.message).to.equal(ITEM_ERROR);
@@ -1103,28 +1101,25 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubUpdate = sinon.stub(restApi, "updateItem");
                 stubUpdate.resolves(itemMetadata1);
 
-                // Create a helper._addRemoteStatus spy.
-                const spyStatus = sinon.spy(helper, "_addRemoteStatus");
-
                 // Create a fsApi.saveItem stub that returns a promise for the item metadata.
                 const stubSave = sinon.stub(fsApi, "saveItem");
                 stubSave.resolves(itemMetadata1);
 
                 // Create spies to listen for the "pushed" and "pushed-error" events.
+                const emitter = helper.getEventEmitter(context);
                 const spyPush = sinon.spy();
-                helper.getEventEmitter().on("pushed", spyPush);
+                emitter.on("pushed", spyPush);
                 const spyError = sinon.spy();
-                helper.getEventEmitter().on("pushed-error", spyError);
+                emitter.on("pushed-error", spyError);
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
                 self.addTestDouble(stubUpdate);
-                self.addTestDouble(spyStatus);
                 self.addTestDouble(stubSave);
 
                 // Call the method being tested.
                 let error;
-                helper.pushItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                helper.pushItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // Verify that the stubs were all called once.
                         expect(stubGet).to.have.been.calledOnce;
@@ -1132,14 +1127,12 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(stubSave).to.have.been.calledOnce;
 
                         // Verify that the status stub and push spy were called once, and the error spy was not called.
-                        expect(spyStatus).to.have.been.calledOnce;
                         expect(spyPush).to.have.been.calledOnce;
                         expect(spyError).to.not.have.been.called;
 
                         // Verify that update, save, and status methods were called with the expected values.
-                        expect(diff.diffJson(stubUpdate.args[0][0], itemMetadata1)).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubSave.args[0][0], itemMetadata1)).to.have.lengthOf(1);
-                        expect(diff.diffJson(spyStatus.args[0][0], itemMetadata1)).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubUpdate.args[0][1], itemMetadata1)).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubSave.args[0][1], itemMetadata1)).to.have.lengthOf(1);
 
                         // Verify that the expected values were returned.
                         expect(diff.diffJson(item, itemMetadata1)).to.have.lengthOf(1);
@@ -1150,6 +1143,9 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pushed", spyPush);
+                        emitter.removeListener("pushed-error", spyError);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -1170,29 +1166,26 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubrGet = sinon.stub(restApi, "getItem");
                 stubrGet.resolves(itemMetadata1);
 
-                // Create a helper._addRemoteStatus spy.
-                const spyStatus = sinon.spy(helper, "_addRemoteStatus");
-
                 // Create a fsApi.saveItem stub that returns a promise for the item metadata.
                 const stubSave = sinon.stub(fsApi, "saveItem");
                 stubSave.resolves(itemMetadata1);
 
                 // Create spies to listen for the "pushed" and "pushed-error" events.
+                const emitter = helper.getEventEmitter(context);
                 const spyPush = sinon.spy();
-                helper.getEventEmitter().on("pushed", spyPush);
+                emitter.on("pushed", spyPush);
                 const spyError = sinon.spy();
-                helper.getEventEmitter().on("pushed-error", spyError);
+                emitter.on("pushed-error", spyError);
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
                 self.addTestDouble(stubrGet);
                 self.addTestDouble(stubUpdate);
-                self.addTestDouble(spyStatus);
                 self.addTestDouble(stubSave);
 
                 // Call the method being tested.
                 let error;
-                helper.pushItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                helper.pushItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*item*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for creating the remote item should have been rejected.");
@@ -1213,6 +1206,9 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pushed", spyPush);
+                        emitter.removeListener("pushed-error", spyError);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -1227,28 +1223,25 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubCreate = sinon.stub(restApi, "createItem");
                 stubCreate.resolves(itemMetadata2);
 
-                // Create a helper._addRemoteStatus spy.
-                const spyStatus = sinon.spy(helper, "_addRemoteStatus");
-
                 // Create a fsApi.saveItem stub that returns a promise for the item metadata.
                 const stubSave = sinon.stub(fsApi, "saveItem");
                 stubSave.resolves(itemMetadata2);
 
                 // Create spies to listen for the "pushed" and "pushed-error" events.
+                const emitter = helper.getEventEmitter(context);
                 const spyPush = sinon.spy();
-                helper.getEventEmitter().on("pushed", spyPush);
+                emitter.on("pushed", spyPush);
                 const spyError = sinon.spy();
-                helper.getEventEmitter().on("pushed-error", spyError);
+                emitter.on("pushed-error", spyError);
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
                 self.addTestDouble(stubCreate);
-                self.addTestDouble(spyStatus);
                 self.addTestDouble(stubSave);
 
                 // Call the method being tested.
                 let error;
-                helper.pushItem(UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                helper.pushItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // Verify that the stubs were all called once.
                         expect(stubGet).to.have.been.calledOnce;
@@ -1256,14 +1249,12 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(stubSave).to.have.been.calledOnce;
 
                         // Verify that the status stub and push spy were called once, and the error spy was not called.
-                        expect(spyStatus).to.have.been.calledOnce;
                         expect(spyPush).to.have.been.calledOnce;
                         expect(spyError).to.not.have.been.called;
 
                         // Verify that create, save, and status methods were called with the expected values.
-                        expect(diff.diffJson(stubCreate.args[0][0], itemMetadata2)).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubSave.args[0][0], itemMetadata2)).to.have.lengthOf(1);
-                        expect(diff.diffJson(spyStatus.args[0][0], itemMetadata2)).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubCreate.args[0][1], itemMetadata2)).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubSave.args[0][1], itemMetadata2)).to.have.lengthOf(1);
 
                         // Verify that the expected values were returned.
                         expect(diff.diffJson(item, itemMetadata2)).to.have.lengthOf(1);
@@ -1274,6 +1265,9 @@ class BaseHelperUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        emitter.removeListener("pushed", spyPush);
+                        emitter.removeListener("pushed-error", spyError);
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -1299,7 +1293,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushAllItems(UnitTest.DUMMY_OPTIONS)
+                helper.pushAllItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the local items should have been rejected.");
@@ -1345,15 +1339,15 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushAllItems(UnitTest.DUMMY_OPTIONS)
+                helper.pushAllItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stubs were called the expected number of times.
                         expect(stubList).to.have.been.calledOnce;
                         expect(stubPush).to.have.been.calledTwice;
 
                         // Verify that pushItem method was called with the expected values.
-                        expect(diff.diffJson(stubPush.args[0][0], helper.getName(itemMetadata1))).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubPush.args[1][0], helper.getName(itemMetadata2))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[0][1], helper.getName(itemMetadata1))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[1][1], helper.getName(itemMetadata2))).to.have.lengthOf(1);
 
                         // Verify that the expected values were returned.
                         expect(diff.diffJson(items[0], itemMetadata1)).to.have.lengthOf(1);
@@ -1372,7 +1366,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testPushModifiedItems (restApi,fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+    testPushModifiedItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("pushModifiedItems", function () {
             it("should fail when getting the local items fails.", function (done) {
@@ -1390,7 +1384,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushModifiedItems(UnitTest.DUMMY_OPTIONS)
+                helper.pushModifiedItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the local modified items should have been rejected.");
@@ -1436,15 +1430,15 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pushModifiedItems(UnitTest.DUMMY_OPTIONS)
+                helper.pushModifiedItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stubs were called the expected number of times.
                         expect(stubList).to.have.been.calledOnce;
                         expect(stubPush).to.have.been.calledTwice;
 
                         // Verify that pushItem method was called with the expected values.
-                        expect(diff.diffJson(stubPush.args[0][0], helper.getName(itemMetadata1))).to.have.lengthOf(1);
-                        expect(diff.diffJson(stubPush.args[1][0], helper.getName(itemMetadata2))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[0][1], helper.getName(itemMetadata1))).to.have.lengthOf(1);
+                        expect(diff.diffJson(stubPush.args[1][1], helper.getName(itemMetadata2))).to.have.lengthOf(1);
 
                         // Verify that the expected values were returned.
                         expect(diff.diffJson(items[0], itemMetadata1)).to.have.lengthOf(1);
@@ -1477,7 +1471,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listLocalItemNames(UnitTest.DUMMY_OPTIONS)
+                helper.listLocalItemNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the local items should have been rejected.");
@@ -1520,7 +1514,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listRemoteItemNames(UnitTest.DUMMY_OPTIONS)
+                helper.listRemoteItemNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the local items should have been rejected.");
@@ -1551,7 +1545,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listRemoteItemNames(UnitTest.DUMMY_OPTIONS)
+                helper.listRemoteItemNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1577,7 +1571,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listRemoteItemNames({includeNameInList: true})
+                helper.listRemoteItemNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1610,7 +1604,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listLocalDeletedNames(UnitTest.DUMMY_OPTIONS)
+                helper.listLocalDeletedNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1643,7 +1637,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listLocalDeletedNames(UnitTest.DUMMY_OPTIONS)
+                helper.listLocalDeletedNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1678,7 +1672,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listRemoteDeletedNames(UnitTest.DUMMY_OPTIONS)
+                helper.listRemoteDeletedNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the local items should have been rejected.");
@@ -1721,7 +1715,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listRemoteDeletedNames(UnitTest.DUMMY_OPTIONS)
+                helper.listRemoteDeletedNames(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1755,7 +1749,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listModifiedLocalItemNames([helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
+                helper.listModifiedLocalItemNames(context, [helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the local items should have been rejected.");
@@ -1795,7 +1789,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listModifiedLocalItemNames([helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
+                helper.listModifiedLocalItemNames(context, [helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1812,6 +1806,7 @@ class BaseHelperUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
             it("local deleted should succeed when getting item names succeeds.", function (done) {
                 const stub = sinon.stub(hashes, "listFiles");
                 const rVal = [
@@ -1825,7 +1820,7 @@ class BaseHelperUnitTest extends UnitTest {
                 self.addTestDouble(stub);
                 // Call the method being tested.
                 let error;
-                helper.listModifiedLocalItemNames([helper.DELETED], UnitTest.DUMMY_OPTIONS)
+                helper.listModifiedLocalItemNames(context, [helper.DELETED], UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1859,7 +1854,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listModifiedRemoteItemNames([helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
+                helper.listModifiedRemoteItemNames(context, [helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
                     .then(function (/*items*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the Remote items should have been rejected.");
@@ -1893,7 +1888,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listModifiedRemoteItemNames([helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
+                helper.listModifiedRemoteItemNames(context, [helper.NEW, helper.MODIFIED], UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
@@ -1940,7 +1935,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.listModifiedRemoteItemNames([helper.DELETED], UnitTest.DUMMY_OPTIONS)
+                helper.listModifiedRemoteItemNames(context, [helper.DELETED], UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub2).to.be.calledOnce;
@@ -1978,7 +1973,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.deleteItem("asdfqwerty", UnitTest.DUMMY_OPTIONS)
+                helper.deleteItem(context, "asdfqwerty", UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for delete item should have been rejected.");
@@ -2014,7 +2009,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                   // Call the method being tested.
                   let error;
-                  helper.deleteRemoteItem({"id": "123456"})
+                  helper.deleteRemoteItem(context, {"id": "123456"})
                       .then(function (res) {
                           // Verify that the stub was called once and that the helper returned the expected values.
                           expect(stub).to.have.been.calledOnce;
@@ -2040,7 +2035,7 @@ class BaseHelperUnitTest extends UnitTest {
                     // Call the method being tested.
                     let error;
                     try {
-                        expect(helper.filterRetryPush(new Error("Retry Push"))).to.equal(false);
+                        expect(helper.filterRetryPush(context, new Error("This unit test error is expected."))).to.equal(false);
                     } catch (err) {
                         // NOTE: A failed expectation from above will be handled here.
                         // Pass the error to the "done" function to indicate a failed test.

@@ -15,21 +15,21 @@ limitations under the License.
 */
 "use strict";
 
-const Q = require("q");
 const BaseREST = require("./BaseREST.js");
-const singleton = Symbol();
-const singletonEnforcer = Symbol();
+const Q = require("q");
 const utils = require("./utils/utils.js");
 const request = utils.getRequestWrapper();
-
 const i18n = utils.getI18N(__dirname, ".json", "en");
+
+const singleton = Symbol();
+const singletonEnforcer = Symbol();
 
 class PublishingJobsREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "PublishingJobsREST"});
-
+        }
         super("publishing", "/publishing/v1/jobs", undefined, undefined);
     }
 
@@ -40,32 +40,36 @@ class PublishingJobsREST extends BaseREST {
         return this[singleton];
     }
 
-    createPublishingJob(jobParameters, opts) {
-        return this.createItem(jobParameters, opts);
+    createPublishingJob(context, jobParameters, opts) {
+        return this.createItem(context, jobParameters, opts);
     }
 
-    getPublishingJobs(opts) {
-        return this.getItems(opts);
+    getPublishingJobs(context, opts) {
+        return this.getItems(context, opts);
     }
 
-    getPublishingJob(id, opts) {
-        return this.getItem(id, opts);
+    getPublishingJob(context, id, opts) {
+        return this.getItem(context, id, opts);
     }
 
-    getPublishingJobStatus (id, opts) {
+    getPublishingJobStatus (context, id, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        this.getRequestOptions(opts)
+        this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + id + "/status";
                 request.get(requestOptions, function (err, res, body) {
-                    if ((err) || (res && res.statusCode != 200)) { //NOSONAR
-                        err = utils.getError(err, body, res, requestOptions);
+                    const response = res || {};
+                    if (err || response.statusCode !== 200) { //NOSONAR
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+
                         // special case where we ar just seeing if the item does exist and if not it's not an error
                         if(!opts || opts.noErrorLog !== "true")
-                            utils.logErrors(i18n.__("getPublishingJobStatus_error", {service_name: restObject.getServiceName()}), err);
+                            utils.logErrors(context, i18n.__("getPublishingJobStatus_error", {service_name: restObject.getServiceName()}), err);
                         deferred.reject(err);
                     } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         deferred.resolve(body);
                     }
                 });
@@ -76,32 +80,37 @@ class PublishingJobsREST extends BaseREST {
         return deferred.promise;
     }
 
-    deletePublishingJob(id, opts) {
-        return this.deleteItem({"id": id}, opts);
+    deletePublishingJob (context, id, opts) {
+        return this.deleteItem(context, {"id": id}, opts);
     }
 
-    cancelPublishingJob(id, opts) {
+    cancelPublishingJob (context, id, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        this.getRequestOptions(opts).then(function(requestOptions) {
-            requestOptions.uri = requestOptions.uri + "/" + id + "/cancel";
-            utils.logDebugInfo('Canceling publishing job ' + restObject.getServiceName(),undefined,requestOptions);
-            request.put(requestOptions, function(err, res, body) {
-                if ((err) || (res && (res.statusCode < 200 || res.statusCode > 299))) {
-                    err = utils.getError(err, body, res, requestOptions);
-                    utils.logErrors(i18n.__("error_cancelling_job" , {id: id}), err);
-                    deferred.reject(err);
-                } else {
-                    utils.logDebugInfo('Canceling publishing job ' + restObject.getServiceName(),  res);
-                    deferred.resolve(body);
-                }
+        this.getRequestOptions(context, opts)
+            .then(function(requestOptions) {
+                requestOptions.uri = requestOptions.uri + "/" + id + "/cancel";
+                utils.logDebugInfo(context, 'Canceling publishing job ' + restObject.getServiceName(),undefined,requestOptions);
+                request.put(requestOptions, function (err, res, body) {
+                    const response = res || {};
+                    if (err || response.statusCode < 200 || response.statusCode > 299) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+                        utils.logErrors(context, i18n.__("error_cancelling_job" , {id: id}), err);
+                        deferred.reject(err);
+                    } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        utils.logDebugInfo(context, 'Canceling publishing job ' + restObject.getServiceName(), response);
+                        deferred.resolve(body);
+                    }
+                });
+            })
+            .catch(function (err){
+                deferred.reject(err);
             });
-        },function (err){
-            deferred.reject(err);
-        });
+
         return deferred.promise;
     }
-
 }
 
 module.exports = PublishingJobsREST;

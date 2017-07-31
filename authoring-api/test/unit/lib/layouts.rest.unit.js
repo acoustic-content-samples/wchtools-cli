@@ -27,7 +27,7 @@ const BaseRestUnit = require("./base.rest.unit.js");
 const restApi = require(UnitTest.API_PATH + "lib/layoutsREST.js").instance;
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 // Get the "lookup" URI for layouts.
-const lookupUri =  options.getProperty("layouts", "uri");
+const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "layouts", "uri");
 const path1 = LayoutsUnitTest.VALID_LAYOUTS_DIRECTORY + LayoutsUnitTest.VALID_LAYOUT_1;
 const path2 = LayoutsUnitTest.VALID_LAYOUTS_DIRECTORY + LayoutsUnitTest.VALID_LAYOUT_2;
 

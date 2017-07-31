@@ -21,14 +21,15 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
+
 const NAME = "publishing-profiles";
 
 class PublishingProfilesREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "PublishingProfilesREST"});
-
+        }
         super(NAME, "/publishing/v1/profiles", undefined, undefined);
     }
 
@@ -38,7 +39,6 @@ class PublishingProfilesREST extends BaseREST {
         }
         return this[singleton];
     }
-
 }
 
 module.exports = PublishingProfilesREST;

@@ -22,13 +22,13 @@
 const UnitTest = require("./lib/base.unit.js");
 
 // Require the local module being tested.
-const toolsApi = require(UnitTest.API_PATH + "wchToolsApi.js");
+const ToolsApi = require(UnitTest.API_PATH + "wchToolsApi.js");
 
 describe("Unit tests for wchToolsApi.js", function () {
 
     describe("getAssetsHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = toolsApi.getAssetsHelper();
+            const helper = ToolsApi.getAssetsHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("getAssetFolderName");
             expect(helper).to.have.property("pushModifiedItems");
@@ -39,9 +39,9 @@ describe("Unit tests for wchToolsApi.js", function () {
 
     describe("getItemTypeHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = toolsApi.getItemTypeHelper();
+            const helper = ToolsApi.getItemTypeHelper();
             expect(helper).to.be.ok;
-            expect(helper).to.have.property("getEventEmitter");
+            expect(helper).to.have.property("getVirtualFolderName");
             expect(helper).to.have.property("createRemoteItem");
             expect(helper).to.have.property("pullAllItems");
             done();
@@ -50,7 +50,7 @@ describe("Unit tests for wchToolsApi.js", function () {
 
     describe("getContentHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = toolsApi.getContentHelper();
+            const helper = ToolsApi.getContentHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("pushItem");
             expect(helper).to.have.property("pullModifiedItems");
@@ -61,7 +61,7 @@ describe("Unit tests for wchToolsApi.js", function () {
 
     describe("getCategoriesHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = toolsApi.getCategoriesHelper();
+            const helper = ToolsApi.getCategoriesHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("createLocalItem");
             expect(helper).to.have.property("getLocalItem");
@@ -72,7 +72,7 @@ describe("Unit tests for wchToolsApi.js", function () {
 
     describe("getPublishingJobsHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = toolsApi.getPublishingJobsHelper();
+            const helper = ToolsApi.getPublishingJobsHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("createPublishingJob");
             expect(helper).to.have.property("getPublishingJob");
@@ -83,7 +83,7 @@ describe("Unit tests for wchToolsApi.js", function () {
 
     describe("getPublishingSourcesHelper", function () {
         it("should be a valid helper", function (done) {
-            const helper = toolsApi.getPublishingSourcesHelper();
+            const helper = ToolsApi.getPublishingSourcesHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("getName");
             expect(helper).to.have.property("pullItem");
@@ -94,14 +94,14 @@ describe("Unit tests for wchToolsApi.js", function () {
 
     describe("utils", function () {
         it("should exist", function (done) {
-            expect(toolsApi.utils).to.be.ok;
+            expect(ToolsApi.getUtils()).to.be.ok;
             done();
         });
     });
 
     describe("options", function () {
         it("should exist", function (done) {
-            expect(toolsApi.options).to.be.ok;
+            expect(ToolsApi.getOptions()).to.be.ok;
             done();
         });
     });

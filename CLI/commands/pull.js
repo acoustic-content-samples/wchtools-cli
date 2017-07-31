@@ -18,9 +18,10 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const toolsApi = require("wchtools-api");
-const utils = toolsApi.utils;
-const login = toolsApi.login;
+const ToolsApi = require("wchtools-api");
+const utils = ToolsApi.getUtils();
+const login = ToolsApi.getLogin();
+const events = require("events");
 const Q = require("q");
 const ora = require("ora");
 
@@ -62,6 +63,10 @@ class PullCommand extends BaseCommand {
      * Pull the specified artifacts.
      */
     doPull (continueOnError) {
+        // Create the context for pulling the artifacts of each specified type.
+        const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
+        const context = toolsApi.getContext();
+
         const self = this;
         self._continueOnError = continueOnError;
 
@@ -69,25 +74,30 @@ class PullCommand extends BaseCommand {
         self.handleArtifactTypes(["webassets"]);
 
         // Make sure the "dir" option can be handled successfully.
-        if (!self.handleDirOption()) {
+        if (!self.handleDirOption(context)) {
+            return;
+        }
+
+        // Check to see if the initialization process was successful.
+        if (!self.handleInitialization(context)) {
             return;
         }
 
         // Make sure the url has been specified.
-        self.handleUrlOption()
+        self.handleUrlOption(context)
             .then(function () {
                 // Make sure the user name and password have been specified.
-                return self.handleAuthenticationOptions();
+                return self.handleAuthenticationOptions(context);
             })
             .then(function () {
                 // Login using the current options.
-                return login.login(self.getApiOptions());
+                return login.login(context, self.getApiOptions());
             })
             .then(function () {
                 // Start the display of the pulled artifacts.
                 self.startDisplay();
 
-                return self.pullArtifacts();
+                return self.pullArtifacts(context);
             })
             .then(function () {
                 // End the display of the pulled artifacts.
@@ -157,66 +167,68 @@ class PullCommand extends BaseCommand {
     /**
      * Pull the artifacts for the types specified on the command line.
      *
+     * @param {Object} context The API context associated with this pull command.
+     *
      * @return {Q.Promise} A promise that resolves when all artifacts of the specified types have been pulled.
      */
-    pullArtifacts () {
+    pullArtifacts (context) {
         const deferred = Q.defer();
         const self = this;
 
         self.readyToPull()
             .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
-                    return self.handlePullPromise(self.pullImageProfiles());
+                    return self.handlePullPromise(self.pullImageProfiles(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("categories")) {
-                    return self.handlePullPromise(self.pullCategories());
+                    return self.handlePullPromise(self.pullCategories(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
-                    return self.handlePullPromise(self.pullAssets());
+                    return self.handlePullPromise(self.pullAssets(context));
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("layouts")) {
-                    return self.handlePullPromise(self.pullLayouts());
+                    return self.handlePullPromise(self.pullLayouts(context));
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("layoutMappings")) {
-                    return self.handlePullPromise(self.pullLayoutMappings());
+                    return self.handlePullPromise(self.pullLayoutMappings(context));
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("renditions")) {
-                    return self.handlePullPromise(self.pullRenditions());
+                    return self.handlePullPromise(self.pullRenditions(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("types")) {
-                    return self.handlePullPromise(self.pullTypes());
+                    return self.handlePullPromise(self.pullTypes(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("content")) {
-                    return self.handlePullPromise(self.pullContent());
+                    return self.handlePullPromise(self.pullContent(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingProfiles")) {
-                    return self.handlePullPromise(self.pullProfiles());
+                    return self.handlePullPromise(self.pullProfiles(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSiteRevisions")) {
-                    return self.handlePullPromise(self.pullSiteRevisions());
+                    return self.handlePullPromise(self.pullSiteRevisions(context));
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSources")) {
-                    return self.handlePullPromise(self.pullSources());
+                    return self.handlePullPromise(self.pullSources(context));
                 }
             })
             .then(function () {
@@ -277,10 +289,13 @@ class PullCommand extends BaseCommand {
     /**
      * Pull the asset artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the asset artifacts.
      */
-    pullAssets () {
-        const helper = toolsApi.getAssetsHelper();
+    pullAssets (context) {
+        const helper = ToolsApi.getAssetsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         if (this.getCommandLineOption("assets") && this.getCommandLineOption("webassets")) {
@@ -299,48 +314,49 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_asset_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", assetPulled);
+        emitter.on("pulled", assetPulled);
 
         // The api can emit a warning event when an item is pulled, so we log it for the user.
         const assetPulledWarning = function (name) {
             self.getLogger().warn(i18n.__('cli_pull_asset_digest_mismatch', {asset: name}));
             self.warningMessage(i18n.__('cli_pull_asset_digest_mismatch', {asset: name}));
         };
-        helper.getEventEmitter().on("pulled-warning", assetPulledWarning);
+        emitter.on("pulled-warning", assetPulledWarning);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const assetPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_asset_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", assetPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", assetPulled);
-            helper.getEventEmitter().removeListener("pulled-warning", assetPulledWarning);
-            helper.getEventEmitter().removeListener("pulled-error", assetPulledError);
-        });
+        emitter.on("pulled-error", assetPulledError);
 
         const apiOptions = this.getApiOptions();
         let assetPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            assetPromise = helper.pullAllItems(apiOptions);
+            assetPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            assetPromise = helper.pullModifiedItems(apiOptions);
+            assetPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return assetPromise;
+        return assetPromise
+            .finally(function () {
+                emitter.removeListener("pulled", assetPulled);
+                emitter.removeListener("pulled-warning", assetPulledWarning);
+                emitter.removeListener("pulled-error", assetPulledError);
+            });
     }
 
     /**
      * Pull image profiles
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the asset artifacts.
      */
-    pullImageProfiles () {
-        const helper = toolsApi.getImageProfilesHelper();
+    pullImageProfiles (context) {
+        const helper = ToolsApi.getImageProfilesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingImageProfiles);
@@ -350,41 +366,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_image_profile_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", imageProfilePulled);
+        emitter.on("pulled", imageProfilePulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const imageProfilePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_image_profile_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", imageProfilePulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", imageProfilePulled);
-            helper.getEventEmitter().removeListener("pulled-error", imageProfilePulledError);
-        });
+        emitter.on("pulled-error", imageProfilePulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let imageProfilesPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            imageProfilesPromise = helper.pullAllItems(apiOptions);
+            imageProfilesPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            imageProfilesPromise = helper.pullModifiedItems(apiOptions);
+            imageProfilesPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return imageProfilesPromise;
+        return imageProfilesPromise
+            .finally(function () {
+                emitter.removeListener("pulled", imageProfilePulled);
+                emitter.removeListener("pulled-error", imageProfilePulledError);
+            });
     }
 
     /**
      * Pull the layout artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the layout artifacts.
      */
-    pullLayouts () {
-        const helper = toolsApi.getLayoutsHelper();
+    pullLayouts (context) {
+        const helper = ToolsApi.getLayoutsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingLayouts);
@@ -394,41 +411,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_layout_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", artifactPulled);
+        emitter.on("pulled", artifactPulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const artifactPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_layout_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", artifactPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", artifactPulled);
-            helper.getEventEmitter().removeListener("pulled-error", artifactPulledError);
-        });
+        emitter.on("pulled-error", artifactPulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let artifactPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactPromise = helper.pullAllItems(apiOptions);
+            artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            artifactPromise = helper.pullModifiedItems(apiOptions);
+            artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return artifactPromise;
+        return artifactPromise
+            .finally(function () {
+                emitter.removeListener("pulled", artifactPulled);
+                emitter.removeListener("pulled-error", artifactPulledError);
+            });
     }
 
     /**
      * Pull the layout mapping artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the artifacts.
      */
-    pullLayoutMappings () {
-        const helper = toolsApi.getLayoutMappingsHelper();
+    pullLayoutMappings (context) {
+        const helper = ToolsApi.getLayoutMappingsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingLayoutMappings);
@@ -438,41 +456,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_layout_mapping_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", artifactPulled);
+        emitter.on("pulled", artifactPulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const artifactPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_layout_mapping_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", artifactPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", artifactPulled);
-            helper.getEventEmitter().removeListener("pulled-error", artifactPulledError);
-        });
+        emitter.on("pulled-error", artifactPulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let artifactPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactPromise = helper.pullAllItems(apiOptions);
+            artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            artifactPromise = helper.pullModifiedItems(apiOptions);
+            artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return artifactPromise;
+        return artifactPromise
+            .finally(function () {
+                emitter.removeListener("pulled", artifactPulled);
+                emitter.removeListener("pulled-error", artifactPulledError);
+            });
     }
 
     /**
      * Pull the rendition artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the rendition artifacts.
      */
-    pullRenditions () {
-        const helper = toolsApi.getRenditionsHelper();
+    pullRenditions (context) {
+        const helper = ToolsApi.getRenditionsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingRenditions);
@@ -482,41 +501,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_rendition_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", renditionPulled);
+        emitter.on("pulled", renditionPulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const renditionPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_rendition_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", renditionPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", renditionPulled);
-            helper.getEventEmitter().removeListener("pulled-error", renditionPulledError);
-        });
+        emitter.on("pulled-error", renditionPulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let renditionPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            renditionPromise = helper.pullAllItems(apiOptions);
+            renditionPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            renditionPromise = helper.pullModifiedItems(apiOptions);
+            renditionPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return renditionPromise;
+        return renditionPromise
+            .finally(function () {
+                emitter.removeListener("pulled", renditionPulled);
+                emitter.removeListener("pulled-error", renditionPulledError);
+            });
     }
 
     /**
      * Pull the category artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the category artifacts.
      */
-    pullCategories () {
-        const helper = toolsApi.getCategoriesHelper();
+    pullCategories (context) {
+        const helper = ToolsApi.getCategoriesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingCategories);
@@ -526,41 +546,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_cat_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", categoryPulled);
+        emitter.on("pulled", categoryPulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const categoryPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_cat_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", categoryPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", categoryPulled);
-            helper.getEventEmitter().removeListener("pulled-error", categoryPulledError);
-        });
+        emitter.on("pulled-error", categoryPulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let categoryPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            categoryPromise = helper.pullAllItems(apiOptions);
+            categoryPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            categoryPromise = helper.pullModifiedItems(apiOptions);
+            categoryPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return categoryPromise;
+        return categoryPromise
+            .finally(function () {
+                emitter.removeListener("pulled", categoryPulled);
+                emitter.removeListener("pulled-error", categoryPulledError);
+            });
     }
 
     /**
      * Pull the type artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the type artifacts.
      */
-    pullTypes () {
-        const helper = toolsApi.getItemTypeHelper();
+    pullTypes (context) {
+        const helper = ToolsApi.getItemTypeHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingTypes);
@@ -570,41 +591,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_type_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", itemTypePulled);
+        emitter.on("pulled", itemTypePulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const itemTypePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_type_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", itemTypePulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", itemTypePulled);
-            helper.getEventEmitter().removeListener("pulled-error", itemTypePulledError);
-        });
+        emitter.on("pulled-error", itemTypePulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let typePromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            typePromise = helper.pullAllItems(apiOptions);
+            typePromise = helper.pullAllItems(context, apiOptions);
         } else {
-            typePromise = helper.pullModifiedItems(apiOptions);
+            typePromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return typePromise;
+        return typePromise
+            .finally(function () {
+                emitter.removeListener("pulled", itemTypePulled);
+                emitter.removeListener("pulled-error", itemTypePulledError);
+            });
     }
 
     /**
      * Pull the content artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the content artifacts.
      */
-    pullContent () {
-        const helper = toolsApi.getContentHelper();
+    pullContent (context) {
+        const helper = ToolsApi.getContentHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingContents);
@@ -614,41 +636,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_content_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", contentPulled);
+        emitter.on("pulled", contentPulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const contentPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_content_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", contentPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", contentPulled);
-            helper.getEventEmitter().removeListener("pulled-error", contentPulledError);
-        });
+        emitter.on("pulled-error", contentPulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let contentPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            contentPromise = helper.pullAllItems(apiOptions);
+            contentPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            contentPromise = helper.pullModifiedItems(apiOptions);
+            contentPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return contentPromise;
+        return contentPromise
+            .finally(function () {
+                emitter.removeListener("pulled", contentPulled);
+                emitter.removeListener("pulled-error", contentPulledError);
+            });
     }
 
     /**
      * Pull the source artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the source artifacts.
      */
-    pullSources () {
-        const helper = toolsApi.getPublishingSourcesHelper();
+    pullSources (context) {
+        const helper = ToolsApi.getPublishingSourcesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingPublishingSources);
@@ -658,41 +681,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_source_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", sourcePulled);
+        emitter.on("pulled", sourcePulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const sourcePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_source_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", sourcePulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", sourcePulled);
-            helper.getEventEmitter().removeListener("pulled-error", sourcePulledError);
-        });
+        emitter.on("pulled-error", sourcePulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let sourcePromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            sourcePromise = helper.pullAllItems(apiOptions);
+            sourcePromise = helper.pullAllItems(context, apiOptions);
         } else {
-            sourcePromise = helper.pullModifiedItems(apiOptions);
+            sourcePromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return sourcePromise;
+        return sourcePromise
+            .finally(function () {
+                emitter.removeListener("pulled", sourcePulled);
+                emitter.removeListener("pulled-error", sourcePulledError);
+            });
     }
 
     /**
      * Pull the publishing profile artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the profile artifacts.
      */
-    pullProfiles () {
-        const helper = toolsApi.getPublishingProfilesHelper();
+    pullProfiles (context) {
+        const helper = ToolsApi.getPublishingProfilesHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingPublishingProfiles);
@@ -702,41 +726,42 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_profile_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", profilePulled);
+        emitter.on("pulled", profilePulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const profilePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_profile_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", profilePulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", profilePulled);
-            helper.getEventEmitter().removeListener("pulled-error", profilePulledError);
-        });
+        emitter.on("pulled-error", profilePulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let profilesPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            profilesPromise = helper.pullAllItems(apiOptions);
+            profilesPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            profilesPromise = helper.pullModifiedItems(apiOptions);
+            profilesPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return profilesPromise;
+        return profilesPromise
+            .finally(function () {
+                emitter.removeListener("pulled", profilePulled);
+                emitter.removeListener("pulled-error", profilePulledError);
+            });
     }
 
     /**
      * Pull the publishing site revision artifacts.
      *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the site revision artifacts.
      */
-    pullSiteRevisions () {
-        const helper = toolsApi.getPublishingSiteRevisionsHelper();
+    pullSiteRevisions (context) {
+        const helper = ToolsApi.getPublishingSiteRevisionsHelper();
+        const emitter = context.eventEmitter;
         const self = this;
 
         self.getLogger().info(PullingPublishingSiteRevisions);
@@ -746,32 +771,30 @@ class PullCommand extends BaseCommand {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_site_revision_pulled', {name: name}));
         };
-        helper.getEventEmitter().on("pulled", siteRevisionPulled);
+        emitter.on("pulled", siteRevisionPulled);
 
         // The api emits an event when there is a pull error, so we log it for the user.
         const siteRevisionPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_site_revision_pull_error', {name: name, message: error.message}));
         };
-        helper.getEventEmitter().on("pulled-error", siteRevisionPulledError);
-
-        // Cleanup function to remove the event listeners.
-        this.addCleanup(function () {
-            helper.getEventEmitter().removeListener("pulled", siteRevisionPulled);
-            helper.getEventEmitter().removeListener("pulled-error", siteRevisionPulledError);
-        });
+        emitter.on("pulled-error", siteRevisionPulledError);
 
         // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
         const apiOptions = this.getApiOptions();
         let artifactPromise;
         if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactPromise = helper.pullAllItems(apiOptions);
+            artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
-            artifactPromise = helper.pullModifiedItems(apiOptions);
+            artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
         // Return the promise for the results of the action.
-        return artifactPromise;
+        return artifactPromise
+            .finally(function () {
+                emitter.removeListener("pulled", siteRevisionPulled);
+                emitter.removeListener("pulled-error", siteRevisionPulledError);
+            });
     }
 
     /**
@@ -822,9 +845,9 @@ function pullCommand (program) {
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
-        .action(function (options) {
+        .action(function (commandLineOptions) {
             const command = new PullCommand(program);
-            if (command.setCommandLineOptions(options, this)) {
+            if (command.setCommandLineOptions(commandLineOptions, this)) {
                 if (command.getCommandLineOption("ignoreTimestamps")) {
                     command._modified = false;
                 }

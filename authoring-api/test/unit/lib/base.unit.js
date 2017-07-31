@@ -46,7 +46,17 @@ global.expect = chai.expect;
 let authorApiPath = path.dirname(__filename);
 authorApiPath = path.normalize(authorApiPath + path.sep + '../../../');
 
+// Create a default API context to be used for unit tests.
+const events = require("events");
+const ToolsApi = require("../../../wchToolsApi.js");
+const options = ToolsApi.getOptions();
+const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
+const defaultContext = toolsApi.getContext();
+
 class UnitTest {
+    // The default API context to be used for unit tests.
+    static get DEFAULT_API_CONTEXT () { return defaultContext; };
+
     // File and directory constants used by all unit tests.
     static get API_PATH () { return authorApiPath; };
     static get VALID_RESOURCES_DIRECTORY () { return "test/unit/resources/valid" + path.sep; }; // Relative to root.
@@ -58,7 +68,7 @@ class UnitTest {
     static get DUMMY_NAME () { return "test"; };
     static get DUMMY_PATH () { return "test"; };
     static get DUMMY_METADATA () { return {"id": "xxx", "path": "test1"}; };
-    static get DUMMY_OPTIONS () { return null; };
+    static get DUMMY_OPTIONS () { return {}; };
 
     constructor () {
         // Array of mocks, stubs, and spies that should be restored when a test completes.
@@ -86,10 +96,11 @@ class UnitTest {
 
     /**
      * Restore options to the initial state.
+     *
+     * @param {Object} context The current API context.
      */
-    static restoreOptions () {
-        const options = require(UnitTest.API_PATH + "lib/utils/options.js");
-        options.resetState();
+    static restoreOptions (context) {
+        options.initialize(context);
     }
 
     /**

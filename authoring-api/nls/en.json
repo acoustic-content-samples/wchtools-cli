@@ -54,5 +54,10 @@
   "please_try": "Please try again later.  If the problem persists, please contact customer support and include the log information available at %(log_dir)s",
   "conflict":"The service encountered and returned an error condition while processing the request for this artifact.",
   "login_missing_authn":"The login service failed to respond with valid authentication information.",
-  "digest_mismatch": "digest %(cli_digest)s for pulled asset %(asset)s does not match server digest %(server_digest)s."
+  "digest_mismatch": "digest %(cli_digest)s for pulled asset %(asset)s does not match server digest %(server_digest)s.",
+  "retry_failed_request": "A request (%(id)d) that failed will be retried. %(message)s",
+  "retry_failed_retry": "A request (%(id)d) that was retried (attempt %(attempt)d) failed before the maximum number of retries. %(message)s",
+  "retry_next_attempt": "A request (%(id)d) will be retried (attempt %(attempt)d) in %(delay)d milliseconds.",
+  "retry_success": "A request (%(id)d) that was retried succeeded after %(attempt)d attempts.",
+  "retry_max_attempts": "A request (%(id)d) was retried the maximum number of times."
 }

@@ -25,9 +25,9 @@ const singletonEnforcer = Symbol();
 class PublishingSiteRevisionsREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "PublishingSiteRevisionsREST"});
-
+        }
         super("site-revisions", "/publishing/v1/site-revisions", undefined, undefined);
     }
 
@@ -37,7 +37,6 @@ class PublishingSiteRevisionsREST extends BaseREST {
         }
         return this[singleton];
     }
-
 }
 
 module.exports = PublishingSiteRevisionsREST;

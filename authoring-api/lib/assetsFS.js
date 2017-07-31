@@ -83,13 +83,14 @@ class AssetsFS extends BaseFS {
     /**
      * Get the path to the virtual folder for storing web assets.  Does not create the directory.
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {Object} [opts] The options to be used.
      *
      * @return {String} The virtual folder for storing web assets.
      */
-    getAssetsPath (opts) {
+    getAssetsPath (context, opts) {
         // All virtual folders are within the defined working directory.
-        let assetsDir = BaseFS.getWorkingDir(opts);
+        let assetsDir = BaseFS.getWorkingDir(context, opts);
 
         // Add the virtual folder, unless the "noVirtualFolder" option is specified. (This option is useful when the
         // working directory is used to store only assets, in which case a virtual assets folder is not necessary.)
@@ -103,13 +104,14 @@ class AssetsFS extends BaseFS {
     /**
      * Get the virtual folder for storing web assets.
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {Object} opts The options to be used.
      *
      * @return {String} The virtual folder for storing web assets.
      */
-    getDir (opts) {
+    getDir (context, opts) {
 
-        const assetsDir = this.getAssetsPath(opts);
+        const assetsDir = this.getAssetsPath(context, opts);
 
         // Create the folder to be used for storing web assets, if it doesn't exist.
         if (!fs.existsSync(assetsDir)) {
@@ -124,12 +126,13 @@ class AssetsFS extends BaseFS {
      *
      * Note: The path defined for content assets always begins with a special folder used for content assets.
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {Object} opts The options to be used.
      *
      * @return {String} The virtual folder for storing content assets.
      */
-    getContentResourcePath (opts) {
-        const assetDir = this.getAssetsPath(opts);
+    getContentResourcePath (context, opts) {
+        const assetDir = this.getAssetsPath(context, opts);
 
         // Don't return the special folder - the path value defined in the content asset metadata already includes it.
         return assetDir;
@@ -140,12 +143,13 @@ class AssetsFS extends BaseFS {
      *
      * Note: The path defined for content assets always begins with a special folder used for content assets.
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {Object} opts The options to be used.
      *
      * @return {String} The virtual folder for storing content assets.
      */
-    getContentResourceDir (opts) {
-        const assetDir = this.getAssetsPath(opts);
+    getContentResourceDir (context, opts) {
+        const assetDir = this.getAssetsPath(context, opts);
         const contentAssetDir = assetDir + CONTENT_RESOURCE_DIRECTORY + path.sep;
 
         // Make sure the special folder for storing content assets is created.
@@ -162,17 +166,18 @@ class AssetsFS extends BaseFS {
      *
      * Note: An ignore filter is used to exclude any files that do not belong to the content hub.
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {Object} opts The options to be used.
      *
      * @returns {Object} The default ignore filter.
      */
-    getDefaultIgnoreFilter (opts) {
+    getDefaultIgnoreFilter (context, opts) {
         // Locations of the "ignore" files (which define the files/folders that will not be stored in the content hub.)
         const defaultIgnoreFile = path.dirname(__filename) + path.sep + ignoreFile;
-        const assetsIgnoreFile = this.getAssetsPath(opts) + ignoreFile;
+        const assetsIgnoreFile = this.getAssetsPath(context, opts) + ignoreFile;
 
         // Determine whether the ignore rules from all ignore files should be added.
-        let additive = options.getRelevantOption(opts, "is_ignore_additive");
+        let additive = options.getRelevantOption(context, opts, "is_ignore_additive");
 
         // If the value is anything other than a boolean value of false, use the default value.
         if (additive !== false) {
@@ -211,40 +216,41 @@ class AssetsFS extends BaseFS {
         return (i === 0 || i === 1);
     }
 
-    getPath (name, opts) {
-        return this.getAssetsPath(opts) + name;
+    getPath (context, name, opts) {
+        return this.getAssetsPath(context, opts) + name;
     }
 
-    getMetadataPath (name, opts) {
+    getMetadataPath (context, name, opts) {
         if (this.isContentResource(name)) {
             // make sure teh resource directory is created and append the name that includes the path including dxdam */
-            return this.getContentResourcePath(opts) + name + this.getExtension();
+            return this.getContentResourcePath(context, opts) + name + this.getExtension();
         }
-        return this.getPath(name, opts);
+        return this.getPath(context, name, opts);
     }
 
     /**
      * Get the item with the given path on the local filesystem
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {String} path - The path of the item.
      * @param {Object} opts The options to be used.
      *
      * @returns {Q.Promise} A promise that resolves to the item with the given path on the local filesystem.
      */
-    getItem (path, opts) {
+    getItem (context, path, opts) {
         const deferred = Q.defer();
 
-        fs.readFile(this.getMetadataPath(path, opts), function (err, body) {
+        fs.readFile(this.getMetadataPath(context, path, opts), function (err, body) {
             if (err) {
-                utils.logErrors("",err);
+                utils.logErrors(context, "", err);
                 deferred.reject(err);
             } else {
                 try {
                     const item = JSON.parse(body.toString());
                     deferred.resolve(item);
                 } catch (e) {
-                    let msg = i18n.__("error_parsing_item", {name:path, message: e.message});
-                    utils.logErrors(msg, e);
+                    const msg = i18n.__("error_parsing_item", {name: path, message: e.message});
+                    utils.logErrors(context, msg, e);
                     deferred.reject((e instanceof SyntaxError) ? new SyntaxError(msg) : new Error(msg));
                 }
             }
@@ -257,16 +263,18 @@ class AssetsFS extends BaseFS {
      * Locally saves the given asset according to the config settings. An asset will
      * be saved according to its name.
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {Object} asset - An object that follows the schema for assets.
      * @param {Object} opts
      */
-    saveItem (asset, opts) {
-        const filepath = this.getMetadataPath(asset.path, opts);
+    saveItem (context, asset, opts) {
+        const filepath = this.getMetadataPath(context, asset.path, opts);
         const dir = path.dirname(filepath);
         return Q.Promise(function (resolve, reject) {
             mkdirp.mkdirp(dir, function (err) {
                 if (err) {
                     // Reject the promise if an error occurs when creating a directory.
+                    utils.logErrors(context, i18n.__("save_item_write_failed_bad_path", {path: filepath}), err);
                     reject(err);
                 } else {
                     try {
@@ -283,11 +291,11 @@ class AssetsFS extends BaseFS {
     /**
      * Gets a read stream for an asset that is stored locally on the file system
      */
-    getItemReadStream (name, opts) {
+    getItemReadStream (context, name, opts) {
         const deferred = Q.defer();
 
         try {
-            const stream = fs.createReadStream(this.getPath(name, opts));
+            const stream = fs.createReadStream(this.getPath(context, name, opts));
             deferred.resolve(stream);
         } catch (err) {
             deferred.reject(err);
@@ -301,11 +309,11 @@ class AssetsFS extends BaseFS {
      *
      * NOTE: The specified asset may not exist.
      */
-    getItemWriteStream (name, opts) {
+    getItemWriteStream (context, name, opts) {
         const deferred = Q.defer();
 
         // Get the file path for the specified file, creating the working directory if necessary.
-        const filepath = this.getPath(name, opts);
+        const filepath = this.getPath(context, name, opts);
 
         // Create any directories specified in the file's path.
         mkdirp.mkdirp(path.dirname(filepath), function (err) {
@@ -330,17 +338,18 @@ class AssetsFS extends BaseFS {
     /**
      * Get a filtered list of file names from the local file system.
      *
+     * @param {Object} context The API context to be used by the get operation.
      * @param {Object} filter - A filter for the local files.
      * @param {Object} opts - The options to be used for the list operation.
      *
      * @returns {Q.Promise} A promise for a filtered list of file names from the local file system.
      */
-    listNames (filter, opts) {
+    listNames (context, filter, opts) {
         const deferred = Q.defer();
-        const assetDir = this.getAssetsPath(opts);
+        const assetDir = this.getAssetsPath(context, opts);
 
         if (!filter) {
-            filter = this.getDefaultIgnoreFilter(opts);
+            filter = this.getDefaultIgnoreFilter(context, opts);
         }
 
         if (fs.existsSync(assetDir)) {
@@ -406,11 +415,12 @@ class AssetsFS extends BaseFS {
         return deferred.promise;
     }
 
-    getFileStats (name, opts) {
+    getFileStats (context, name, opts) {
         const deferred = Q.defer();
 
-        fs.stat(this.getPath(name, opts), function (err, stats) {
+        fs.stat(this.getPath(context, name, opts), function (err, stats) {
             if (err) {
+                utils.logErrors(context, i18n.__("error_fs_get_filestats", {"name": name}), err);
                 deferred.reject(err);
             } else {
                 // Resolve with no name, this file was not modified since last change
@@ -420,9 +430,9 @@ class AssetsFS extends BaseFS {
         return deferred.promise;
     }
 
-    getContentLength (name, opts) {
+    getContentLength (context, name, opts) {
         const deferred = Q.defer();
-        this.getFileStats(name, opts)
+        this.getFileStats(context, name, opts)
             .then(function (stats) {
                 deferred.resolve(stats.size);
             })

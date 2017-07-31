@@ -32,6 +32,9 @@ const path1 = RenditionsUnitTest.VALID_RENDITIONS_DIRECTORY + RenditionsUnitTest
 const path2 = RenditionsUnitTest.VALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.VALID_RENDITION_2;
 const badPath = RenditionsUnitTest.INVALID_RENDITIONS_DIRECTORY + RenditionsUnitTest.INVALID_RENDITION_BAD_NAME;
 
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
+
 class RenditionsHelperUnitTest extends BaseHelperUnitTest {
     constructor() {
         super();
@@ -46,7 +49,7 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
             it("should fail calling delete", function (done) {
                 // Call the method being tested.
                 let error;
-                helper.deleteRemoteItem(UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                helper.deleteRemoteItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the item should have been rejected.");

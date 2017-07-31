@@ -18,8 +18,8 @@ limitations under the License.
 const expect = require("chai").expect;
 const sinon = require("sinon");
 const prompt = require("prompt");
-const toolsApi = require("wchtools-api");
-const options = toolsApi.options;
+const ToolsApi = require("wchtools-api");
+const options = ToolsApi.getOptions();
 const toolsCli = require("../../wchToolsCli");
 
 const TEST_USER = "testUser";
@@ -39,9 +39,9 @@ describe("init", function () {
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', TEST_USER, '--url', TEST_URL])
                 .then(function (msg) {
-                    expect(stubSet).to.have.been.calledOnce;
-                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
-                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(stubSet).to.have.been.calledTwice;
+                    expect(stubSet.args[1][1]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[1][1]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
                     expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
                 })
                 .catch(function (err) {
@@ -63,11 +63,11 @@ describe("init", function () {
 
             // Stub the getProperty method to return null for the url.
             const originalGetProperty = options.getProperty;
-            const stubGet = sinon.stub(options, "getProperty", function (key) {
+            const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                 if (key === "x-ibm-dx-tenant-base-url") {
                     return null;
                 } else {
-                    originalGetProperty(key);
+                    originalGetProperty(context, key);
                 }
             });
 
@@ -82,9 +82,9 @@ describe("init", function () {
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', "--user", TEST_USER])
                 .then(function (msg) {
-                    expect(stubSet).to.have.been.calledOnce;
-                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
-                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(stubSet).to.have.been.calledTwice;
+                    expect(stubSet.args[1][1]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[1][1]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
                     expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
                 })
                 .catch(function (err) {
@@ -108,11 +108,11 @@ describe("init", function () {
 
             // Stub the getProperty method to return null for the user.
             const originalGetProperty = options.getProperty;
-            const stubGet = sinon.stub(options, "getProperty", function (key) {
+            const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                 if (key === "username") {
                     return null;
                 } else {
-                    originalGetProperty(key);
+                    originalGetProperty(context, key);
                 }
             });
 
@@ -127,9 +127,9 @@ describe("init", function () {
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', "--url", TEST_URL])
                 .then(function (msg) {
-                    expect(stubSet).to.have.been.calledOnce;
-                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
-                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(stubSet).to.have.been.calledTwice;
+                    expect(stubSet.args[1][1]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[1][1]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
                     expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
                 })
                 .catch(function (err) {
@@ -162,9 +162,9 @@ describe("init", function () {
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init'])
                 .then(function (msg) {
-                    expect(stubSet).to.have.been.calledOnce;
-                    expect(stubSet.args[0][0]["username"]).to.equal(TEST_USER);
-                    expect(stubSet.args[0][0]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
+                    expect(stubSet).to.have.been.calledTwice;
+                    expect(stubSet.args[1][1]["username"]).to.equal(TEST_USER);
+                    expect(stubSet.args[1][1]["x-ibm-dx-tenant-base-url"]).to.equal(TEST_URL);
                     expect(msg).to.contain(OPTIONS_SAVE_DIRECTORY);
                 })
                 .catch(function (err) {
@@ -222,7 +222,7 @@ describe("init", function () {
             // Stub the setOptions method to return an error.
             const stubSet = sinon.stub(options, "setOptions");
             const SET_ERROR = "Error setting option values, expected by unit test.";
-            stubSet.throws(new Error(SET_ERROR));
+            stubSet.onSecondCall().throws(new Error(SET_ERROR));
 
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init'])
@@ -283,27 +283,31 @@ describe("init", function () {
         });
 
         it("should succeed with no errors", function (done) {
+            // Create a spy for ToolsApi.getInitializationErrors.
+            const spy = sinon.spy(ToolsApi, "getInitializationErrors");
+
             let error;
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', TEST_USER, '--url', TEST_URL])
                 .then(function () {
-                    expect(toolsApi.getInitializationErrors()).to.have.lengthOf(0);
+                    expect(spy.firstCall.returnValue).to.have.lengthOf(0);
                 })
                 .catch(function (err) {
                     error = err;
                 })
                 .finally(function () {
+                    spy.restore();
                     done(error);
                 });
         });
 
         it("should fail when the tools API has a single initialization error", function (done) {
-            // Create a stub for toolsApi.getInitializationErrors that will return a single error.
-            const stub = sinon.stub(toolsApi, "getInitializationErrors");
+            // Create a stub for ToolsApi.getInitializationErrors that will return a single error.
+            const stub = sinon.stub(ToolsApi, "getInitializationErrors");
             const INIT_ERROR = "Something failed during initialization.";
             stub.returns([new Error(INIT_ERROR)]);
 
             let error;
-            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', 'testUser'])
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', 'testUser', '--url', 'http://foo.bar/api'])
                 .then(function () {
                     // This is not expected. Pass the error to the "done" function to indicate a failed test.
                     error = new Error("The command should have failed.");
@@ -321,14 +325,14 @@ describe("init", function () {
         });
 
         it("should fail when the tools API has multiple initialization errors", function (done) {
-            // Create a stub for toolsApi.getInitializationErrors that will return two errors.
-            const stub = sinon.stub(toolsApi, "getInitializationErrors");
+            // Create a stub for ToolsApi.getInitializationErrors that will return two errors.
+            const stub = sinon.stub(ToolsApi, "getInitializationErrors");
             const INIT_ERROR_1 = "Something failed during initialization.";
             const INIT_ERROR_2 = "Something else failed during initialization.";
             stub.returns([new Error(INIT_ERROR_1), new Error(INIT_ERROR_2)]);
 
             let error;
-            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', 'testUser'])
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', 'testUser', '--url', 'http://foo.bar/api'])
                 .then(function () {
                     // This is not expected. Pass the error to the "done" function to indicate a failed test.
                     error = new Error("The command should have failed.");

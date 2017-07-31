@@ -23,10 +23,6 @@ const helper = require("wchtools-api").getPublishingProfilesHelper();
 const rest = require("../../../authoring-api/lib/publishingProfilesREST.js").instance;
 const fs = require("../../../authoring-api/lib/publishingProfilesFS.js").instance;
 
-if(!fs || !rest) {
-    console.log('Error could not load required');
-}
-
 // PublishingSources Tests with CLI
 const BASE_NAME = 'publishingProfiles';
 const PullUnitTest = require("./lib/pull.unit.js");

@@ -15,9 +15,9 @@ limitations under the License.
 */
 "use strict";
 
-const toolsApi = require("wchtools-api");
-const utils = toolsApi.utils;
-const options = toolsApi.options;
+const ToolsApi = require("wchtools-api");
+const utils = ToolsApi.getUtils();
+const options = ToolsApi.getOptions();
 const fs  = require('fs');
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
@@ -131,27 +131,27 @@ class BaseCommand {
     /**
      * Set the command line options for this command.
      *
-     * @param {object} options The command line options for this command.
+     * @param {object} commandLineOptions The command line options for this command.
      * @param {object} command The Commander command currently being executed.
      *
      * @returns {boolean} A value of true if the given command line options are valid for this command, otherwise false
      *          to indicate that command execution should not continue.
      */
-    setCommandLineOptions (options, command) {
+    setCommandLineOptions (commandLineOptions, command) {
         // If Commander was able to successfully parse the command line options, the options parameter will be an
         // object. Otherwise, the options parameter will be a string with the unparsed command line options.
-        const valid = (typeof options === 'object');
+        const valid = (typeof commandLineOptions === 'object');
 
         if (valid) {
             // The command line options were parsed successfully.
-            this._commandLineOptions = options;
+            this._commandLineOptions = commandLineOptions;
         } else {
             // The command line options were not parsed successfully. In this case, the options should be reset on the
             // command object itself. This is just the way Commander works.
             this._commandLineOptions = command;
 
             // Provide a meesage to indicate that there was an invalid argument on the command line.
-            this.errorMessage(i18n.__('cli_invalid_arguments', {arguments: options}));
+            this.errorMessage(i18n.__('cli_invalid_arguments', {arguments: commandLineOptions}));
 
             // Reset the command line options.
             this.resetCommandLineOptions();
@@ -205,6 +205,25 @@ class BaseCommand {
     static displayToConsole (message) {
         console.log(message); // NOSONAR
     };
+
+    /**
+     * Display the given initialization errors.
+     *
+     * @param {Array} errors The errors to be displayed.
+     */
+    displayInitializationErrors (errors) {
+        // Combine the errors into a single message.
+        let message;
+        errors.forEach(function (error, index) {
+            if (index === 0) {
+                message = error.message;
+            } else {
+                message = message + "\n\n" + error.message;
+            }
+        });
+
+        this.errorMessage(message);
+    }
 
     /**
      * Display an error message.
@@ -311,10 +330,12 @@ class BaseCommand {
     /**
      * Handle the "dir" option specified on the command line.
      *
+     * @param {Object} context The API context associated with this command.
+     *
      * @returns {boolean} A value of true if the specified dir option is valid, otherwise false to indicate that command
      *          execution should not continue.
      */
-    handleDirOption () {
+    handleDirOption (context) {
         const dir = this.getCommandLineOption("dir");
 
         // If a "dir" option was not specified on the command line, use the current NodeJS working directory.
@@ -360,18 +381,46 @@ class BaseCommand {
         this.setApiOption("workingDir", dir);
 
         // Use any options that are defined in that directory.
-        options.extendOptionsFromDirectory(dir);
+        options.extendOptionsFromDirectory(context, dir);
 
         return true;
+    }
+
+    /**
+     * Handle any errors that occurred during the initialization process.
+     *
+     * @param {Object} context The API context associated with this command.
+     *
+     * @returns {boolean} A value of true if the initialization process was successful, otherwise false to indicate that
+     *          command execution should not continue.
+     */
+    handleInitialization (context) {
+        const errors = ToolsApi.getInitializationErrors(context);
+
+        if (errors && errors.length > 0) {
+            // There were errors during the initialization process.
+            this.displayInitializationErrors(errors);
+
+            // Reset the command line options.
+            this.resetCommandLineOptions();
+
+            // Return a value of false to indicate that command execution should not continue.
+            return false;
+        } else {
+            // No errors occurred during the initialization process.
+            return true;
+        }
     }
 
     /**
      * Handle the url option. It can be specified as a command line option or user option ("x-ibm-dx-tenant-base-url").
      * If the url is not specified by either of these methods, a prompt will be displayed to enter the value.
      *
+     * @param {Object} context The API context associated with this init command.
+     *
      * @returns {Q.Promise} A promise that is resolved when the url has been specified.
      */
-    handleUrlOption () {
+    handleUrlOption (context) {
         // FUTURE   When we remove support for using the "dx-api-gateway" fallback option, we will always prompt for the
         // FUTURE   "x-ibm-dx-tenant-base-url" option (if it has not been specified/configured.) Until then, we will not
         // FUTURE   prompt for the "x-ibm-dx-tenant-base-url" option if the "x-ibm-dx-tenant-id" option has been defined.
@@ -382,8 +431,8 @@ class BaseCommand {
         let url = this.getCommandLineOption("url");
         if (!url) {
             // Get the value of the user option.
-            url  = options.getProperty("x-ibm-dx-tenant-base-url");
-            if (!url && !options.getProperty("x-ibm-dx-tenant-id")) {
+            url  = options.getProperty(context, "x-ibm-dx-tenant-base-url");
+            if (!url && !options.getProperty(context, "x-ibm-dx-tenant-id")) {
                 // Define the schema used to prompt for the url value.
                 schemaInput =
                     {
@@ -440,9 +489,11 @@ class BaseCommand {
      * Handle the authentication options. These can be specified as command line options, user property (username), or
      * environment variable (password). If either value is missing, the user will be prompted for the missing value(s).
      *
+     * @param {Object} context The API context associated with this init command.
+     *
      * @returns {Q.Promise} A promise that is resolved when the username and password have been specified.
      */
-    handleAuthenticationOptions () {
+    handleAuthenticationOptions (context) {
         const defer = Q.defer();
         let schemaInput;
 
@@ -452,7 +503,7 @@ class BaseCommand {
             // The user name was specified on the command line.
             this.setApiOption("username", username);
         } else {
-            username  = options.getProperty('username');
+            username  = options.getProperty(context, 'username');
             if (username) {
                 // The user name was specified in the user properties.
                 this.setApiOption("username", username);

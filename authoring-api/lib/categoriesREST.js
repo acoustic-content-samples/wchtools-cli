@@ -25,9 +25,9 @@ const singletonEnforcer = Symbol();
 class CategoriesREST extends BaseREST {
 
     constructor(enforcer) {
-        if (enforcer !== singletonEnforcer)
+        if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "CategoriesREST"});
-
+        }
         super("categories", "/authoring/v1/categories", "/views/by-modified", "/views/by-modified");
     }
 
@@ -37,7 +37,6 @@ class CategoriesREST extends BaseREST {
         }
         return this[singleton];
     }
-
 }
 
 module.exports = CategoriesREST;

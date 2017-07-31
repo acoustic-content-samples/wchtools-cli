@@ -41,6 +41,9 @@ const loginOptions = {
     "password": "foobar"
 };
 
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
+
 class LoginRestUnitTest extends UnitTest {
     constructor() {
         super();
@@ -111,7 +114,7 @@ class LoginRestUnitTest extends UnitTest {
             it("should contain the expected values", function (done) {
                 let error;
                 try {
-                    const requestOptions = loginREST._getRequestOptions(loginOptions);
+                    const requestOptions = loginREST.getRequestOptions(context, loginOptions);
 
                     expect(requestOptions).to.exist;
                     expect(requestOptions.uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
@@ -136,7 +139,7 @@ class LoginRestUnitTest extends UnitTest {
                 const stub = sinon.stub(request, "get");
                 const LOGIN_ERROR = "Error logging in.";
                 const err = new Error(LOGIN_ERROR);
-                const res = null;
+                const res = {};
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
@@ -145,7 +148,7 @@ class LoginRestUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                loginREST.login(loginOptions)
+                loginREST.login(context, loginOptions)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the login attempt should have been rejected.");
@@ -185,7 +188,7 @@ class LoginRestUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                loginREST.login(loginOptions)
+                loginREST.login(context, loginOptions)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the login attempt should have been rejected.");
@@ -225,7 +228,7 @@ class LoginRestUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                loginREST.login(loginOptions)
+                loginREST.login(context, loginOptions)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the login attempt should have been rejected.");
@@ -265,7 +268,7 @@ class LoginRestUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                loginREST.login(loginOptions)
+                loginREST.login(context, loginOptions)
                     .then(function (retval) {
                         // Verify that the stub was called once with the expected values.
                         expect(stub).to.have.been.calledOnce;

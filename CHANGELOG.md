@@ -1,5 +1,12 @@
 # Changelog
 
+### v1.4 Changes since 1.3
+
+  - Improved publish --status command output to include publishing site revision state, in addition to most recent or specified publishing job status
+  - Improve retry support, on retryable HTTP errors and reference errors
+  - Refactored internal API for better reuse across modules
+  - Improved ordering of artifact push when pushing all artifacts (types before layout mappings)
+
 ### v1.3 Changes since 1.2.1
 
   - Add support for pushing and pulling layouts and layout mappings.
@@ -21,7 +28,7 @@
  - Mismatched md5 checksum between what the server says it's downloading and what wchtools receives is now reported as an error, instead of a warning.
  - Mention 'sudo' for installing via npm on Mac and Linux, in the Readme install instructions.
 
- ### v1.1.11 Changes since 1.1.7
+### v1.1.11 Changes since 1.1.7
 
  - Add user agent http header  (wchtools/version) to WCH REST requests
  - Add latent support for update-notifier to notify of future new versions of wchtools in npm registry, with ability to disable that by setting env var NO_UPDATE_NOTIFIER=true

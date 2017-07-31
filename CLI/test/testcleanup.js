@@ -15,7 +15,7 @@ limitations under the License.
 */
 const path = require("path");
 const fs = require("fs");
-const utils = require("wchtools-api").utils;
+const utils = require("wchtools-api").getUtils();
 const rimraf = require("rimraf");
 
 var loadPath = path.dirname(__filename);

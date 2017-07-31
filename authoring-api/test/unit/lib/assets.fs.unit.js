@@ -27,7 +27,6 @@ const stream = require("stream");
 const diff = require("diff");
 const path = require("path");
 const ignore = require('ignore');
-const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 const requireSubvert = require('require-subvert')(__dirname);
 const sinon = require("sinon");
 const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
@@ -41,6 +40,9 @@ const mkdirp = require('mkdirp');
 // Require the local module being tested.
 const AssetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js");
 let assetsFS = AssetsFS.instance;
+
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
 
 // Test "stats" data.
 const DUMMY_DATE = new Date("Mon, 10 Oct 2011 23:24:11 GMT");
@@ -68,6 +70,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
     run () {
         const self = this;
+
         describe("Unit tests for assetsFS.js", function () {
             let stubSync;
 
@@ -143,7 +146,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
         describe("getPath", function () {
             // Restore options before running the unit tests.
             before(function (done) {
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Signal that the cleanup is complete.
                 done();
@@ -151,7 +154,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
             // Restore options after running the unit tests.
             after(function (done) {
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Signal that the cleanup is complete.
                 done();
@@ -159,13 +162,10 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
             it("should succeed when setting a new working directory", function (done) {
                 // Before setting the new working directory, the asset path should not contain that directory.
-                expect(assetsFS.getPath(UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
+                expect(assetsFS.getPath(context, UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
 
-                // Set the new working directory, and initialize assetsFS with the new options.
-                options.setGlobalOptions({"workingDir": UnitTest.DUMMY_DIR});
-
-                // After setting the new working directory, the asset path should contain that directory.
-                expect(assetsFS.getPath(UnitTest.DUMMY_NAME)).to.contain(UnitTest.DUMMY_DIR);
+                // If the working dir is set in the opts object, then the item path should contain that directory.
+                expect(assetsFS.getPath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR})).to.contain(UnitTest.DUMMY_DIR);
 
                 done();
             });
@@ -187,7 +187,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getItem(AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                assetsFS.getItem(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset item should have been rejected.");
@@ -220,7 +220,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getItem(AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                assetsFS.getItem(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset item should have been rejected.");
@@ -255,7 +255,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getItem(AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                assetsFS.getItem(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // The stub should have been called once.
                         expect(stub).to.have.been.calledOnce;
@@ -289,7 +289,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.saveItem(UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                assetsFS.saveItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for saving the asset item should have been rejected.");
@@ -328,7 +328,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.saveItem(UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                assetsFS.saveItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset item should have been rejected.");
@@ -368,7 +368,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.saveItem(UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                assetsFS.saveItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // The stubs should have been called once.
                         expect(stubDir).to.have.been.calledOnce;
@@ -404,7 +404,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getItemReadStream(AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                assetsFS.getItemReadStream(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset stream should have been rejected.");
@@ -442,7 +442,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getItemReadStream(AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                assetsFS.getItemReadStream(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
                     .then(function (stream) {
                         // Verify that the stub was called once with the specified path.
                         expect(stub).to.have.been.calledOnce;
@@ -495,7 +495,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.getItemWriteStream(UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS)
+        assetsFS.getItemWriteStream(context, UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the asset stream should have been rejected.");
@@ -535,7 +535,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.getItemWriteStream(AssetsUnitTest.ASSET_GIF_1, UnitTest.DUMMY_OPTIONS)
+        assetsFS.getItemWriteStream(context, AssetsUnitTest.ASSET_GIF_1, UnitTest.DUMMY_OPTIONS)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the asset stream should have been rejected.");
@@ -578,7 +578,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.getItemWriteStream(AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+        assetsFS.getItemWriteStream(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
             .then(function (stream) {
                 // Verify that each stub was called once with the specified path.
                 expect(stubDir).to.have.been.calledOnce;
@@ -649,9 +649,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesError (done) {
+        const opts = UnitTest.DUMMY_OPTIONS;
+
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath(UnitTest.DUMMY_OPTIONS)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
 
         this.addTestDouble(stubExists);
 
@@ -672,7 +674,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(null, UnitTest.DUMMY_OPTIONS)
+        assetsFS.listNames(context, null, opts)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the asset names should have been rejected.");
@@ -703,12 +705,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY};
 
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath(UnitTest.VALID_RESOURCES_DIRECTORY)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
 
         this.addTestDouble(stubExists);
 
@@ -732,7 +733,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(null, UnitTest.DUMMY_OPTIONS)
+        assetsFS.listNames(context, null, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
@@ -757,7 +758,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -765,12 +766,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesFilterWebAssetsSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, 'assetTypes': AssetsFS.ASSET_TYPES_WEB_ASSETS};
 
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath(UnitTest.VALID_RESOURCES_DIRECTORY)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
 
         this.addTestDouble(stubExists);
 
@@ -804,7 +804,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(filter, {'assetTypes': AssetsFS.ASSET_TYPES_WEB_ASSETS})
+        assetsFS.listNames(context, filter, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
@@ -829,7 +829,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -837,12 +837,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesFilterContentAssetsSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, "assetTypes": AssetsFS.ASSET_TYPES_CONTENT_ASSETS};
 
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath(UnitTest.VALID_RESOURCES_DIRECTORY)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
 
         this.addTestDouble(stubExists);
 
@@ -875,7 +874,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(filter, {'assetTypes': AssetsFS.ASSET_TYPES_CONTENT_ASSETS})
+        assetsFS.listNames(context, filter, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
@@ -898,7 +897,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -906,12 +905,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesFilterPathSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, "filterPath": "/test_1"};
 
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath(UnitTest.VALID_RESOURCES_DIRECTORY)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
 
         this.addTestDouble(stubExists);
 
@@ -944,7 +942,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(filter, {"filterPath": "/test_1"})
+        assetsFS.listNames(context, filter, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
@@ -969,7 +967,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -977,12 +975,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesDifferentFilterPathSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, "filterPath": "test_1/"};
 
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath(UnitTest.VALID_RESOURCES_DIRECTORY)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
 
         this.addTestDouble(stubExists);
 
@@ -1015,7 +1012,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(filter, {"filterPath": "test_1/"})
+        assetsFS.listNames(context, filter, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
@@ -1040,7 +1037,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -1048,24 +1045,23 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesDefaultFilterAdditiveSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, "is_ignore_additive": true};
 
         // Create a stub for fs.existsSync that will return true for the specified working directory and false for the assets ignore file.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath()).returns(true);
-        stubExists.withArgs(assetsFS.getAssetsPath() + ".wchtoolsignore").returns(false);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore").returns(false);
 
         this.addTestDouble(stubExists);
 
         // Create a stub for fs.readFileSync that will return ignore rules for the default ignore file.
         const originalReadFileSync = fs.readFileSync;
-        const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
+        const stubRead = sinon.stub(fs, "readFileSync", function (filename, readOptions) {
             if (filename === UnitTest.API_PATH + "lib" + path.sep + ".wchtoolsignore") {
                 return "*.jpg";
             } else {
                 // Return the contents of the specified file.
-                return originalReadFileSync.call(fs, filename, options);
+                return originalReadFileSync.call(fs, filename, readOptions);
             }
         });
 
@@ -1091,11 +1087,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(null, {"is_ignore_additive": true})
+        assetsFS.listNames(context, null, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
-                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath());
+                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath(context, opts));
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
@@ -1116,7 +1112,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -1124,24 +1120,23 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesDefaultFilterNotAdditiveSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, "is_ignore_additive": false};
 
         // Create a stub for fs.existsSync that will return true for the specified working directory and false for the assets ignore file.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath()).returns(true);
-        stubExists.withArgs(assetsFS.getAssetsPath() + ".wchtoolsignore").returns(false);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore").returns(false);
 
         this.addTestDouble(stubExists);
 
         // Create a stub for fs.readFileSync that will return ignore rules for the default ignore file.
         const originalReadFileSync = fs.readFileSync;
-        const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
+        const stubRead = sinon.stub(fs, "readFileSync", function (filename, readOptions) {
             if (filename === UnitTest.API_PATH + "lib" + path.sep + ".wchtoolsignore") {
                 return "*.jpg";
             } else {
                 // Return the contents of the specified file.
-                return originalReadFileSync.call(fs, filename, options);
+                return originalReadFileSync.call(fs, filename, readOptions);
             }
         });
 
@@ -1167,11 +1162,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(null, {"is_ignore_additive": false})
+        assetsFS.listNames(context, null, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
-                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath());
+                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath(context, opts));
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
@@ -1192,7 +1187,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -1200,26 +1195,25 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesAssetsFilterAdditiveSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, "is_ignore_additive": true};
 
         // Create a stub for fs.existsSync that will return true for the specified working directory and false for the assets ignore file.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath()).returns(true);
-        stubExists.withArgs(assetsFS.getAssetsPath() + ".wchtoolsignore").returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore").returns(true);
 
         this.addTestDouble(stubExists);
 
         // Create a stub for fs.readFileSync that will return ignore rules for the two ignore files.
         const originalReadFileSync = fs.readFileSync;
-        const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
+        const stubRead = sinon.stub(fs, "readFileSync", function (filename, readOptions) {
             if (filename === UnitTest.API_PATH + "lib" + path.sep + ".wchtoolsignore") {
                 return "*.jpg";
-            } else if (filename === assetsFS.getAssetsPath() + ".wchtoolsignore") {
+            } else if (filename === assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore") {
                 return "*.css";
             } else {
                 // Return the contents of the specified file.
-                return originalReadFileSync.call(fs, filename, options);
+                return originalReadFileSync.call(fs, filename, readOptions);
             }
         });
 
@@ -1245,11 +1239,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(null, {"is_ignore_additive": true})
+        assetsFS.listNames(context, null, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
-                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath());
+                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath(context, opts));
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(1);
@@ -1269,7 +1263,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -1277,26 +1271,25 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesAssetsFilterNotAdditiveSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY, "is_ignore_additive": false};
 
         // Create a stub for fs.existsSync that will return true for the specified working directory and false for the assets ignore file.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath()).returns(true);
-        stubExists.withArgs(assetsFS.getAssetsPath() + ".wchtoolsignore").returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore").returns(true);
 
         this.addTestDouble(stubExists);
 
         // Create a stub for fs.readFileSync that will return ignore rules for the two ignore files.
         const originalReadFileSync = fs.readFileSync;
-        const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
+        const stubRead = sinon.stub(fs, "readFileSync", function (filename, readOptions) {
             if (filename === UnitTest.API_PATH + "lib" + path.sep + ".wchtoolsignore") {
                 return "*.jpg";
-            } else if (filename === assetsFS.getAssetsPath() + ".wchtoolsignore") {
+            } else if (filename === assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore") {
                 return "*.css";
             } else {
                 // Return the contents of the specified file.
-                return originalReadFileSync.call(fs, filename, options);
+                return originalReadFileSync.call(fs, filename, readOptions);
             }
         });
 
@@ -1322,11 +1315,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames(null, {"is_ignore_additive": false})
+        assetsFS.listNames(context, null, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
-                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath());
+                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath(context, opts));
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
@@ -1347,7 +1340,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -1355,26 +1348,25 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     listNamesAssetsFilterAdditiveDefaultSuccess (done) {
-        // Set the current working directory to the "valid resources" directory.
-        options.setGlobalOptions({"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY});
+        const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY};
 
         // Create a stub for fs.existsSync that will return true for the specified working directory and false for the assets ignore file.
         const stubExists = sinon.stub(fs, "existsSync");
-        stubExists.withArgs(assetsFS.getAssetsPath()).returns(true);
-        stubExists.withArgs(assetsFS.getAssetsPath() + ".wchtoolsignore").returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore").returns(true);
 
         this.addTestDouble(stubExists);
 
         // Create a stub for fs.readFileSync that will return ignore rules for the two ignore files.
         const originalReadFileSync = fs.readFileSync;
-        const stubRead = sinon.stub(fs, "readFileSync", function (filename, options) {
+        const stubRead = sinon.stub(fs, "readFileSync", function (filename, readOptions) {
             if (filename === UnitTest.API_PATH + "lib" + path.sep + ".wchtoolsignore") {
                 return "*.jpg";
-            } else if (filename === assetsFS.getAssetsPath() + ".wchtoolsignore") {
+            } else if (filename === assetsFS.getAssetsPath(context, opts) + ".wchtoolsignore") {
                 return "*.css";
             } else {
                 // Return the contents of the specified file.
-                return originalReadFileSync.call(fs, filename, options);
+                return originalReadFileSync.call(fs, filename, readOptions);
             }
         });
 
@@ -1400,11 +1392,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.listNames()
+        assetsFS.listNames(context, null, opts)
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
-                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath());
+                expect(stub.firstCall.args[0]).to.equal(assetsFS.getAssetsPath(context, opts));
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(1);
@@ -1424,7 +1416,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
                 // Restore the default options.
-                UnitTest.restoreOptions();
+                UnitTest.restoreOptions(context);
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
@@ -1448,7 +1440,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getFileStats(AssetsUnitTest.ASSET_JAR_1)
+                assetsFS.getFileStats(context, AssetsUnitTest.ASSET_JAR_1)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset stats should have been rejected.");
@@ -1483,7 +1475,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getFileStats(AssetsUnitTest.ASSET_PNG_1)
+                assetsFS.getFileStats(context, AssetsUnitTest.ASSET_PNG_1)
                     .then(function (stats) {
                         // Verify that the stub was called once with the specified path.
                         expect(stub).to.have.been.calledOnce;
@@ -1520,7 +1512,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getContentLength(AssetsUnitTest.ASSET_JAR_1, UnitTest.DUMMY_OPTIONS)
+                assetsFS.getContentLength(context, AssetsUnitTest.ASSET_JAR_1, UnitTest.DUMMY_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset stats should have been rejected.");
@@ -1529,7 +1521,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                         try {
                             // Verify that the stub was called once with the specified URI.
                             expect(stub).to.have.been.calledOnce;
-                            expect(stub.args[0][0]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                            expect(stub.args[0][1]).to.contain(AssetsUnitTest.ASSET_JAR_1);
 
                             // Verify that the expected error is returned.
                             expect(err.name).to.equal("Error");
@@ -1554,11 +1546,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsFS.getContentLength(AssetsUnitTest.ASSET_JAR_1, UnitTest.DUMMY_OPTIONS)
+                assetsFS.getContentLength(context, AssetsUnitTest.ASSET_JAR_1, UnitTest.DUMMY_OPTIONS)
                     .then(function (size) {
                         // Verify that the stub was called once with the specified path.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.args[0][0]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(stub.args[0][1]).to.contain(AssetsUnitTest.ASSET_JAR_1);
 
                         // Verify that the expected value was returned.
                         expect(size).to.equal(128);

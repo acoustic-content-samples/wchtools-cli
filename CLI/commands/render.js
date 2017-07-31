@@ -17,9 +17,9 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const toolsApi = require("wchtools-api");
-const loginHelper = toolsApi.login;
-const utils = toolsApi.utils;
+const ToolsApi = require("wchtools-api");
+const loginHelper = ToolsApi.getLogin();
+const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const ora = require("ora");
 
@@ -37,10 +37,9 @@ const jobParameters =  {
     }
 };
 
-
 class RenderCommand extends BaseCommand {
     /**
-     * Create a PublishCommand object.
+     * Create a RenderCommand object.
      *
      * @param {object} program A Commander program object.
      */
@@ -49,29 +48,38 @@ class RenderCommand extends BaseCommand {
     }
 
     /**
-     * Create a new publishing job.
+     * Create a new rendering job.
      */
     doRender () {
+        // Create the context for rendering.
+        const toolsApi = new ToolsApi();
+        const context = toolsApi.getContext();
+
         const logger = this.getLogger();
         jobParameters.mode = this.getCommandLineOption("rebuild") ? "REBUILD" : "UPDATE";
-        const helper = toolsApi.getPublishingJobsHelper();
+        const helper = ToolsApi.getPublishingJobsHelper();
         const self = this;
 
+        // Check to see if the initialization process was successful.
+        if (!self.handleInitialization(context)) {
+            return;
+        }
+
         // Make sure the url option has been specified.
-        self.handleUrlOption()
+        self.handleUrlOption(context)
             .then(function () {
                 // Handle the necessary command line options.
-                return self.handleAuthenticationOptions();
+                return self.handleAuthenticationOptions(context);
             })
             .then(function () {
                 // Login using the current options.
-                return loginHelper.login(self.getApiOptions());
+                return loginHelper.login(context, self.getApiOptions());
             })
             .then(function (/*results*/) {
                 BaseCommand.displayToConsole(i18n.__('cli_rendering_job_started'));
                 self.spinner = ora();
                 self.spinner.start();
-                helper.createPublishingJob(jobParameters, self.getApiOptions())
+                helper.createPublishingJob(context, jobParameters, self.getApiOptions())
                     .then(job => {
                         const createIdMsg = i18n.__('cli_rendering_job_created', {id: job.id});
                         if (self.spinner) {
@@ -121,9 +129,9 @@ function renderCommand (program) {
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
-        .action(function (options) {
+        .action(function (commandLineOptions) {
             const command = new RenderCommand(program);
-            if (command.setCommandLineOptions(options, this)) {
+            if (command.setCommandLineOptions(commandLineOptions, this)) {
                 command.doRender();
             }
         });

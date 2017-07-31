@@ -13,19 +13,47 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-var Table = require('cli-table');
+const Table = require('cli-table');
+const request = require("request");
+const status = require('../lib/status');
 
-module.exports = function helloCommand(program) {
+module.exports = function (program) {
 	'use strict';
 
-	program
+	// Create request wrapper
+	/*istanbul ignore next*/
+    program.request = function (opts, next) {
+        if (program.debug) {
+            program.log('REQUEST: '.bold + JSON.stringify(opts, null, 2));
+        } else {
+            program.log(opts.uri);
+        }
+
+        status.start();
+
+        return request(opts, function (err, res, body) {
+            status.stop();
+            if (err) {
+                if (program.debug) {
+                    program.errorMessage(err.message);
+                }
+                return next(err, res, body);
+            } else {
+                if (program.debug) {
+                    program.log('RESPONSE: '.bold + JSON.stringify(res.headers, null, 2));
+                    program.log('BODY: '.bold + JSON.stringify(res.body, null, 2));
+                }
+                return next(err, res, body);
+            }
+        });
+    };
+
+    program
 		.command('quote <symbol>')
 		.description('Get stock quote for <symbol>')
 		.action(function (symbol, command) {
-
-			var opts = {};
-
-			var dataKeys = {
+			const opts = {};
+			const dataKeys = {
 				s: 'Symbol',
 				n: 'Name',
 				a: 'Ask',
@@ -41,29 +69,26 @@ module.exports = function helloCommand(program) {
 
 			process.stdout.write('Fetching [' + symbol + '] ');
 
-			program.request(opts, function (err, req, body) {
-				var rows;
+			program.request(opts, function (err, res, body) {
 				if (err) {
 					return program.handleError(err);
 				}
 				body = body.replace(/\r\n$/, '');
-				rows = body.split('\r\n');
 
-				var table = new Table({
+				const rows = body.split('\r\n');
+				const table = new Table({
 					head: Object.keys(dataKeys).map(function (key) {
 						return dataKeys[key];
 					})
 				});
 
 				rows.forEach(function (row) {
-					var parts = row.split(',').map(function (cell) {
+					const parts = row.split(',').map(function (cell) {
 						return cell.replace(/\"/g, '');
 					});
 					table.push(parts);
 				});
 				program.successMessage(table.toString());
 			});
-
 		});
-
 };

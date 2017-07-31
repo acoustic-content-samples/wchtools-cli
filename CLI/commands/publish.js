@@ -17,9 +17,9 @@ limitations under the License.
 
 const BaseCommand = require("../lib/baseCommand");
 
-const toolsApi = require("wchtools-api");
-const loginHelper = toolsApi.login;
-const utils = toolsApi.utils;
+const ToolsApi = require("wchtools-api");
+const loginHelper = ToolsApi.getLogin();
+const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const ora = require("ora");
 
@@ -33,33 +33,48 @@ class PublishCommand extends BaseCommand {
         super(program);
     }
 
-    displayJobStatus(self, helper, logger, jobId, apiOptions) {
-        helper.getPublishingJob(jobId, apiOptions)
-            .then(function (job) {
-                self.successMessage(i18n.__("cli_publishing_job_status", {job_status: job.state}));
-                if (self.getCommandLineOption("verbose")) {
-                    helper.getPublishingJobStatus(jobId, apiOptions)
-                        .then(function(jobStatus) {
-                            job = Object.assign(job, jobStatus);
-                            logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
-                        })
-                }
+    displayJobStatus(helper, context, jobId, opts) {
+        const self = this;
+        const logger = this.getLogger();
+        const verbose = self.getCommandLineOption("verbose");
+        ToolsApi.getPublishingSiteRevisionsHelper().getRemoteItem(context, "default", opts)
+            .then(function (siteRevision) {
+                let msg = i18n.__("cli_publishing_site_revision_state", {state: siteRevision.state});
+                helper.getPublishingJob(context, jobId, opts)
+                .then(function (job) {
+                    self.successMessage(msg + "\n" + i18n.__("cli_publishing_job_status", {job_status: job.state}));
+                    if (verbose) {
+                        logger.info(i18n.__("cli_publishing_site_revision", {site_revision: JSON.stringify(siteRevision, null, "    ")}));
+                        helper.getPublishingJobStatus(context, jobId, opts)
+                            .then(function(jobStatus) {
+                                job = Object.assign(job, jobStatus);
+                                logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
+                            })
+                        }
+                })
+                .catch(function (err) {
+                    const curError = i18n.__("cli_publishing_job_error", {message: err.message});
+                    self.errorMessage(curError);
+                    self.resetCommandLineOptions();
+                });
                 self.resetCommandLineOptions();
             })
             .catch(function (err) {
-                const curError = i18n.__("cli_publishing_job_error", {message: err.message});
+                const curError = i18n.__("cli_publishing_site_revision_error", {message: err.message});
                 self.errorMessage(curError);
                 self.resetCommandLineOptions();
             });
     }
 
-    static getJobIdFromStatusOption(self, status, helper) {
+    static getJobIdFromStatusOption(helper, context, status, opts) {
         // If status is boolean==true then --status was specified without a job id so lookup most recent job
         if (status === true) {
-            const opts = self.getApiOptions();
+            opts = utils.cloneOpts(opts);
             opts.limit = 1;
-            return helper.getPublishingJobs( opts )
-                .then(jobs => { return (jobs ? jobs[0].id : 0) });
+            return helper.getPublishingJobs(context, opts)
+                .then(jobs => {
+                    return (jobs ? jobs[0].id : null);
+                });
         } else {
             return Promise.resolve(status);
         }
@@ -69,29 +84,39 @@ class PublishCommand extends BaseCommand {
      * Create a new publishing job.
      */
     doPublish () {
+        // Create the context for publishing.
+        const toolsApi = new ToolsApi();
+        const context = toolsApi.getContext();
+
         const logger = this.getLogger();
         const mode = this.getCommandLineOption("rebuild") ? "REBUILD" : "UPDATE";
         const status = this.getCommandLineOption("status");
+        const apiOptions = this.getApiOptions();
         const jobParameters = {"mode": mode};
-        const helper = toolsApi.getPublishingJobsHelper();
+        const helper = ToolsApi.getPublishingJobsHelper();
         const self = this;
 
+        // Check to see if the initialization process was successful.
+        if (!self.handleInitialization(context)) {
+            return;
+        }
+
         // Make sure the url option has been specified.
-        self.handleUrlOption()
+        self.handleUrlOption(context)
             .then(function () {
                 // Handle the necessary command line options.
-                return self.handleAuthenticationOptions();
+                return self.handleAuthenticationOptions(context);
             })
             .then(function () {
                 // Login using the current options.
-                return loginHelper.login(self.getApiOptions());
+                return loginHelper.login(context, apiOptions);
             })
             .then(function (/*results*/) {
                 if (status) {
-                    PublishCommand.getJobIdFromStatusOption(self, status, helper)
+                    PublishCommand.getJobIdFromStatusOption(helper, context, status, apiOptions)
                         .then(jobId => {
-                            if (jobId && jobId !== 0) {
-                                self.displayJobStatus(self, helper, logger, jobId, self.getApiOptions());
+                            if (jobId) {
+                                self.displayJobStatus(helper, context, jobId, apiOptions);
                             } else {
                                 self.errorMessage(i18n.__('cli_publishing_no_jobs'));
                             }
@@ -100,7 +125,7 @@ class PublishCommand extends BaseCommand {
                     BaseCommand.displayToConsole(i18n.__('cli_publishing_job_started'));
                     self.spinner = ora();
                     self.spinner.start();
-                    helper.createPublishingJob(jobParameters, self.getApiOptions())
+                    helper.createPublishingJob(context, jobParameters, apiOptions)
                         .then(job => {
                             const createIdMsg = i18n.__('cli_publishing_job_created', {id: job.id});
                             if (self.spinner) {
@@ -153,9 +178,9 @@ function publishCommand (program) {
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))
-        .action(function (options) {
+        .action(function (commandLineOptions) {
             const command = new PublishCommand(program);
-            if (command.setCommandLineOptions(options, this)) {
+            if (command.setCommandLineOptions(commandLineOptions, this)) {
                 command.doPublish();
             }
         });
