@@ -73,7 +73,7 @@ class PublishCommand extends BaseCommand {
             opts.limit = 1;
             return helper.getPublishingJobs(context, opts)
                 .then(jobs => {
-                    return (jobs ? jobs[0].id : null);
+                    return ((jobs && jobs.length>0) ? jobs[0].id : null);
                 });
         } else {
             return Promise.resolve(status);

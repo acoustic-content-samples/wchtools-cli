@@ -54,6 +54,11 @@
   "please_try": "나중에 다시 시도하십시오.  문제점이 지속되면 고객 지원 담당자에게 문의하고 %(log_dir)s에서 사용 가능한 로그 정보를 포함하십시오.",
   "conflict":"이 아티팩트에 대한 요청을 처리하는 중에 서비스에서 오류 상태가 발생했으며 이를 리턴했습니다.",
   "login_missing_authn":"로그인 서비스가 올바른 인증 정보로 응답하는 데 실패했습니다.",
-  "digest_mismatch": "가져온 자산 %(asset)s의 다이제스트 %(cli_digest)s이(가) 서버 다이제스트 %(server_digest)s과(와) 일치하지 않습니다."
+  "digest_mismatch": "가져온 자산 %(asset)s의 다이제스트 %(cli_digest)s이(가) 서버 다이제스트 %(server_digest)s과(와) 일치하지 않습니다.",
+  "retry_failed_request": "실패한 요청(%(id)d)이 재시도됩니다. %(message)s",
+  "retry_failed_retry": "재시도(%(attempt)d회 시도)된 요청이 최대 재시도 수 전에 실패했습니다. %(message)s",
+  "retry_next_attempt": "요청(%(id)d)이 %(delay)d밀리초 후에 재시도됩니다(%(attempt)d회 시도). ",
+  "retry_success": "재시도된 요청(%(id)d)이 %(attempt)d회 시도 후에 성공했습니다. ",
+  "retry_max_attempts": "요청(%(id)d)이 최대 횟수 만큼 재시도되었습니다. "
 }
 

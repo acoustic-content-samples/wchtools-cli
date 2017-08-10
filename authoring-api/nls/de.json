@@ -54,6 +54,11 @@
   "please_try": "Versuchen Sie es später noch einmal.  Wenn das Problem bestehen bleibt, dann wenden Sie sich an den Kundendienst. Übermitteln Sie auch die verfügbaren Protokollinformationen unter %(log_dir)s",
   "conflict":"Der Service hat beim Verarbeiten der Anforderung für dieses Artefakt eine Fehlerbedingung festgestellt und zurückgegeben.",
   "login_missing_authn":"Der Anmeldeservice hat nicht mit Authentifizierungsinformationen geantwortet.",
-  "digest_mismatch": "Digest %(cli_digest)s des extrahierten Assets %(asset)s weicht vom Server-Digest %(server_digest)s ab."
+  "digest_mismatch": "Digest %(cli_digest)s des extrahierten Assets %(asset)s weicht vom Server-Digest %(server_digest)s ab.",
+  "retry_failed_request": "die fehlgeschlagene Anforderung (%(id)d) wird wiederholt. %(message)s",
+  "retry_failed_retry": "Die Anforderung (%(id)d), die (attempt %(attempt)d) wiederholt wurde, ist vor der maximalen Anzahl der Wiederholungen fehlgeschlagen. %(message)s",
+  "retry_next_attempt": "Die Anforderung (%(id)d), wird (attempt %(attempt)d) in %(delay)d Millisekunden wiederholt.",
+  "retry_success": "Die Anforderung (%(id)d), die wiederholt wurde, war nach %(attempt)d Versuchen erfolgreich.",
+  "retry_max_attempts": "Die Anforderung (%(id)d) hat die maximale Anzahl der Wiederholungen erreicht."
 }
 

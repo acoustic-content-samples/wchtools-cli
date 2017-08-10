@@ -118,39 +118,42 @@ class BaseREST {
         const retryStrategy = function (err, response, body) {
             let retVal = false;
 
-            // Get the error into the standard format.
-            const error = utils.getError(err, body, response);
+            // Only determine whether to retry if there can be more than one attempt.
+            if (maxAttempts > 1) {
+                // Get the error into the standard format.
+                const error = utils.getError(err, body, response, requestOptions);
 
-            if (error && error.statusCode) {
-                // Determine whether the request should be retried, based on the status code for the error.
-                switch (error.statusCode) {
-                    // 403 Forbidden - Handle the special case that sometimes occurs during authorization. In general we
-                    // wouldn't retry on this error, but if it happens during authorization, a retry frequently succeeds.
-                    case 403:
-                    // 429 Too Many Requests - The user has sent too many requests in a given amount of time ("rate limiting").
-                    case 429:
-                    // 500 Internal Server Error - The server has encountered a situation it doesn't know how to handle.
-                    case 500:
-                    // 502 Bad Gateway - The server is working as a gateway and got an invalid response needed to handle the request.
-                    case 502:
-                    // 503 Service Unavailable - The server is not ready to handle the request. It could be down for maintenance or just overloaded.
-                    case 503:
-                    // 504 Gateway Timeout - The server is acting as a gateway and cannot get a response in time.
-                    case 504: {
-                        retVal = true;
-                        break;
-                    }
-                    default: {
-                        // Look for any other status codes that should be retried for this service.
-                        const otherCodes = options.getRelevantOption(context, opts, "retryStatusCodes", serviceName);
-                        retVal = otherCodes && (otherCodes.length > 0) && (otherCodes.indexOf(error.statusCode) !== -1);
+                if (error.statusCode) {
+                    // Determine whether the request should be retried, based on the status code for the error.
+                    switch (error.statusCode) {
+                        // 403 Forbidden - Handle the special case that sometimes occurs during authorization. In general we
+                        // wouldn't retry on this error, but if it happens during authorization, a retry frequently succeeds.
+                        case 403:
+                        // 429 Too Many Requests - The user has sent too many requests in a given amount of time ("rate limiting").
+                        case 429:
+                        // 500 Internal Server Error - The server has encountered a situation it doesn't know how to handle.
+                        case 500:
+                        // 502 Bad Gateway - The server is working as a gateway and got an invalid response needed to handle the request.
+                        case 502:
+                        // 503 Service Unavailable - The server is not ready to handle the request. It could be down for maintenance or just overloaded.
+                        case 503:
+                        // 504 Gateway Timeout - The server is acting as a gateway and cannot get a response in time.
+                        case 504: {
+                            retVal = true;
+                            break;
+                        }
+                        default: {
+                            // Look for any other status codes that should be retried for this service.
+                            const otherCodes = options.getRelevantOption(context, opts, "retryStatusCodes", serviceName);
+                            retVal = otherCodes && (otherCodes.length > 0) && (otherCodes.indexOf(error.statusCode) !== -1);
+                        }
                     }
                 }
-            }
 
-            // Add a log warning for the retry.
-            if (retVal) {
-                utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.message}));
+                // Add a log warning for the retry.
+                if (retVal) {
+                    utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.log ? error.log : error.message}));
+                }
             }
 
             return retVal;

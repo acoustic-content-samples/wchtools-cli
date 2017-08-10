@@ -320,6 +320,19 @@ After you disable auto-publishing, you may either invoke a publish manually with
   
   - See the Watson Content Hub online documentation for more information on Layout, Layout Mapping syntax and metadata supported, and the Publishing and Rendering documentation, for how these artifacts are combined during a publishing and rendering job, to generate HTML.
   
+#### Specifying maximum heap size
+  The maximum heap size used for the node process can be specified by setting an environment variable and running an alternate command provided with Watson Content Hub Developer Tools.  An alternate command "wchtools_heap" provides the ability to configure the maximum heap used by node.  To set the maximum heap, set the environment variable WCHTOOLS_MAX_HEAP to a numeric value, specified in megabytes.  For example, to use a 2GB heap, set WCHTOOLS_MAX_HEAP=2048.
+
+  On linux launch Watson Content Hub Developer Tools using:
+
+            export WCHTOOLS_MAX_HEAP=2048
+            wchtools_heap push ...
+  
+  On Windows launch Watson Content Hub Developer Tools using:
+  
+            set WCHTOOLS_MAX_HEAP=2048
+            wchtools_heap push ...
+
 #### Limitations
   The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
 

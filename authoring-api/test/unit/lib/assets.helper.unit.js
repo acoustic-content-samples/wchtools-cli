@@ -2228,11 +2228,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubPush = sinon.stub(assetsHelper, "pushItem");
                 stubPush.rejects(ASSET_ERROR);
 
-                // Create a spy that listens for the "pushed-error" event to be emitted.
-                const emitter = assetsHelper.getEventEmitter(context);
-                const spy = sinon.spy();
-                emitter.on("pushed-error", spy);
-
                 // Create a stub for assetsFS.isContentResource that returns false.
                 const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
                 stubIsContentResource.returns(false);
@@ -2254,12 +2249,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the helper stub was called once.
                         expect(stubPush).to.be.calledOnce;
-
-                        // Verify that the spy was called once and that the expected error is returned.
-                        expect(spy).to.be.calledOnce;
-                        expect(spy.firstCall.args[0].name).to.equal("Error");
-                        expect(spy.firstCall.args[0].message).to.equal(ASSET_ERROR);
-                        expect(spy.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HTML_1);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -2267,8 +2256,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         error = err;
                     })
                     .finally(function () {
-                        emitter.removeListener("pushed-error", spy);
-
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -2535,11 +2522,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubPush = sinon.stub(assetsHelper, "pushItem");
                 stubPush.rejects(ASSET_ERROR);
 
-                // Create a spy that listens for the "pushed-error" event to be emitted.
-                const emitter = assetsHelper.getEventEmitter(context);
-                const spy = sinon.spy();
-                emitter.on("pushed-error", spy);
-
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubPush);
@@ -2556,12 +2538,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the helper stub was called once.
                         expect(stubPush).to.be.calledOnce;
-
-                        // Verify that the spy was called once and that the expected error is returned.
-                        expect(spy).to.be.calledOnce;
-                        expect(spy.firstCall.args[0].name).to.equal("Error");
-                        expect(spy.firstCall.args[0].message).to.equal(ASSET_ERROR);
-                        expect(spy.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HTML_1);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -2569,8 +2545,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         error = err;
                     })
                     .finally(function () {
-                        emitter.removeListener("pushed-error", spy);
-
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });

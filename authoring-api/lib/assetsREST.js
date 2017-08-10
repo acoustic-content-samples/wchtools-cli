@@ -275,7 +275,12 @@ class AssetsREST extends BaseREST {
 
         // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
         const updateContentResource = isContentResource && !replaceContentResource && resourceId;
-        const resourceRequestOptions = updateContentResource ? this.getResourcePUTOptions(context, resourceId, resourceMd5, pathname, opts) : this.getResourcePOSTOptions(context, pathname, opts);
+
+        // Do not retry resource push requests. The stream passed in can only be read for the first request.
+        const rOpts = utils.cloneOpts(opts);
+        rOpts.retryMaxAttempts = 1;
+
+        const resourceRequestOptions = updateContentResource ? this.getResourcePUTOptions(context, resourceId, resourceMd5, pathname, rOpts) : this.getResourcePOSTOptions(context, pathname, rOpts);
 
         // Asset creation requires two steps.  POST/PUT the binary to resource service followed by pushing asset metadata to the asset service
         const deferred = Q.defer();

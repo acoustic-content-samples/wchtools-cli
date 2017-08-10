@@ -49,8 +49,4 @@ node_modules
 old/
 *-old/
 *-notrack/
-build/
-combo/
-reference/
 jscoverage_lib/
-temp/

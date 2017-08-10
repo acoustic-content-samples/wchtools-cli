@@ -54,6 +54,11 @@
   "please_try": "Riprovare in seguito.  Se il problema persiste, contattare il supporto clienti e includere le informazioni del log disponibili in %(log_dir)s",
   "conflict":"Il servizio ha riscontrato e restituito una condizione di errore durante l'elaborazione della richiesta per questa risorsa.",
   "login_missing_authn":"Il servizio di login non ha risposto con informazioni di autenticazione valide.",
-  "digest_mismatch": "digest %(cli_digest)s per richiamato %(asset)s non corrispondente al digest server %(server_digest)s."
+  "digest_mismatch": "digest %(cli_digest)s per richiamato %(asset)s non corrispondente al digest server %(server_digest)s.",
+  "retry_failed_request": "Una richiesta (%(id)d) non riuscita verrà ritentata. %(message)s",
+  "retry_failed_retry": "Una richiesta (%(id)d) ritentata (attempt %(attempt)d) non è riuscita entro il numero massimo di tentativi. %(message)s",
+  "retry_next_attempt": "Una richiesta (%(id)d) verrà ritentata (attempt %(attempt)d) in %(delay)d millisecondi.",
+  "retry_success": "Una richiesta (%(id)d) ritentata è riuscita dopo %(attempt)d tentativi.",
+  "retry_max_attempts": "Una richiesta (%(id)d) è stata ritentata il numero massimo di volte. "
 }
 

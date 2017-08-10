@@ -45,8 +45,8 @@
 
   "error_unsupported_endpoint": "O(s) %(service_name)s API não suporta(m) o(s) endpoint(s) %(endpoint)s.",
   "unknown_error": "Erros Desconhecido",
-  "service_unavailable": "Um serviço do IBM Watson Content Hub está indisponível atualmente.  ",
-  "service_error": "Um serviço do IBM Watson Content Hub está relatando dificuldades técnicas.  ",
+  "service_unavailable": "Um serviço IBM Watson Content Hub atualmente está indisponível.  ",
+  "service_error": "Um serviço IBM Watson Content Hub está relatando dificuldades técnicas.  ",
   "service_response_error": "Um serviço IBM Watson Content Hub retornou o código de erro %(code)d e mensagem de status: %(message)s",
   "operation_failed": "A operação falhou com o erro: ",
   "async_parallel_limit_error": "A chamada assíncrona parallelLimit falhou com o erro: ",
@@ -54,6 +54,11 @@
   "please_try": "Tente novamente posteriormente.  Se o problema persistir, entre em contato com o suporte ao cliente e inclua as informações de log disponíveis em %(log_dir)s",
   "conflict":"O serviço encontrou e retornou uma condição de erro ao processar a solicitação para esse artefato.",
   "login_missing_authn":"O serviço de login falhou ao responder com informações sobre autenticação válidas.",
-  "digest_mismatch": "A compilação %(cli_digest)s para o ativo puxado %(asset)s não corresponde à compilação de servidor %(server_digest)s."
+  "digest_mismatch": "A compilação %(cli_digest)s para o ativo puxado %(asset)s não corresponde à compilação de servidor %(server_digest)s.",
+  "retry_failed_request": "Uma solicitação (%(id)d) que falhou será tentada novamente. %(message)s",
+  "retry_failed_retry": "Uma solicitação (%(id)d) que foi tentada novamente (tentativa %(attempt)d) falhou antes do número máximo de novas tentativas. %(message)s",
+  "retry_next_attempt": "Uma solicitação (%(id)d) será tentada novamente (tentativa %(attempt)d) em %(delay)d milissegundos.",
+  "retry_success": "Uma solicitação (%(id)d) que foi tentada novamente foi bem-sucedida depois de %(attempt)d tentativas.",
+  "retry_max_attempts": "Uma solicitação (%(id)d) foi tentada novamente o número máximo de vezes."
 }
 

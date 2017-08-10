@@ -54,6 +54,11 @@
   "please_try": "請稍後重試。如果問題持續存在，請聯絡客戶支援中心，並包括 %(log_dir)s 中可用的日誌資訊",
   "conflict":"在處理此構件的要求時，此服務發現並傳回錯誤狀況。",
   "login_missing_authn":"登入服務無法進行有效的鑑別資訊回應。",
-  "digest_mismatch": "拉出的資產 %(asset)s 摘要 %(cli_digest)s 與伺服器摘要 %(server_digest)s 不相符。"
+  "digest_mismatch": "拉出的資產 %(asset)s 摘要 %(cli_digest)s 與伺服器摘要 %(server_digest)s 不相符。",
+  "retry_failed_request": "將重試失敗的要求 (%(id)d)。%(message)s",
+  "retry_failed_retry": "重試的要求 (%(id)d)（已嘗試 %(attempt)d 次）在重試次數上限之前失敗。%(message)s",
+  "retry_next_attempt": "將在 %(delay)d 毫秒內重試要求 (%(id)d)（已嘗試 %(attempt)d 次）。",
+  "retry_success": "重試的要求 (%(id)d) 在 %(attempt)d 次嘗試之後成功。",
+  "retry_max_attempts": "嘗試要求 (%(id)d) 的次數已達上限。"
 }
 
