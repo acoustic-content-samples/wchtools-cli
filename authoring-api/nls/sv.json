@@ -27,9 +27,9 @@
   "category_exists": "Det finns redan en kategori med namnet %(name)s.",
   "template_required": "Mall måste anges.",
   "cannot_get_asset": "Det går inte att hämta tillgång: %(path)s; statuskod: %(code)s",
-  "deleted_asset": "Borttagen tillgång med ID: %(id)s",
+  "deleted_asset": "Borttagen tillgång med IDt: %(id)s",
   "create_asset_metadata_error": "Fel vid skapande av tillgångsmetadata: ",
-  "deleted_item": "Borttaget objekt med ID: %(id)",
+  "deleted_item": "Borttaget objekt med IDt: %(id)",
   "get_item_error": "Fel vid hämtning av objektet %(service_name)s: ",
   "create_item_error": "Fel vid skapande av objektet %(service_name)s: ",
   "update_item_error": "Fel vid uppdatering av objektet %(service_name)s: ",
@@ -45,15 +45,20 @@
 
   "error_unsupported_endpoint": "%(service_name)s API hanterar inte %(endpoint)s slutpunkt.",
   "unknown_error": "Okänt fel",
-  "service_unavailable": "En IBM Watson Content Hub-tjänst är inte tillgänglig för närvarande. ",
-  "service_error": "En IBM Watson Content Hub-tjänst rapporterar tekniska svårigheter. ",
+  "service_unavailable": "En IBM Watson Content Hub-tjänst är inte tillgänglig för närvarande.  ",
+  "service_error": "En IBM Watson Content Hub-tjänst rapporterar tekniska svårigheter.  ",
   "service_response_error": "En IBM Watson Content Hub-tjänst returnerade felkoden %(code)d och statusmeddelandet: %(message)s",
   "operation_failed": "Åtgärden misslyckades med fel: ",
   "async_parallel_limit_error": "Asynkront parallelLimit-anrop misslyckades med fel: ",
   "async_parallel_limit_results": "Asynkrona parallelLimit-resultat: ",
-  "please_try": "Försök igen senare. Kontakta kundsupport och inkludera logginformationen som är tillgänglig på %(log_dir)s om problemet kvarstår",
+  "please_try": "Försök igen senare.  Kontakta kundsupport och inkludera logginformationen som är tillgänglig på %(log_dir)s om problemet kvarstår",
   "conflict":"Tjänsten påträffade och returnerade ett feltillstånd under bearbetning av begäran för den här artefakten.",
   "login_missing_authn":"Inloggningstjänsten misslyckades med att svara med giltig autentiseringsinformation.",
-  "digest_mismatch": "kondensatet %(cli_kondensat) för hämtad tillgång %(asset)s matchar inte serverns kondensat %(server_digest)s."
+  "digest_mismatch": "kondensatet %(cli_kondensat) för hämtad tillgång %(asset)s matchar inte serverns kondensat %(server_digest)s.",
+  "retry_failed_request": "Nytt försök kommer att göras för en begäran (%(id)d) som misslyckades. %(message)s",
+  "retry_failed_retry": "Ett nytt försök att utföra begäran(%(id)d) (omförsök %(attempt)d) misslyckades före det maximala antalet omförsök. %(message)s",
+  "retry_next_attempt": "Ett nytt försök att utföra begäran (%(id)d) (försök %(attempt)d) kommer att göras inom %(delay)d millisekunder.",
+  "retry_success": "Ett nytt försök att utföra en begäran (%(id)d) lyckades efter %(attempt)d försök.",
+  "retry_max_attempts": "Nya försök att utföra en begäran (%(id)d) har gjorts det maximala antalet gånger."
 }
 

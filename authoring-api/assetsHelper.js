@@ -531,19 +531,12 @@ class AssetsHelper {
             .then(function (promises) {
                 // Keep track of the assets that were successfully pushed, and emit a "pushed-error" event for the others.
                 const assets = [];
-                promises.forEach(function (promise, index) {
+                promises.forEach(function (promise) {
                     if (promise.state === "fulfilled") {
-                        const logger = helper.getLogger(context);
-                        logger.trace("Pushed: " + JSON.stringify(promise.value));
                         assets.push(promise.value);
                     }
                     else {
-
-                        // Rejected promises are logged by throttledAll(), so just emit the error event.
-                        const emitter = helper.getEventEmitter(context);
-                        if (emitter) {
-                            emitter.emit("pushed-error", promise.reason, paths[index]);
-                        }
+                        // Rejected promises are logged by throttledAll(), so just determine the error count.
                         errorCount++;
                     }
                 });
@@ -621,12 +614,6 @@ class AssetsHelper {
                         // Push the asset to the content hub.
                         helper._restApi.pushItem(context, isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
                             .then(function (asset) {
-                                // The push succeeded so emit a "pushed" event.
-                                const emitter = helper.getEventEmitter(context);
-                                if (emitter) {
-                                    emitter.emit("pushed", path);
-                                }
-
                                 // Save the asset metadata to a local file.
                                 const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
                                 if (isContentResource && rewriteOnPush) {
@@ -648,6 +635,12 @@ class AssetsHelper {
                                 // Update the hashes for the pushed asset.
                                 const assetPath = helper._fsApi.getPath(context, asset.path, opts);
                                 hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), assetPath, asset, opts);
+
+                                // The push succeeded so emit a "pushed" event.
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("pushed", path);
+                                }
                             })
                             .catch(function (err) {
                                 // Failed to push the asset file, so explicitly close the read stream.
@@ -662,6 +655,12 @@ class AssetsHelper {
                                         });
                                 } else {
                                     deferred.reject(err);
+                                }
+
+                                // The push failed so emit a "pushed-error" event.
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("pushed-error", err, path);
                                 }
                             });
                     })

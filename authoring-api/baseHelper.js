@@ -966,7 +966,7 @@ class BaseHelper {
 
                                 // Log a warning that the push of this item will be retried.
                                 const error = item[BaseHelper.RETRY_PUSH_ITEM_ERROR];
-                                utils.logWarnings(context, i18n.__("pushed_item_retry" , {name: name, message: error.message}));
+                                utils.logWarnings(context, i18n.__("pushed_item_retry" , {name: name, message: error.log ? error.log : error.message}));
                             });
 
                             // Initialize the retry values and then push the items in the list.

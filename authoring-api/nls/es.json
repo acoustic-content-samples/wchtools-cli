@@ -54,6 +54,11 @@
   "please_try": "Vuelva a intentarlo más tarde.  Si el problema persiste, póngase en contacto con soporte al cliente e incluya la información de registro disponible en %(log_dir)s",
   "conflict":"El servicio ha detectado y devuelto una condición de error al procesar la solicitud para este artefacto.",
   "login_missing_authn":"El servicio de inicio de sesión no ha podido responder con información de autenticación válida.",
-  "digest_mismatch": "El resumen %(cli_digest)s del activo extraído %(asset)s no coincide con el resumen del servidor %(server_digest)s."
+  "digest_mismatch": "El resumen %(cli_digest)s del activo extraído %(asset)s no coincide con el resumen del servidor %(server_digest)s.",
+  "retry_failed_request": "Una solicitud (%(id)d) que ha fallado se reintentará. %(message)s",
+  "retry_failed_retry": "Una solicitud (%(id)d) que se ha reintentado (attempt %(attempt)d) ha fallado antes de alcanzar el número máximo de reintentos. %(message)s",
+  "retry_next_attempt": "Una solicitud (%(id)d) se reintentará (attempt %(attempt)d) dentro de %(delay)d milisegundos.",
+  "retry_success": "Una solicitud (%(id)d) que se ha reintentado ha finalizado correctamente después de %(attempt)d intentos.",
+  "retry_max_attempts": "Una solicitud (%(id)d) se ha reintentado el número máximo de reintentos. "
 }
 

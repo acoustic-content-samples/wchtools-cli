@@ -123,14 +123,16 @@ function getBaseUrl (context, opts) {
  *
  * @private
  */
-function getTenantKey (context, tenantMap, opts) {
+function getTenantKey (context, basePath, opts) {
     let tenantKey = getTenantID(context, opts);
     const tenantBaseUrl = getBaseUrl(context, opts);
     if (!tenantKey && tenantBaseUrl) {
         // attempt to find tenantKey from stored mapping of baseUrls to tenantIDs
-        Object.keys(tenantMap).forEach(function (key) {
-            if (tenantMap[key] && tenantMap[key].baseUrls) {
-                tenantMap[key].baseUrls.forEach(function (baseUrl) {
+        const tenantsMap = context.hashes[basePath];
+        Object.keys(tenantsMap).forEach(function (key) {
+            const tenant = tenantsMap[key];
+            if (tenant && tenant.baseUrls) {
+                tenant.baseUrls.forEach(function (baseUrl) {
                     if (baseUrl === tenantBaseUrl) {
                         tenantKey = key;
                     }
@@ -155,17 +157,27 @@ function getTenantKey (context, tenantMap, opts) {
  * @private
  */
 function loadTenantMap (context, basePath) {
-    let tenantMap = {};
-    const hashesFilename = getHashesFilename(basePath);
-    try {
-        // Read the tenant map from the hashes file at the specified location, if it exists.
-        if (fs.existsSync(hashesFilename)) {
-            const contents = fs.readFileSync(hashesFilename);
-            tenantMap = JSON.parse(contents);
+    if (!context.hashes) {
+        context.hashes = {};
+    }
+    let tenantMap = context.hashes[basePath];
+    if (!tenantMap) {
+        tenantMap = {};
+        const hashesFilename = getHashesFilename(basePath);
+        try {
+            // Read the tenant map from the hashes file at the specified location, if it exists.
+            if (fs.existsSync(hashesFilename)) {
+                const contents = fs.readFileSync(hashesFilename);
+                tenantMap = JSON.parse(contents);
+                // Initialize the update count to 0 and the last update timestamp to now.
+                tenantMap.updateCount = 0;
+                tenantMap.updateTS = Date.now();
+            }
+        } catch (err) {
+            // Log the error and return an empty tenant map.
+            utils.logErrors(context, i18n.__("error_tenant_map"), err);
         }
-    } catch (err) {
-        // Log the error and return an empty tenant map.
-        utils.logErrors(context, i18n.__("error_tenant_map"), err);
+        context.hashes[basePath] = tenantMap;
     }
     return tenantMap;
 }
@@ -183,7 +195,7 @@ function loadTenantMap (context, basePath) {
  */
 function loadHashes (context, basePath, opts) {
     const tenantMap = loadTenantMap(context, basePath);
-    return tenantMap[getTenantKey(context, tenantMap, opts)] || {};
+    return tenantMap[getTenantKey(context, basePath, opts)] || {};
 }
 
 /**
@@ -213,6 +225,37 @@ function updateBaseUrls (context, hashMap, opts) {
 }
 
 /**
+ * Performs cleanup actions when the process exits.
+ * @param context The current API context.
+ */
+function exitHandler(context) {
+    // Iterate each basePath that is in the context.hashes object and save it.
+    Object.keys(context.hashes).forEach(function (basePath) {
+        writeHashes(basePath, context.hashes[basePath]);
+    });
+}
+
+/**
+ * Performs a synchronous write of the speficied tenantMap to the hashes file at the specified basePath.
+ * 
+ * @param basePath The path where the hashes file is located.
+ * @param tenantMap The tenant map to write.
+ */
+function writeHashes (basePath, tenantMap) {
+    // If the directory doesn't exist, there is nothing to push or pull so don't bother to save the hashes.
+    if (fs.existsSync(basePath)) {
+        const contents = JSON.stringify(tenantMap, null, "");
+
+        // Write the modified tenant map to the hashes file.
+        const hashesFilename = getHashesFilename(basePath);
+        fs.writeFileSync(hashesFilename, contents);
+        // Reset the update count to 0 and the last update timestamp to now.
+        tenantMap.updateCount = 0;
+        tenantMap.updateTS = Date.now();
+    }
+}
+
+/**
  * Save the given tenant metadata to the hashes file at the given location.
  *
  * @param {Object} context The current API context.
@@ -225,17 +268,37 @@ function updateBaseUrls (context, hashMap, opts) {
  * @private
  */
 function saveHashes (context, basePath, hashMap, opts) {
-    const hashesFilename = getHashesFilename(basePath);
     try {
         const tenantMap = loadTenantMap(context, basePath);
         updateBaseUrls(context, hashMap, opts);
-        tenantMap[getTenantKey(context, tenantMap, opts)] = hashMap;
-        const contents = JSON.stringify(tenantMap, null, "  ");
+        tenantMap[getTenantKey(context, basePath, opts)] = hashMap;
 
-        // If the directory doesn't exist, there is nothing to push or pull so don't bother to save the hashes.
-        if (fs.existsSync(basePath)) {
-            // Write the modified tenant map to the hashes file.
-            fs.writeFileSync(hashesFilename, contents);
+        if (!context.hashesExitSetup) {
+            // Increment the max listeners for the process EventEmitter so we aren't warned about a possible leak.
+            process.setMaxListeners(process.getMaxListeners() + 1);
+
+            // Cleanup on exit.
+            process.on('exit', exitHandler.bind(null, context));
+
+            // Cleanup when Ctrl+C is caught.
+            process.on('SIGINT', exitHandler.bind(null, context));
+
+            // Cleanup on uncaught exceptions.
+            process.on('uncaughtException', exitHandler.bind(null, context));
+
+            // Set the flag so we only do this once.
+            context.hashesExitSetup = true;
+        }
+
+        tenantMap.updateCount = tenantMap.updateCount || 0;
+        tenantMap.updateTS = tenantMap.updateTS || Date.now();
+        tenantMap.updateCount++;
+        const hashesWriteThreshold = options.getRelevantOption(context, opts, "hashesWriteThreshold") || 25;
+        const hashesWriteMaxTime = options.getRelevantOption(context, opts, "hashesWriteMaxTime") || 60000;
+        if (((hashesWriteThreshold === -1) && (hashesWriteMaxTime === -1)) ||
+            ((hashesWriteThreshold !== -1) && (tenantMap.updateCount > hashesWriteThreshold)) ||
+            ((hashesWriteMaxTime !== -1) && (Date.now() - tenantMap.updateTS > hashesWriteMaxTime))) {
+            writeHashes(basePath, tenantMap);
         }
 
         // Return the tenant map that was written to the hashes file.
@@ -302,7 +365,7 @@ function updateHashes (context, basePath, filePath, item, opts) {
             // Remove any stale entries for the current tenant (same unique path as the entry being updated).
             Object.keys(hashMap).forEach(function (key) {
                 if (hashMap[key].path === relative) {
-                    hashMap[key] = undefined;
+                    delete hashMap[key];
                 }
             });
 
@@ -353,7 +416,7 @@ function removeHashes (context, basePath, ids, opts) {
                     // Remove all matching entries for the current tenant (same unique path as the entry being removed).
                     Object.keys(hashMap).forEach(function (key) {
                         if (hashMap[key].path === entry.path) {
-                            hashMap[key] = undefined;
+                            delete hashMap[key];
                         }
                     });
                 }

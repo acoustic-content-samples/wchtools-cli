@@ -187,8 +187,8 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test push no items ignore timestamps", function (done) {
-                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pushModifiedItems", function () {
+                // Stub the helper.pushAllItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushAllItems", function () {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
@@ -207,6 +207,7 @@ class PushUnitTest extends UnitTest {
                     .then(function (msg) {
                         // Verify that the expected error was specified.
                         expect(msg).to.contain("No items to be pushed");
+                        expect(stub).to.have.been.calledOnce;
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -243,6 +244,7 @@ class PushUnitTest extends UnitTest {
                     .then(function (msg) {
                         // Verify that the expected error was specified.
                         expect(msg).to.contain("nothing has been modified locally");
+                        expect(stub).to.have.been.calledOnce;
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

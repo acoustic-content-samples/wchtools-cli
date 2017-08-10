@@ -54,6 +54,11 @@
   "please_try": "Essayez à nouveau ultérieurement.  Si le problème persiste, contactez le service clients et incluez les informations de journal disponibles dans %(log_dir)s",
   "conflict":"Le service a rencontré et renvoyé une condition d'erreur lors du traitement de la demande pour cet artefact.",
   "login_missing_authn":"Le service de connexion n'a pas réussi à répondre avec des informations d'authentification valides.",
-  "digest_mismatch": "Le prétraitement %(cli_digest)s de l'actif %(asset)s extrait ne correspond pas au prétraitement du serveur %(server_digest)s."
+  "digest_mismatch": "Le prétraitement %(cli_digest)s de l'actif %(asset)s extrait ne correspond pas au prétraitement du serveur %(server_digest)s.",
+  "retry_failed_request": "Une demande (%(id)d) ayant échoué sera renouvelée. %(message)s",
+  "retry_failed_retry": "Une demande (%(id)d) renouvelée (tentative %(attempt)d) a échoué avant que le nombre maximal de tentatives n'ait été atteint. %(message)s",
+  "retry_next_attempt": "Une demande (%(id)d) sera renouvelée (tentative %(attempt)d) dans %(delay)d millisecondes.",
+  "retry_success": "Une demande (%(id)d) renouvelée a abouti après %(attempt)d tentatives.",
+  "retry_max_attempts": "Une demande (%(id)d) a été renouvelée autant de fois que possible. "
 }
 

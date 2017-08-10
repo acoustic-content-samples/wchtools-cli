@@ -54,6 +54,11 @@
   "please_try": "请稍后重试。如果问题仍然存在，请联系客户支持人员，同时提供位于 %(log_dir)s 的日志信息",
   "conflict":"服务在处理此工件的请求时，遇到并返回了错误状况。",
   "login_missing_authn":"登录服务无法以有效的认证信息进行响应。",
-  "digest_mismatch": "拉取的资产 %(asset)s 摘要 %(cli_digest)s 与服务器 %(server_digest)s 摘要不匹配。"
+  "digest_mismatch": "拉取的资产 %(asset)s 摘要 %(cli_digest)s 与服务器 %(server_digest)s 摘要不匹配。",
+  "retry_failed_request": "将重试失败的请求 (%(id)d)。%(message)s",
+  "retry_failed_retry": "重试 (attempt %(attempt)d) 次的请求 (%(id)d) 在达到最大重试次数之前即失败。%(message)s",
+  "retry_next_attempt": "将在 %(delay)d 毫秒内重试 (attempt %(attempt)d) 次请求 (%(id)d)。",
+  "retry_success": "重试的请求 (%(id)d) 在 %(attempt)d 次重试后成功。",
+  "retry_max_attempts": "已重试请求 (%(id)d) 达最大次数。"
 }
 

@@ -1,5 +1,12 @@
 # Changelog
 
+### v1.4.11 changes since 1.4
+
+  - Improved efficiency of metadata tracking for the pushed and pulled artifacts, to reduce CPU and disk I/O for working dirs with large numbers of artifacts
+  - Improved output message when wchtools publish --status gets no publishing jobs back from the publishing jobs service endpoint
+  - Avoid losing the original error message, when an asset upload fails while pushing the actual file to the resource endpoint.
+  - Add alternate wchtools script, for launching node with a non-default (i.e. larger) maximum heap.  See Readme.md for more details
+
 ### v1.4 Changes since 1.3
 
   - Improved publish --status command output to include publishing site revision state, in addition to most recent or specified publishing job status
