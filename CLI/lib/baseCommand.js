@@ -275,6 +275,8 @@ class BaseCommand {
             this.setCommandLineOption("categories", true);
             this.setCommandLineOption("renditions", true);
             this.setCommandLineOption("imageProfiles", true);
+            this.setCommandLineOption("sites", true);
+            this.setCommandLineOption("pages", true);
         }
 
         // Determine the number of artifact types that have been set.
@@ -313,6 +315,12 @@ class BaseCommand {
             this._optionArtifactCount++;
         }
         if (this.getCommandLineOption("imageProfiles")) {
+            this._optionArtifactCount++;
+        }
+        if (this.getCommandLineOption("sites")) {
+            this._optionArtifactCount++;
+        }
+        if (this.getCommandLineOption("pages")) {
             this._optionArtifactCount++;
         }
 

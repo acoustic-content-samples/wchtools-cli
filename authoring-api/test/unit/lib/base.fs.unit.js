@@ -28,6 +28,7 @@ const sinon = require("sinon");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const mkdirp = require('mkdirp');
+const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
 
 // Test "stats" data.
 const DUMMY_DATE = new Date("Mon, 10 Oct 2011 23:24:11 GMT");
@@ -56,7 +57,7 @@ class BaseFsApiUnitTest extends UnitTest {
         super();
     }
 
-    run (fsApi, fsName,itemName1, itemName2) {
+    run (fsApi, fsName, itemName1, itemName2) {
         const self = this;
         describe("Unit tests for FS " +fsName, function () {
             let stubSync;
@@ -96,25 +97,26 @@ class BaseFsApiUnitTest extends UnitTest {
             });
 
             // Run each of the tests defined in this class.
-            self.testSingleton(fsApi, fsName,itemName1, itemName2);
-            self.testGetItem(fsApi, fsName,itemName1, itemName2);
-            self.testGetFileStats(fsApi, fsName,itemName1, itemName2);
-            self.testGetPath(fsApi, fsName,itemName1, itemName2);
-            self.testSaveItem(fsApi, fsName,itemName1, itemName2);
-            self.testListNames(fsApi, fsName,itemName1, itemName2);
-            self.testGetItems(fsApi, fsName,itemName1, itemName2);
+            self.testSingleton(fsApi, fsName, itemName1, itemName2);
+            self.testGetItem(fsApi, fsName, itemName1, itemName2);
+            self.testGetFileStats(fsApi, fsName, itemName1, itemName2);
+            self.testGetPath(fsApi, fsName, itemName1, itemName2);
+            self.testHandleRename(fsApi, fsName, itemName1, itemName2);
+            self.testSaveItem(fsApi, fsName, itemName1, itemName2);
+            self.testListNames(fsApi, fsName, itemName1, itemName2);
+            self.testGetItems(fsApi, fsName, itemName1, itemName2);
         });
     }
 
-    testSingleton (fsApi, fsName,itemName1, itemName2) {
+    testSingleton (fsApi, fsName, itemName1, itemName2) {
         describe("is a singleton", function () {
             it("should fail if try to create a fsAPI Type", function (done) {
-                BaseFsApiUnitTest.singletonCreate(fsApi, fsName,itemName1, itemName2,done);
+                BaseFsApiUnitTest.singletonCreate(fsApi, fsName, itemName1, itemName2,done);
             });
         });
     }
 
-    static singletonCreate (fsApi, fsName,itemName1, itemName2, done) {
+    static singletonCreate (fsApi, fsName, itemName1, itemName2, done) {
         let error;
         try {
             const api = new fsApi.constructor();
@@ -161,6 +163,41 @@ class BaseFsApiUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if the file has no contents", function (done) {
+                // Create a stub for fs.readFile to return an invalid JSON string.
+                const stub = sinon.stub(fs, "readFile");
+                stub.yields(null, null);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                fsApi.getItem(context, itemName2, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once with the specified asset path.
+                            expect(stub).to.have.been.calledOnce;
+                            expect(stub.firstCall.args[0]).to.contain(itemName2);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain("Error parsing item");
+                            expect(err.message).to.contain("null");
+                        } catch (err) {
+                            error = err;
+                        }
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -232,21 +269,21 @@ class BaseFsApiUnitTest extends UnitTest {
         });
     }
 
-    testGetFileStats (fsApi, fsName,itemName1, itemName2) {
+    testGetFileStats (fsApi, fsName, itemName1, itemName2) {
         const self = this;
 
         describe("getFileStats", function () {
             it("should fail when getting stats the fails with an error", function (done) {
-                self.getFileStatsError(fsApi, fsName,itemName1, itemName2 , done);
+                self.getFileStatsError(fsApi, fsName, itemName1, itemName2 , done);
             });
 
             it("should succeed when getting stats for a valid item", function (done) {
-                self.getFileStatsSuccess(fsApi, fsName,itemName1, itemName2 , done);
+                self.getFileStatsSuccess(fsApi, fsName, itemName1, itemName2 , done);
             });
         });
     }
 
-    getFileStatsError (fsApi, fsName,itemName1, itemName2, done) {
+    getFileStatsError (fsApi, fsName, itemName1, itemName2, done) {
         // Create a stub for fs.stat to return an error.
         const ITEM_ERROR = "Error getting the item stats.";
         const stub = sinon.stub(fs, "stat");
@@ -283,7 +320,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    getFileStatsSuccess (fsApi, fsName,itemName1, itemName2, done) {
+    getFileStatsSuccess (fsApi, fsName, itemName1, itemName2, done) {
         // Create a stub for fs.stat to return a stats object.
         const stub = sinon.stub(fs, "stat");
         const err = null;
@@ -315,7 +352,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     };
 
-    testGetPath (fsApi, fsName,itemName1, itemName2) {
+    testGetPath (fsApi, fsName, itemName1, itemName2) {
         const self = this;
         describe("getPath", function () {
             // Restore options before running the unit tests.
@@ -335,12 +372,12 @@ class BaseFsApiUnitTest extends UnitTest {
             });
 
             it("should succeed when setting a new working directory", function (done) {
-                self.getPathSuccess(fsApi, fsName,itemName1, itemName2 , done);
+                self.getPathSuccess(fsApi, fsName, itemName1, itemName2 , done);
             });
         });
     }
 
-    getPathSuccess (fsApi, fsName,itemName1, itemName2, done) {
+    getPathSuccess (fsApi, fsName, itemName1, itemName2, done) {
         // Before setting the new working directory, the item path should not contain that directory.
         expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
 
@@ -350,28 +387,167 @@ class BaseFsApiUnitTest extends UnitTest {
         done();
     }
 
-    testSaveItem (fsApi, fsName,itemName1, itemName2) {
+    testHandleRename (fsApi, fsName, itemName1, itemName2) {
         const self = this;
-        describe("pushItem", function() {
+        describe("handleRename", function() {
+            it("should not delete old file if new file exists", function (done) {
+                self.handleRenameNewFileExists(fsApi, fsName, itemName1, itemName2 , done);
+            });
+
+            it("should not delete old file if no original push file name", function (done) {
+                self.handleRenameNoPushFileName(fsApi, fsName, itemName1, itemName2 , done);
+            });
+
+            it("should not delete old file if old file does not exist", function (done) {
+                self.handleRenameNoOldFile(fsApi, fsName, itemName1, itemName2 , done);
+            });
+
+            it("should delete old file if all conditions met", function (done) {
+                self.handleRenameDeleteOldFile(fsApi, fsName, itemName1, itemName2 , done);
+            });
+        });
+    }
+
+    handleRenameNewFileExists (fsApi, fsName, itemName1, itemName2, done) {
+        // Create a stub for fs.existsSync that will return true.
+        const stub = sinon.stub(fs, "existsSync");
+        stub.returns(true);
+
+        // Create a spy for fs.unlinkSync to verify that it was not called.
+        const spy = sinon.spy(fs, "unlinkSync");
+
+        // The stub and spy should be restored when the test is complete.
+        this.addTestDouble(stub);
+        this.addTestDouble(spy);
+
+        // Call the method being tested.
+        let error;
+        try {
+            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS);
+
+            expect(stub).to.have.been.calledOnce;
+            expect(spy).to.not.have.been.called;
+        } catch (err) {
+            // This is not expected. Pass the error to the "done" function to indicate a failed test.
+            error = err;
+        } finally {
+            // Call mocha's done function to indicate that the test is over.
+            done(error);
+        }
+    }
+
+    handleRenameNoPushFileName (fsApi, fsName, itemName1, itemName2, done) {
+        // Create a stub for fs.existsSync that will return false.
+        const stub = sinon.stub(fs, "existsSync");
+        stub.returns(false);
+
+        // Create a spy for fs.unlinkSync to verify that it was not called.
+        const spy = sinon.spy(fs, "unlinkSync");
+
+        // The stub and spy should be restored when the test is complete.
+        this.addTestDouble(stub);
+        this.addTestDouble(spy);
+
+        // Call the method being tested.
+        let error;
+        try {
+            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {originalPushFileName: ""});
+
+            expect(stub).to.have.been.calledOnce;
+            expect(spy).to.not.have.been.called;
+        } catch (err) {
+            // This is not expected. Pass the error to the "done" function to indicate a failed test.
+            error = err;
+        } finally {
+            // Call mocha's done function to indicate that the test is over.
+            done(error);
+        }
+    }
+
+    handleRenameNoOldFile (fsApi, fsName, itemName1, itemName2, done) {
+        // Create a stub for fs.existsSync that will return false.
+        const stub = sinon.stub(fs, "existsSync");
+        stub.onFirstCall().returns(false);
+        stub.onSecondCall().returns(false);
+
+        // Create a spy for fs.unlinkSync to verify that it was not called.
+        const spy = sinon.spy(fs, "unlinkSync");
+
+        // The stub and spy should be restored when the test is complete.
+        this.addTestDouble(stub);
+        this.addTestDouble(spy);
+
+        // Call the method being tested.
+        let error;
+        try {
+            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {originalPushFileName: UnitTest.DUMMY_NAME});
+
+            expect(stub).to.have.been.calledTwice;
+            expect(spy).to.not.have.been.called;
+        } catch (err) {
+            // This is not expected. Pass the error to the "done" function to indicate a failed test.
+            error = err;
+        } finally {
+            // Call mocha's done function to indicate that the test is over.
+            done(error);
+        }
+    }
+
+    handleRenameDeleteOldFile (fsApi, fsName, itemName1, itemName2, done) {
+        // Create a stub for fs.existsSync that will return false for the new file and true for the old file.
+        const stubExists = sinon.stub(fs, "existsSync");
+        stubExists.onFirstCall().returns(false);
+        stubExists.onSecondCall().returns(true);
+
+        // Create a stub for fs.unlinkSync to do nothing.
+        const stubUnlink = sinon.stub(fs, "unlinkSync");
+
+        // The stubs should be restored when the test is complete.
+        this.addTestDouble(stubExists);
+        this.addTestDouble(stubUnlink);
+
+        // Call the method being tested.
+        let error;
+        try {
+            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {originalPushFileName: UnitTest.DUMMY_NAME});
+
+            expect(stubExists).to.have.been.calledTwice;
+            expect(stubUnlink).to.have.been.calledOnce;
+        } catch (err) {
+            // This is not expected. Pass the error to the "done" function to indicate a failed test.
+            error = err;
+        } finally {
+            // Call mocha's done function to indicate that the test is over.
+            done(error);
+        }
+    }
+
+    testSaveItem (fsApi, fsName, itemName1, itemName2) {
+        const self = this;
+        describe("saveItem", function() {
             it("should fail when the filename is invalid", function (done) {
                 self.saveItemBadFileName(fsApi, fsName, itemName1, itemName2 , done);
             });
 
             it("should fail when creating the new item directory fails", function (done) {
-                self.saveItemDirectoryError(fsApi, fsName,itemName1, itemName2 , done);
+                self.saveItemDirectoryError(fsApi, fsName, itemName1, itemName2 , done);
             });
 
             it("should fail when saving the new item file fails", function (done) {
-                self.saveItemFileError(fsApi, fsName,itemName1, itemName2 , done);
+                self.saveItemFileError(fsApi, fsName, itemName1, itemName2 , done);
+            });
+
+            it("should succeed when the new item has a conflict", function (done) {
+                self.saveItemConflict(fsApi, fsName, itemName1, itemName2 , done);
             });
 
             it("should succeed when saving the new item file succeeds", function (done) {
-                self.saveItemSuccess(fsApi, fsName,itemName1, itemName2 , done);
+                self.saveItemSuccess(fsApi, fsName, itemName1, itemName2 , done);
             });
         });
     }
 
-    saveItemBadFileName (fsApi, fsName,itemName1, itemName2, done) {
+    saveItemBadFileName (fsApi, fsName, itemName1, itemName2, done) {
         // Call the method being tested.
         let error;
         const INVALID_NAME = "http://foo.com/bar";
@@ -395,7 +571,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    saveItemDirectoryError (fsApi, fsName,itemName1, itemName2, done) {
+    saveItemDirectoryError (fsApi, fsName, itemName1, itemName2, done) {
         // Create a stub for mkdirp.mkdirp to return an error.
         const DIR_ERROR = "Error creating the new item directory.";
         const stub = sinon.stub(mkdirp, "mkdirp");
@@ -430,7 +606,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    saveItemFileError (fsApi, fsName,itemName1, itemName2, done) {
+    saveItemFileError (fsApi, fsName, itemName1, itemName2, done) {
         // Create a stub for mkdirp.mkdirp that just continues on without an error.
         const stubDir = sinon.stub(mkdirp, "mkdirp");
         stubDir.yields();
@@ -471,7 +647,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    saveItemSuccess (fsApi, fsName,itemName1, itemName2, done) {
+    saveItemConflict (fsApi, fsName, itemName1, itemName2, done) {
         // Create a stub for mkdirp.mkdirp that just continues on without an error.
         const stubDir = sinon.stub(mkdirp, "mkdirp");
         stubDir.yields();
@@ -479,9 +655,52 @@ class BaseFsApiUnitTest extends UnitTest {
         // Create a stub for fs.writeFileSync that just continues on without an error.
         const stubFile = sinon.stub(fs, "writeFileSync");
 
+        // Create a stub for hashes.updateHashes that just continues on without an error.
+        const stubHashes = sinon.stub(hashes, "updateHashes");
+
         // The stubs should be restored when the test is complete.
         this.addTestDouble(stubDir);
         this.addTestDouble(stubFile);
+        this.addTestDouble(stubHashes);
+
+        // Call the method being tested.
+        let error;
+        fsApi.saveItem(context, {id: "test", name: itemName1}, {"conflict": true})
+            .then(function (content) {
+                // Verify that the stubs were each called as expected.
+                expect(stubDir).to.have.been.calledOnce;
+                expect(stubFile).to.have.been.calledOnce;
+                expect(stubHashes).to.not.have.been.called;
+
+                // Verify that the expected values are returned.
+                expect(content.name).to.equal(itemName1);
+            })
+            .catch (function (err) {
+                // NOTE: A failed expectation from above will be handled here.
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    }
+
+    saveItemSuccess (fsApi, fsName, itemName1, itemName2, done) {
+        // Create a stub for mkdirp.mkdirp that just continues on without an error.
+        const stubDir = sinon.stub(mkdirp, "mkdirp");
+        stubDir.yields();
+
+        // Create a stub for fs.writeFileSync that just continues on without an error.
+        const stubFile = sinon.stub(fs, "writeFileSync");
+
+        // Create a stub for hashes.updateHashes that just continues on without an error.
+        const stubHashes = sinon.stub(hashes, "updateHashes");
+
+        // The stubs should be restored when the test is complete.
+        this.addTestDouble(stubDir);
+        this.addTestDouble(stubFile);
+        this.addTestDouble(stubHashes);
 
         // Call the method being tested.
         let error;
@@ -490,6 +709,7 @@ class BaseFsApiUnitTest extends UnitTest {
                 // Verify that the stubs were each called once.
                 expect(stubDir).to.have.been.calledOnce;
                 expect(stubFile).to.have.been.calledOnce;
+                expect(stubHashes).to.have.been.calledOnce;
 
                 // Verify that the expected values are returned.
                 expect(content).to.equal(itemName1);
@@ -505,20 +725,57 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    testListNames (fsApi, fsName,itemName1, itemName2) {
+    testListNames (fsApi, fsName, itemName1, itemName2) {
         const self = this;
         describe("listNames", function () {
+            it("should fail when the path doesn't exist", function (done) {
+                self.listNamesPathNotFound(fsApi, fsName, itemName1, itemName2 , done);
+            });
+
             it("should fail when getting the item names fails", function (done) {
-                self.listNamesReadError(fsApi, fsName,itemName1, itemName2 , done);
+                self.listNamesReadError(fsApi, fsName, itemName1, itemName2 , done);
             });
 
             it("should succeed when getting item names", function (done) {
-                self.listNamesSuccess(fsApi, fsName,itemName1, itemName2 , done);
+                self.listNamesSuccess(fsApi, fsName, itemName1, itemName2 , done);
             });
         });
     }
 
-    listNamesReadError (fsApi, fsName,itemName1, itemName2, done) {
+    listNamesPathNotFound (fsApi, fsName, itemName1, itemName2, done) {
+        // Create a stub for fs.existsSync that will return false.
+        const stubExists = sinon.stub(fs, "existsSync");
+        stubExists.returns(false);
+
+        // The stub should be restored when the test is complete.
+        this.addTestDouble(stubExists);
+
+        // Call the method being tested.
+        let error;
+        fsApi.listNames(context, UnitTest.DUMMY_OPTIONS)
+            .then(function (paths) {
+                // Verify that the stub was called once.
+                expect(stubExists).to.have.been.calledOnce;
+
+                // Verify that the expected values are returned.
+                expect(paths).to.have.lengthOf(0);
+            })
+            .catch (function (err) {
+                // NOTE: A failed expectation from above will be handled here.
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // noinspection JSUnresolvedFunction
+                // Restore the default options.
+                UnitTest.restoreOptions(context);
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    }
+
+    listNamesReadError (fsApi, fsName, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
         stubExists.returns(true);
@@ -609,6 +866,45 @@ class BaseFsApiUnitTest extends UnitTest {
                 stubList.resolves([itemName1, itemName2]);
 
                 const stubGet = sinon.stub(fsApi, "getItem");
+                const GET_ERROR = "There was an error getting the local item.";
+                stubGet.onFirstCall().resolves(UnitTest.DUMMY_METADATA);
+                stubGet.onSecondCall().rejects(GET_ERROR);
+
+                self.addTestDouble(stubList);
+                self.addTestDouble(stubGet);
+
+                // Call the method being tested.
+                let error;
+                fsApi.getItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (items) {
+                        // Verify that the list stub was called once and the get stub was called twice.
+                        expect(stubList).to.have.been.calledOnce;
+                        expect(stubGet).to.have.been.calledTwice;
+
+                        // Verify that the expected number of items was returned.
+                        expect(items).to.have.lengthOf(1);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // noinspection JSUnresolvedFunction
+                        // Restore the default options.
+                        UnitTest.restoreOptions(context);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting item names", function (done) {
+                // Create a stub that will return a list of item names from listNames.
+                const stubList = sinon.stub(fsApi, "listNames");
+                stubList.resolves([itemName1, itemName2]);
+
+                const stubGet = sinon.stub(fsApi, "getItem");
                 stubGet.resolves(UnitTest.DUMMY_METADATA);
 
                 self.addTestDouble(stubList);
@@ -623,7 +919,7 @@ class BaseFsApiUnitTest extends UnitTest {
                         expect(stubGet).to.have.been.calledTwice;
 
                         // Verify that the expected number of items was returned.
-                        expect(items).to.lengthOf(2);
+                        expect(items).to.have.lengthOf(2);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.

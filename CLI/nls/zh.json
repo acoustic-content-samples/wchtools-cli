@@ -98,8 +98,8 @@
   "cli_pull_asset_digest_mismatch": "拉取的资产 %(asset)s 摘要与服务器摘要不匹配。",
 
   "cli_pull_success": {
-    "one": "成功拉取 %d 个工件。",
-    "other": "成功拉取 %d 个工件。"
+    "one": "已成功拉取 %d 个工件。",
+    "other": "已成功拉取 %d 个工件。"
   },
   "cli_pull_errors": {
     "one": "拉取工件时遇到 %d 个错误。",
@@ -127,7 +127,7 @@
   "cli_push_pushing_pages":          "正在推送指定站点的页面定义",
   "cli_push_pushing_sites":          "正在推送站点定义",
   "cli_push_modified_complete":   "推送修改项完成。",
-  "cli_push_complete":            "推送完成",
+  "cli_push_complete":            "推送完成。",
   "cli_push_modified_started":    "推送修改项已启动",
   "cli_push_started":             "推送已启动",
   "cli_push_description":         "将已修改的创作工件推送至 IBM Watson Content Hub。如果未指定工件类型，那么缺省情况下将推送 Web 资产。",
@@ -167,8 +167,8 @@
   "cli_push_layout_mapping_push_error":   "推送路径为 %(name)s 的布局映射导致以下错误：%(message)s。",
   "cli_push_rendition_pushed":    "已推送标识为 %(name)s 的解释",
   "cli_push_rendition_push_error":"推送标识为 %(name)s 的解释导致以下错误：%(message)s。",
-  "cli_push_site_pushed":         "已推送名称为 %(name)s 的站点",
-  "cli_push_site_push_error":     "推送名称为 %(name)s 的站点导致以下错误：%(message)s。",
+  "cli_push_site_pushed":         "已推送标识为 %(name)s 的站点",
+  "cli_push_site_push_error":     "推送标识为 %(name)s 的站点导致以下错误：%(message)s。",
   "cli_push_page_pushed":         "已推送路径为 %(name)s 的页面",
   "cli_push_page_push_error":     "推送路径为 %(name)s 的页面导致以下错误：%(message)s。",
   "cli_push_profile_pushed":      "已推送标识为 %(name)s 的发布概要文件",
@@ -183,8 +183,8 @@
 
 
   "cli_push_success": {
-    "one": "成功推送 %d 个工件。",
-    "other": "成功推送 %d 个工件。"
+    "one": "已成功推送 %d 个工件。",
+    "other": "已成功推送 %d 个工件。"
   },
   "cli_push_errors": {
     "one": "推送工件时遇到 %d 个错误。",

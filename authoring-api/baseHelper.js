@@ -170,6 +170,8 @@ class BaseHelper {
     getPathName (item) {
         if (item.path)
             return item.path;
+        else if (item.hierarchicalPath)
+            return item.hierarchicalPath;
         else if (item.id) {
             return item.id;
         }
@@ -1039,6 +1041,7 @@ class BaseHelper {
 
                 const promises = itemList.map(function (item) {
                     const name = helper.getName(item);
+
                     return helper._fsApi.saveItem(context, item, opts)
                         .then(function () {
                             const emitter = helper.getEventEmitter(context);

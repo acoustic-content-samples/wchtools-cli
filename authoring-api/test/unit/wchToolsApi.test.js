@@ -20,58 +20,76 @@
 
 // Require the modules used by the test.
 const UnitTest = require("./lib/base.unit.js");
+const Q = require("q");
+const events = require("events");
+const sinon = require("sinon");
 
 // Require the local module being tested.
 const ToolsApi = require(UnitTest.API_PATH + "wchToolsApi.js");
 
 describe("Unit tests for wchToolsApi.js", function () {
-
-    describe("getAssetsHelper", function () {
-        it("should be a valid helper", function (done) {
-            const helper = ToolsApi.getAssetsHelper();
-            expect(helper).to.be.ok;
-            expect(helper).to.have.property("getAssetFolderName");
-            expect(helper).to.have.property("pushModifiedItems");
-            expect(helper).to.have.property("deleteRemoteItem");
-            done();
-        });
-    });
-
-    describe("getItemTypeHelper", function () {
-        it("should be a valid helper", function (done) {
+    describe("access the various helpers", function () {
+        it("getItemTypeHelper", function (done) {
             const helper = ToolsApi.getItemTypeHelper();
             expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("types");
             expect(helper).to.have.property("getVirtualFolderName");
             expect(helper).to.have.property("createRemoteItem");
             expect(helper).to.have.property("pullAllItems");
             done();
         });
-    });
 
-    describe("getContentHelper", function () {
-        it("should be a valid helper", function (done) {
-            const helper = ToolsApi.getContentHelper();
+        it("getAssetsHelper", function (done) {
+            const helper = ToolsApi.getAssetsHelper();
             expect(helper).to.be.ok;
-            expect(helper).to.have.property("pushItem");
-            expect(helper).to.have.property("pullModifiedItems");
-            expect(helper).to.have.property("listRemoteDeletedNames");
+            expect(helper._artifactName).to.equal("assets");
+            expect(helper).to.have.property("getAssetFolderName");
+            expect(helper).to.have.property("pushModifiedItems");
+            expect(helper).to.have.property("deleteRemoteItem");
             done();
         });
-    });
 
-    describe("getCategoriesHelper", function () {
-        it("should be a valid helper", function (done) {
+        it("getImageProfilesHelper", function (done) {
+            const helper = ToolsApi.getImageProfilesHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("image-profiles");
+            expect(helper).to.have.property("canPushItem");
+            expect(helper).to.have.property("getLocalItems");
+            expect(helper).to.have.property("pushModifiedItems");
+            done();
+        });
+
+        it("getRenditionsHelper", function (done) {
+            const helper = ToolsApi.getRenditionsHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("renditions");
+            expect(helper).to.have.property("doesDirectoryExist");
+            expect(helper).to.have.property("getPathName");
+            expect(helper).to.have.property("pushAllItems");
+            done();
+        });
+
+        it("getContentHelper", function (done) {
+            const helper = ToolsApi.getContentHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("content");
+            expect(helper).to.have.property("isRetryPushEnabled");
+            expect(helper).to.have.property("listLocalDeletedNames");
+            expect(helper).to.have.property("supportsDeleteByPath");
+            done();
+        });
+
+        it("getCategoriesHelper", function (done) {
             const helper = ToolsApi.getCategoriesHelper();
             expect(helper).to.be.ok;
-            expect(helper).to.have.property("createLocalItem");
+            expect(helper._artifactName).to.equal("categories");
+            expect(helper).to.have.property("canPullItem");
             expect(helper).to.have.property("getLocalItem");
             expect(helper).to.have.property("pullAllItems");
             done();
         });
-    });
 
-    describe("getPublishingJobsHelper", function () {
-        it("should be a valid helper", function (done) {
+        it("getPublishingJobsHelper", function (done) {
             const helper = ToolsApi.getPublishingJobsHelper();
             expect(helper).to.be.ok;
             expect(helper).to.have.property("createPublishingJob");
@@ -79,30 +97,617 @@ describe("Unit tests for wchToolsApi.js", function () {
             expect(helper).to.have.property("cancelPublishingJob");
             done();
         });
-    });
 
-    describe("getPublishingSourcesHelper", function () {
-        it("should be a valid helper", function (done) {
+        it("getPublishingSourcesHelper", function (done) {
             const helper = ToolsApi.getPublishingSourcesHelper();
             expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("publishing-sources");
             expect(helper).to.have.property("getName");
-            expect(helper).to.have.property("pullItem");
-            expect(helper).to.have.property("listModifiedRemoteItemNames");
+            expect(helper).to.have.property("pushAllItems");
+            expect(helper).to.have.property("listRemoteDeletedNames");
+            done();
+        });
+
+        it("getPublishingProfilesHelper", function (done) {
+            const helper = ToolsApi.getPublishingProfilesHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("publishing-profiles");
+            expect(helper).to.have.property("getName");
+            expect(helper).to.have.property("canPushItem");
+            expect(helper).to.have.property("getLogger");
+            done();
+        });
+
+        it("getPublishingSiteRevisionsHelper", function (done) {
+            const helper = ToolsApi.getPublishingSiteRevisionsHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("site-revisions");
+            expect(helper).to.have.property("getName");
+            expect(helper).to.have.property("isRetryPushEnabled");
+            expect(helper).to.have.property("getEventEmitter");
+            done();
+        });
+
+        it("getLayoutsHelper", function (done) {
+            const helper = ToolsApi.getLayoutsHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("layouts");
+            expect(helper).to.have.property("supportsDeleteById");
+            expect(helper).to.have.property("createRemoteItem");
+            expect(helper).to.have.property("getPathName");
+            done();
+        });
+
+        it("getLayoutMappingsHelper", function (done) {
+            const helper = ToolsApi.getLayoutMappingsHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("layout-mappings");
+            expect(helper).to.have.property("supportsDeleteByPath");
+            expect(helper).to.have.property("deleteRemoteItem");
+            expect(helper).to.have.property("pushModifiedItems");
+            done();
+        });
+
+        it("getSitesHelper", function (done) {
+            const helper = ToolsApi.getSitesHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("sites");
+            expect(helper).to.have.property("addRetryPushProperties");
+            expect(helper).to.have.property("getLocalItems");
+            expect(helper).to.have.property("pushItem");
+            done();
+        });
+
+        it("getPagesHelper", function (done) {
+            const helper = ToolsApi.getPagesHelper();
+            expect(helper).to.be.ok;
+            expect(helper._artifactName).to.equal("pages");
+            expect(helper).to.have.property("getName");
+            expect(helper).to.have.property("filterRetryPush");
+            expect(helper).to.have.property("getRemoteItemByPath");
             done();
         });
     });
 
+    let utils;
     describe("utils", function () {
         it("should exist", function (done) {
-            expect(ToolsApi.getUtils()).to.be.ok;
+            utils = ToolsApi.getUtils(); // Save the utils for use in other tests.
+            expect(utils).to.be.ok;
+            expect(utils.ProductAbrev).to.equal("wchtools");
+            expect(utils.ProductName).to.equal("IBM Watson Content Hub");
+            done();
+        });
+    });
+
+    describe("login", function () {
+        it("should exist", function (done) {
+            const login = ToolsApi.getLogin();
+            expect(login).to.be.ok;
+            expect(login).to.have.property("login");
+            done();
+        });
+    });
+
+    let context;
+    describe("constructor", function () {
+        it("should succeed with no options specified", function (done) {
+            const api = new ToolsApi();
+            context = api.getContext(); // Save this context for use in other tests.
+            expect(context["useHashes"]).to.be.true;
+            expect(context["rewriteOnPush"]).to.be.true;
+            expect(context["saveFileOnConflict"]).to.be.true;
+            expect(context["continueOnError"]).to.be.true;
+            expect(context["logger"]).to.be.ok;
+            done();
+        });
+
+        it("should succeed with valid options specified", function (done) {
+            const logger = utils.getLogger(utils.apisLog);
+            const api = new ToolsApi({
+                useHashes: false,
+                rewriteOnPush: false,
+                saveFileOnConflict: false,
+                continueOnError: false,
+                logger: logger,
+                urls: {
+                    assets: "foo",
+                    pages: "bar",
+                    types: "boo",
+                    content: "far"
+                }
+            });
+            const context = api.getContext();
+            expect(context["useHashes"]).to.be.false;
+            expect(context["rewriteOnPush"]).to.be.false;
+            expect(context["saveFileOnConflict"]).to.be.false;
+            expect(context["continueOnError"]).to.be.false;
+            expect(context["logger"]).to.have.property("error");
+            done();
+        });
+
+        it("should fail with invalid options specified", function (done) {
+            let error;
+            try {
+                const api = new ToolsApi({logger: {}});
+                error = new Error("Expected the ToolsApi constructor to fail.");
+            } catch (err) {
+                expect(err).to.contain("implement required function");
+            }
+            done(error);
+        });
+    });
+
+    describe("initialization errors", function () {
+        it("should exist", function (done) {
+            const errors = ToolsApi.getInitializationErrors(context);
+            expect(errors).to.be.ok;
+            expect(errors).to.have.lengthOf(0);
+            done();
+        });
+    });
+
+    describe("logger", function () {
+        it("should exist", function (done) {
+            const api = new ToolsApi();
+            const logger = api.getLogger();
+            expect(logger).to.be.ok;
+            expect(context["logger"]).to.have.property("error");
             done();
         });
     });
 
     describe("options", function () {
         it("should exist", function (done) {
-            expect(ToolsApi.getOptions()).to.be.ok;
+            const options = ToolsApi.getOptions();
+            expect(options).to.be.ok;
+            const properties = options.getPropertyKeys(context);
+            expect(properties).to.contain("logger");
+            expect(properties).to.contain("eventEmitter");
+            expect(properties).to.contain("retryMaxAttempts");
             done();
+        });
+    });
+
+    describe("pushAllItems", function () {
+        it("should succeed when no items to push", function (done) {
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems");
+            stubImageProfiles.resolves([]);
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "pushAllItems");
+            stubCategories.resolves([]);
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "pushAllItems");
+            stubAssets.resolves([]);
+            const stubRenditions = sinon.stub(ToolsApi.getRenditionsHelper(), "pushAllItems");
+            stubRenditions.resolves([]);
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "pushAllItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "pushAllItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "pushAllItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
+            stubContent.resolves([]);
+            const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
+            stubSites.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
+            stubPages.resolves([]);
+            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
+            stubSources.resolves([]);
+            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
+            stubProfiles.resolves([]);
+            const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
+            stubSiteRevisions.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            const api = new ToolsApi();
+            api.pushAllItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubRenditions).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubSites).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubSources).to.have.been.calledOnce;
+                    expect(stubProfiles).to.have.been.calledOnce;
+                    expect(stubSiteRevisions).to.have.been.calledOnce;
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(0);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubRenditions.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubSites.restore();
+                    stubPages.restore();
+                    stubSources.restore();
+                    stubProfiles.restore();
+                    stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should succeed when items are pushed", function (done) {
+            const api = new ToolsApi();
+            const context = api.getContext();
+
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems", function () {
+                context.eventEmitter.emit("pushed", "imageProfile1");
+                context.eventEmitter.emit("pushed", "imageProfile2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "imageProfile1"}, {id: "test2", name: "imageProfile2"}]);
+                return deferred.promise;
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "pushAllItems", function () {
+                context.eventEmitter.emit("pushed", "category1");
+                context.eventEmitter.emit("pushed", "category2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "category1"}, {id: "test2", name: "category2"}]);
+                return deferred.promise;
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "pushAllItems", function () {
+                context.eventEmitter.emit("pushed", "asset1");
+                context.eventEmitter.emit("pushed", "asset2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "asset1"}, {id: "test2", name: "asset2"}]);
+                return deferred.promise;
+            });
+            const stubRenditions = sinon.stub(ToolsApi.getRenditionsHelper(), "pushAllItems");
+            stubRenditions.resolves([]);
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "pushAllItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "pushAllItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "pushAllItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
+            stubContent.resolves([]);
+            const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
+            stubSites.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
+            stubPages.resolves([]);
+            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
+            stubSources.resolves([]);
+            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
+            stubProfiles.resolves([]);
+            const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
+            stubSiteRevisions.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            api.pushAllItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubRenditions).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubSites).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubSources).to.have.been.calledOnce;
+                    expect(stubProfiles).to.have.been.calledOnce;
+                    expect(stubSiteRevisions).to.have.been.calledOnce;
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(6);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubRenditions.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubSites.restore();
+                    stubPages.restore();
+                    stubSources.restore();
+                    stubProfiles.restore();
+                    stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should fail when an item push fails", function (done) {
+            const eventEmitter = new events.EventEmitter();
+            const api = new ToolsApi({eventEmitter: eventEmitter});
+            const PUSH_ERROR = "Push failure, expected by unit test.";
+
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "imageProfile1");
+                eventEmitter.emit("pushed", "imageProfile2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "imageProfile1"}, {id: "test2", name: "imageProfile2"}]);
+                return deferred.promise;
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "category1");
+                const err = new Error(PUSH_ERROR);
+                eventEmitter.emit("pushed-error", err, "category2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "category1"}]);
+                return deferred.promise;
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "asset1");
+                const err = new Error(PUSH_ERROR);
+                eventEmitter.emit("pushed-error", err, "asset2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "asset1"}]);
+                return deferred.promise;
+            });
+            const stubRenditions = sinon.stub(ToolsApi.getRenditionsHelper(), "pushAllItems");
+            stubRenditions.resolves([]);
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "pushAllItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "pushAllItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "pushAllItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
+            stubContent.resolves([]);
+            const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
+            stubSites.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
+            stubPages.resolves([]);
+            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
+            stubSources.resolves([]);
+            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
+            stubProfiles.resolves([]);
+            const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
+            stubSiteRevisions.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            api.pushAllItems()
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The promise for pushing all items should have been rejected.");
+                })
+                .catch (function (errs) {
+                    // Verify that the expected error is returned.
+                    expect(errs).to.have.lengthOf(2);
+                    errs.forEach(function (err) {
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(PUSH_ERROR);
+                    });
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubRenditions.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubSites.restore();
+                    stubPages.restore();
+                    stubSources.restore();
+                    stubProfiles.restore();
+                    stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should succeed when a helper pushAllItems fails - continueOnError true", function (done) {
+            const eventEmitter = new events.EventEmitter();
+            const api = new ToolsApi({eventEmitter: eventEmitter, continueOnError: true});
+            const PUSH_ERROR = "Push failure, expected by unit test.";
+
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "imageProfile1");
+                eventEmitter.emit("pushed", "imageProfile2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "imageProfile1"}, {id: "test2", name: "imageProfile2"}]);
+                return deferred.promise;
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "category1");
+                eventEmitter.emit("pushed", "category2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "category1"}, {id: "test2", name: "category2"}]);
+                return deferred.promise;
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "asset1");
+                eventEmitter.emit("pushed", "asset2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "asset1"}, {id: "test2", name: "asset2"}]);
+                return deferred.promise;
+            });
+            const stubRenditions = sinon.stub(ToolsApi.getRenditionsHelper(), "pushAllItems");
+            stubRenditions.rejects(new Error(PUSH_ERROR));
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "pushAllItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "pushAllItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "pushAllItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
+            stubContent.resolves([]);
+            const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
+            stubSites.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
+            stubPages.resolves([]);
+            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
+            stubSources.resolves([]);
+            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
+            stubProfiles.resolves([]);
+            const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
+            stubSiteRevisions.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            api.pushAllItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubRenditions).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubSites).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubSources).to.have.been.calledOnce;
+                    expect(stubProfiles).to.have.been.calledOnce;
+                    expect(stubSiteRevisions).to.have.been.calledOnce;
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(6);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubRenditions.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubSites.restore();
+                    stubPages.restore();
+                    stubSources.restore();
+                    stubProfiles.restore();
+                    stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should fail when a helper pushAllItems fails - continueOnError false", function (done) {
+            const eventEmitter = new events.EventEmitter();
+            const api = new ToolsApi({eventEmitter: eventEmitter, continueOnError: false});
+            const PUSH_ERROR = "Push failure, expected by unit test.";
+
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "imageProfile1");
+                eventEmitter.emit("pushed", "imageProfile2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "imageProfile1"}, {id: "test2", name: "imageProfile2"}]);
+                return deferred.promise;
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "category1");
+                eventEmitter.emit("pushed", "category2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "category1"}, {id: "test2", name: "category2"}]);
+                return deferred.promise;
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "pushAllItems", function () {
+                eventEmitter.emit("pushed", "asset1");
+                eventEmitter.emit("pushed", "asset2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "asset1"}, {id: "test2", name: "asset2"}]);
+                return deferred.promise;
+            });
+            const stubRenditions = sinon.stub(ToolsApi.getRenditionsHelper(), "pushAllItems");
+            stubRenditions.rejects(new Error(PUSH_ERROR));
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "pushAllItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "pushAllItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "pushAllItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
+            stubContent.resolves([]);
+            const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
+            stubSites.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
+            stubPages.resolves([]);
+            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
+            stubSources.resolves([]);
+            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
+            stubProfiles.resolves([]);
+            const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
+            stubSiteRevisions.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            api.pushAllItems()
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The promise for pushing all items should have been rejected.");
+                })
+                .catch (function (err) {
+                    // Verify that the expected error is returned.
+                    expect(err.message).to.contain(PUSH_ERROR);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubRenditions.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubSites.restore();
+                    stubPages.restore();
+                    stubSources.restore();
+                    stubProfiles.restore();
+                    stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
         });
     });
 });

@@ -39,6 +39,7 @@ const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
 // Require the local modules that will be stubbed, mocked, and spied.
 const assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 const assetsREST = require(UnitTest.API_PATH + "lib/assetsREST.js").instance;
+const searchREST = require(UnitTest.API_PATH + "lib/authoringSearchREST.js").instance;
 
 // Require the local module being tested.
 const assetsHelper = require(UnitTest.API_PATH + "assetsHelper.js").instance;
@@ -53,7 +54,7 @@ let stubGetLastPush;
 let stubSetLastPush;
 let stubGetLastPull;
 let stubSetLastPull;
-let stubGetHashesForFile;
+let stubGetMD5ForFile;
 let stubListFiles;
 let stubIsLocalModified;
 let stubIsRemoteModified;
@@ -108,9 +109,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubSetLastPull = sinon.stub(hashes, "setLastPullTimestamp");
                 self.addTestDouble(stubSetLastPull);
 
-                stubGetHashesForFile = sinon.stub(hashes, "getHashesForFile");
-                stubGetHashesForFile.returns(undefined);
-                self.addTestDouble(stubGetHashesForFile);
+                stubGetMD5ForFile = sinon.stub(hashes, "getMD5ForFile");
+                stubGetMD5ForFile.returns(undefined);
+                self.addTestDouble(stubGetMD5ForFile);
 
                 stubListFiles = sinon.stub(hashes, "listFiles");
                 stubListFiles.returns([]);
@@ -172,6 +173,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             self.testListLocalModifiedAssetNames();
             self.testListDeletedLocalAssetNames();
             self.testDeleteRemoteAsset();
+            self.testSearchRemoteAsset();
         });
     }
 
@@ -2673,10 +2675,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyError.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
 
                         // Verify that the hashes were called as expected.
-                        expect(stubGetHashesForFile).to.have.been.calledThrice;
-                        expect(stubGetHashesForFile.firstCall.args[2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubGetHashesForFile.secondCall.args[2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubGetHashesForFile.thirdCall.args[2]).to.contain(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubGetMD5ForFile).to.have.been.calledThrice;
+                        expect(stubGetMD5ForFile.firstCall.args[2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubGetMD5ForFile.secondCall.args[2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubGetMD5ForFile.thirdCall.args[2]).to.contain(AssetsUnitTest.ASSET_HBS_1);
 
                         expect(stubSetLastPull).to.not.have.been.called;
 
@@ -3501,6 +3503,111 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Verify that the delete stub was called once with the expected id.
                         expect(stubDelete).to.have.been.calledOnce;
                         expect(stubDelete.firstCall.args[1].id).to.equal(UnitTest.DUMMY_METADATA.id);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testSearchRemoteAsset () {
+        const self = this;
+        describe("searchRemoteItem", function () {
+            it("should succeed when searching with no specified options", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "test-path";
+                const recursive = false;
+                const searchOptions = undefined;
+                const opts = undefined;
+                assetsHelper.searchRemote(context, searchPath, recursive, searchOptions, opts)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(0);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when searching with specified options", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/test-path";
+                const recursive = false;
+                const searchOptions = {q: "*:*", fl: "id", fq: "test"};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS};
+                assetsHelper.searchRemote(context, searchPath, recursive, searchOptions, opts)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(0);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+
+            it("should succeed when searching with other specified options", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/test-path*";
+                const recursive = false;
+                const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                assetsHelper.searchRemote(context, searchPath, recursive, searchOptions, opts)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(0);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.

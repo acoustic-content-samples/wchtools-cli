@@ -204,7 +204,7 @@ const options = {
      * Returns the set of property keys contained in the global and specified options.
      *
      * @param {Object} context The current API context.
-     * @param {Object} opts The options specified for the API call.
+     * @param {Object} [opts] The options specified for the API call.
      *
      * @return {*} The set of property keys contained in the global and specified options.
      *

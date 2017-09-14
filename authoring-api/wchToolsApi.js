@@ -29,6 +29,8 @@ const renditionsHelper = require('./renditionsHelper').instance;
 const imageProfilesHelper = require('./imageProfilesHelper').instance;
 const layoutsHelper = require('./layoutsHelper').instance;
 const layoutMappingsHelper = require('./layoutMappingsHelper').instance;
+const sitesHelper = require('./sitesHelper').instance;
+const pagesHelper = require('./pagesHelper').instance;
 const login = require('./lib/loginREST').instance;
 const utils = require('./lib/utils/utils.js');
 const options = require('./lib/utils/options.js');
@@ -165,6 +167,14 @@ class WchToolsApi {
         return layoutMappingsHelper;
     }
 
+    static getSitesHelper () {
+        return sitesHelper;
+    }
+
+    static getPagesHelper () {
+        return pagesHelper;
+    }
+
     static getInitializationErrors (context) {
         // Return any errors that occurred during initialization of the required modules.
         return options.getInitializationErrors(context);
@@ -183,7 +193,17 @@ class WchToolsApi {
     }
 
     pushAllItems (opts) {
-        this.getLogger().info("pushAllItems started");
+        this.context.wchToolsApiPushMethod = "pushAllItems";
+        return this.pushItems(opts);
+    }
+
+    pushModifiedItems (opts) {
+        this.context.wchToolsApiPushMethod = "pushModifiedItems";
+        return this.pushItems(opts);
+    }
+
+    pushItems (opts) {
+        this.getLogger().info("pushItems started");
 
         const deferred = Q.defer();
         const self = this;
@@ -223,20 +243,24 @@ class WchToolsApi {
         }).then(function () {
             return self.handlePromise(self.pushContent(opts));
         }).then(function () {
+            return self.handlePromise(self.pushSites(opts));
+        }).then(function () {
+            return self.handlePromise(self.pushPages(opts));
+        }).then(function () {
             return self.handlePromise(self.pushSources(opts));
         }).then(function () {
             return self.handlePromise(self.pushProfiles(opts));
         }).then(function () {
             return self.handlePromise(self.pushSiteRevisions(opts));
         }).then(function () {
-            self.getLogger().info("pushAllItems complete");
+            self.getLogger().info("pushItems complete");
             if (!errors) {
                 deferred.resolve(pushedItems);
             } else {
                 deferred.reject(errors);
             }
         }).catch(function (err) {
-            self.getLogger().error("pushAllItems complete with error", err);
+            self.getLogger().error("pushItems complete with error", err);
             deferred.reject(err);
         }).finally(function () {
             self.context.eventEmitter.removeListener("pushed", pushedListener);
@@ -270,7 +294,7 @@ class WchToolsApi {
     pushImageProfiles (opts) {
         this.getLogger().info("pushImageProfiles started");
         const helper = WchToolsApi.getImageProfilesHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushImageProfiles complete");
         return promise;
     }
@@ -278,7 +302,7 @@ class WchToolsApi {
     pushCategories (opts) {
         this.getLogger().info("pushCategories started");
         const helper = WchToolsApi.getCategoriesHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushCategories complete");
         return promise;
     }
@@ -286,55 +310,71 @@ class WchToolsApi {
     pushAssets (opts) {
         this.getLogger().info("pushAssets started");
         const helper = WchToolsApi.getAssetsHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushAssets complete");
-        return promise;
-    }
-
-    pushLayouts (opts) {
-        this.getLogger().info("pushLayouts started");
-        const helper = WchToolsApi.getLayoutsHelper();
-        const promise = helper.pushAllItems(this.context, opts);
-        this.getLogger().info("pushLayouts complete");
-        return promise;
-    }
-
-    pushLayoutMappings (opts) {
-        this.getLogger().info("pushLayoutMappings started");
-        const helper = WchToolsApi.getLayoutMappingsHelper();
-        const promise = helper.pushAllItems(this.context, opts);
-        this.getLogger().info("pushLayoutMappings complete");
         return promise;
     }
 
     pushRenditions (opts) {
         this.getLogger().info("pushRenditions started");
         const helper = WchToolsApi.getRenditionsHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushRenditions complete");
+        return promise;
+    }
+
+    pushLayouts (opts) {
+        this.getLogger().info("pushLayouts started");
+        const helper = WchToolsApi.getLayoutsHelper();
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
+        this.getLogger().info("pushLayouts complete");
         return promise;
     }
 
     pushTypes (opts) {
         this.getLogger().info("pushTypes started");
         const helper = WchToolsApi.getItemTypeHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushTypes complete");
+        return promise;
+    }
+
+    pushLayoutMappings (opts) {
+        this.getLogger().info("pushLayoutMappings started");
+        const helper = WchToolsApi.getLayoutMappingsHelper();
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
+        this.getLogger().info("pushLayoutMappings complete");
         return promise;
     }
 
     pushContent (opts) {
         this.getLogger().info("pushContent started");
         const helper = WchToolsApi.getContentHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushContent complete");
+        return promise;
+    }
+
+    pushSites (opts) {
+        this.getLogger().info("pushSites started");
+        const helper = WchToolsApi.getSitesHelper();
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
+        this.getLogger().info("pushSites complete");
+        return promise;
+    }
+
+    pushPages (opts) {
+        this.getLogger().info("pushPages started");
+        const helper = WchToolsApi.getPagesHelper();
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
+        this.getLogger().info("pushPages complete");
         return promise;
     }
 
     pushSources (opts) {
         this.getLogger().info("pushSources started");
         const helper = WchToolsApi.getPublishingSourcesHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushSources complete");
         return promise;
     }
@@ -342,7 +382,7 @@ class WchToolsApi {
     pushProfiles (opts) {
         this.getLogger().info("pushProfiles started");
         const helper = WchToolsApi.getPublishingProfilesHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushProfiles complete");
         return promise;
     }
@@ -350,11 +390,10 @@ class WchToolsApi {
     pushSiteRevisions (opts) {
         this.getLogger().info("pushSiteRevisions started");
         const helper = WchToolsApi.getPublishingSiteRevisionsHelper();
-        const promise = helper.pushAllItems(this.context, opts);
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushSiteRevisions complete");
         return promise;
     }
-
 }
 
 /**

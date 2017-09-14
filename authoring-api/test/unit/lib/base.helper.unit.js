@@ -47,7 +47,7 @@ class BaseHelperUnitTest extends UnitTest {
         const itemMetadata1 = UnitTest.getJsonObject(path1);
         const itemMetadata2 = UnitTest.getJsonObject(path2);
         const badMetadata = UnitTest.getJsonObject(badPath);
-        describe("Unit tests for Helper " + type, function () {
+        describe("Unit tests for Helper " + restApi.getServiceName(), function () {
             // Initialize common resourses before running the unit tests.
             before(function (done) {
                 helper.reset();
@@ -681,14 +681,12 @@ class BaseHelperUnitTest extends UnitTest {
                 stubGet.onCall(2).resolves([UnitTest.DUMMY_METADATA]);
                 stubGet.onCall(3).resolves([]);
 
-                const WRITE_ERROR = "Error writing the item";
-                const stubWrite = sinon.stub(fs, "writeFileSync");
-                stubWrite.onCall(2).throws(new Error(WRITE_ERROR));
-                self.addTestDouble(stubWrite);
-
-                const stubHashes = sinon.stub(hashes, "updateHashes");
-                stubHashes.returns("");
-                self.addTestDouble(stubHashes);
+                // The saveItem method should only be called for the successfully pulled items.
+                const SAVE_ERROR = "Error saving the item";
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                stubSave.onCall(0).resolves(itemMetadata1);
+                stubSave.onCall(1).resolves(itemMetadata2);
+                stubSave.onCall(2).rejects(SAVE_ERROR);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = helper.getEventEmitter(context);
@@ -697,13 +695,21 @@ class BaseHelperUnitTest extends UnitTest {
                 const spyError = sinon.spy();
                 emitter.on("pulled-error", spyError);
 
-                // The stubs and spies should be restored when the test is complete.
+                // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubGet);
+                self.addTestDouble(stubSave);
 
                 // Call the method being tested.
                 let error;
                 helper.pullAllItems(context, {offset: 0, limit: 1})
-                    .then(function (/*items*/) {
+                    .then(function (items) {
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(3);
+                        expect(items[0].id).to.equal(itemMetadata1.id);
+                        expect(items[1].id).to.equal(itemMetadata2.id);
+                        expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
+                        expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
+
                         // Verify that the get stub was called 4 times.
                         expect(stubGet).to.have.callCount(4);
 
@@ -712,7 +718,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(spyPull.args[0][0]).to.equal(helper.getName(itemMetadata1));
                         expect(spyPull.args[1][0]).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
-                        expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
+                        expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
@@ -735,17 +741,16 @@ class BaseHelperUnitTest extends UnitTest {
                 stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2]);
                 stubGet.onCall(1).resolves([UnitTest.DUMMY_METADATA]);
 
-                // The stubs and spies should be restored when the test is complete.
+                // The saveItem method should only be called for the successfully pulled items.
+                const SAVE_ERROR = "Error saving the item";
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                stubSave.onCall(0).resolves(itemMetadata1);
+                stubSave.onCall(1).resolves(itemMetadata2);
+                stubSave.onCall(2).rejects(SAVE_ERROR);
+
+                // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubGet);
-
-                const WRITE_ERROR = "Error writing the item";
-                const stubWrite = sinon.stub(fs, "writeFileSync");
-                stubWrite.onCall(2).throws(new Error(WRITE_ERROR));
-                self.addTestDouble(stubWrite);
-
-                const stubHashes = sinon.stub(hashes, "updateHashes");
-                stubHashes.returns("");
-                self.addTestDouble(stubHashes);
+                self.addTestDouble(stubSave);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = helper.getEventEmitter(context);
@@ -758,15 +763,22 @@ class BaseHelperUnitTest extends UnitTest {
                 let error;
                 helper.pullAllItems(context, {offset: 0, limit: 2, validateName: true})
                     .then(function (items) {
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(3);
+                        expect(items[0].id).to.equal(itemMetadata1.id);
+                        expect(items[1].id).to.equal(itemMetadata2.id);
+                        expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
+                        expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
+
                         // Verify that the get stub was called 2 times.
                         expect(stubGet).to.have.callCount(2);
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(2);
-                        expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
-                        expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
+                        expect(spyPull.args[0][0]).to.equal(helper.getName(itemMetadata1));
+                        expect(spyPull.args[1][0]).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
-                        expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
+                        expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
@@ -861,12 +873,12 @@ class BaseHelperUnitTest extends UnitTest {
                 stubGet.onCall(2).resolves([UnitTest.DUMMY_METADATA]);
                 stubGet.onCall(3).resolves([]);
 
-                const WRITE_ERROR = "Error writing the item";
-                const stubWrite = sinon.stub(fs, "writeFileSync");
-                stubWrite.onCall(2).throws(new Error(WRITE_ERROR));
-
-                const stubHashes = sinon.stub(hashes, "updateHashes");
-                stubHashes.returns("");
+                // The saveItem method should only be called for the successfully pulled items.
+                const SAVE_ERROR = "Error saving the item";
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                stubSave.onCall(0).resolves(itemMetadata1);
+                stubSave.onCall(1).resolves(itemMetadata2);
+                stubSave.onCall(2).rejects(SAVE_ERROR);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = helper.getEventEmitter(context);
@@ -877,13 +889,19 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubGet);
-                self.addTestDouble(stubWrite);
-                self.addTestDouble(stubHashes);
+                self.addTestDouble(stubSave);
 
                 // Call the method being tested.
                 let error;
                 helper.pullModifiedItems(context, {offset: 0, limit: 1})
-                    .then(function (/*items*/) {
+                    .then(function (items) {
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(3);
+                        expect(items[0].id).to.equal(itemMetadata1.id);
+                        expect(items[1].id).to.equal(itemMetadata2.id);
+                        expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
+                        expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
+
                         // Verify that the get stub was called 4 times.
                         expect(stubGet).to.have.callCount(4);
 
@@ -892,7 +910,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(spyPull.args[0][0]).to.equal(helper.getName(itemMetadata1));
                         expect(spyPull.args[1][0]).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
-                        expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
+                        expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
@@ -915,17 +933,12 @@ class BaseHelperUnitTest extends UnitTest {
                 stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2 ]);
                 stubGet.onCall(1).resolves([UnitTest.DUMMY_METADATA]);
 
-                // The stubs and spies should be restored when the test is complete.
-                self.addTestDouble(stubGet);
-
-                const WRITE_ERROR = "Error writing the item";
-                const stubWrite = sinon.stub(fs, "writeFileSync");
-                stubWrite.onCall(2).throws(new Error(WRITE_ERROR));
-                self.addTestDouble(stubWrite);
-
-                const stubHashes = sinon.stub(hashes, "updateHashes");
-                stubHashes.returns("");
-                self.addTestDouble(stubHashes);
+                // The saveItem method should only be called for the successfully pulled items.
+                const SAVE_ERROR = "Error saving the item";
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                stubSave.onCall(0).resolves(itemMetadata1);
+                stubSave.onCall(1).resolves(itemMetadata2);
+                stubSave.onCall(2).rejects(SAVE_ERROR);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = helper.getEventEmitter(context);
@@ -934,19 +947,30 @@ class BaseHelperUnitTest extends UnitTest {
                 const spyError = sinon.spy();
                 emitter.on("pulled-error", spyError);
 
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubSave);
+
                 // Call the method being tested.
                 let error;
                 helper.pullModifiedItems(context, {offset: 0, limit: 2, validateName: true})
                     .then(function (items) {
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(3);
+                        expect(items[0].id).to.equal(itemMetadata1.id);
+                        expect(items[1].id).to.equal(itemMetadata2.id);
+                        expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
+                        expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
+
                         // Verify that the get stub was called 2 times.
                         expect(stubGet).to.have.callCount(2);
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(2);
-                        expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
-                        expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
+                        expect(spyPull.args[0][0]).to.equal(helper.getName(itemMetadata1));
+                        expect(spyPull.args[1][0]).to.equal(helper.getName(itemMetadata2));
                         expect(spyError).to.have.been.calledOnce;
-                        expect(spyError.args[0][0].message).to.contain(WRITE_ERROR);
+                        expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
                     })
                     .catch (function (err) {
@@ -1200,7 +1224,6 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.firstCall.args[0].message).to.contain("conflict");
                         expect(spyError.firstCall.args[0].statusCode).to.equal(409);
-                        expect(spyError.firstCall.args[1]).to.equal(itemMetadata1.id);
                     })
                     .catch(function (err) {
                         error = err;

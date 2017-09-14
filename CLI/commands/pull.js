@@ -42,6 +42,8 @@ const PullingRenditions =           PREFIX + i18n.__('cli_pull_pulling_rendition
 const PullingPublishingProfiles =   PREFIX + i18n.__('cli_pull_pulling_profiles') + SUFFIX;
 const PullingPublishingSources =    PREFIX + i18n.__('cli_pull_pulling_sources') + SUFFIX;
 const PullingPublishingSiteRevisions = PREFIX + i18n.__('cli_pull_pulling_site_revisions') + SUFFIX;
+const PullingSites =                   PREFIX + i18n.__('cli_pull_pulling_sites') + SUFFIX;
+const PullingPages =                   PREFIX + i18n.__('cli_pull_pulling_pages') + SUFFIX;
 
 class PullCommand extends BaseCommand {
     /**
@@ -214,6 +216,16 @@ class PullCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("content")) {
                     return self.handlePullPromise(self.pullContent(context));
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("sites")) {
+                    return self.handlePullPromise(self.pullSites(context));
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("pages")) {
+                    return self.handlePullPromise(self.pullPages(context));
                 }
             })
             .then(function () {
@@ -663,6 +675,98 @@ class PullCommand extends BaseCommand {
     }
 
     /**
+     * Pull the site definitions
+     *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pulling the artifacts.
+     */
+    pullSites (context) {
+        const helper = ToolsApi.getSitesHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+
+        self.getLogger().info(PullingSites);
+
+        // The api emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_site_pulled', {name: name}));
+        };
+        emitter.on("pulled", artifactPulled);
+
+        // The api emits an event when there is a pull error, so we log it for the user.
+        const artifactPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_site_pull_error', {name: name, message: error.message}));
+        };
+        emitter.on("pulled-error", artifactPulledError);
+
+        // If ignoring timestamps then pull all artifacts. Otherwise only pull modified artifacts (the default behavior).
+        const apiOptions = this.getApiOptions();
+        let artifactPromise;
+        if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactPromise = helper.pullAllItems(context, apiOptions);
+        } else {
+            artifactPromise = helper.pullModifiedItems(context, apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactPromise
+            .finally(function () {
+                emitter.removeListener("pulled", artifactPulled);
+                emitter.removeListener("pulled-error", artifactPulledError);
+            });
+    }
+
+
+    /**
+     * Pull the page definitions for the specified site (default site in mvp)
+     *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pulling the artifacts.
+     */
+    pullPages (context) {
+
+        const helper = ToolsApi.getPagesHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+
+        self.getLogger().info(PullingPages);
+
+        // The api emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_page_pulled', {name: name}));
+        };
+        emitter.on("pulled", artifactPulled);
+
+        // The api emits an event when there is a pull error, so we log it for the user.
+        const artifactPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_page_pull_error', {name: name, message: error.message}));
+        };
+        emitter.on("pulled-error", artifactPulledError);
+
+        // If ignoring timestamps then pull all artifacts. Otherwise only pull modified artifacts (the default behavior).
+        const apiOptions = this.getApiOptions();
+        let artifactPromise;
+        if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactPromise = helper.pullAllItems(context, apiOptions);
+        } else {
+            artifactPromise = helper.pullModifiedItems(context, apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactPromise
+            .finally(function () {
+                emitter.removeListener("pulled", artifactPulled);
+                emitter.removeListener("pulled-error", artifactPulledError);
+            });
+    }
+
+    /**
      * Pull the source artifacts.
      *
      * @param {Object} context The API context to be used for the pull operation.
@@ -817,6 +921,8 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("publishingSources", undefined);
         this.setCommandLineOption("publishingProfiles", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
+        this.setCommandLineOption("sites", undefined);
+        this.setCommandLineOption("pages", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -835,9 +941,11 @@ function pullCommand (program) {
         .option('-c --content',          i18n.__('cli_pull_opt_content'))
         .option('-C --categories',       i18n.__('cli_pull_opt_categories'))
         .option('-r --renditions',       i18n.__('cli_pull_opt_renditions'))
+        .option('-s --sites',            i18n.__('cli_pull_opt_sites'))
+        .option('-p --pages',            i18n.__('cli_pull_opt_pages'))
         .option('-P --publishing-profiles',i18n.__('cli_pull_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_pull_opt_site_revisions'))
-        .option('-s --publishing-sources',i18n.__('cli_pull_opt_sources'))
+        .option('-S --publishing-sources',i18n.__('cli_pull_opt_sources'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-I --ignore-timestamps',i18n.__('cli_pull_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_pull_opt_all'))

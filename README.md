@@ -10,7 +10,7 @@ The IBM Watson Content Hub Developer Tools provide a command line interface (CLI
 Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/LICENSE) and [NOTICE](https://github.com/ibm-wch/wchtools-cli/blob/master/NOTICE) files at the root of this project's git repository before you download and get started with this toolkit.
 
 ### Install
- Pre-Requisite: Before you install the wchtools CLI, you must install Node 4.3 or a later 4.x version. IBM Node 4.6 or a later 4.x version is suggested.
+ Pre-Requisite: Before you install the wchtools CLI, you must install Node 4.3 or a later 4.x or 6.x version. IBM Node 4.6 or a later 4.x or 6.x version is suggested.
 
  You may install the wchtools CLI as a node module directly from the npm registry at https://npmjs.com,  or by downloading and installing a release from the wchtools-cli git repository.
 
@@ -102,7 +102,9 @@ Then follow the Getting Started instructions below, to configure and start using
        content/            ( authoring content items)
        image-profiles/     ( authoring image profiles )
        renditions/         ( authoring renditions )
-       sources/            ( publishing sources )
+       sites/{site-id}/{pages}  site metadata and page node hierarhy for the site
+       publishing-profiles/( publishing profiles )
+       publishing-sources/ ( publishing sources )
        types/              ( authoring content types )
 
 
@@ -115,13 +117,23 @@ Then follow the Getting Started instructions below, to configure and start using
 
   That command  pushes all authoring artifacts such as content model, content, and assets from the specified working directory and its subfolders. You can add the "-v" to enable verbose logging.
 
-#### Pulling content to a local file system
+#### Pulling site, pages, content and related authoring artifacts to a local file system
 
-  To pull (export) all content model, content, and assets to a local working directory, run the following command:
+  To pull (export) all site, pages, content model, content, and assets to a local working directory, run the following command:
 
     wchtools pull -A --dir <path-to-working-directory>
 
   When you pull artifacts from the Watson Content Hub authoring services, wchtools CLI creates folders for types, assets, and content under the working directory. The tool does not operate on raw artifacts in a current working directory. You must specify the <working-directory> parent of the subfolders that contain the contain artifacts, or be in the <working-directory> parent folder that contains such subfolders, when you run wchtools CLI with the push, pull or list commands.
+
+#### Pushing a full site's, pages, content and related authoring artifacts from a local file system folder
+
+  To push (import) all pages, content model, content, and assets to a local working directory, run the following command:
+
+    wchtools pull -A --dir <path-to-working-directory>
+
+  This will push the artifacts in the order of least dependencies (eg, image profiles), to most (eg, pages), in order for dependent items to be there before items that depend on them.
+  
+  In most cases, the site metadata (eg, working-directory/sites/default.json ) is not changed across pulling/pushing pages and content etc, and since the default site metadata is created out of the box for new tenants, the revision in your package may not match the revision in the Watson Content Hub tenant data.  If you're not changing the site metadata (eg, site name or description),  you may wish to exclude the working-dir/sites/default.json from what you store in your local source code repository (eg, git repository) or remove that default.json file, before pushing, to avoid a conflict.   If you do push it and it fails with a conflict error, you may push the site again with -f (--force-override) to override the conflict, if you intend for the local copy to replace the current site metadata on the server side, for your Watson Content Hub tenant.
 
 #### Uploading new managed content assets such as images
 
@@ -225,7 +237,7 @@ NOTE:  Granular options such as pushing only one or more artifact types at a tim
 
            wchtools push -Cacts  --I --dir <some_working_directory>
 
-#### Site Revision and Auto-Publishing
+#### Publishing Site Revision and Auto-Publishing
 
 Auto-publishing is enabled by default, meaning that each time you push a web or managed asset to the authoring service, it will be published to the CDN, and each time you make a content item ready in the UI or by pushing a new ready item, it will be published to the content delivery service.   If you need to disable auto-publishing, to make a series of changes before any of them are published to the delivery services, you may do so by using wchtools to pull the default site revision, disable auto publishing and then push the site revision back to the publishing manager.
 
@@ -263,9 +275,9 @@ After you disable auto-publishing, you may either invoke a publish manually with
 #### Creating and managing templates, layouts and layout mappings
 
  - Watson Content Hub now supports Handlebars templates for rendering purposes, where a content type and item can be mapped to a layout object, via layout mapping, where the layout object then refers to a handlebars template, that is associated with that content type.
- 
+
  - For example, you can create a handlebars template under working-dir/assets/templates/article.hbs  for the "Article" content type
- 
+
                <div>
                  ...
                    <img src="{{elements.image.url}}" alt="" width="360" height="225">
@@ -274,9 +286,9 @@ After you disable auto-publishing, you may either invoke a publish manually with
                        <a>{{elements.title.value}}</a>
                    </h4>
                </div>
-   
+
   - The above handlebars file then needs to be described to the Authoring and Publishing/Rendering system via a Layout, which provides additional metadata for those services to identify and find the template.  Create a Layout for your new Article template under workingdir/layouts/templates/article.json  with metadata like this:
-  
+
            {
              "id": "defaultArticleLayout",
              "name": "Default Article Layout",
@@ -285,7 +297,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
            }
 
   - To let the Authoring and Publishing/Rendering services know that you want this new template and layout associated with your Article content type, you then need to create a "Layout Mapping" under workingdir/layout-mappings/templates/article.json like this:
-  
+
            {
              "id": "articleLayoutMapping",
              "name": "My Article Layout Mapping",
@@ -307,19 +319,19 @@ After you disable auto-publishing, you may either invoke a publish manually with
                }
              ]
            }
-  
+
   - Note, the content "Type" can be referenced from the layout mapping by "name", but the "layout" has to be referenced by "id" at this point, so be sure to give your layout a developer readable and remember-able "id" field when you create it, so that you can easily reference it when creating the layout mapping metadata in the above format.
-  
+
   - Now that you have created an hbs template, a layout object and a layout mapping object for your article type, you may push those all to Watson Content Hub with the following command:
-  
+
              wchtools push -wlm -v --dir <some_working_directory>
 
   - Note, push -A (for all Authoring artifacts) will also push the web assets, layouts and mapping.
 
   - Note, the above sample using the "/templates" folder under assets, layouts and layout-mappings is an example for reference only.  You may choose another folder name and multiple subfolder levels if desired.  It is recommended that you keep the folder names and filenames under assets, layouts and layout-mappings,   and the name of the template, layout and layout mapping files similar and similar to the Type name that you are creating these artifacs for,  to make it easier to find when making further edits, and to make it easier for others on your team to understand the relationship between the files quickly and easily, when browsing the local artifacs in an IDE.
-  
+
   - See the Watson Content Hub online documentation for more information on Layout, Layout Mapping syntax and metadata supported, and the Publishing and Rendering documentation, for how these artifacts are combined during a publishing and rendering job, to generate HTML.
-  
+
 #### Specifying maximum heap size
   The maximum heap size used for the node process can be specified by setting an environment variable and running an alternate command provided with Watson Content Hub Developer Tools.  An alternate command "wchtools_heap" provides the ability to configure the maximum heap used by node.  To set the maximum heap, set the environment variable WCHTOOLS_MAX_HEAP to a numeric value, specified in megabytes.  For example, to use a 2GB heap, set WCHTOOLS_MAX_HEAP=2048.
 
@@ -327,9 +339,9 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
             export WCHTOOLS_MAX_HEAP=2048
             wchtools_heap push ...
-  
+
   On Windows launch Watson Content Hub Developer Tools using:
-  
+
             set WCHTOOLS_MAX_HEAP=2048
             wchtools_heap push ...
 
@@ -337,10 +349,12 @@ After you disable auto-publishing, you may either invoke a publish manually with
   The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
 
   - The authoring APIs and services do not allow you to push an update to an authoring artifact, where the "revision" field of the item you are trying to push does not match the current revision stored that is stored on the server by the authoring service. This action is enforced by the services to help prevent overwriting newer updates by another user through authoring UI with an older copy of an artifact.  If a wchtools push encounters such a 409 conflict error for an authoring artifact or artifacts, each conflicting copy is saved to the appropriate artifact subfolder with a "conflict" suffix. You can compare the files locally to determine which changes are appropriate.  If you determine that it is safe to override the conflicting server changes with your local artifacts, you may try pushing again with the -f or --force-override options to ask the authoring services to override the revision conflict validation.
-  
+
   - The authoring content service does not allow pushing a "ready" state content item, if that content item currently has a "draft" outstanding. You can push a draft content item, whether a draft exists, or no artifact exists for that content ID. But you cannot push a "ready" content item if that item has a draft.  If you must push a ready item, for example, to recover from a server side mistake, where a draft exists, you can cancel the draft and try again. Or you can fix the issue with the authoring UI and then pull the content down to the local filesystem again for archiving.
 
   - Authoring artifacts refer to each other by internal identifiers (the 'id' field). The Watson Content Hub authoring services enforce validation of referential integrity as artifacts are created or updated through the public REST APIs.   For this reason, it is suggested that you use the -A or --All-authoring options when you push authoring artifacts. This option is not needed if you are pushing up only a new set of low level artifacts such as content types (where you could use -t to specify that's what what you want to push). Low-level artifacts are those artifacts without references to other types of artifacts. The all authoring artifact options push artifacts in order from those with no dependencies, to those with the most dependencies. This ordering helps avoid issues where dependent artifacts don't exist yet on the server, during a push.
+  
+  - Pulling (exporting) a set of artifacts from one tenant and moving them to another by pushing (importing) to the new tenant is "additive", in that if something was removed from the source tenant between pull and push iterations, they won't automatically be removed from the target tenant.  You will need to use the Authoring UI to remove authoring artifacts (content, pages etc) on the target tenant explicitly,  if they were removed in the source tenant, when migrating a new version of an application to a target tenant (for example, when using multiple Watson Content Hub tenants to develop, test and then release iterative versions of an application).
 
 #### Git Repository
   The IBM Watson Content Hub Developer Tools are provided as open source and made available in github.

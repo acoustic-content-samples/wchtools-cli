@@ -33,6 +33,7 @@ const singletonEnforcer = Symbol();
 
 const CONTENT_RESOURCE_DIRECTORY = "dxdam";
 const ASSET_METADATA_SUFFIX = "_amd.json";
+const DRAFT_SUFFIX = "_wchdraft";
 
 // Define the constants for differentiating between web assets and content assets.
 const ASSET_TYPES_WEB_ASSETS = 0;
@@ -216,6 +217,17 @@ class AssetsFS extends BaseFS {
         return (i === 0 || i === 1);
     }
 
+    /**
+     * Returns true if the given path is a path to a draft asset.
+     *
+     * @param path the path to test
+     *
+     * @returns {boolean} true if the given path is a path to a draft asset.
+     */
+    isDraftAsset (path) {
+        return (path.indexOf(DRAFT_SUFFIX) !== -1);
+    }
+
     getPath (context, name, opts) {
         return this.getAssetsPath(context, opts) + name;
     }
@@ -226,6 +238,27 @@ class AssetsFS extends BaseFS {
             return this.getContentResourcePath(context, opts) + name + this.getExtension();
         }
         return this.getPath(context, name, opts);
+    }
+
+    /**
+     * Get the path for the given asset.
+     *
+     * If the asset provided is in draft status, then the _wchdraft suffix is appended.
+     *
+     * @param {Object} the asset
+     * @return {String} the path for the provided asset
+     */
+    getAssetPath(asset) {
+        let path = asset.path;
+        if (asset.status === "draft") {
+            const index = path.lastIndexOf(".");
+            if (index > 0) {
+                path = path.substring(0, index) + DRAFT_SUFFIX + path.substring(index);
+            } else {
+                path += DRAFT_SUFFIX;
+            }
+        }
+        return path;
     }
 
     /**
@@ -268,7 +301,7 @@ class AssetsFS extends BaseFS {
      * @param {Object} opts
      */
     saveItem (context, asset, opts) {
-        const filepath = this.getMetadataPath(context, asset.path, opts);
+        const filepath = this.getMetadataPath(context, this.getAssetPath(asset), opts);
         const dir = path.dirname(filepath);
         return Q.Promise(function (resolve, reject) {
             mkdirp.mkdirp(dir, function (err) {
@@ -383,7 +416,7 @@ class AssetsFS extends BaseFS {
                     }
 
                     files = files.filter(function (path) {
-                        if (!path.endsWith(ASSET_METADATA_SUFFIX) && path !== hashes.FILENAME && path !== "/" + hashes.FILENAME) {
+                        if (!path.endsWith(ASSET_METADATA_SUFFIX) && !hashes.isHashesFile(path)) {
                             return path;
                         }
                     });

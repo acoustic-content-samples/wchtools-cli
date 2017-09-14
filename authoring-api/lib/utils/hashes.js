@@ -30,6 +30,20 @@ const OLD_FILENAME = ".dxhashes";
 const FILENAME = ".wchtoolshashes";
 
 /**
+ * Returns true if the supplied pathname is a hashes metadata file.
+ *
+ * @param {String} filename The name of the file to test.
+ *
+ * @returns {Boolean} true if the supplied pathname is a hashes metadata file.
+ */
+function isHashesFile (filename) {
+    if (filename) {
+        filename = filename.substring(filename.lastIndexOf("/") + 1);
+    }
+    return (filename === FILENAME) || (filename === OLD_FILENAME);
+}
+
+/**
  * Generates the MD5 hash for the contents of the given file.
  *
  * @param {String} filename The name of the file for which an MD5 hash is to be generated.
@@ -237,7 +251,7 @@ function exitHandler(context) {
 
 /**
  * Performs a synchronous write of the speficied tenantMap to the hashes file at the specified basePath.
- * 
+ *
  * @param basePath The path where the hashes file is located.
  * @param tenantMap The tenant map to write.
  */
@@ -436,6 +450,56 @@ function removeHashes (context, basePath, ids, opts) {
 }
 
 /**
+ * Get the path for the file with the specified id.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {String} id The id for which to get the path.
+ * @param {Object} opts Any override options to be used for this operation.
+ *
+ * @returns {Object} The filepath of the file with the specified id, or null if the file does not exist.
+ *
+ * @public
+ */
+function getFilePath (context, basePath, id, opts) {
+    let retVal = null;
+
+    // Get the existing tenant metadata at the specified location.
+    const hashMap = loadHashes(context, basePath, opts);
+
+    // If there is metadata for the given id, return the path value.
+    const metadata = hashMap[id];
+    if (metadata) {
+        retVal = metadata.path;
+    }
+
+    return retVal;
+}
+
+/**
+ * Set the path for the file with the specified id.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {String} id The id for which to set the path.
+ * @param {String} filePath The new path value.
+ * @param {Object} opts Any override options to be used for this operation.
+ *
+ * @public
+ */
+function setFilePath (context, basePath, id, filePath, opts) {
+    // Get the existing tenant metadata at the specified location.
+    const hashMap = loadHashes(context, basePath, opts);
+
+    // If there is metadata for the given id, save the new path value.
+    const metadata = hashMap[id];
+    if (metadata) {
+        metadata.path = filePath;
+        saveHashes(context, basePath, hashMap, opts);
+    }
+}
+
+/**
  * Get the timestamp of the last pull for the specified tenant.
  *
  * Example: "2017-01-16T22:30:05.928Z"
@@ -562,7 +626,7 @@ function setLastPushTimestamp (context, basePath, timestamp, opts) {
  * @returns {Object} The metadata for the given file from the hashes file at the specified location for the specified
  *          tenant, or null if the metadata is not found.
  *
- * @public
+ * @private
  */
 function getHashesForFile (context, basePath, filePath, opts) {
     // If the context specifies that hashes should not be used, return null.
@@ -588,6 +652,24 @@ function getHashesForFile (context, basePath, filePath, opts) {
         utils.logErrors(context, i18n.__("error_get_hashes_for_file"), err);
         return null;
     }
+}
+
+/**
+ * Get the MD5 hash for the given file from the hashes file at the specified location for the specified tenant.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {String} filePath The local path for the file.
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {Object} The MD5 hash for the given file from the hashes file at the specified location for the specified
+ *          tenant, or null if the metadata is not found.
+ *
+ * @public
+ */
+function getMD5ForFile (context, basePath, filePath, opts) {
+    const metadata = getHashesForFile(context, basePath, filePath, opts);
+    return metadata ? metadata.md5 : undefined;
 }
 
 /**
@@ -768,19 +850,21 @@ function isRemoteModified (context, flags, item, basePath, filePath, opts) {
 }
 
 const hashes = {
+    isHashesFile: isHashesFile,
     generateMD5Hash: generateMD5Hash,
     compareMD5Hashes: compareMD5Hashes,
     updateHashes: updateHashes,
     removeHashes: removeHashes,
+    getFilePath: getFilePath,
+    setFilePath: setFilePath,
     getLastPullTimestamp: getLastPullTimestamp,
     setLastPullTimestamp: setLastPullTimestamp,
     getLastPushTimestamp: getLastPushTimestamp,
     setLastPushTimestamp: setLastPushTimestamp,
-    getHashesForFile: getHashesForFile,
+    getMD5ForFile: getMD5ForFile,
     listFiles: listFiles,
     isLocalModified: isLocalModified,
     isRemoteModified: isRemoteModified,
-    FILENAME: FILENAME,
     NEW: NEW,
     MODIFIED: MODIFIED,
     DELETED: DELETED

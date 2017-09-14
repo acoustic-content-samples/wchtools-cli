@@ -49,26 +49,6 @@ class CategoriesHelper extends BaseHelper {
     }
 
     /**
-     * Create the given item in the local file system.
-     *
-     * @param {Object} context The API context to be used by the create operation.
-     * @param {Object} category - The metadata of the local item to be created.
-     * @param {Object} opts - The options to be used for the create operation.
-     *
-     * @returns {Q.Promise} A promise for the item to be created.
-     */
-    createLocalItem (context, category, opts) {
-        const logger = this.getLogger(context);
-        logger.trace('enter createLocalItem' + category.toString());
-
-        return this._fsApi.newItem(context, category, opts)
-            .catch(function (err) {
-                utils.logErrors(context, i18n.__("create_local_item_error"), err);
-                throw err;
-            });
-    }
-
-    /**
      *  Determine whether the given item can be pulled.
      *
      *  @param {Object} item The item to be pulled.

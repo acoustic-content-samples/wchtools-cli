@@ -1,5 +1,12 @@
 # Changelog
 
+### v2 changes since v1.x
+
+  - Added support for pushing and pulling site and page artifacts with -s -p
+  - Fixed case of pushing/pulling publishing sources to -S to match uppercase publishing arguments
+  - Added support for pulling draft assets without overwriting the ready version of the assets on disk
+  - Added support for retry of additional artifact types (eg, on network or service load related errors)
+
 ### v1.4.11 changes since 1.4
 
   - Improved efficiency of metadata tracking for the pushed and pulled artifacts, to reduce CPU and disk I/O for working dirs with large numbers of artifacts

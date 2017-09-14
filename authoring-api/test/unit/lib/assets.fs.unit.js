@@ -784,7 +784,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/foo/bar/x.remove",
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_2,
             AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/dxdam/foo.bar",
-            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/" + hashes.FILENAME
+            AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/" + ".wchtoolshashes"
         ];
         stub.yields(err, assetPaths);
 
