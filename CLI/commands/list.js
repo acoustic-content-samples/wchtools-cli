@@ -39,6 +39,8 @@ const ListLayouts =              PREFIX + i18n.__('cli_listing_layouts') + SUFFI
 const ListLayoutMappings =       PREFIX + i18n.__('cli_listing_layout_mappings') + SUFFIX;
 const ListRenditions =           PREFIX + i18n.__('cli_listing_renditions') + SUFFIX;
 const ListPublishingSiteRevisions = PREFIX + i18n.__('cli_listing_site_revisions') + SUFFIX;
+const ListSites =                   PREFIX + i18n.__('cli_listing_sites') + SUFFIX;
+const ListPages =                   PREFIX + i18n.__('cli_listing_pages') + SUFFIX;
 
 class ListCommand extends BaseCommand {
     /**
@@ -314,6 +316,14 @@ class ListCommand extends BaseCommand {
         // Handle the renditions option.
         if (this.getCommandLineOption("renditions")) {
             promises.push(this.listRenditions(context));
+        }
+
+        if (this.getCommandLineOption("sites")) {
+            promises.push(this.listSites(context));
+        }
+
+        if (this.getCommandLineOption("pages")) {
+            promises.push(this.listPages(context));
         }
 
         // Handle the types option.
@@ -603,6 +613,57 @@ class ListCommand extends BaseCommand {
     }
 
     /**
+     * List the "sites" artifacts.
+     *
+     * @param {Object} context The API context associated with this list command.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list
+     */
+    listSites (context) {
+        const helper = ToolsApi.getSitesHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper, context);
+        const listPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        listPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListSites, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+
+    /**
+     * List the page node artifacts for a specified site (default only in mvp)
+     *
+     * @param {Object} context The API context associated with this list command.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list
+     */
+    listPages (context) {
+        const helper = ToolsApi.getPagesHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper, context);
+        const listPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        listPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListPages, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    /**
      * List the "publishing source" artifacts.
      *
      * @param {Object} context The API context associated with this list command.
@@ -697,6 +758,8 @@ class ListCommand extends BaseCommand {
         this.setCommandLineOption("publishingProfiles", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("renditions", undefined);
+        this.setCommandLineOption("sites", undefined);
+        this.setCommandLineOption("pages", undefined);
         this.setCommandLineOption("quiet", undefined);
         this.setCommandLineOption("path", undefined);
         this.setCommandLineOption("new", undefined);
@@ -721,9 +784,11 @@ function listCommand (program) {
         .option('-c --content',          i18n.__('cli_list_opt_content'))
         .option('-C --categories',       i18n.__('cli_list_opt_categories'))
         .option('-r --renditions',       i18n.__('cli_list_opt_renditions'))
+        .option('-s --sites',            i18n.__('cli_list_opt_sites'))
+        .option('-p --pages',            i18n.__('cli_list_opt_pages'))
         .option('-P --publishing-profiles',i18n.__('cli_list_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_list_opt_site_revisions'))
-        .option('-s --publishing-sources',i18n.__('cli_list_opt_sources'))
+        .option('-S --publishing-sources',i18n.__('cli_list_opt_sources'))
         .option('-q --quiet',            i18n.__('cli_list_opt_quiet'))
         .option('-I --ignore-timestamps',i18n.__('cli_list_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_list_opt_all'))

@@ -68,12 +68,22 @@
   "layouts": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 5
   },
   "layout-mappings": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 5
+  },
+  "sites": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 1
+  },
+  "pages": {
+    "offset": 0,
+    "limit": 200,
+    "concurrent-limit": 1
   },
   "retryMaxAttempts": 5,
   "retryMinTimeout": 1000,

@@ -1,0 +1,15 @@
+{
+  "name": "Help",
+  "slug": "help",
+  "contentId": "908a3f7e-3c09-40d0-98a9-d30984f7f5ef",
+  "classification": "page",
+  "contentStatus": "ready",
+  "hierarchicalPath": "/Help",
+  "lastModified": "2017-07-24T17:10:57.740Z",
+  "lastModifierId": "9738ed5b-65d3-402a-a00b-f471eba54273",
+  "created": "2017-07-24T17:10:57.740Z",
+  "creatorId": "9738ed5b-65d3-402a-a00b-f471eba54273",
+  "id": "207ad8db-1c0a-40c9-b3fa-f5df7af58af5",
+  "rev": "1-dc688595bd9de40a9aab6a1a510ea6d1",
+  "position": 7
+}

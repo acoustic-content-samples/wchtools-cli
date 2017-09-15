@@ -49,68 +49,9 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
     }
 
     runAdditionalTests (restApi, fsApi, helper, path1, path2/*, badPath, type, itemMetadata1, itemMetadata2, badMetadata*/) {
-        this.testCreateLocalItem(fsApi, helper);
         this.testCanPushItem(helper);
         this.testCanPullItem(helper);
         this.testPushModifiedCategories(helper, path1, path2);
-    }
-
-    testCreateLocalItem (fsApi, helper) {
-        const self = this;
-        describe("create local category", function () {
-
-            it("should create a local category", function (done) {
-                const stub = sinon.stub(fsApi, "newItem");
-                const category = {"name":"testCreateLocal"};
-                stub.resolves(category);
-                self.addTestDouble(stub);
-
-                let error;
-                helper.createLocalItem(context, category, UnitTest.DUMMY_OPTIONS)
-                    .then(function(cat) {
-                        expect(cat).to.not.be.empty;
-                        expect(cat.name).to.equal(category.name);
-                    })
-                    .catch (function (err) {
-                        // NOTE: A failed expectation from above will be handled here.
-                        // Pass the error to the "done" function to indicate a failed test.
-                        error = err;
-                    })
-                    .finally(function () {
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
-            it("should fail if local category cannot be created", function (done) {
-                const stub = sinon.stub(fsApi, "newItem");
-                const ITEM_ERROR = "There was an error creating the local category.";
-                stub.rejects(ITEM_ERROR);
-                self.addTestDouble(stub);
-
-                let error;
-                helper.createLocalItem(context, {"BAD":"STUFF"}, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*items*/) {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The promise for createLocalItem should have been rejected.");
-                    })
-                    .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once.
-                            expect(stub).to.be.calledOnce;
-
-                            // Verify that the expected error is returned.
-                            expect(err.message).to.equal(ITEM_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
-                    })
-                    .finally(function () {
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-        });
     }
 
     testCanPushItem (helper) {

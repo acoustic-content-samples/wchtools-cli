@@ -31,14 +31,21 @@ const singletonEnforcer = Symbol();
 /*
  * local utility method to do the asset metadata POST, called from multiple places in pushItem
  */
-function postAssetMetadata(context, reqOptions, deferred) {
+function postAssetMetadata(context, reqOptions, deferred, createOnly) {
     request.post(reqOptions, function (err, res, body) {
         const response = res || {};
         if (err || response.statusCode >= 400) {
-            err = utils.getError(err, body, response, reqOptions);
-            BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
-            utils.logErrors(context, i18n.__("create_asset_metadata_error"), err);
-            deferred.reject(err);
+            // A 409 Conflict error means the asset already exists. So for createOnly, we will consider
+            // this to be a sucessful push of the asset, otherwise handle the error in the normal way.
+            if (createOnly && response.statusCode === 409) {
+                BaseREST.logRetryInfo(context, reqOptions, response.attempts);
+                deferred.resolve(reqOptions.body);
+            } else {
+                err = utils.getError(err, body, response, reqOptions);
+                BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
+                utils.logErrors(context, i18n.__("create_asset_metadata_error"), err);
+                deferred.reject(err);
+            }
         } else {
             BaseREST.logRetryInfo(context, reqOptions, response.attempts);
             deferred.resolve(body);
@@ -273,6 +280,10 @@ class AssetsREST extends BaseREST {
             pathname = "/" + pathname;
         }
 
+        // Determine whether to force the asset to be created instead of updated. Note that the resource will be handled
+        // in the normal way, because a resource PUT request is used to create a resource with a specific id.
+        const createOnly = restObject.isCreateOnlyMode(context, opts);
+
         // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
         const updateContentResource = isContentResource && !replaceContentResource && resourceId;
 
@@ -290,7 +301,15 @@ class AssetsREST extends BaseREST {
 
                 const resourceRequestCallback = function (err, res, body) {
                     const response = res || {};
-                    if (err || response.statusCode >= 400) {
+                    let handleError = err || (response.statusCode >= 400);
+
+                    // A 409 Conflict error means the resource already exists. So for createOnly, we will consider this
+                    // to be a sucessful push of the specified resource, otherwise handle the error in the normal way.
+                    if (createOnly && response.statusCode === 409) {
+                        handleError = false;
+                    }
+
+                    if (handleError) {
                         err = utils.getError(err, body, response, reqOptions);
                         BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
                         utils.logErrors(context, "AssetsRest.pushItem resourceRequestCallback: ", err);
@@ -298,25 +317,41 @@ class AssetsREST extends BaseREST {
                     } else {
                         BaseREST.logRetryInfo(context, reqOptions, response.attempts);
 
-                        // to replace the underlying resource, we need to parse the result body to get the new resource ID.
-                        const resourceMetadata = updateContentResource ? { id: resourceId } : JSON.parse(body);
-                        // iff an asset object is passed in then attempt update it with the same asset id (Carlos Asset)
-                        if (opts && opts.asset) {
-                            const asset = opts.asset;
-                            restObject.getAssetUpdateRequestOptions(context, asset.id, opts)
+                        // To replace the underlying resource, we need to parse the result body to get the new resource ID.
+                        const resourceMetadata = (updateContentResource || !body) ? {id: resourceId} : JSON.parse(body);
+
+                        let doUpdate;
+                        let requestBody;
+                        if (opts && opts.asset && !createOnly) {
+                            // A (managed) asset object was passed in, so use that asset for the update request.
+                            requestBody = opts.asset;
+                            doUpdate = true;
+                        } else {
+                            // Construct a minimal asset to be used for the create request.
+                            requestBody = {resource: resourceMetadata.id, path: pathname};
+                            doUpdate = false;
+
+                            if (opts && opts.asset && opts.asset.id) {
+                                // A (managed) asset object was passed in, so use the asset id for the create request.
+                                requestBody.id = opts.asset.id;
+                            }
+                        }
+
+                        if (doUpdate) {
+                            restObject.getAssetUpdateRequestOptions(context, requestBody.id, opts)
                                 .then(function (reqOptions) {
-                                    asset.resource = resourceMetadata.id;
-                                    delete asset.mediaType;
-                                    delete asset.filename;
-                                    reqOptions.body = asset;
-                                    if (asset.id && asset.rev) {
+                                    requestBody.resource = resourceMetadata.id;
+                                    delete requestBody.mediaType;
+                                    delete requestBody.filename;
+                                    reqOptions.body = requestBody;
+                                    if (requestBody.id && requestBody.rev) {
                                         request.put(reqOptions, function (err, res, body) {
                                             const response = res || {};
                                             if (response.statusCode === 404) {
                                                 // We may be pushing an existing asset defn to a new tenant DB, so create the asset defn instead
                                                 reqOptions.uri = reqOptions.uri.substring(0, reqOptions.uri.lastIndexOf('/'));
                                                 delete reqOptions.body.rev;
-                                                postAssetMetadata(context, reqOptions, deferred);
+                                                postAssetMetadata(context, reqOptions, deferred, createOnly);
                                             } else if (err || response.statusCode >= 400) {
                                                 err = utils.getError(err, body, response, reqOptions);
                                                 BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
@@ -328,15 +363,15 @@ class AssetsREST extends BaseREST {
                                             }
                                         });
                                     } else {
-                                        postAssetMetadata(context, reqOptions, deferred);
+                                        postAssetMetadata(context, reqOptions, deferred, createOnly);
                                     }
                                 });
                         } else {
-                            // Creating new asset metadata defn for Fernando web asset
+                            // Creating new asset metadata. Fernando web asset or create-only.
                             restObject.getRequestOptions(context, opts)
                                 .then(function (reqOptions) {
-                                    reqOptions.body = {resource: resourceMetadata.id, path: pathname};
-                                    postAssetMetadata(context, reqOptions, deferred);
+                                    reqOptions.body = requestBody;
+                                    postAssetMetadata(context, reqOptions, deferred, createOnly);
                                 });
                         }
                     }

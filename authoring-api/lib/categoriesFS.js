@@ -39,32 +39,6 @@ class CategoriesFS extends JSONItemFS {
         }
         return this[singleton];
     }
-
-    /**
-     * creates a new category with the given name in the local filesystem
-     */
-    newItem(context, category, opts) {
-        const fsObject = this;
-        const deferred = Q.defer();
-        if (category === undefined || category.name === undefined || category.name.length === 0) {
-            deferred.reject(new Error(i18n.__("name_required")));
-        } else {
-            // use fs.stats since fs.exists was deprecated
-            fs.stat(this.getItemPath(context, category, opts), function (err, stat) {
-                if (stat) {
-                    deferred.reject(new Error(i18n.__("category_exists", {name: category.name})));
-                } else {
-                    fsObject.saveItem(context, category, opts)
-                        .then(function (category) {
-                            deferred.resolve(category);
-                        }, function (err) {
-                            deferred.reject(err);
-                        });
-                }
-            });
-        }
-        return deferred.promise;
-    }
 }
 
 module.exports = CategoriesFS;

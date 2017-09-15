@@ -35,7 +35,7 @@ describe("hashes", function () {
     const TOMORROW_DATE = new Date(CURRENT_DATE.getTime() + 86400000);
     const TEST_OPTS = {"x-ibm-dx-tenant-id": TEST_TENANT_ID, "x-ibm-dx-tenant-base-url": TEST_TENANT_BASE_URL};
     const TEST_DIRECTORY_PATH = __dirname + path.sep + "resources";
-    const HASHES_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + hashes.FILENAME;
+    const HASHES_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + ".wchtoolshashes";
     const NONEXISENT_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + "foo.bar";
 
     // Test data for the text file.
@@ -71,6 +71,80 @@ describe("hashes", function () {
         if (fs.existsSync(HASHES_FILE_PATH)) {
             fs.unlinkSync(HASHES_FILE_PATH);
         }
+    });
+
+    describe("isHashesFile", function () {
+        it("should return false for undefined", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.isHashesFile(undefined);
+                expect(result).to.equal(false);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return true for a hashes file", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.isHashesFile("/.wchtoolshashes");
+                expect(result).to.equal(true);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return true for a hashes file without a leading slash", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.isHashesFile(".wchtoolshashes");
+                expect(result).to.equal(true);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return true for an old hashes file", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.isHashesFile("/.dxhashes");
+                expect(result).to.equal(true);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return true for an old hashes file without a leading slash", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.isHashesFile(".dxhashes");
+                expect(result).to.equal(true);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return false for a normal file", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.isHashesFile("/dxdam/images/logo.png");
+                expect(result).to.equal(false);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
     });
 
     describe("generateMD5Hash", function () {
@@ -479,17 +553,13 @@ describe("hashes", function () {
         });
     });
 
-    describe("getHashesForFile", function () {
+    describe("getMD5ForFile", function () {
         it("should get the exisitng metadata from the hashes file", function (done) {
             let error = undefined;
             try {
-                const result = hashes.getHashesForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.getMD5ForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.exist;
-                expect(result.id).to.equal(TEXT_FILE_ID);
-                expect(result.rev).to.equal(TEXT_FILE_REV);
-                expect(result.md5).to.equal(TEXT_FILE_MD5);
-                expect(result.path).to.equal(TEXT_FILE_RELATIVE_PATH);
-                expect(result.resource).to.equal(TEXT_FILE_RESOURCE_ID_2);
+                expect(result).to.equal(TEXT_FILE_MD5);
             } catch (err) {
                 error = err;
             } finally {
@@ -500,7 +570,7 @@ describe("hashes", function () {
         it("should not get a result for a file that has no metadata", function (done) {
             let error = undefined;
             try {
-                const result = hashes.getHashesForFile(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.getMD5ForFile(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.not.exist;
             } catch (err) {
                 error = err;
@@ -521,7 +591,7 @@ describe("hashes", function () {
 
             let error = undefined;
             try {
-                const result = hashes.getHashesForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.getMD5ForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in getHashesForFile");

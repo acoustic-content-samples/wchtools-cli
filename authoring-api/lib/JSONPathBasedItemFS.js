@@ -33,32 +33,61 @@ class JSONPathBasedItemFS extends JSONItemFS {
      * Rely on JSONItemFS.getItem, BUT add the path field back in after reading
      * from disk so that it will be saved in authoring service with the path val.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {string} name - The name of the item
+     * @param {Object} opts Any override options to be used for this operation.
+     *
      * @returns {Q.Promise} A promise that resolves with the requested item. The promise
      *                    will reject if the item doesn't exist.
      */
     getItem(context, name, opts) {
+        const fsObject = this;
         return super.getItem(context, name, opts)
             .then(function(item) {
-                item.path = name;
+                if (fsObject.isMutablePath()) {
+                    fsObject.setMutablePath(item, name);
+                }
                 return item;
             });
     }
 
+    /*
+     * Is this a mutable path item where the path is removed from json on save
+     * so that Fernando can move the file (eg, layout) to another folder, and
+     * have the path reset in the json on push (eg, layouts are, pages are not)
+     */
+    isMutablePath() {
+        return true;
+    }
+
+    /*
+     * Clear the mutable path value.
+     */
+    clearMutablePath(item) {
+        delete item.path;
+    }
+
+    /*
+     * Set the mutable path value.
+     */
+    setMutablePath(item, path) {
+        item.path = path;
+    }
+
     /**
-     * Optionally prune fields out of the item that we don't want stored on disk
+     * Prune the item by deleting the properties that should not be stored on disk
      * @param {Object} item
      * @param {Object} opts
      */
      pruneItem(item, opts) {
-         if (item) {
-             delete item.created;
-             delete item.creator;
-             delete item.creatorId;
-             delete item.lastModifier;
-             delete item.lastModifierId;
-             delete item.lastModified;
-             delete item.path;
+         delete item.created;
+         delete item.creator;
+         delete item.creatorId;
+         delete item.lastModifier;
+         delete item.lastModifierId;
+         delete item.lastModified;
+         if (this.isMutablePath()) {
+             this.clearMutablePath(item);
          }
      }
 
@@ -67,7 +96,8 @@ class JSONPathBasedItemFS extends JSONItemFS {
      * Unlike id based items, if item.path exists use it, otherwise build path from name.
      *
      * @param {Object} context The current API context.
-     * @param item can be a string with the name of the item or an item object
+     * @param {String | Object} item can be a string with the name of the item or an item object
+     * @param {Object} opts Any override options to be used for this operation.
      *
      * @returns {string} the file system path to the provided item named by arg
      */
@@ -75,19 +105,23 @@ class JSONPathBasedItemFS extends JSONItemFS {
         let relpath;
         if (typeof item === "string") {
             relpath = item;
-        } else if (typeof item === "object") {
-            relpath = item.path || "/" + item.name + this.getExtension();
+        } else {
+            relpath = item.path || item.hierarchicalPath || ("/" + item.name + this.getExtension());
+            if (!relpath.endsWith(this.getExtension()))
+                relpath += this.getExtension()
         }
         const abspath = this.getPath(context, opts) + relpath;
         return abspath;
     }
 
     /**
-     * @returns {Q.Promise} a promise that resolves with the list of all items stored
-     *                    in the working dir.
-     *                    There is no guarantee that the names refer to a valid file.
+     * Get a list of all items stored in the working dir.
      *
      * @param {Object} context The API context to be used by the listt operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Q.Promise} A promise that resolves with a list of all items stored in the working dir.
+     *                      There is no guarantee that the names refer to a valid file.
      */
     listNames(context, opts) {
         const fsObject = this;
@@ -114,8 +148,6 @@ class JSONPathBasedItemFS extends JSONItemFS {
             }
         });
     }
-
-
 }
 
 module.exports = JSONPathBasedItemFS;

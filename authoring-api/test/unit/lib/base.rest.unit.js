@@ -512,7 +512,7 @@ class BaseRestUnitTest extends UnitTest {
                 // The GET request is to retrieve the assets, but returns an error.
                 const REQUEST_ERROR = "Error getting the assets.";
                 const err = new Error(REQUEST_ERROR);
-                const body = {};
+                const body = [];
                 stub.onCall(0).yields(err, {"statusCode": 429}, body);
                 stub.onCall(1).yields(null, {"statusCode": 200}, body);
 

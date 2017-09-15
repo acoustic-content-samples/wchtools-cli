@@ -38,9 +38,11 @@ const PushingContentItems =         PREFIX + i18n.__('cli_push_pushing_content')
 const PushingCategories =           PREFIX + i18n.__('cli_push_pushing_categories') + SUFFIX;
 const PushingPublishingSources =    PREFIX + i18n.__('cli_push_pushing_sources') + SUFFIX;
 const PushingPublishingProfiles =   PREFIX + i18n.__('cli_push_pushing_profiles') + SUFFIX;
+const PushingPublishingSiteRevisions = PREFIX + i18n.__('cli_push_pushing_site_revisions') + SUFFIX;
 const PushingImageProfiles =        PREFIX + i18n.__('cli_push_pushing_image_profiles') + SUFFIX;
 const PushingRenditions =           PREFIX + i18n.__('cli_push_pushing_renditions') + SUFFIX;
-const PushingPublishingSiteRevisions = PREFIX + i18n.__('cli_push_pushing_site_revisions') + SUFFIX;
+const PushingSites =                PREFIX + i18n.__('cli_push_pushing_sites') + SUFFIX;
+const PushingPages =                PREFIX + i18n.__('cli_push_pushing_pages') + SUFFIX;
 
 class PushCommand extends BaseCommand {
     /**
@@ -228,6 +230,16 @@ class PushCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("content")) {
                     return self.handlePushPromise(self.pushContent(context));
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("sites")) {
+                    return self.handlePushPromise(self.pushSites(context));
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("pages")) {
+                    return self.handlePushPromise(self.pushPages(context));
                 }
             })
             .then(function () {
@@ -742,6 +754,114 @@ class PushCommand extends BaseCommand {
     }
 
     /**
+     * Push the page definitions
+     *
+     * @param {Object} context The API context to be used for the push operation.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
+     */
+    pushPages (context) {
+        const helper = ToolsApi.getPagesHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+
+        self.getLogger().info(PushingPages);
+
+        // The api emits an event when an item is pushed, so we log it for the user.
+        const artifactPushed = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_push_page_pushed', {name: name}));
+        };
+        emitter.on("pushed", artifactPushed);
+
+        // The api emits an event when there is a push error, so we log it for the user.
+        const artifactPushedError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_push_page_push_error', {name: name, message: error.message}));
+        };
+        emitter.on("pushed-error", artifactPushedError);
+
+        // If a name is specified, push the named content.
+        // If Ignore-timestamps is specified then push all content.
+        // Otherwise only push modified content (which is the default behavior).
+        const apiOptions = this.getApiOptions();
+
+        if (helper.doesDirectoryExist(context, apiOptions)) {
+            this._directoriesCount++;
+        }
+
+        let artifactsPromise;
+        if (this.getCommandLineOption("named")) {
+            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactsPromise = helper.pushAllItems(context, apiOptions);
+        } else {
+            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactsPromise
+            .finally(function () {
+                emitter.removeListener("pushed", artifactPushed);
+                emitter.removeListener("pushed-error", artifactPushedError);
+            });
+    }
+
+    /**
+     * Push the site definitions
+     *
+     * @param {Object} context The API context to be used for the push operation.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
+     */
+    pushSites (context) {
+        const helper = ToolsApi.getSitesHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+
+        self.getLogger().info(PushingSites);
+
+        // The api emits an event when an item is pushed, so we log it for the user.
+        const artifactPushed = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_push_site_pushed', {name: name}));
+        };
+        emitter.on("pushed", artifactPushed);
+
+        // The api emits an event when there is a push error, so we log it for the user.
+        const artifactPushedError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_push_site_push_error', {name: name, message: error.message}));
+        };
+        emitter.on("pushed-error", artifactPushedError);
+
+        // If a name is specified, push the named content.
+        // If Ignore-timestamps is specified then push all content.
+        // Otherwise only push modified content (which is the default behavior).
+        const apiOptions = this.getApiOptions();
+
+        if (helper.doesDirectoryExist(context, apiOptions)) {
+            this._directoriesCount++;
+        }
+
+        let artifactsPromise;
+        if (this.getCommandLineOption("named")) {
+            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+            artifactsPromise = helper.pushAllItems(context, apiOptions);
+        } else {
+            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
+        }
+
+        // Return the promise for the results of the action.
+        return artifactsPromise
+            .finally(function () {
+                emitter.removeListener("pushed", artifactPushed);
+                emitter.removeListener("pushed-error", artifactPushedError);
+            });
+    }
+
+    /**
      * Push the (publishing) source artifacts.
      *
      * @param {Object} context The API context to be used for the push operation.
@@ -953,6 +1073,8 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("named", undefined);
         this.setCommandLineOption("path", undefined);
+        this.setCommandLineOption("sites", undefined);
+        this.setCommandLineOption("pages", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -971,9 +1093,11 @@ function pushCommand (program) {
         .option('-c --content',          i18n.__('cli_push_opt_content'))
         .option('-C --categories',       i18n.__('cli_push_opt_categories'))
         .option('-r --renditions',       i18n.__('cli_push_opt_renditions'))
+        .option('-s --sites',            i18n.__('cli_push_opt_sites'))
+        .option('-p --pages',            i18n.__('cli_push_opt_pages'))
         .option('-P --publishing-profiles',i18n.__('cli_push_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_push_opt_site_revisions'))
-        .option('-s --publishing-sources',i18n.__('cli_push_opt_sources'))
+        .option('-S --publishing-sources',i18n.__('cli_push_opt_sources'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-I --ignore-timestamps',i18n.__('cli_push_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_push_opt_all'))

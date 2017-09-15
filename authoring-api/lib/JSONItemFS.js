@@ -27,69 +27,139 @@ const CONFLICT_EXTENSION = '.conflict';
 
 class JSONItemFS extends BaseFS {
 
-    constructor(serviceName, folderName, extension) {
+    constructor (serviceName, folderName, extension) {
         super(serviceName, folderName, extension);
     }
 
     /**
      * Returns the file name to use for the provided item.
+     *
      * @param item the item to get the filename for
-     * @returns {string} the file name to use for the provided item
+     *
+     * @returns {String} the file name to use for the provided item
      */
-    getFileName(item) {
-        if(item.id)
+    getFileName (item) {
+        if (item && item.id) {
             return item.id;
-        return item.name;
+        }
+        return item && item.name;
     }
 
     /**
      * Get the file system path to the specified item.
      *
+     * @param {Object} context The API context to be used for this operation.
      * @param {Object | String} item The name of the item or the item object.
+     * @param {Object} opts Any override options to be used for this operation.
      *
      * @returns {String} The file system path to the specified item.
      */
-    getItemPath(context, item, opts) {
+    getItemPath (context, item, opts) {
         let name;
         if (typeof item === "string") {
             name = item;
-        } else if (typeof item === "object") {
+        } else {
             name = this.getFileName(item);
         }
         return this.getPath(context, opts) + name + this.getExtension();
     }
 
     /**
+     * Get the hashes value of the local file path for the given id.
      *
-     * @param context
-     * @param name
-     * @param opts
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} id The item id.
+     * @param {Object} opts Any override options to be used for this operation.
      *
-     * @private
+     * @returns {String} The hashes value of the local file path for the given id, or null if the path is not found.
      */
-    handleRename(context, name, opts) {
-        // if the file is already an id based file nothing to do
-        if (!fs.existsSync(name) && opts && opts.originalPushFileName) {
+    getExistingItemPath (context, id, opts) {
+        let retVal = null;
+
+        if (id) {
+            // Get the exisitng hashes information for the item.
+            const basePath = this.getPath(context, opts);
+            const filepath = hashes.getFilePath(context, basePath, id, opts);
+            if (filepath) {
+                retVal = basePath + filepath;
+            }
+        }
+
+        return retVal;
+    }
+
+    /**
+     * Get the file paths for the descendents of the folder with the given file path.
+     *
+     * @param {String} filePath The file path of the folder.
+     * @param {String} [extension] The file extension to use for filtering.
+     *
+     * @return {Array} The file paths for the descendents of the folder with the given file path.
+     *
+     * @protected
+     */
+    getDescendentFilePaths (filePath, extension) {
+        const retVal = [];
+
+        // The recursive function used to gather the file paths.
+        const gatherFilePaths = function (filePath) {
+            fs.readdirSync(filePath).forEach(function (file) {
+                const childPath = filePath + "/" + file;
+                const stat = fs.statSync(childPath);
+                if (stat.isDirectory()) {
+                    gatherFilePaths(childPath + "/");
+                }
+                else if (!extension || childPath.endsWith(extension)) {
+                    return retVal.push(childPath);
+                }
+            });
+        };
+
+        // Normalize the file path, make sure it ends with a separator, and convert any back slashes to slashes.
+        filePath = path.normalize(filePath + "/").replace(/\\/g, "/");
+
+        // Gather file paths starting at the top level.
+        gatherFilePaths(filePath);
+
+        // Return the array of descendent file paths.
+        return retVal;
+    }
+
+    /**
+     * Handle any necessary cleanup of the local file system when an artifact has been renamed.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} id The id of the artifact.
+     * @param {String} filePath The (possibly new) filepath of the artifact.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @protected
+     */
+    handleRename (context, id, filePath, opts) {
+        // Only handle the case of a push where the original file name exists and the new file name does not exist.
+        if (!fs.existsSync(filePath) && opts && opts.originalPushFileName) {
             const oldName = this.getPath(context, opts) + opts.originalPushFileName + this.getExtension();
             if (fs.existsSync(oldName)) {
+                // Delete the file with the old name. A file with the new name with be subsequently saved.
                 fs.unlinkSync(oldName);
-                utils.logWarnings(context, i18n.__("deleted_original_file", {old_name: oldName, new_name: name}));
+                utils.logWarnings(context, i18n.__("deleted_original_file", {old_name: oldName, new_name: filePath}));
             }
         }
     }
 
     // TEMPORARY workaround for bug #71 in mkdirp which goes into infinite loop on bad windows pathname
     // Find a better mkdirp and a better path checker to use first, and then remove this workaround
-    static isBadWindowsPathname(path){
+    static isBadWindowsPathname (path){
         return (!path || utils.isInvalidPath(path) || path.includes("http:") || path.includes("https:"));
     }
 
     /**
-     * Optionally prune fields out of the item that we don't want stored on disk
+     * Optionally prune fields out of the item that we don't want stored on disk.
+     *
      * @param {Object} item
-     * @param {Object} opts
+     * @param {Object} opts Any override options to be used for this operation.
      */
-     pruneItem(item, opts) {
+     pruneItem (item, opts) {
          // Base class doesn't prune anything yet, but subclasses likely do.
      }
 
@@ -99,23 +169,24 @@ class JSONItemFS extends BaseFS {
      *
      * @param {Object} context The API context to be used for this operation.
      * @param {Object} item - The object to save.
-     * @param {Object} opts -
+     * @param {Object} opts Any override options to be used for this operation.
      */
-    saveItem(context, item, opts) {
+    saveItem (context, item, opts) {
         const fsObject = this;
+        const hasConflict = opts && opts.conflict;
         let filepath = this.getItemPath(context, item, opts);
-        this.handleRename(context, filepath, opts);
-        if (opts && opts.conflict) {
-            filepath += CONFLICT_EXTENSION;
-        }
-        const dir = path.dirname(filepath);
-        context.logger.trace("Saving item [" + this._serviceName + "] to: " + filepath);
         if (JSONItemFS.isBadWindowsPathname(filepath)) {
             const deferred = Q.defer();
             deferred.reject(new Error(i18n.__("invalid_path", {path: filepath})));
             return deferred.promise;
         }
         else {
+            this.handleRename(context, item.id, filepath, opts);
+            if (hasConflict) {
+                filepath += CONFLICT_EXTENSION;
+            }
+            const dir = path.dirname(filepath);
+            context.logger.trace("Saving item [" + this._serviceName + "] to: " + filepath);
             return Q.Promise(function (resolve, reject) {
                 mkdirp.mkdirp(dir, function (err) {
                     if (err) {
@@ -126,7 +197,7 @@ class JSONItemFS extends BaseFS {
                         try {
                             fsObject.pruneItem(item, opts);
                             fs.writeFileSync(filepath, JSON.stringify(item, null, "  "));
-                            if (opts && !opts.conflict) {
+                            if (!hasConflict) {
                                 hashes.updateHashes(context, fsObject.getPath(context, opts), filepath, item, opts);
                             }
                             return resolve(item);
@@ -141,13 +212,14 @@ class JSONItemFS extends BaseFS {
     }
 
     /**
+     * @param {Object} context The API context to be used by the get operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
      * @returns {Q.Promise} a promise that resolves with the list of all items stored
      *                    in the working dir.
      *                    There is no guarantee that the names refer to a valid file.
-     *
-     * @param {Object} context The API context to be used by the get operation.
      */
-    listNames(context, opts) {
+    listNames (context, opts) {
         const fsObject = this;
         return Q.Promise(function (resolve, reject) {
             const path = fsObject.getPath(context, opts);
@@ -173,10 +245,13 @@ class JSONItemFS extends BaseFS {
     }
 
     /**
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
      * @returns {Q.Promise} - a promise that resolves with a list of all items stored
      *                      in the working directory.
      */
-    getItems(context, opts) {
+    getItems (context, opts) {
         const fsObject = this;
         return this.listNames(context, opts)
             .then(function (names) {
@@ -202,12 +277,12 @@ class JSONItemFS extends BaseFS {
      *
      * @param {Object} context The API context to be used for this operation.
      * @param {string} name - The name of the item
-     * @param {Object} opts The options to be used for this operation.
+     * @param {Object} opts Any override options to be used for this operation.
      *
      * @returns {Q.Promise} A promise that resolves with the requested item. The promise
      *                    will reject if the item doesn't exist.
      */
-    getItem(context, name, opts) {
+    getItem (context, name, opts) {
         const deferred = Q.defer();
         fs.readFile(this.getItemPath(context, name, opts), function (err, body) {
             if (err) {
@@ -226,7 +301,6 @@ class JSONItemFS extends BaseFS {
         });
         return deferred.promise;
     }
-
 }
 
 module.exports = JSONItemFS;

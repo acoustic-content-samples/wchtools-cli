@@ -56,8 +56,15 @@ class BaseREST {
 
     static addHeaderOverrides(context, hdrs, opts) {
         options.getPropertyKeys(context, opts).forEach(function (key) {
-            if (key.startsWith("x-ibm-dx-") && key !== "x-ibm-dx-tenant-base-url") {
-                const value = options.getRelevantOption(context, opts, key);
+            const value = options.getRelevantOption(context, opts, key);
+            if (key === "x-ibm-dx-request-id") {
+                if (!context.BaseRESTRequestCount) {
+                    context.BaseRESTRequestCount = 0;
+                }
+                const requestId = value + "-" + (++context.BaseRESTRequestCount).toString(16);
+                hdrs[key] = requestId;
+                utils.logDebugInfo(context, 'addHeaderOverrides request id:' + requestId);
+            } else if (key.startsWith("x-ibm-dx-") && key !== "x-ibm-dx-tenant-base-url") {
                 if (value && typeof value === "string") {
                     hdrs[key] = value;
                 }
@@ -128,7 +135,18 @@ class BaseREST {
                     switch (error.statusCode) {
                         // 403 Forbidden - Handle the special case that sometimes occurs during authorization. In general we
                         // wouldn't retry on this error, but if it happens during authorization, a retry frequently succeeds.
-                        case 403:
+                        case 403: {
+                            retVal = true;
+                            // For a 403, don't bother retrying if the error code is 3193 (operation not allowed based on tenant tier).
+                            if (response && response.body && response.body.errors && response.body.errors.length > 0) {
+                                response.body.errors.forEach(function (e) {
+                                    if (e.code === 3193) {
+                                        retVal = false;
+                                    }
+                                });
+                            }
+                            break;
+                        }
                         // 429 Too Many Requests - The user has sent too many requests in a given amount of time ("rate limiting").
                         case 429:
                         // 500 Internal Server Error - The server has encountered a situation it doesn't know how to handle.
@@ -287,9 +305,12 @@ class BaseREST {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
                         utils.logErrors(context, i18n.__("get_items_error", {service_name: restObject.getServiceName()}), err);
                         deferred.reject(err);
-                    } else {
+                    } else if (body && body.items) {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         deferred.resolve(body.items);
+                    } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        deferred.resolve(body);
                     }
                 });
             })
@@ -375,11 +396,21 @@ class BaseREST {
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
+                if (item) {
+                    delete item.rev;
+                }
                 requestOptions.body = item;
                 utils.logDebugInfo(context, "Creating item with request options: ", undefined, requestOptions);
                 request.post(requestOptions, function (err, res, body) {
                     const response = res || {};
-                    if (err || response.statusCode < 200 || response.statusCode > 299) {
+                    const createOnly = restObject.isCreateOnlyMode(context, opts);
+                    if (createOnly && response.statusCode === 409) {
+                        // A 409 Conflict error means the item already exists. So for createOnly, consider the create of
+                        // the item to be successful, otherwise handle the error in the normal way.
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        utils.logDebugInfo(context, "Create Only - item already exists: " + JSON.stringify(body));
+                        deferred.resolve(item);
+                    } else if (err || response.statusCode < 200 || response.statusCode > 299) {
                         err = utils.getError(err, body, response, requestOptions);
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
 
@@ -406,6 +437,21 @@ class BaseREST {
     }
 
     /*
+     * Determine whether push operations should default to creating a new item instead of updating an existing item.
+     *
+     * @param {Object} context The API context to be used for the current request.
+     * @param {Object} opts The override options specified for the current request.
+     *
+     * @returns {Boolean} A return value of true indicates that push operations should default to creating a new item.
+     *          A return value of false indicates that push operations should default to updating an existing item.
+     *
+     * @protected
+     */
+    isCreateOnlyMode (context, opts) {
+        return options.getRelevantOption(context, opts, "createOnly") === true;
+    }
+
+    /*
      * Does this WCH REST API currently support the forceOverride query param?
      */
     supportsForceOverride () {
@@ -422,33 +468,54 @@ class BaseREST {
                     requestOptions.uri += "?forceOverride=true";
                 }
                 requestOptions.body = item;
-                utils.logDebugInfo(context, "Updating item with request options: ",undefined, requestOptions);
-                request.put(requestOptions, function (err, res, body) {
-                    const response = res || {};
-                    if (response.statusCode === 404) {
-                        deferred.resolve(restObject.createItem(context, item, opts));
-                    } else if ((err) || response.statusCode < 200 || response.statusCode > 299) {
-                        err = utils.getError(err, body, response, requestOptions);
-                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
 
-                        // Check to see if this operation should be retried.
-                        if (context.filterRetryPush && context.filterRetryPush(context, err)) {
-                            // The operation will be retried, so do not log the error yet.
-                            err.retry = true;
-                        } else {
-                            // The operation will not be retried, so log the error.
-                            utils.logErrors(context, i18n.__("update_item_error", {service_name: restObject.getServiceName()}), err);
-                        }
-                        deferred.reject(err);
-                    } else {
-                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
-                        utils.logDebugInfo(context, 'update item:' + restObject.getServiceName(), response);
-                        if (body)
-                            deferred.resolve(body);
-                        else
+                // Determine whether to force the item to be created instead of updated.
+                const createOnly = restObject.isCreateOnlyMode(context, opts);
+                if (createOnly) {
+                    restObject.createItem(context, item, opts)
+                        .then(function (item) {
                             deferred.resolve(item);
-                    }
-                });
+                        })
+                        .catch(function (err) {
+                            deferred.reject(err);
+                        });
+                } else {
+                    utils.logDebugInfo(context, "Updating item with request options: ",undefined, requestOptions);
+                    request.put(requestOptions, function (err, res, body) {
+                        const response = res || {};
+                        if (response.statusCode === 404) {
+                            // The update failed because the item was not found, so create the item instead.
+                            restObject.createItem(context, item, opts)
+                                .then(function (item) {
+                                    deferred.resolve(item);
+                                })
+                                .catch(function (err) {
+                                    deferred.reject(err);
+                                });
+                        } else if ((err) || response.statusCode < 200 || response.statusCode > 299) {
+                            err = utils.getError(err, body, response, requestOptions);
+                            BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+
+                            // Check to see if this operation should be retried.
+                            if (context.filterRetryPush && context.filterRetryPush(context, err)) {
+                                // The operation will be retried, so do not log the error yet.
+                                err.retry = true;
+                            } else {
+                                // The operation will not be retried, so log the error.
+                                utils.logErrors(context, i18n.__("update_item_error", {service_name: restObject.getServiceName()}), err);
+                            }
+                            deferred.reject(err);
+                        } else {
+                            BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                            utils.logDebugInfo(context, 'update item:' + restObject.getServiceName(),  response);
+                            if (body) {
+                                deferred.resolve(body);
+                            } else {
+                                deferred.resolve(item);
+                            }
+                        }
+                    });
+                }
             })
             .catch(function (err) {
                 deferred.reject(err);

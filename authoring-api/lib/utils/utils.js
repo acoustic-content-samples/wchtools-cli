@@ -222,6 +222,12 @@ function getError (err, body, response, requestOptions) {
 
         // The log entry will contain the request options if they exist.
         try {
+            // Make sure the returned error never contains a user password.
+            if (requestOptions && requestOptions.auth && requestOptions.auth.pass !== "****") {
+                requestOptions = clone(requestOptions);
+                requestOptions.auth.pass = "****";
+            }
+
             error.log += " Request Options: " + JSON.stringify(requestOptions);
         } catch (e) {
             //do nothing
@@ -295,13 +301,17 @@ function getErrorFromBody (body) {
             err = body.error;
         } else if (body.errors) {
             let messages = '';
-            body.errors.forEach(function (error, index) {
-                messages += error.message;
-                if (index < body.errors.length - 1) {
-                    // Add a separator if this is not the last error in the array.
-                    messages += ' ; ';
-                }
-            });
+            if (Array.isArray(body.errors)) {
+                body.errors.forEach(function (error, index) {
+                    messages += error.message;
+                    if (index < body.errors.length - 1) {
+                        // Add a separator if this is not the last error in the array.
+                        messages += ' ; ';
+                    }
+                });
+            } else {
+                messages += (body.errors.message) ? body.errors.message : JSON.stringify(body.errors);
+            }
             err = new Error(messages);
         }
     }

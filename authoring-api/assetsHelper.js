@@ -53,19 +53,6 @@ const isValidWindowsPathname = function (path) {
     return (path && !utils.isInvalidPath(path) && !path.includes("http:") && !path.includes("https:"));
 };
 
-/**
- * Determine whether the specified file path is a hashes file.
- *
- * @param {String} path - The file path.
- *
- * @return {Boolean} A return value of true indicates the specified file path is a hashes file.
- *
- * @private
- */
-const isHashesFile = function (path) {
-    return (path === hashes.FILENAME || path === "/" + hashes.FILENAME);
-};
-
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
@@ -229,25 +216,26 @@ class AssetsHelper {
      * @private
      */
     _pullAsset (context, asset, opts) {
+        const helper = this;
+        const assetPath = helper._fsApi.getAssetPath(asset);
         // Verify the pathname.
-        if (!isValidWindowsPathname(asset.path) || isHashesFile(asset.path)) {
+        if (!isValidWindowsPathname(assetPath) || hashes.isHashesFile(assetPath)) {
             const deferred = Q.defer();
-            deferred.reject(new Error(i18n.__("invalid_path", {path: asset.path})));
+            deferred.reject(new Error(i18n.__("invalid_path", {path: assetPath})));
             return deferred.promise;
         } else {
             // Get the local file stream to be written.
-            const helper = this;
-            return helper._fsApi.getItemWriteStream(context, asset.path, opts)
+            return helper._fsApi.getItemWriteStream(context, assetPath, opts)
                 .then(function (stream) {
                     // Download the specified asset contents and write them to the given stream.
                     return helper._restApi.pullItem(context, asset, stream, opts)
                         .then(function (asset) {
                             const basePath = helper._fsApi.getAssetsPath(context, opts);
-                            const filePath = helper._fsApi.getPath(context, asset.path, opts);
+                            const filePath = helper._fsApi.getPath(context, assetPath, opts);
 
                             const md5 = hashes.generateMD5Hash(filePath);
                             if (!hashes.compareMD5Hashes(md5, asset.digest)) {
-                                const err = i18n.__("digest_mismatch", {cli_digest: md5, asset: asset.path, server_digest: asset.digest});
+                                const err = i18n.__("digest_mismatch", {cli_digest: md5, asset: assetPath, server_digest: asset.digest});
                                 const logger = this.getLogger(context);
                                 logger.error(err);
                                 throw new Error(err);
@@ -257,7 +245,7 @@ class AssetsHelper {
                             // Notify any listeners that the asset at the given path was pulled.
                             const emitter = helper.getEventEmitter(context);
                             if (emitter) {
-                                emitter.emit("pulled", asset.path);
+                                emitter.emit("pulled", assetPath);
                             }
 
                             // Save the asset metadata for content resources.
@@ -330,7 +318,7 @@ class AssetsHelper {
                                 assets.push(error);
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
-                                    emitter.emit("pulled-error", error, assetList[index].path);
+                                    emitter.emit("pulled-error", error, helper._fsApi.getAssetPath(assetList[index]));
                                 }
                                 context.pullErrorCount++;
                             }
@@ -385,6 +373,21 @@ class AssetsHelper {
         }
     }
 
+    /**
+     * Get the items on the remote content hub.
+     *
+     * @param {Object} context The API context to be used by the get operation.
+     * @param {Object} opts - The options to be used to get the items.
+     *
+     * @returns {Q.Promise} A promise to get the items on the remote content hub.
+     *
+     * @resolves {Array} The items on the remote content hub.
+     */
+    getRemoteItems (context, opts) {
+        // Return the REST object's promise to get the remote items.
+        return this._restApi.getItems(context, opts);
+    }
+    
     /**
      * Pull the asset with the specified path from the content hub.
      *
@@ -517,13 +520,40 @@ class AssetsHelper {
     _pushNameList (context, paths, opts) {
         const helper = this;
 
+        // Push ready assets and draft assets in separate batches.
+        const drafts = [];
+        paths = paths.filter(function (path) {
+            if (helper._fsApi.isDraftAsset(path)) {
+                drafts.push(path);
+            } else {
+                return path;
+            }
+        });
+
         // Throttle the number of assets to be pushed concurrently, using the currently configured limit.
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
-        const results = utils.throttledAll(context, paths.map(function (name) {
+        const readyResults = utils.throttledAll(context, paths.map(function (name) {
             return function () {
                 return helper.pushItem(context, name, opts);
             };
         }), concurrentLimit);
+
+        let results = readyResults;
+        if (drafts.length > 0) {
+            // Wait for the ready assets to be done, then push the batch of draft assets.
+            const deferred = Q.defer();
+            results = deferred.promise;
+            readyResults.then(function (readyPromises) {
+                const draftResults = utils.throttledAll(context, drafts.map(function (name) {
+                    return function () {
+                        return helper.pushItem(context, name, opts);
+                    };
+                }), concurrentLimit);
+                draftResults.then(function (draftPromises) {
+                    deferred.resolve(readyPromises.concat(draftPromises));
+                });
+            });
+        }
 
         // Return the promise to push all of the specified assets.
         let errorCount = 0;
@@ -569,10 +599,10 @@ class AssetsHelper {
             .then(function (length) {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
                 const assetFile = helper._fsApi.getPath(context, path, opts);
-                const assetHashes = hashes.getHashesForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
+                const assetHashesMD5 = hashes.getMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
                 const isContentResource = helper._fsApi.isContentResource(path);
                 let resourceId;
-                let resourceMd5 = assetHashes ? assetHashes.md5 : undefined;
+                let resourceMd5 = assetHashesMD5;
 
                 // In order to push the asset to the content hub, open a read stream for the asset file.
                 let streamOpened;
@@ -633,7 +663,7 @@ class AssetsHelper {
                                 }
 
                                 // Update the hashes for the pushed asset.
-                                const assetPath = helper._fsApi.getPath(context, asset.path, opts);
+                                const assetPath = helper._fsApi.getPath(context, helper._fsApi.getAssetPath(asset), opts);
                                 hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), assetPath, asset, opts);
 
                                 // The push succeeded so emit a "pushed" event.
@@ -920,11 +950,12 @@ class AssetsHelper {
             // filter the search results based on the path searched for and the recursive flag
             return results.filter(function (result) {
                 let keepResult = false;
-                const match = result.path.match(regex);
+                const assetPath = helper._fsApi.getAssetPath(result);
+                const match = assetPath.match(regex);
                 // make sure the regex matches - the search will return case-insensitive results
                 if (match && match.length === 1) {
                     // get the remaining path after the portion that was matched
-                    const subPath = result.path.substring(match[0].length);
+                    const subPath = assetPath.substring(match[0].length);
 
                     // find the index of the first '/' in the sub path
                     const slashIndex = subPath.indexOf('/');
@@ -987,7 +1018,7 @@ class AssetsHelper {
             .then(function (assets) {
                 // Turn the retrieved list of assets (metadata) into a list of asset path values.
                 return assets.map(function (asset) {
-                    return asset.path;
+                    return helper._fsApi.getAssetPath(asset);
                 });
             });
     }
@@ -1015,7 +1046,7 @@ class AssetsHelper {
                 return items.filter(function (item) {
                     try {
                         // Determine whether the remote asset was modified, based on the specified flags.
-                        const itemPath = helper._fsApi.getPath(context, item.path, opts);
+                        const itemPath = helper._fsApi.getPath(context, helper._fsApi.getAssetPath(item), opts);
                         return hashes.isRemoteModified(context, flags, item, dir, itemPath, opts);
                     } catch (err) {
                         utils.logErrors(context, i18n.__("error_filtering_remote_items"), err);
@@ -1055,7 +1086,7 @@ class AssetsHelper {
             .then(function (items) {
                 // The list results contain the path of each modified asset.
                 const results = items.map(function (item) {
-                    return item.path;
+                    return helper._fsApi.getAssetPath(item);
                 });
 
                 // Add the deleted assets if the flag was specified.
