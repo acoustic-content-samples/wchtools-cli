@@ -39,7 +39,7 @@ class SitesFsUnitTest extends BaseFsUnit {
     }
 
     run () {
-        super.run(fsApi, "sitesFS", SitesUnitTest.VALID_SITE_1, SitesUnitTest.VALID_SITE_2);
+        super.run(fsApi, SitesUnitTest.VALID_SITE_1, SitesUnitTest.VALID_SITE_2);
     }
 }
 

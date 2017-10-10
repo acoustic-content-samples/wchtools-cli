@@ -19,6 +19,7 @@ const BaseCommand = require("../lib/baseCommand");
 
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
+const options = ToolsApi.getOptions();
 const login = ToolsApi.getLogin();
 const events = require("events");
 const Q = require("q");
@@ -62,16 +63,12 @@ class PushCommand extends BaseCommand {
 
     /**
      * Push the specified artifacts.
-     *
-     * @param {boolean} continueOnError Whether to continue pushing other artifact types when there is an error.
      */
-    doPush (continueOnError) {
+    doPush () {
         // Create the context for pushing the artifacts of each specified type.
         const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
         const context = toolsApi.getContext();
-
         const self = this;
-        self._continueOnError = continueOnError;
 
         // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
         self.handleArtifactTypes(["webassets"]);
@@ -107,14 +104,12 @@ class PushCommand extends BaseCommand {
                 self.endDisplay();
             })
             .catch(function (err) {
-                self.errorMessage(err.message);
+                // End the display of the pushed artifacts.
+                self.endDisplay(err);
             })
             .finally(function () {
                 // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
-
-                // Handle any necessary cleanup.
-                self.handleCleanup();
             });
     };
 
@@ -134,8 +129,10 @@ class PushCommand extends BaseCommand {
 
     /**
      * End the display for the pushed artifacts.
+     *
+     * @param err An error to be displayed if the pull operation resulted in an error before it was started.
      */
-    endDisplay () {
+    endDisplay (err) {
         const logger = this.getLogger();
         logger.info(i18n.__(this._modified ? 'cli_push_modified_pushing_complete' : 'cli_push_pushing_complete'));
         if (this.spinner) {
@@ -143,6 +140,7 @@ class PushCommand extends BaseCommand {
         }
 
         let isError = false;
+        let logError = true;
         let message = i18n.__(this._modified ? 'cli_push_modified_complete' : 'cli_push_complete');
         if (this._artifactsCount > 0) {
             message += " " + i18n.__n('cli_push_success', this._artifactsCount);
@@ -152,12 +150,22 @@ class PushCommand extends BaseCommand {
 
             // Set the exit code for the process, to indicate that some artifacts had push errors.
             process.exitCode = this.CLI_ERROR_EXIT_CODE;
+
+            if (this._artifactsCount === 0) {
+                // No artifacts were pulled and there were errors, so report the results as failure.
+                isError = true;
+            }
         }
         if ((this._artifactsCount > 0 || this._artifactsError > 0) && !this.getCommandLineOption("verbose")) {
             message += " " + i18n.__('cli_log_non_verbose');
         }
         if (this._artifactsCount === 0 && this._artifactsError === 0) {
-            if (this._directoriesCount === 0) {
+            if (err) {
+                // The error pased in has already been logged, but still needs to be displayed to the console.
+                message = err.message;
+                isError = true;
+                logError = false;
+            } else if (this._directoriesCount === 0) {
                 message = i18n.__('cli_push_no_directories_exist');
                 isError = true;
             } else if (this.getCommandLineOption("ignoreTimestamps")) {
@@ -167,8 +175,11 @@ class PushCommand extends BaseCommand {
             }
         }
 
+        // Display the results as success or failure, as determined above.
         if (isError) {
-            this.getLogger().error(message);
+            if (logError) {
+                this.getLogger().error(message);
+            }
             this.errorMessage(message);
         } else {
             this.getLogger().info(message);
@@ -187,6 +198,9 @@ class PushCommand extends BaseCommand {
         const deferred = Q.defer();
         const self = this;
 
+        // Determine whether to continue pushing subsequent artifact types on error.
+        const continueOnError = options.getProperty(context, "continueOnError");
+
         if (self.getCommandLineOption("forceOverride")) {
             self.setApiOption("force-override", true);
         }
@@ -194,73 +208,74 @@ class PushCommand extends BaseCommand {
         self.readyToPush()
             .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
-                    return self.handlePushPromise(self.pushImageProfiles(context));
+                    return self.handlePushPromise(self.pushImageProfiles(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("categories")) {
-                    return self.handlePushPromise(self.pushCategories(context));
+                    return self.handlePushPromise(self.pushCategories(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
-                    return self.handlePushPromise(self.pushAssets(context));
+                    return self.handlePushPromise(self.pushAssets(context), continueOnError);
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("renditions")) {
-                    return self.handlePushPromise(self.pushRenditions(context));
+                    return self.handlePushPromise(self.pushRenditions(context), continueOnError);
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("layouts")) {
-                    return self.handlePushPromise(self.pushLayouts(context));
+                    return self.handlePushPromise(self.pushLayouts(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("types")) {
-                    return self.handlePushPromise(self.pushTypes(context));
+                    return self.handlePushPromise(self.pushTypes(context), continueOnError);
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("layoutMappings")) {
-                    return self.handlePushPromise(self.pushLayoutMappings(context));
+                    return self.handlePushPromise(self.pushLayoutMappings(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("content")) {
-                    return self.handlePushPromise(self.pushContent(context));
+                    return self.handlePushPromise(self.pushContent(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("sites")) {
-                    return self.handlePushPromise(self.pushSites(context));
+                    return self.handlePushPromise(self.pushSites(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
-                    return self.handlePushPromise(self.pushPages(context));
+                    return self.handlePushPromise(self.pushPages(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSources")) {
-                    return self.handlePushPromise(self.pushSources(context));
+                    return self.handlePushPromise(self.pushSources(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingProfiles")) {
-                    return self.handlePushPromise(self.pushProfiles(context));
+                    return self.handlePushPromise(self.pushProfiles(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSiteRevisions")) {
-                    return self.handlePushPromise(self.pushSiteRevisions(context));
+                    return self.handlePushPromise(self.pushSiteRevisions(context), continueOnError);
                 }
             })
             .then(function () {
                 deferred.resolve();
             })
             .catch(function (err) {
+                self.getLogger().error(err.message);
                 deferred.reject(err);
             });
 
@@ -275,11 +290,8 @@ class PushCommand extends BaseCommand {
     readyToPush () {
         const deferred = Q.defer();
 
-        if (this.getOptionArtifactCount() > 0) {
-            deferred.resolve();
-        } else {
-            deferred.reject("At least one artifact type must be specified.");
-        }
+        // There is currently no condition to wait for.
+        deferred.resolve();
 
         return deferred.promise;
     }
@@ -288,12 +300,13 @@ class PushCommand extends BaseCommand {
      * Handle the given push promise according to whether errors should be returned to the caller.
      *
      * @param {Q.Promise} promise A promise to push some artifacts.
+     * @param {boolean} continueOnError Flag specifying whether to continue pulling subsequent artifact types on error.
      *
      * @returns {Q.Promise} A promise that is resolved when the push has completed.
      */
-    handlePushPromise (promise) {
+    handlePushPromise (promise, continueOnError) {
         const self = this;
-        if (self._continueOnError) {
+        if (continueOnError) {
             // Create a nested promise. Any error thrown by this promise will be logged, but not returned to the caller.
             const deferredPush = Q.defer();
             promise
@@ -341,6 +354,11 @@ class PushCommand extends BaseCommand {
             self.getLogger().info(i18n.__('cli_push_asset_pushed', {name: name}));
         };
         emitter.on("pushed", assetPushed);
+        const resourcePushed = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_push_resource_pushed', {name: name}));
+        };
+        emitter.on("resource-pushed", resourcePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const assetPushedError = function (error, path) {
@@ -348,6 +366,11 @@ class PushCommand extends BaseCommand {
             self.getLogger().error(i18n.__('cli_push_asset_push_error', {name: path, message: error.message}));
         };
         emitter.on("pushed-error", assetPushedError);
+        const resourcePushedError = function (error, path) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_push_resource_push_error', {name: path, message: error.message}));
+        };
+        emitter.on("resource-pushed-error", resourcePushedError);
 
         // If a name is specified, push the named asset.
         // If ignore-timestamps is specified then push all assets.
@@ -369,9 +392,17 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return assetsPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", assetPushed);
+                emitter.removeListener("resource-pushed", resourcePushed);
                 emitter.removeListener("pushed-error", assetPushedError);
+                emitter.removeListener("resource-pushed-error", resourcePushedError);
             });
     }
 
@@ -423,6 +454,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return imageProfilesPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", imageProfilePushed);
                 emitter.removeListener("pushed-error", imageProfilePushedError);
@@ -477,6 +514,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactsPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", layoutPushed);
                 emitter.removeListener("pushed-error", layoutPushedError);
@@ -531,6 +574,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactsPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", artifactPushed);
                 emitter.removeListener("pushed-error", artifactPushedError);
@@ -585,6 +634,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return renditionsPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", renditionPushed);
                 emitter.removeListener("pushed-error", renditionPushedError);
@@ -639,6 +694,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return categoriesPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", categoryPushed);
                 emitter.removeListener("pushed-error", categoryPushedError);
@@ -693,6 +754,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return typePromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", itemTypePushed);
                 emitter.removeListener("pushed-error", itemTypePushedError);
@@ -747,6 +814,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return contentsPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", contentPushed);
                 emitter.removeListener("pushed-error", contentPushedError);
@@ -801,6 +874,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactsPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", artifactPushed);
                 emitter.removeListener("pushed-error", artifactPushedError);
@@ -855,6 +934,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactsPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", artifactPushed);
                 emitter.removeListener("pushed-error", artifactPushedError);
@@ -909,6 +994,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return sourcesPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", sourcePushed);
                 emitter.removeListener("pushed-error", sourcePushedError);
@@ -963,6 +1054,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return profilesPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", profilePushed);
                 emitter.removeListener("pushed-error", profilePushedError);
@@ -1017,6 +1114,12 @@ class PushCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pushed", siteRevisionPushed);
                 emitter.removeListener("pushed-error", siteRevisionPushedError);
@@ -1113,7 +1216,7 @@ function pushCommand (program) {
             if (command.setCommandLineOptions(commandLineOptions, this)) {
                 if(command.getCommandLineOption("ignoreTimestamps"))
                     command._modified = false;
-                command.doPush(true);
+                command.doPush();
             }
         });
 }

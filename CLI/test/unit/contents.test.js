@@ -19,18 +19,16 @@ limitations under the License.
 "use strict";
 
 const helper = require("wchtools-api").getContentHelper();
-const rEST = require("../../../authoring-api/lib/contentREST.js").instance;
-const fS = require("../../../authoring-api/lib/contentFS.js").instance;
 
-// Presentations Tests with CLI
+// Content Tests with CLI
 const BASE_NAME = 'content';
 const PullUnitTest = require("./lib/pull.unit.js");
 const pullUnitTest = new PullUnitTest();
-pullUnitTest.run(helper, rEST, fS, '--content', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_cmd.json');
+pullUnitTest.run(helper, '--content', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const PushUnitTest = require("./lib/push.unit.js");
 const pushUnitTest = new PushUnitTest();
-pushUnitTest.run(helper, rEST, fS, '--content', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_cmd.json');
+pushUnitTest.run(helper, '--content', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();

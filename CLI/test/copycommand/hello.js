@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-module.exports = function helloCommand(program) {
+module.exports = function (program) {
 	'use strict';
 
 	program
@@ -23,7 +23,6 @@ module.exports = function helloCommand(program) {
 
 			console.log('Hello ' + name);
 			program.successMessage(name);
-			program.log(name);
 		});
 
 };

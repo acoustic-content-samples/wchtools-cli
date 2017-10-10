@@ -19,18 +19,16 @@ limitations under the License.
 "use strict";
 
 const helper = require("wchtools-api").getItemTypeHelper();
-const rest = require("../../../authoring-api/lib/itemTypesREST.js").instance;
-const fs = require("../../../authoring-api/lib/itemTypesFS.js").instance;
 
-// Presentations Tests with CLI
+// Types Tests with CLI
 const BASE_NAME = 'type';
 const PullUnitTest = require("./lib/pull.unit.js");
 const pullUnitTest = new PullUnitTest();
-pullUnitTest.run(helper, rest, fs, '--types', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_md.json');
+pullUnitTest.run(helper, '--types', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const PushUnitTest = require("./lib/push.unit.js");
 const pushUnitTest = new PushUnitTest();
-pushUnitTest.run(helper, rest, fs, '--types', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_md.json');
+pushUnitTest.run(helper, '--types', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();

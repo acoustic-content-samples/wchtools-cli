@@ -51,22 +51,10 @@ class AssetsRestUnitTest extends AssetsUnitTest {
     run () {
         const self = this;
         describe("Unit tests for assetsREST.js", function() {
-            // Initialize common resourses before running the unit tests.
-            before(function (done) {
-                // Reset the state of the REST API.
-                assetsREST.reset();
-
-                // Signal that the cleanup is complete.
-                done();
-            });
-
             // Cleanup common resourses consumed by a test.
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Reset the state of the REST API.
-                assetsREST.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -155,6 +143,35 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     .then(function (requestOptions) {
                         expect(requestOptions).to.exist;
                         expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.uri).to.contain("/authoring/v1/resources");
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("*/*");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with a generic URI if a tenant-base-uri is not defined", function (done) {
+                // Create a stub for the AssetsREST.getRequestURI method to return a known URI.
+                const stub = sinon.stub(assetsREST, "getRequestURI");
+                stub.resolves(UnitTest.DUMMY_URI);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, passing an empty context (no tenant-base-uri property).
+                let error;
+                assetsREST.getDownloadRequestOptions({})
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain(UnitTest.DUMMY_URI);
                         expect(requestOptions.uri).to.contain("/authoring/v1/resources");
                         expect(requestOptions.headers).to.exist;
                         expect(requestOptions.headers["Accept"]).to.equal("*/*");
@@ -293,6 +310,37 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     });
             });
 
+            it("should succeed with a generic URI if a tenant-base-uri is not defined", function (done) {
+                // Create a stub for the AssetsREST.getRequestURI method to return a known URI.
+                const stub = sinon.stub(assetsREST, "getRequestURI");
+                stub.resolves(UnitTest.DUMMY_URI);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, passing an empty context (no tenant-base-uri property).
+                let error;
+                assetsREST.getResourcePOSTOptions({}, DUMMY_HTML_FILE_NAME)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain("/authoring/v1/resources");
+                        expect(requestOptions.uri).to.contain(UnitTest.DUMMY_URI);
+                        expect(requestOptions.uri).to.contain(DUMMY_HTML_FILE_NAME);
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("application/json");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Content-Type"]).to.equal("text/html");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail when getting the URI fails", function (done) {
                 // Create a stub for AssetsREST.getRequestURI to return an error.
                 const ASSETS_URI_ERROR = "Error getting the assets URI.";
@@ -339,6 +387,39 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         expect(requestOptions).to.exist;
                         expect(requestOptions.uri).to.contain("/authoring/v1/resources");
                         expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.uri).to.contain(UnitTest.DUMMY_ID);
+                        expect(requestOptions.uri).to.contain(DUMMY_HTML_FILE_NAME);
+                        expect(requestOptions.uri).to.contain(DUMMY_MD5_HASH);
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("application/json");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Content-Type"]).to.equal("text/html");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with a generic URI if a tenant-base-uri is not defined", function (done) {
+                // Create a stub for the AssetsREST.getRequestURI method to return a known URI.
+                const stub = sinon.stub(assetsREST, "getRequestURI");
+                stub.resolves(UnitTest.DUMMY_URI);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, passing an empty context (no tenant-base-uri property).
+                let error;
+                assetsREST.getResourcePUTOptions({}, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, DUMMY_HTML_FILE_NAME)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain("/authoring/v1/resources");
+                        expect(requestOptions.uri).to.contain(UnitTest.DUMMY_URI);
                         expect(requestOptions.uri).to.contain(UnitTest.DUMMY_ID);
                         expect(requestOptions.uri).to.contain(DUMMY_HTML_FILE_NAME);
                         expect(requestOptions.uri).to.contain(DUMMY_MD5_HASH);
@@ -441,18 +522,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the asset URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the asset URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(GET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(GET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -482,18 +562,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(GET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(GET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -526,18 +605,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.callCount(5);
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(5);
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("technical difficulties");
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("technical difficulties");
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -567,18 +645,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.callCount(2);
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(2);
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("technical difficulties");
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("technical difficulties");
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -644,18 +721,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.callCount(5);
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(5);
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(REQUEST_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(REQUEST_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -685,18 +761,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(REQUEST_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(REQUEST_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -764,13 +839,12 @@ class AssetsRestUnitTest extends AssetsUnitTest {
     testPushItem () {
         const self = this;
         describe("pushItem", function() {
-
             it("should fail when posting to the resources URI fails with an Error response", function (done) {
                 // Create a stub for the POST request which returns an error.
                 const ASSET_ERROR = "Error pushing the asset.";
                 const stubPost = sinon.stub(request, "post");
                 const err = new Error(ASSET_ERROR);
-                const res = {"statusCode": 500};
+                const res = null;
                 const body = null;
                 stubPost.yields(err, res, body);
 
@@ -779,24 +853,25 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(context, false, false, undefined, undefined, AssetsUnitTest.ASSET_HBS_1, AssetsUnitTest.DUMMY_STREAM, 0)
+                assetsREST.pushItem(context, false, false, false, undefined, undefined, AssetsUnitTest.ASSET_HBS_1, AssetsUnitTest.DUMMY_STREAM, 0)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the post stub was called with a resource URI.
-                            expect(stubPost).to.have.been.calledOnce;
-                            expect(stubPost.firstCall.args[0].uri).to.contain("/resource");
+                        // Verify that the post stub was called with a resource URI.
+                        expect(stubPost).to.have.been.calledOnce;
+                        expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("technical difficulties");
-                            expect(err.message).to.not.contain(ASSET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(ASSET_ERROR);
+                        expect(err.log).to.contain(ASSET_ERROR);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -804,8 +879,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     });
             });
 
-            it("should fail when posting to the assets URI fails with an HTTP 500", function (done) {
-
+            it("should fail when posting to the assets URI fails with an error", function (done) {
                 // Create a stub for the POST requests.
                 const stubPost = sinon.stub(request, "post");
 
@@ -814,14 +888,14 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
                 let err = null;
                 let res = {"statusCode": 200};
-                let body = JSON.stringify(assetMetadata);
+                let body = '{"id": "' + assetMetadata.resource + '"}';
                 stubPost.onCall(0).yields(err, res, body);
                 stubPost.onCall(0).returns(AssetsUnitTest.DUMMY_WRITE_STREAM);
 
                 // The second POST request specifies the asset URI and returns an error.
                 const ASSET_ERROR = "Error pushing the asset.";
                 err = new Error(ASSET_ERROR);
-                res = {"statusCode": 500};
+                res = null;
                 body = null;
                 stubPost.onCall(1).yields(err, res, body);
 
@@ -830,32 +904,177 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(context, false, false, undefined, undefined, "\\" + AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.DUMMY_STREAM, 0)
+                assetsREST.pushItem(context, false, false, false, undefined, undefined, AssetsUnitTest.ASSET_JPG_1.slice(1), AssetsUnitTest.DUMMY_STREAM, 0)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the post stub was called twice.
-                            expect(stubPost).to.have.been.calledTwice;
+                        // Verify that the post stub was called twice.
+                        expect(stubPost).to.have.been.calledTwice;
 
-                            // Verify that the first post was called with a resource URI and the specified body.
-                            expect(stubPost.firstCall.args[0].uri).to.contain("/resource");
+                        // Verify that the first post was called with a resource URI and the specified body.
+                        expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
 
-                            // Verify that the second post was called with an asset URI and the expected body, which
-                            // includes the new asset metadata id and a modified path.
-                            expect(stubPost.secondCall.args[0].uri).to.contain("/asset");
-                            expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.id);
-                            expect(stubPost.secondCall.args[0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
+                        // Verify that the second post was called with an asset URI and the expected body, which
+                        // includes the new asset metadata id and a modified path.
+                        expect(stubPost.secondCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.resource);
+                        expect(stubPost.secondCall.args[0].body.path).to.equal(AssetsUnitTest.ASSET_JPG_1);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("technical difficulties");
-                            expect(err.message).to.not.contain(ASSET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(ASSET_ERROR);
+                        expect(err.log).to.contain(ASSET_ERROR);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed for createOnly when posting to the resources URI fails with a conflict", function (done) {
+                // Create a readable stream of the asset content to pass to the method being tested.
+                const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetContent = fs.readFileSync(assetPath);
+                const assetStream = new Stream.Readable();
+                assetStream.push(assetContent);
+                assetStream.push(null);
+
+                // Create spies to watch the pipe process.
+                const spyPipe = sinon.spy();
+                const spyData = sinon.spy();
+                const spyEnd = sinon.spy();
+                const spyFinish = sinon.spy();
+
+                // Catch the data that is being piped from the input stream to the post request.
+                const requestContentArray = [];
+                let requestContentBuffer;
+                assetStream.on("data", function (data) {
+                    requestContentArray.push(data);
+                });
+                assetStream.on("data", spyData);
+                assetStream.on("end", function () {
+                    requestContentBuffer = Buffer.concat(requestContentArray);
+                });
+                assetStream.on("end", spyEnd);
+
+                // Create a writable stream to receive the content being sent to the post request.
+                const requestStream = new Stream.Writable();
+                requestStream.on("pipe", spyPipe);
+                requestStream.on("finish", spyFinish);
+
+                // Create a stub for the POST requests.
+                const stubPut = sinon.stub(request, "put");
+                const stubPost = sinon.stub(request, "post");
+
+                // The first PUT request specifies the resource URI and returns a promise for the asset metadata.
+                const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
+                let err = null;
+                let res = {"statusCode": 409};
+                let body = null;
+                stubPut.onCall(0).returns(requestStream);
+                stubPut.onCall(0).yieldsAsync(err, res, body);
+
+                // The second POST request specifies the asset URI and returns the asset metadata.
+                err = null;
+                res = {"statusCode": 200};
+                body = assetMetadata;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubPut);
+                self.addTestDouble(stubPost);
+
+                // Call the method being tested.
+                let error;
+                const opts = {"asset": {"id": "test", "rev": "test"}, createOnly: true};
+                assetsREST.pushItem(context, false, false, false, assetMetadata.resource, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
+                    .then(function (asset) {
+                        // Verify that the put and post stubs were called once.
+                        expect(stubPut).to.have.been.calledOnce;
+                        expect(stubPost).to.have.been.calledOnce;
+
+                        // Verify that the first post was called with a resource URI.
+                        expect(stubPut.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
+
+                        // Verify that the expected content was sent to the first post.
+                        expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
+
+                        // Verify that the pipe process occurred in the order expected.
+                        expect(spyData).to.have.been.calledBefore(spyPipe);
+                        expect(spyPipe).to.have.been.calledBefore(spyEnd);
+                        expect(spyEnd).to.have.been.calledBefore(spyFinish);
+
+                        // Verify that the second post was called with an asset URI and the expected body, which
+                        // includes the new asset metadata id and a modified path.
+                        expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPost.firstCall.args[0].body.resource).to.equal(assetMetadata.resource);
+                        expect(stubPost.firstCall.args[0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
+
+                        // Verify that the expected value is returned.
+                        expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed for createOnly when posting to the assets URI fails with a conflict", function (done) {
+                // Create a stub for the POST requests.
+                const stubPost = sinon.stub(request, "post");
+
+                // The first POST request specifies the resource URI and returns a promise for the asset metadata.
+                const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
+                let err = null;
+                let res = {"statusCode": 200};
+                let body = '{"id": "' + assetMetadata.resource + '"}';
+                stubPost.onCall(0).yields(err, res, body);
+                stubPost.onCall(0).returns(AssetsUnitTest.DUMMY_WRITE_STREAM);
+
+                // The second POST request specifies the asset URI and returns an error.
+                const ASSET_ERROR = "The asset already exists, as expected by unit test.";
+                err = new Error(ASSET_ERROR);
+                res = {"statusCode": 409};
+                body = null;
+                stubPost.onCall(1).yields(err, res, body);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+
+                // Call the method being tested, passing the createOnly option.
+                let error;
+                assetsREST.pushItem(context, false, false, false, undefined, undefined, "\\" + AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.DUMMY_STREAM, 0, {createOnly: true})
+                    .then(function () {
+                        // Verify that the post stub was called twice.
+                        expect(stubPost).to.have.been.calledTwice;
+
+                        // Verify that the first post was called with a resource URI and the specified body.
+                        expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
+
+                        // Verify that the second post was called with an asset URI and the expected body, which
+                        // includes the new asset metadata id and a modified path.
+                        expect(stubPost.secondCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.resource);
+                        expect(stubPost.secondCall.args[0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -897,12 +1116,12 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 // Create a stub for the POST requests.
                 const stubPost = sinon.stub(request, "post");
 
-                // The first POST request specifies the resource URI and returns a promise for the asset metadata.
+                // The first POST request specifies the resource URI and returns a promise for the resource metadata.
                 const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
                 const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
                 let err = null;
                 let res = {"statusCode": 200};
-                let body = JSON.stringify(assetMetadata);
+                let body = '{"id": "' + assetMetadata.resource + '"}';
                 stubPost.onCall(0).returns(requestStream);
                 stubPost.onCall(0).yieldsAsync(err, res, body);
 
@@ -917,13 +1136,13 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(context, false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
+                assetsREST.pushItem(context, false, false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
                         // Verify that the post stub was called twice.
                         expect(stubPost).to.have.been.calledTwice;
 
                         // Verify that the first post was called with a resource URI.
-                        expect(stubPost.firstCall.args[0].uri).to.contain("/resource");
+                        expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
 
                         // Verify that the expected content was sent to the first post.
                         expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
@@ -935,8 +1154,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                         // Verify that the second post was called with an asset URI and the expected body, which
                         // includes the new asset metadata id and a modified path.
-                        expect(stubPost.secondCall.args[0].uri).to.contain("/asset");
-                        expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.id);
+                        expect(stubPost.secondCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.resource);
                         expect(stubPost.secondCall.args[0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
 
                         // Verify that the expected value is returned.
@@ -993,7 +1212,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
                 let err = null;
                 let res = {"statusCode": 200};
-                let body = JSON.stringify(assetMetadata);
+                let body = '{"id": "' + assetMetadata.resource + '"}';
                 stubPut.returns(requestStream);
                 stubPut.yieldsAsync(err, res, body);
 
@@ -1009,14 +1228,14 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(context, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
+                assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
                         // Verify that the put stub was called once and the post stub was called once.
                         expect(stubPut).to.have.been.calledOnce;
                         expect(stubPost).to.have.been.calledOnce;
 
                         // Verify that put was called with a resource URI.
-                        expect(stubPut.args[0][0].uri).to.contain("/resource");
+                        expect(stubPut.args[0][0].uri).to.contain("/authoring/v1/resources");
 
                         // Verify that the expected content was sent to the put.
                         expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
@@ -1028,7 +1247,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                         // Verify that the post was called with an asset URI and the expected body, which
                         // includes the new asset metadata id and a modified path.
-                        expect(stubPost.args[0][0].uri).to.contain("/asset");
+                        expect(stubPost.args[0][0].uri).to.contain("/authoring/v1/assets");
                         expect(stubPost.args[0][0].body.resource).to.equal(UnitTest.DUMMY_ID);
                         expect(stubPost.args[0][0].body.path).to.equal(AssetsUnitTest.ASSET_JPG_1);
 
@@ -1046,7 +1265,101 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     });
             });
 
-            it("should succeed when pushing an updated (managed) asset", function (done) {
+            it("should succeed when pushing an updated (managed) asset containing no rev value", function (done) {
+                // Create a readable stream of the asset content to pass to the method being tested.
+                const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetContent = fs.readFileSync(assetPath);
+                const assetStream = new Stream.Readable();
+                assetStream.push(assetContent);
+                assetStream.push(null);
+
+                // Create spies to watch the pipe process.
+                const spyPipe = sinon.spy();
+                const spyData = sinon.spy();
+                const spyEnd = sinon.spy();
+                const spyFinish = sinon.spy();
+
+                // Catch the data that is being piped from the input stream to the put request.
+                const requestContentArray = [];
+                let requestContentBuffer;
+                assetStream.on("data", function (data) {
+                    requestContentArray.push(data);
+                });
+                assetStream.on("data", spyData);
+                assetStream.on("end", function () {
+                    requestContentBuffer = Buffer.concat(requestContentArray);
+                });
+                assetStream.on("end", spyEnd);
+
+                // Create a writable stream to receive the content being sent to the post request.
+                const requestStream = new Stream.Writable();
+                requestStream.on("pipe", spyPipe);
+                requestStream.on("finish", spyFinish);
+
+                // Create stubs for the PUT and POST requests.
+                const stubPut = sinon.stub(request, "put");
+                const stubPost = sinon.stub(request, "post");
+
+                // The PUT request specifies the resource URI and returns a promise for the resource metadata.
+                const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
+                let err = null;
+                let res = {"statusCode": 200};
+                let body = '{"id": "' + assetMetadata.resource + '"}';
+                stubPut.returns(requestStream);
+                stubPut.yieldsAsync(err, res, body);
+
+                // The POST request specifies the asset update URI and returns the asset metadata.
+                err = null;
+                res = {"statusCode": 200};
+                body = assetMetadata;
+                stubPost.yieldsAsync(err, res, body);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubPut);
+                self.addTestDouble(stubPost);
+
+                // Call the method being tested.
+                let error;
+                const opts = {"asset": {"id": "test"}, "force-override": true};
+                assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
+                    .then(function (asset) {
+                        // Verify that the stubs were each called once.
+                        expect(stubPut).to.have.been.calledOnce;
+                        expect(stubPost).to.have.been.calledOnce;
+
+                        // Verify that the put was called with a resource URI.
+                        expect(stubPut.args[0][0].uri).to.contain("/authoring/v1/resources");
+
+                        // Verify that the expected content was sent to the first put.
+                        expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
+
+                        // Verify that the pipe process occurred in the order expected.
+                        expect(spyData).to.have.been.calledBefore(spyPipe);
+                        expect(spyPipe).to.have.been.calledBefore(spyEnd);
+                        expect(spyEnd).to.have.been.calledBefore(spyFinish);
+
+                        // Verify that the post was called with an asset URI that includes a forceOverride element
+                        // and the expected body, which includes the new asset metadata id and a modified path.
+                        expect(stubPost.args[0][0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPost.args[0][0].uri).to.contain("forceOverride=true");
+                        expect(stubPost.args[0][0].body.resource).to.equal(UnitTest.DUMMY_ID);
+
+                        // Verify that the expected value is returned.
+                        expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pushing an updated (managed) asset containing a rev value", function (done) {
                 // Create a readable stream of the asset content to pass to the method being tested.
                 const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
                 const assetContent = fs.readFileSync(assetPath);
@@ -1085,13 +1398,13 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
                 let err = null;
                 let res = {"statusCode": 200};
-                let body = JSON.stringify(assetMetadata);
+                let body = '{"id": "' + assetMetadata.resource + '"}';
                 stubPut.onCall(0).returns(requestStream);
                 stubPut.onCall(0).yieldsAsync(err, res, body);
 
                 // The second PUT request specifies the asset update URI and returns the asset metadata.
                 err = null;
-                res = {"statusCode": 200};
+                res = null;
                 body = assetMetadata;
                 stubPut.onCall(1).yieldsAsync(err, res, body);
 
@@ -1100,13 +1413,14 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(context, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, {"asset": {"id": "test", "rev": "test"}})
+                const opts = {"asset": {"id": "test", "rev": "test"}, "force-override": true};
+                assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
                     .then(function (asset) {
                         // Verify that the put stub was called twice.
                         expect(stubPut).to.have.been.calledTwice;
 
                         // Verify that the first put was called with a resource URI.
-                        expect(stubPut.args[0][0].uri).to.contain("/resource");
+                        expect(stubPut.args[0][0].uri).to.contain("/authoring/v1/resources");
 
                         // Verify that the expected content was sent to the first put.
                         expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
@@ -1116,13 +1430,209 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         expect(spyPipe).to.have.been.calledBefore(spyEnd);
                         expect(spyEnd).to.have.been.calledBefore(spyFinish);
 
-                        // Verify that the second put was called with an asset URI and the expected body, which
-                        // includes the new asset metadata id and a modified path.
-                        expect(stubPut.args[1][0].uri).to.contain("/asset");
+                        // Verify that the second put was called with an asset URI that includes a forceOverride element
+                        // and the expected body, which includes the new asset metadata id and a modified path.
+                        expect(stubPut.args[1][0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPut.args[1][0].uri).to.contain("forceOverride=true");
                         expect(stubPut.args[1][0].body.resource).to.equal(UnitTest.DUMMY_ID);
 
                         // Verify that the expected value is returned.
                         expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pushing an updated (managed) asset's metadata is not found", function (done) {
+                // Create a readable stream of the asset content to pass to the method being tested.
+                const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetContent = fs.readFileSync(assetPath);
+                const assetStream = new Stream.Readable();
+                assetStream.push(assetContent);
+                assetStream.push(null);
+
+                // Create spies to watch the pipe process.
+                const spyPipe = sinon.spy();
+                const spyData = sinon.spy();
+                const spyEnd = sinon.spy();
+                const spyFinish = sinon.spy();
+
+                // Catch the data that is being piped from the input stream to the put request.
+                const requestContentArray = [];
+                let requestContentBuffer;
+                assetStream.on("data", function (data) {
+                    requestContentArray.push(data);
+                });
+                assetStream.on("data", spyData);
+                assetStream.on("end", function () {
+                    requestContentBuffer = Buffer.concat(requestContentArray);
+                });
+                assetStream.on("end", spyEnd);
+
+                // Create a writable stream to receive the content being sent to the post request.
+                const requestStream = new Stream.Writable();
+                requestStream.on("pipe", spyPipe);
+                requestStream.on("finish", spyFinish);
+
+                // Create stubs for the PUT and POST requests.
+                const stubPut = sinon.stub(request, "put");
+                const stubPost = sinon.stub(request, "post");
+
+                // The first PUT request specifies the resource URI and returns a promise for the asset metadata.
+                const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
+                let err = null;
+                let res = {"statusCode": 200};
+                let body = '{"id": "' + assetMetadata.resource + '"}';
+                stubPut.onCall(0).returns(requestStream);
+                stubPut.onCall(0).yieldsAsync(err, res, body);
+
+                // The second PUT request specifies the asset update URI and returns a not found error.
+                err = null;
+                res = {"statusCode": 404};
+                body = null;
+                stubPut.onCall(1).yieldsAsync(err, res, body);
+
+                // The POST request specifies the asset create URI and returns the asset metadata.
+                err = null;
+                res = {"statusCode": 201};
+                body = assetMetadata;
+                stubPost.yieldsAsync(err, res, body);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubPut);
+                self.addTestDouble(stubPost);
+
+                // Call the method being tested.
+                let error;
+                const opts = {"asset": {"id": "test", "rev": "test"}, "force-override": true};
+                assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
+                    .then(function (asset) {
+                        // Verify that the put stub was called twice.
+                        expect(stubPut).to.have.been.calledTwice;
+
+                        // Verify that the first put was called with a resource URI.
+                        expect(stubPut.args[0][0].uri).to.contain("/authoring/v1/resources");
+
+                        // Verify that the expected content was sent to the first put.
+                        expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
+
+                        // Verify that the pipe process occurred in the order expected.
+                        expect(spyData).to.have.been.calledBefore(spyPipe);
+                        expect(spyPipe).to.have.been.calledBefore(spyEnd);
+                        expect(spyEnd).to.have.been.calledBefore(spyFinish);
+
+                        // Verify that the second put was called with an asset URI that includes a forceOverride element
+                        // and the expected body, which includes the new asset metadata id and a modified path.
+                        expect(stubPut.args[1][0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPut.args[1][0].uri).to.contain("forceOverride=true");
+                        expect(stubPut.args[1][0].body.resource).to.equal(UnitTest.DUMMY_ID);
+
+                        // Verify that the expected value is returned.
+                        expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when pushing an updated (managed) asset's metadata fails", function (done) {
+                // Create a readable stream of the asset content to pass to the method being tested.
+                const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetContent = fs.readFileSync(assetPath);
+                const assetStream = new Stream.Readable();
+                assetStream.push(assetContent);
+                assetStream.push(null);
+
+                // Create spies to watch the pipe process.
+                const spyPipe = sinon.spy();
+                const spyData = sinon.spy();
+                const spyEnd = sinon.spy();
+                const spyFinish = sinon.spy();
+
+                // Catch the data that is being piped from the input stream to the put request.
+                const requestContentArray = [];
+                let requestContentBuffer;
+                assetStream.on("data", function (data) {
+                    requestContentArray.push(data);
+                });
+                assetStream.on("data", spyData);
+                assetStream.on("end", function () {
+                    requestContentBuffer = Buffer.concat(requestContentArray);
+                });
+                assetStream.on("end", spyEnd);
+
+                // Create a writable stream to receive the content being sent to the post request.
+                const requestStream = new Stream.Writable();
+                requestStream.on("pipe", spyPipe);
+                requestStream.on("finish", spyFinish);
+
+                // Create stubs for the PUT and POST requests.
+                const stubPut = sinon.stub(request, "put");
+
+                // The first PUT request specifies the resource URI and returns a promise for the asset metadata.
+                const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
+                let err = null;
+                let res = {"statusCode": 200};
+                let body = '{"id": "' + assetMetadata.resource + '"}';
+                stubPut.onCall(0).returns(requestStream);
+                stubPut.onCall(0).yieldsAsync(err, res, body);
+
+                // The second PUT request specifies the asset update URI and returns the asset metadata.
+                const RESOURCE_ERROR = "The resource put request failed, as expected by unit test.";
+                err = new Error(RESOURCE_ERROR);
+                res = {"statusCode": 500};
+                body = null;
+                stubPut.onCall(1).yieldsAsync(err, res, body);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubPut);
+
+                // Call the method being tested.
+                let error;
+                const opts = {"asset": {"id": "test", "rev": "test"}, "force-override": true};
+                assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the put stub was called twice.
+                        expect(stubPut).to.have.been.calledTwice;
+
+                        // Verify that the first put was called with a resource URI.
+                        expect(stubPut.args[0][0].uri).to.contain("/authoring/v1/resources");
+
+                        // Verify that the expected content was sent to the first put.
+                        expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
+
+                        // Verify that the pipe process occurred in the order expected.
+                        expect(spyData).to.have.been.calledBefore(spyPipe);
+                        expect(spyPipe).to.have.been.calledBefore(spyEnd);
+                        expect(spyEnd).to.have.been.calledBefore(spyFinish);
+
+                        // Verify that the second put was called with an asset URI that includes a forceOverride element
+                        // and the expected body, which includes the new asset metadata id and a modified path.
+                        expect(stubPut.args[1][0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPut.args[1][0].uri).to.contain("forceOverride=true");
+                        expect(stubPut.args[1][0].body.resource).to.equal(UnitTest.DUMMY_ID);
+
+                        // Verify that the expected error is returned.
+                        expect(err.message).to.contain("technical difficulties");
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -1165,18 +1675,17 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the generated URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources/"+ AssetsUnitTest.ASSET_JPG_3);
+                        // Verify that the stub was called once with the lookup URI and once with the generated URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources/"+ AssetsUnitTest.ASSET_JPG_3);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("Cannot get asset");
-                            expect(err.message).to.contain("404");
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("Cannot get asset");
+                        expect(err.message).to.contain("404");
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -1208,17 +1717,16 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the generated URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources/"+ AssetsUnitTest.ASSET_JPG_3);
+                        // Verify that the stub was called once with the lookup URI and once with the generated URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources/"+ AssetsUnitTest.ASSET_JPG_3);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(ASSET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(ASSET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -1244,16 +1752,15 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the generated URI.
-                            expect(stub).to.have.been.calledOnce;
+                        // Verify that the stub was called once with the lookup URI and once with the generated URI.
+                        expect(stub).to.have.been.calledOnce;
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(ASSET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(ASSET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -1344,17 +1851,16 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the delete stub was called once with a URI that contains the specified ID.
-                            expect(stubDelete).to.have.been.calledOnce;
-                            expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_METADATA.id);
+                        // Verify that the delete stub was called once with a URI that contains the specified ID.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_METADATA.id);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(ASSET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(ASSET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.

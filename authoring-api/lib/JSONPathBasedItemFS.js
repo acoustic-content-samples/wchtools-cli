@@ -44,24 +44,18 @@ class JSONPathBasedItemFS extends JSONItemFS {
         const fsObject = this;
         return super.getItem(context, name, opts)
             .then(function(item) {
-                if (fsObject.isMutablePath()) {
-                    fsObject.setMutablePath(item, name);
-                }
+                // Set the path (property to be set is based on class.)
+                fsObject.setMutablePath(item, name);
                 return item;
             });
     }
 
     /*
-     * Is this a mutable path item where the path is removed from json on save
-     * so that Fernando can move the file (eg, layout) to another folder, and
-     * have the path reset in the json on push (eg, layouts are, pages are not)
-     */
-    isMutablePath() {
-        return true;
-    }
-
-    /*
      * Clear the mutable path value.
+     *
+     * @param {Object} item The item with a mutable path.
+     *
+     * @protected
      */
     clearMutablePath(item) {
         delete item.path;
@@ -69,6 +63,11 @@ class JSONPathBasedItemFS extends JSONItemFS {
 
     /*
      * Set the mutable path value.
+     *
+     * @param {Object} item The item with a mutable path.
+     * @param {String} path The path to be set.
+     *
+     * @protected
      */
     setMutablePath(item, path) {
         item.path = path;
@@ -76,8 +75,10 @@ class JSONPathBasedItemFS extends JSONItemFS {
 
     /**
      * Prune the item by deleting the properties that should not be stored on disk
-     * @param {Object} item
-     * @param {Object} opts
+     * @param {Object} item The item being pruned.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @override
      */
      pruneItem(item, opts) {
          delete item.created;
@@ -86,9 +87,9 @@ class JSONPathBasedItemFS extends JSONItemFS {
          delete item.lastModifier;
          delete item.lastModifierId;
          delete item.lastModified;
-         if (this.isMutablePath()) {
-             this.clearMutablePath(item);
-         }
+
+         // Clear the path (property to be cleared is based on class.)
+         this.clearMutablePath(item);
      }
 
     /**

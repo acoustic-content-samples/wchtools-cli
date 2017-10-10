@@ -27,11 +27,6 @@ class BaseREST {
         this._uriPath = uriPath;
         this._allUriSuffix = allUriSuffix;
         this._modifiedUriSuffix = modifiedUriSuffix;
-
-        this.reset();
-    }
-
-    reset () {
     }
 
     getServiceName () {
@@ -170,7 +165,7 @@ class BaseREST {
 
                 // Add a log warning for the retry.
                 if (retVal) {
-                    utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.log ? error.log : error.message}));
+                    utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.log}));
                 }
             }
 
@@ -267,12 +262,20 @@ class BaseREST {
         return deferred.promise;
     }
 
+    supportsByModified () {
+        return this._modifiedUriSuffix !== undefined;
+    }
+
     getModifiedItems (context, lastPullTimestamp, opts) {
-        const params = {};
-        if (lastPullTimestamp) {
-            params.start = lastPullTimestamp;
+        if (this.supportsByModified()) {
+            const params = {};
+            if (lastPullTimestamp) {
+                params.start = lastPullTimestamp;
+            }
+            return this._getItems(context, this._modifiedUriSuffix, params, opts);
+        } else {
+            return this.getItems(context, opts);
         }
-        return this._getItems(context, this._modifiedUriSuffix, params, opts);
     }
 
     /**
@@ -396,9 +399,7 @@ class BaseREST {
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
-                if (item) {
-                    delete item.rev;
-                }
+                delete item.rev;
                 requestOptions.body = item;
                 utils.logDebugInfo(context, "Creating item with request options: ", undefined, requestOptions);
                 request.post(requestOptions, function (err, res, body) {

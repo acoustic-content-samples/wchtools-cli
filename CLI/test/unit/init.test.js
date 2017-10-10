@@ -103,6 +103,48 @@ describe("init", function () {
                 });
         });
 
+        it("test init user param - prompt failure", function (done) {
+            let error;
+
+            // Stub the getProperty method to return null for the url.
+            const originalGetProperty = options.getProperty;
+            const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                if (key === "x-ibm-dx-tenant-base-url") {
+                    return null;
+                } else {
+                    originalGetProperty(context, key);
+                }
+            });
+
+            // Stub the prompt.get method so that it returns an error.
+            const PROMPT_ERROR = "Error prompting for user, expected by unit test.";
+            const stubPrompt = sinon.stub(prompt, "get");
+            stubPrompt.yields(new Error(PROMPT_ERROR), {});
+
+            // Execute the command to set the user.
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', "--user", TEST_USER])
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The command should have failed.");
+                })
+                .catch(function (err) {
+                    expect(err.message).to.contain(PROMPT_ERROR);
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the stubs that were created.
+                    stubGet.restore();
+                    stubPrompt.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
         it("test init url param", function (done) {
             let error;
 
@@ -256,11 +298,12 @@ describe("init", function () {
                     error = new Error("The command should have failed.");
                 })
                 .catch(function (err) {
-                    try {
-                        expect(err.message).to.contain('foo');
-                    } catch (err) {
-                        error = err;
-                    }
+                    expect(err.message).to.contain('foo');
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
                 })
                 .finally(function () {
                     // Call mocha's done function to indicate that the test is over.
@@ -287,11 +330,13 @@ describe("init", function () {
             const spy = sinon.spy(ToolsApi, "getInitializationErrors");
 
             let error;
-            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--user', TEST_USER, '--url', TEST_URL])
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--dir', '.', '--user', TEST_USER, '--url', TEST_URL])
                 .then(function () {
                     expect(spy.firstCall.returnValue).to.have.lengthOf(0);
                 })
                 .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 })
                 .finally(function () {
@@ -316,6 +361,8 @@ describe("init", function () {
                     expect(err.message).to.contain(INIT_ERROR);
                 })
                 .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 })
                 .finally(function () {
@@ -342,6 +389,8 @@ describe("init", function () {
                     expect(err.message).to.contain(INIT_ERROR_2);
                 })
                 .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 })
                 .finally(function () {

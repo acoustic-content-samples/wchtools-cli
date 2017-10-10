@@ -33,7 +33,7 @@ describe("hashes", function () {
     const TEST_TENANT_BASE_URL = "test-tenant-base-url";
     const CURRENT_DATE = new Date();
     const TOMORROW_DATE = new Date(CURRENT_DATE.getTime() + 86400000);
-    const TEST_OPTS = {"x-ibm-dx-tenant-id": TEST_TENANT_ID, "x-ibm-dx-tenant-base-url": TEST_TENANT_BASE_URL};
+    const TEST_OPTS = {"x-ibm-dx-tenant-id": TEST_TENANT_ID, "x-ibm-dx-tenant-base-url": TEST_TENANT_BASE_URL, "noVirtualFolder": true};
     const TEST_DIRECTORY_PATH = __dirname + path.sep + "resources";
     const HASHES_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + ".wchtoolshashes";
     const NONEXISENT_FILE_PATH = TEST_DIRECTORY_PATH + path.sep + "foo.bar";
@@ -264,7 +264,7 @@ describe("hashes", function () {
             let error = undefined;
             try {
                 const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEXT_FILE_METADATA, TEST_OPTS);
-                delete context.hashes[TEST_DIRECTORY_PATH][TEST_TENANT_ID][IMAGE_FILE_ID];
+                delete context.hashes[TEST_DIRECTORY_PATH + path.sep][TEST_TENANT_ID][IMAGE_FILE_ID];
 
                 // An error is logged each time the hashes file is read. The updateHashes method reads the hashes file
                 // twice -- the first time to get the metadata for the current tenant so that it can be modified, and
@@ -308,9 +308,9 @@ describe("hashes", function () {
 
             let error = undefined;
             try {
-                context.hashes[TEST_DIRECTORY_PATH].updateCount = 25;
+                context.hashes[TEST_DIRECTORY_PATH + path.sep].updateCount = 25;
                 const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
-                delete context.hashes[TEST_DIRECTORY_PATH][TEST_TENANT_ID][IMAGE_FILE_ID];
+                delete context.hashes[TEST_DIRECTORY_PATH + path.sep][TEST_TENANT_ID][IMAGE_FILE_ID];
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in saveHashes");

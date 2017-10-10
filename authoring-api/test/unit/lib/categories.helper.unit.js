@@ -51,6 +51,7 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
     runAdditionalTests (restApi, fsApi, helper, path1, path2/*, badPath, type, itemMetadata1, itemMetadata2, badMetadata*/) {
         this.testCanPushItem(helper);
         this.testCanPullItem(helper);
+        this.testFilterRetryPushContent(helper);
         this.testPushModifiedCategories(helper, path1, path2);
     }
 
@@ -116,6 +117,99 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
                 } catch (err) {
                     error = err;
                 } finally {
+                    done(error);
+                }
+            });
+        });
+    }
+
+    testFilterRetryPushContent (helper) {
+        describe("filterRetryPush", function () {
+            it("should return false with no error.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    expect(helper.filterRetryPush(context)).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return false with no error response body.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const PUSH_ERROR = "There was a push error - expected by the unit test.";
+                    const pushError = new Error(PUSH_ERROR);
+                    pushError.response = {"statusCode": 400};
+                    expect(helper.filterRetryPush(context, pushError)).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return false with the wrong error code.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const PUSH_ERROR = "There was a push error - expected by the unit test.";
+                    const pushError = new Error(PUSH_ERROR);
+                    pushError.response = {"statusCode": 400, "body": {"errors": [{"code": 7000}]}};
+                    expect(helper.filterRetryPush(context, pushError)).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true with a specific error code (number).", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    // Create an error that will cause the item to be retried.
+                    const PUSH_ERROR = "There was a push error - expected by the unit test.";
+                    const pushError = new Error(PUSH_ERROR);
+                    pushError.response = {"statusCode": 400, "body": {"errors": [{"code": 2004}]}};
+                    expect(helper.filterRetryPush(context, pushError)).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true with a specific error code (string).", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    // Create an error that will cause the item to be retried.
+                    const PUSH_ERROR = "There was a push error - expected by the unit test.";
+                    const pushError = new Error(PUSH_ERROR);
+                    pushError.response = {"statusCode": 400, "body": {"errors": [{"code": "2004"}]}};
+                    expect(helper.filterRetryPush(context, pushError)).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }
             });

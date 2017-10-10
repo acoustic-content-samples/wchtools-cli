@@ -22,4 +22,4 @@ limitations under the License.
 const AuthoringSearchRestUnitTest = require("./lib/authoringSearch.rest.unit.js");
 const authoringSearchRestUnitTest = new AuthoringSearchRestUnitTest();
 
-authoringSearchRestUnitTest.runTests();
+authoringSearchRestUnitTest.run();

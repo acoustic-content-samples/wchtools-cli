@@ -24,27 +24,22 @@ module.exports = function (program) {
 	/*istanbul ignore next*/
     program.request = function (opts, next) {
         if (program.debug) {
-            program.log('REQUEST: '.bold + JSON.stringify(opts, null, 2));
-        } else {
-            program.log(opts.uri);
+            program.debugMessage('REQUEST: '.bold + JSON.stringify(opts, null, 2));
         }
 
         status.start();
 
         return request(opts, function (err, res, body) {
             status.stop();
-            if (err) {
-                if (program.debug) {
-                    program.errorMessage(err.message);
-                }
-                return next(err, res, body);
-            } else {
-                if (program.debug) {
-                    program.log('RESPONSE: '.bold + JSON.stringify(res.headers, null, 2));
-                    program.log('BODY: '.bold + JSON.stringify(res.body, null, 2));
-                }
-                return next(err, res, body);
+            if (program.debug) {
+				if (err) {
+					program.errorMessage('ERROR: '.bold + err.message);
+				} else {
+					program.debugMessage('RESPONSE: '.bold + JSON.stringify(res.headers, null, 2));
+					program.debugMessage('BODY: '.bold + JSON.stringify(res.body, null, 2));
+				}
             }
+            return next(err, res, body);
         });
     };
 
@@ -67,7 +62,7 @@ module.exports = function (program) {
 			opts.uri = 'http://finance.yahoo.com/d/quotes.csv?s=' + symbol.toUpperCase() + '&f=' + Object.keys(dataKeys).join('');
 			opts.encodeing = 'utf8';
 
-			process.stdout.write('Fetching [' + symbol + '] ');
+			process.stdout.write('Fetching [' + symbol + ']\n');
 
 			program.request(opts, function (err, res, body) {
 				if (err) {

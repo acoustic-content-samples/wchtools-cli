@@ -236,7 +236,7 @@ class AssetsHelper {
                             const md5 = hashes.generateMD5Hash(filePath);
                             if (!hashes.compareMD5Hashes(md5, asset.digest)) {
                                 const err = i18n.__("digest_mismatch", {cli_digest: md5, asset: assetPath, server_digest: asset.digest});
-                                const logger = this.getLogger(context);
+                                const logger = helper.getLogger(context);
                                 logger.error(err);
                                 throw new Error(err);
                             }
@@ -387,7 +387,7 @@ class AssetsHelper {
         // Return the REST object's promise to get the remote items.
         return this._restApi.getItems(context, opts);
     }
-    
+
     /**
      * Pull the asset with the specified path from the content hub.
      *
@@ -418,6 +418,170 @@ class AssetsHelper {
                 logger.trace("Pull could not find asset: " + path);
                 throw err;
             });
+    }
+
+    _pullResource (context, resource, opts) {
+        const helper = this;
+        const basePath = helper._fsApi.getResourcesPath(context, opts);
+        const resourcePath = "/../resources/" + resource.id;
+        // Get the local file stream to be written.
+        return helper._fsApi.getItemWriteStream(context, resourcePath, opts)
+            .then(function (stream) {
+                // Construct a fake "asset" to pass to the pullItem method.  We just need the resource id and path.
+                const asset = {
+                    id: resource.id,
+                    resource: resource.id,
+                    path: resourcePath
+                };
+                // Specify in the opts that we need the resource filename returned.
+                const newOpts = utils.cloneOpts(opts);
+                newOpts.returnDisposition = true;
+                // Download the specified resource contents and write them to the given stream.
+                return helper._restApi.pullItem(context, asset, stream, newOpts)
+                    .then(function (asset) {
+                        helper._fsApi.renameResource(context, resource.id, asset.disposition, opts);
+                        const newname = helper._fsApi.getRawResourcePath(context, resource.id, asset.disposition, opts);
+                        const relative = utils.getRelativePath(basePath, newname);
+                        hashes.updateResourceHashes(context, basePath, newname, asset, opts);
+
+                        // Notify any listeners that the resource at the given path was pulled.
+                        const emitter = helper.getEventEmitter(context);
+                        if (emitter) {
+                            emitter.emit("resource-pulled", relative);
+                        }
+                        return asset;
+                    });
+            });
+    }
+
+    /**
+     * Pull the chunk of resources retrieved by the given function.
+     *
+     * @param {Object} context - The context to be used for the pull operation.
+     * @param {Function} listFn - A function that returns a promise for a chunk of remote resources to be pulled.
+     * @param {Object} opts - The options to be used for the pull operations.
+     *
+     * @returns {Q.Promise} A promise for information about the resources that were pulled.
+     *
+     * @private
+     */
+    _pullResourcesChunk (context, listFn, opts) {
+        // Get the next "chunk" of resource ids from the content hub.
+        const helper = this;
+        return listFn(opts)
+            .then(function (resourceList) {
+                const listLength = resourceList.length;
+
+                resourceList = resourceList.filter(function (resource) {
+                    // Filter the list of resources and return only those that aren't pulled for assets.
+                    const basePath = helper._fsApi.getResourcesPath(context, opts);
+                    const path = hashes.getPathForResource(context, basePath, resource.id, opts);
+                    if (!path) {
+                        return resource;
+                    }
+                });
+
+                // Throttle the number of resources to be pulled concurrently, using the currently configured limit.
+                const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", "resources");
+                const results = utils.throttledAll(context, resourceList.map(function (resource) {
+                    // Return a function that returns a promise for each resource being pulled.
+                    return function () {
+                        return helper._pullResource(context, resource, opts);
+                    };
+                }), concurrentLimit);
+
+                // Return the promise to pull all of the specified resources.
+                return results
+                    .then(function (promises) {
+                        // Return a list of results - resource id for a fulfilled promise, error for a rejected promise.
+                        const resources = [];
+                        promises.forEach(function (promise, index) {
+                            if (promise.state === "fulfilled") {
+                                const resource = promise.value;
+                                resources.push(resource);
+                            }
+                            else {
+                                const error = promise.reason;
+                                resources.push(error);
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("resource-pulled-error", error, resourceList[index].id);
+                                }
+                                context.pullErrorCount++;
+                            }
+                        });
+
+                        // Return the number of resources processed (either success or failure) and an array of pulled resources.
+                        return {length: listLength, resources: resources};
+                    });
+            });
+    }
+
+    /**
+     * Recursive function to pull subsequent chunks of resources retrieved by the given function.
+     *
+     * @param {Object} context - The context to be used for the pull operation.
+     * @param {Function} listFn - A function that returns a promise for a chunk of remote resources to be pulled.
+     * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* resources pulled.
+     * @param {Array} results - The accumulated results.
+     * @param {Object} pullInfo - The number of resources processed (either success or failure) and an array of pulled resources.
+     * @param {Object} opts - The options to be used for the pull operations.
+     *
+     * @private
+     */
+    _recurseResourcesPull (context, listFn, deferred, results, pullInfo, opts) {
+        // If a results array is specified, accumulate the resources pulled.
+        if (results) {
+            results = results.concat(pullInfo.resources);
+        } else {
+            results = pullInfo.resources;
+        }
+
+        const currentChunkSize = pullInfo.length;
+        const maxChunkSize = options.getRelevantOption(context, opts, "limit", "resources");
+        if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
+            // The current chunk is a partial chunk, so there are no more resources to be retrieved. Resolve the promise
+            // with the accumulated results.
+            deferred.resolve(results);
+        } else {
+            // The current chunk is a full chunk, so there may be more resources to retrieve.
+            const helper = this;
+
+            // Increase the offset so that the next chunk of resources will be retrieved.
+            const offset = options.getRelevantOption(context, opts, "offset", "resources");
+            opts = utils.cloneOpts(opts);
+            opts.offset = offset +  maxChunkSize;
+
+            // Pull the next chunk of resources from the content hub.
+            helper._pullResourcesChunk(context, listFn, opts)
+                .then(function (pullInfo) {
+                    helper._recurseResourcesPull(context, listFn, deferred, results, pullInfo, opts);
+                });
+        }
+    }
+
+    pullResources (context, opts) {
+        const deferred = Q.defer();
+
+        // If we're only pulling (Fernando) web assets, don't bother pulling resources without asset references.
+        // If the noVirtualFolder option has been specified, we can't pull resources without asset references.
+        if (opts && (opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
+            deferred.resolve();
+        } else {
+            const listFn = this._restApi.getResourceList.bind(this._restApi, context);
+            const helper = this;
+            helper._pullResourcesChunk(context, listFn, opts)
+                .then(function (pullInfo) {
+                    // There are no results initially, so just pass null for the results. The accumulated array of
+                    // resources for all pulled items will be available when "deferred" has been resolved.
+                    helper._recurseResourcesPull(context, listFn, deferred, null, pullInfo, opts);
+                })
+                .catch(function (err) {
+                    // There was a fatal issue, beyond a failure to pull one or more items.
+                    deferred.reject(err);
+                });
+        }
+        return deferred.promise;
     }
 
     /**
@@ -451,6 +615,12 @@ class AssetsHelper {
 
         // Handle any necessary actions once the pull operations have completed.
         return deferred.promise
+            .then(function (items) {
+                return helper.pullResources(context, opts)
+                    .then(function () {
+                        return items;
+                    });
+            })
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
@@ -494,6 +664,12 @@ class AssetsHelper {
 
         // Handle any necessary actions once the pull operations have completed.
         return deferred.promise
+            .then(function (items) {
+                return helper.pullResources(context, opts)
+                    .then(function () {
+                        return items;
+                    });
+            })
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
@@ -602,7 +778,7 @@ class AssetsHelper {
                 const assetHashesMD5 = hashes.getMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
                 const isContentResource = helper._fsApi.isContentResource(path);
                 let resourceId;
-                let resourceMd5 = assetHashesMD5;
+                let resourceMd5 = isContentResource ? assetHashesMD5 : undefined;
 
                 // In order to push the asset to the content hub, open a read stream for the asset file.
                 let streamOpened;
@@ -611,7 +787,7 @@ class AssetsHelper {
                     streamOpened = helper._fsApi.getItem(context, path, opts)
                         .then(function (asset) {
                             // Get the resource ID and the MD5 hash if they aren't already defined.
-                            resourceId = resourceId || asset.resource;
+                            resourceId = asset.resource;
                             resourceMd5 = resourceMd5 || hashes.generateMD5Hash(assetFile);
 
                             // Keep track of the asset metadata.
@@ -628,6 +804,9 @@ class AssetsHelper {
                 } else {
                     // There is no metadata file, so open a read stream for the asset file.
                     streamOpened = helper._fsApi.getItemReadStream(context, path, opts);
+                    resourceMd5 = resourceMd5 || hashes.generateMD5Hash(assetFile);
+                    // Use the resources's MD5 hash as the resourceId.
+                    resourceId = resourceMd5 ? new Buffer(resourceMd5, "base64").toString("hex") : undefined;
                 }
 
                 streamOpened
@@ -639,10 +818,10 @@ class AssetsHelper {
                         });
 
                         // Determine how to set replaceContentReource - if the saved md5 doesn't match the md5 of the resource
-                        const replaceContentResource = (resourceMd5 !== hashes.generateMD5Hash(assetFile));
+                        const replaceContentResource = isContentResource && (resourceMd5 !== hashes.generateMD5Hash(assetFile));
 
                         // Push the asset to the content hub.
-                        helper._restApi.pushItem(context, isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
+                        helper._restApi.pushItem(context, false, isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
                             .then(function (asset) {
                                 // Save the asset metadata to a local file.
                                 const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
@@ -708,6 +887,171 @@ class AssetsHelper {
     }
 
     /**
+     * Push the resource with the specified path to the content hub.
+     *
+     * @param {Object} context - The context to be used for the push operation.
+     * @param {String} resourcePath - The path of the resource to be pushed.
+     * @param {Object} opts - The options to be used for the push operation.
+     *
+     * @returns {Q.Promise} A promise for the metadata of the resource that was pushed.
+     */
+    _pushResource (context, resourcePath, opts) {
+        const deferred = Q.defer();
+
+        // Begin the push process by determining the content length of the specified local file.
+        const helper = this;
+        helper._fsApi.getResourceContentLength(context, resourcePath, opts)
+            .then(function (length) {
+
+                // In order to push the resource to the content hub, open a read stream for the resource file.
+                let streamOpened = helper._fsApi.getResourceReadStream(context, resourcePath, opts);
+
+                streamOpened
+                    .then(function (readStream) {
+                        // Create a promise that will be resolved when the read stream is closed.
+                        const streamClosed = Q.defer();
+                        readStream.on("close", function () {
+                            streamClosed.resolve(resourcePath);
+                        });
+
+                        const resourceMd5 = hashes.generateMD5Hash(helper._fsApi.getResourcePath(context, resourcePath, opts));
+                        // The resourceId should be the resource's MD5 hash, fall back to using the directory name (original ID) that was pulled.
+                        const resourceId = resourceMd5 ? new Buffer(resourceMd5, "base64").toString("hex") : path.basename(path.dirname(resourcePath));
+
+                        // Push the resource to the content hub.
+                        helper._restApi.pushItem(context, true, true, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
+                            .then(function (resource) {
+                                // Once the resource file has been saved, resolve the top-level promise.
+                                if (WAIT_FOR_CLOSE) {
+                                    // Also wait for the stream to close before resolving the top-level promise.
+                                    streamClosed.promise
+                                        .then(function () {
+                                            deferred.resolve(resource);
+                                        });
+                                } else {
+                                    deferred.resolve(resource);
+                                }
+
+                                // The push succeeded so emit a "resource-pushed" event.
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("resource-pushed", resourcePath);
+                                }
+                            })
+                            .catch(function (err) {
+                                // Failed to push the resource file, so explicitly close the read stream.
+                                helper._closeStream(context, readStream, streamClosed);
+
+                                // Reject the top-level promise.
+                                if (WAIT_FOR_CLOSE) {
+                                    // Also wait for the stream to close before rejecting the top-level promise.
+                                    streamClosed.promise
+                                        .then(function () {
+                                            deferred.reject(err);
+                                        });
+                                } else {
+                                    deferred.reject(err);
+                                }
+
+                                // The push failed so emit a "resource-pushed-error" event.
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("resource-pushed-error", err, resourcePath);
+                                }
+                            });
+                    })
+                    .catch(function (err) {
+                        // Failed getting the read stream, so just reject the top-level promise.
+                        deferred.reject(err);
+                    });
+            })
+            .catch(function (err) {
+                // Reject the top-level promise.
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    _pushResourceList (context, paths, opts) {
+        const helper = this;
+        // Throttle the number of resources to be pushed concurrently, using the currently configured limit.
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        const results = utils.throttledAll(context, paths.map(function (path) {
+            return function () {
+                return helper._pushResource(context, path, opts);
+            };
+        }), concurrentLimit);
+
+        // Return the promise to push all of the specified resources.
+        let errorCount = 0;
+        return results
+            .then(function (promises) {
+                // Keep track of the resources that were successfully pushed, and emit a "pushed-error" event for the others.
+                const resources = [];
+                promises.forEach(function (promise) {
+                    if (promise.state === "fulfilled") {
+                        resources.push(promise.value);
+                    }
+                    else {
+                        // Rejected promises are logged by throttledAll(), so just determine the error count.
+                        errorCount++;
+                    }
+                });
+                return resources;
+            })
+            .then(function (resources) {
+                // Keep track of the timestamp of this operation, but only if there were no errors.
+                if (errorCount === 0) {
+                    hashes.setLastPushTimestamp(context, this._fsApi.getResourcesPath(context, opts), new Date(), opts);
+                }
+                return resources;
+            });
+    }
+
+    pushAllResources (context, opts) {
+        const deferred = Q.defer();
+
+        const helper = this;
+        // If we're only pushing (Fernando) web assets, don't bother pushing resources without asset references.
+        // If the noVirtualFolder option has been specified, we can't push resources without asset references.
+        if (opts && (opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
+            deferred.resolve();
+        } else {
+            return helper.listLocalResourceNames(context, opts)
+                .then(function (resources) {
+                    return helper._pushResourceList(context, resources, opts);
+                })
+                .catch(function (err) {
+                    // There was an error.
+                    deferred.reject(err);
+                });
+        }
+        return deferred.promise;
+    }
+
+    pushModifiedResources (context, opts) {
+        const deferred = Q.defer();
+
+        const helper = this;
+        // If we're only pushing (Fernando) web assets, don't bother pushing resources without asset references.
+        // If the noVirtualFolder option has been specified, we can't push resources without asset references.
+        if (opts && (opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
+            deferred.resolve();
+        } else {
+            return helper.listModifiedLocalResourceNames(context, [this.NEW, this.MODIFIED], opts)
+                .then(function (resources) {
+                    return helper._pushResourceList(context, resources, opts);
+                })
+                .catch(function (err) {
+                    // There was an error.
+                    deferred.reject(err);
+                });
+        }
+        return deferred.promise;
+    }
+
+    /**
      * Push local assets to the content hub.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -722,6 +1066,12 @@ class AssetsHelper {
             .then(function (names){
                 // Push the assets in the list.
                 return helper._pushNameList(context, names, opts);
+            })
+            .then(function (results) {
+                return helper.pushAllResources(context, opts)
+                    .then(function (resourceResults) {
+                        return results;
+                    });
             });
     }
 
@@ -740,6 +1090,12 @@ class AssetsHelper {
             .then(function (names){
                 // Push the assets in the list.
                 return helper._pushNameList(context, names, opts);
+            })
+            .then(function (results) {
+                return helper.pushModifiedResources(context, opts)
+                    .then(function (resourceResults) {
+                        return results;
+                    })
             });
     }
 
@@ -1192,6 +1548,46 @@ class AssetsHelper {
     }
 
     /**
+     * Get a list of local resource names, based on the specified options.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts - The options to be used for the list operation.
+     *
+     * @returns {Q.Promise} A promise for a list of local resource names, based on the specified options.
+     */
+    listLocalResourceNames (context, opts) {
+        // Get the list of resource paths on the local file system.
+        return this._fsApi.listResourceNames(context, opts);
+    }
+
+    /**
+     * Get a list of modified local resource paths, based on the specified options.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} flags - An array of the state (NEW, DELETED, MODIFIED) of the resources to be included in the list.
+     * @param {Object} opts - The options to be used for the list operation.
+     *
+     * @returns {Q.Promise} A promise for a list of modified local resource paths, based on the specified options.
+     */
+    listModifiedLocalResourceNames (context, flags, opts) {
+        // Get the list of local resource paths.
+        const dir = this._fsApi.getResourcesPath(context, opts);
+
+        const helper = this;
+        return helper._fsApi.listResourceNames(context, opts)
+            .then(function (resourcePaths) {
+                // Filter the list so that it only contains modified resource paths.
+                const results = resourcePaths
+                    .filter(function (resourcePath) {
+                        const path = helper._fsApi.getResourcePath(context, resourcePath, opts);
+                        return hashes.isLocalModified(context, flags, dir, path, opts);
+                    });
+
+                return results;
+            });
+    }
+
+    /**
      * Get a list of the names of all local assets that have been deleted.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -1405,14 +1801,6 @@ class AssetsHelper {
             }
         }
         return timestamp;
-    }
-
-    /**
-     * Reset the helper to its original state.
-     *
-     * Note: This is mostly useful for testing, so that each test can be sure of the helper's initial state.
-     */
-    reset () {
     }
 }
 

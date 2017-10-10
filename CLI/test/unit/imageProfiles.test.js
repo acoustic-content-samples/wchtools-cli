@@ -19,18 +19,16 @@ limitations under the License.
 "use strict";
 
 const helper = require("wchtools-api").getImageProfilesHelper();
-const rest = require("../../../authoring-api/lib/imageProfilesREST.js").instance;
-const fs = require("../../../authoring-api/lib/imageProfilesFS.js").instance;
 
-// PublishingSources Tests with CLI
+// Image Profiles Tests with CLI
 const BASE_NAME = 'imageProfiles';
 const PullUnitTest = require("./lib/pull.unit.js");
 const pullUnitTest = new PullUnitTest();
-pullUnitTest.run(helper, rest, fs, '--image-profiles', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
+pullUnitTest.run(helper, '--image-profiles', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const PushUnitTest = require("./lib/push.unit.js");
 const pushUnitTest = new PushUnitTest();
-pushUnitTest.run(helper, rest, fs, '--image-profiles', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_smd.json');
+pushUnitTest.run(helper, '--image-profiles', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();

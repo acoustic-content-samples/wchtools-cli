@@ -20,6 +20,7 @@ const BaseCommand = require("../lib/baseCommand");
 
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
+const options = ToolsApi.getOptions();
 const login = ToolsApi.getLogin();
 const events = require("events");
 const Q = require("q");
@@ -64,13 +65,11 @@ class PullCommand extends BaseCommand {
     /**
      * Pull the specified artifacts.
      */
-    doPull (continueOnError) {
+    doPull () {
         // Create the context for pulling the artifacts of each specified type.
         const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
         const context = toolsApi.getContext();
-
         const self = this;
-        self._continueOnError = continueOnError;
 
         // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
         self.handleArtifactTypes(["webassets"]);
@@ -106,14 +105,12 @@ class PullCommand extends BaseCommand {
                 self.endDisplay();
             })
             .catch(function (err) {
-                self.errorMessage(err.message);
+                // End the display of the pulled artifacts.
+                self.endDisplay(err);
             })
             .finally(function () {
                 // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
-
-                // Handle any necessary cleanup.
-                self.handleCleanup();
             });
     }
 
@@ -133,8 +130,10 @@ class PullCommand extends BaseCommand {
 
     /**
      * End the display for the pulled artifacts.
+     *
+     * @param err An error to be displayed if the pull operation resulted in an error before it was started.
      */
-    endDisplay () {
+    endDisplay (err) {
         const logger = this.getLogger();
         logger.info(PREFIX + i18n.__(this._modified ? 'cli_pull_modified_pulling_complete' : 'cli_pull_pulling_complete') + SUFFIX);
         if (this.spinner) {
@@ -142,6 +141,8 @@ class PullCommand extends BaseCommand {
         }
 
         // FUTURE This is not translation compatible. We need to convert this to a string with substitution parameters.
+        let isError = false;
+        let logError = true;
         let message = i18n.__(this._modified ? 'cli_pull_modified_complete' : 'cli_pull_complete');
         if (this._artifactsCount > 0) {
             message += " " + i18n.__n('cli_pull_success', this._artifactsCount);
@@ -151,19 +152,38 @@ class PullCommand extends BaseCommand {
 
             // Set the exit code for the process, to indicate that some artifacts had pull errors.
             process.exitCode = this.CLI_ERROR_EXIT_CODE;
+
+            if (this._artifactsCount === 0) {
+                // No artifacts were pulled and there were errors, so report the results as failure.
+                isError = true;
+            }
         }
         if ((this._artifactsCount > 0 || this._artifactsError > 0) && !this.getCommandLineOption("verbose")) {
             message += " " + i18n.__('cli_log_non_verbose');
         }
         if (this._artifactsCount === 0 && this._artifactsError === 0) {
-            if (this.getCommandLineOption("ignoreTimestamps")) {
+            if (err) {
+                // The error pased in has already been logged, but still needs to be displayed to the console.
+                message = err.message;
+                isError = true;
+                logError = false;
+            } else if (this.getCommandLineOption("ignoreTimestamps")) {
                 message = i18n.__('cli_pull_complete_ignore_timestamps_nothing_pulled');
             } else {
                 message = i18n.__('cli_pull_complete_nothing_pulled');
             }
         }
-        logger.info(message);
-        this.successMessage(message);
+
+        // Display the results as success or failure, as determined above.
+        if (isError) {
+            if (logError) {
+                this.getLogger().error(message);
+            }
+            this.errorMessage(message);
+        } else {
+            logger.info(message);
+            this.successMessage(message);
+        }
     }
 
     /**
@@ -177,76 +197,80 @@ class PullCommand extends BaseCommand {
         const deferred = Q.defer();
         const self = this;
 
+        // Determine whether to continue pulling subsequent artifact types on error.
+        const continueOnError = options.getProperty(context, "continueOnError");
+
         self.readyToPull()
             .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
-                    return self.handlePullPromise(self.pullImageProfiles(context));
+                    return self.handlePullPromise(self.pullImageProfiles(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("categories")) {
-                    return self.handlePullPromise(self.pullCategories(context));
+                    return self.handlePullPromise(self.pullCategories(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
-                    return self.handlePullPromise(self.pullAssets(context));
+                    return self.handlePullPromise(self.pullAssets(context), continueOnError);
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("layouts")) {
-                    return self.handlePullPromise(self.pullLayouts(context));
+                    return self.handlePullPromise(self.pullLayouts(context), continueOnError);
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("layoutMappings")) {
-                    return self.handlePullPromise(self.pullLayoutMappings(context));
+                    return self.handlePullPromise(self.pullLayoutMappings(context), continueOnError);
                 }
             })
             .then(function() {
                 if (self.getCommandLineOption("renditions")) {
-                    return self.handlePullPromise(self.pullRenditions(context));
+                    return self.handlePullPromise(self.pullRenditions(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("types")) {
-                    return self.handlePullPromise(self.pullTypes(context));
+                    return self.handlePullPromise(self.pullTypes(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("content")) {
-                    return self.handlePullPromise(self.pullContent(context));
+                    return self.handlePullPromise(self.pullContent(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("sites")) {
-                    return self.handlePullPromise(self.pullSites(context));
+                    return self.handlePullPromise(self.pullSites(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
-                    return self.handlePullPromise(self.pullPages(context));
+                    return self.handlePullPromise(self.pullPages(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingProfiles")) {
-                    return self.handlePullPromise(self.pullProfiles(context));
+                    return self.handlePullPromise(self.pullProfiles(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSiteRevisions")) {
-                    return self.handlePullPromise(self.pullSiteRevisions(context));
+                    return self.handlePullPromise(self.pullSiteRevisions(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("publishingSources")) {
-                    return self.handlePullPromise(self.pullSources(context));
+                    return self.handlePullPromise(self.pullSources(context), continueOnError);
                 }
             })
             .then(function () {
                 deferred.resolve();
             })
             .catch(function (err) {
+                self.getLogger().error(err.message);
                 deferred.reject(err);
             });
 
@@ -261,11 +285,8 @@ class PullCommand extends BaseCommand {
     readyToPull () {
         const deferred = Q.defer();
 
-        if (this.getOptionArtifactCount() > 0) {
-            deferred.resolve();
-        } else {
-            deferred.reject("At least one artifact type must be specified.");
-        }
+        // There is currently no condition to wait for.
+        deferred.resolve();
 
         return deferred.promise;
     }
@@ -274,12 +295,13 @@ class PullCommand extends BaseCommand {
      * Handle the given pull promise according to whether errors should be returned to the caller.
      *
      * @param {Q.Promise} promise A promise to pull some artifacts.
+     * @param {boolean} continueOnError Flag specifying whether to continue pulling subsequent artifact types on error.
      *
      * @returns {Q.Promise} A promise that is resolved when the pull has completed.
      */
-    handlePullPromise (promise) {
+    handlePullPromise (promise, continueOnError) {
         const self = this;
-        if (self._continueOnError) {
+        if (continueOnError) {
             // Create a nested promise. Any error thrown by this promise will be logged, but not returned to the caller.
             const deferredPull = Q.defer();
             promise
@@ -327,6 +349,11 @@ class PullCommand extends BaseCommand {
             self.getLogger().info(i18n.__('cli_pull_asset_pulled', {name: name}));
         };
         emitter.on("pulled", assetPulled);
+        const resourcePulled = function (name) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_resource_pulled', {name: name}));
+        };
+        emitter.on("resource-pulled", resourcePulled);
 
         // The api can emit a warning event when an item is pulled, so we log it for the user.
         const assetPulledWarning = function (name) {
@@ -341,6 +368,11 @@ class PullCommand extends BaseCommand {
             self.getLogger().error(i18n.__('cli_pull_asset_pull_error', {name: name, message: error.message}));
         };
         emitter.on("pulled-error", assetPulledError);
+        const resourcePulledError = function (error, id) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_resource_pull_error', {id: id, message: error.message}));
+        };
+        emitter.on("resource-pulled-error", resourcePulledError);
 
         const apiOptions = this.getApiOptions();
         let assetPromise;
@@ -352,10 +384,18 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return assetPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", assetPulled);
                 emitter.removeListener("pulled-warning", assetPulledWarning);
                 emitter.removeListener("pulled-error", assetPulledError);
+                emitter.removeListener("resource-pulled", resourcePulled);
+                emitter.removeListener("resource-pulled-error", resourcePulledError);
             });
     }
 
@@ -398,6 +438,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return imageProfilesPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", imageProfilePulled);
                 emitter.removeListener("pulled-error", imageProfilePulledError);
@@ -443,6 +489,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", artifactPulled);
                 emitter.removeListener("pulled-error", artifactPulledError);
@@ -488,6 +540,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", artifactPulled);
                 emitter.removeListener("pulled-error", artifactPulledError);
@@ -533,6 +591,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return renditionPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", renditionPulled);
                 emitter.removeListener("pulled-error", renditionPulledError);
@@ -578,6 +642,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return categoryPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", categoryPulled);
                 emitter.removeListener("pulled-error", categoryPulledError);
@@ -623,6 +693,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return typePromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", itemTypePulled);
                 emitter.removeListener("pulled-error", itemTypePulledError);
@@ -668,6 +744,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return contentPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", contentPulled);
                 emitter.removeListener("pulled-error", contentPulledError);
@@ -713,6 +795,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", artifactPulled);
                 emitter.removeListener("pulled-error", artifactPulledError);
@@ -760,6 +848,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", artifactPulled);
                 emitter.removeListener("pulled-error", artifactPulledError);
@@ -805,6 +899,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return sourcePromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", sourcePulled);
                 emitter.removeListener("pulled-error", sourcePulledError);
@@ -850,6 +950,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return profilesPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", profilePulled);
                 emitter.removeListener("pulled-error", profilePulledError);
@@ -895,6 +1001,12 @@ class PullCommand extends BaseCommand {
 
         // Return the promise for the results of the action.
         return artifactPromise
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
             .finally(function () {
                 emitter.removeListener("pulled", siteRevisionPulled);
                 emitter.removeListener("pulled-error", siteRevisionPulledError);
@@ -959,7 +1071,7 @@ function pullCommand (program) {
                 if (command.getCommandLineOption("ignoreTimestamps")) {
                     command._modified = false;
                 }
-                command.doPull(true);
+                command.doPull();
             }
         });
 }

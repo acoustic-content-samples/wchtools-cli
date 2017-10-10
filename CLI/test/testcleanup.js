@@ -18,15 +18,15 @@ const fs = require("fs");
 const utils = require("wchtools-api").getUtils();
 const rimraf = require("rimraf");
 
-var loadPath = path.dirname(__filename);
-var cDir = path.normalize(loadPath + path.sep + '../commands');
-var homeDir = utils.getUserHome();
-try{
+const loadPath = path.dirname(__filename);
+const cDir = path.normalize(loadPath + path.sep + '../commands');
+const homeDir = utils.getUserHome();
+try {
     console.log('quote:' + cDir + '/quote.js');
-    if(fs.existsSync( cDir + '/quote.js'))
-        fs.unlinkSync( cDir + '/quote.js');
+    if (fs.existsSync( cDir + '/quote.js')) {
+        fs.unlinkSync(cDir + '/quote.js');
+    }
     rimraf.sync(homeDir + path.sep +  utils.ProductName);
-}
-catch(e){
-
+} catch (e) {
+    // Ignore and keep going.
 }

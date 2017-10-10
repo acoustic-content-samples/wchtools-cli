@@ -31,7 +31,7 @@ class PublishingProfilesFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "publishingProfilesFS", PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILE_1, PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILE_2);
+        super.run(fsApi, PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILE_1, PublishingProfilesUnitTest.VALID_PUBLISHING_PROFILE_2);
     }
 }
 

@@ -16,6 +16,8 @@ limitations under the License.
 "use strict";
 
 const BaseHelper = require("./baseHelper.js");
+const JSONItemFS = require("./lib/categoriesFS");
+const Q = require("q");
 const rest = require("./lib/categoriesREST").instance;
 const fS = require("./lib/categoriesFS").instance;
 const utils = require("./lib/utils/utils.js");
@@ -79,44 +81,31 @@ class CategoriesHelper extends BaseHelper {
     }
 
     /**
-     * Push the items with the given names one at a time.
-     *
-     * @param {Object} context The current context to be used by the API.
-     * @param {Array} names - The names of the items to be pushed.
-     * @param {Object} opts - The options to be used for the push operations.
-     *
-     * @returns {Q.Promise} A promise for the items that were pushed.
-     *
-     * @private
-     */
-    _pushNameListSerial(context, names, opts) {
-        // Set the concurrent limit to 1 to force serialized updates for dependency ordering.
-        opts = utils.cloneOpts(opts);
-        opts["concurrent-limit"] = 1;
-
-        // Call the super class method to do the push.
-        return super._pushNameList(context, names, opts);
-    }
-
-    /**
      * Push the items with the given names.
      *
      * @param {Object} context The API context to be used by the push operations.
      * @param {Array} names - The names of the items to be pushed.
      * @param {Object} opts - The options to be used for the push operations.
      *
-     * @returns {Promise} A promise for the items that were pushed.
+     * @returns {Q.Promise} A promise for the items that were pushed.
      *
      * @override
      * @protected
      */
     _pushNameList(context, names, opts) {
         const helper = this;
-        return Promise.all(names.map(function (name) {
+
+        // Bind the super method so that we can call it later.
+        const superMethod = super._pushNameList.bind(this);
+
+        // Enable the local file cache so that the categories being pushed are only read once.
+        JSONItemFS.setCacheEnabled(context, true, opts);
+
+        return Q.all(names.map(function (name) {
             return helper.getLocalItem(context, name, opts);
         }))
             .then(function (items) {
-                // Sort categories/taxonomies by hierarchy.
+                // Sort categories/taxonomies by hierarchy -- parents before children.
                 items.sort(function (a, b) {
                     const alen = a.ancestorIds ? a.ancestorIds.length : 0;
                     const blen = b.ancestorIds ? b.ancestorIds.length : 0;
@@ -127,8 +116,63 @@ class CategoriesHelper extends BaseHelper {
                 names = items.map(function (item) {
                     return helper.getName(item);
                 });
-                return helper._pushNameListSerial(context, names, opts);
+
+                // Call the super class method to do the push.
+                return superMethod(context, names, opts);
+            })
+            .finally(function () {
+                // Disable the local file cache once the push operation has completed.
+                JSONItemFS.setCacheEnabled(context, false, opts);
             });
+    }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @returns {Boolean} A return value of true indicates that retry push is enabled.
+     *
+     * @override
+     */
+    isRetryPushEnabled () {
+        return true;
+    }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @param {Object} context The current context to be used by the API.
+     * @param {Error} error The error returned from the failed push operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the push should be retried.
+     *
+     * @override
+     */
+    filterRetryPush (context, error) {
+        let retVal = false;
+
+        // A reference error has a response code of 400, and an error code that is known or in the range 6000 - 7000.
+        if (error && error["response"] && (error["response"]["statusCode"] === 400)) {
+            const responseBody = error["response"]["body"];
+            if (responseBody && responseBody["errors"] && responseBody["errors"].length > 0) {
+                // The response has returned one or more errors. If any of these is a reference error, then return true.
+                // That means we will retry the push again, even though any non-reference errors might not benefit from
+                // the retry. This shouldn't be an issue though, because if the retry does not push at least one item, a
+                // subsequent retry will not be attempted.
+                retVal = responseBody["errors"].some(function (error) {
+                    let code = error["code"];
+
+                    // The "code" property is supposed to be a number.
+                    if (typeof code === "string") {
+                        code = parseInt(code);
+                    }
+                    const contentRefNotFound = (code === 2004); // The parent category was not found.
+                    const generalRefNotFound = (code >= 6000 && code < 7000);
+                    return (contentRefNotFound || generalRefNotFound);
+                });
+            }
+        }
+
+        return retVal;
     }
 }
 

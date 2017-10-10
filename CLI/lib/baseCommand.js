@@ -72,6 +72,16 @@ class BaseCommand {
     }
 
     /**
+     * Determine whether debug mode is enabled for this command.
+     *
+     * @returns {Boolean} A return value of true indicates that debug mode is enabled for this command. A return value
+     *          of false indicates that debug mode is not enabled for this command.
+     */
+    isDebugEnabled () {
+        return this.getProgram().debug === true;
+    }
+
+    /**
      * Get the options used by this command for making API calls.
      *
      * @returns {object} The options used by this command for making API calls.
@@ -107,25 +117,6 @@ class BaseCommand {
      */
     getOptionArtifactCount () {
         return this._optionArtifactCount;
-    }
-
-    /**
-     * Add a cleanup function to be executed after the command has been completed.
-     *
-     * @param {function} cleanup A cleanup function to be executed after the command has been completed.
-     */
-    addCleanup (cleanup) {
-        this._cleanups.push(cleanup);
-    }
-
-    /**
-     * Handle any cleanup tasks.
-     */
-    handleCleanup () {
-        // Execute each of the specified cleanup functions.
-        this._cleanups.forEach(function (cleanup) {
-            cleanup();
-        });
     }
 
     /**
@@ -249,6 +240,16 @@ class BaseCommand {
     }
 
     /**
+     * Display a debug message.
+     *
+     * @param {string} message The message to be displayed.
+     */
+    debugMessage (message) {
+        // Display the specified debug message.
+        this.getProgram().debugMessage(message);
+    }
+
+    /**
      * Display a success message.
      *
      * @param {string} message The message to be displayed.
@@ -326,6 +327,11 @@ class BaseCommand {
 
         // If no object types were specified, set the default object type(s).
         if (this._optionArtifactCount === 0 && defaultArtifactTypes) {
+            // Output a debug message to indicate that no artifact types were specified.
+            if (this.isDebugEnabled()) {
+                this.debugMessage("No artifact types were specified. The default types will be used.");
+            }
+
             // Set the command line option for each of the default artifact types.
             const self = this;
             defaultArtifactTypes.forEach(function (type) {

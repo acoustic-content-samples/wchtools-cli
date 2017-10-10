@@ -105,6 +105,7 @@ Then follow the Getting Started instructions below, to configure and start using
        sites/{site-id}/{pages}  site metadata and page node hierarhy for the site
        publishing-profiles/( publishing profiles )
        publishing-sources/ ( publishing sources )
+       resources/          ( image resources no longer referenced by asset metadata, when images updated on assets)
        types/              ( authoring content types )
 
 
@@ -132,7 +133,7 @@ Then follow the Getting Started instructions below, to configure and start using
     wchtools pull -A --dir <path-to-working-directory>
 
   This will push the artifacts in the order of least dependencies (eg, image profiles), to most (eg, pages), in order for dependent items to be there before items that depend on them.
-  
+
   In most cases, the site metadata (eg, working-directory/sites/default.json ) is not changed across pulling/pushing pages and content etc, and since the default site metadata is created out of the box for new tenants, the revision in your package may not match the revision in the Watson Content Hub tenant data.  If you're not changing the site metadata (eg, site name or description),  you may wish to exclude the working-dir/sites/default.json from what you store in your local source code repository (eg, git repository) or remove that default.json file, before pushing, to avoid a conflict.   If you do push it and it fails with a conflict error, you may push the site again with -f (--force-override) to override the conflict, if you intend for the local copy to replace the current site metadata on the server side, for your Watson Content Hub tenant.
 
 #### Uploading new managed content assets such as images
@@ -157,12 +158,13 @@ Then follow the Getting Started instructions below, to configure and start using
 
   The delete command supports the following options:
 
-    -p --path <path> this specifies the path to the artifacts to delete
-    -r --recursive this specifies whether the delete should apply recursively to all descendants of the matching path
+    -p --path <path> this specifies the path to the assets, layout or layout mapping to delete.  Not applicable to other artifact types at this time.
+    --id Delete a layout or layout mapping by id (as opposed to path).  This argument cannot be combined with the --path argument.
+    -r --recursive this specifies whether the delete should apply recursively to all descendants of the matching folder path
     -P --preview this specifies whether to simply preview the artifacts to be deleted, but does not actually execute the delete operation
     -q --quiet this specifies whether the user should be prompted for each artifact to be deleted
 
-  The --path and --recursive options are interpreted by the delete command according to the following:
+  The --path and --recursive options are interpreted by the delete web assets command according to the following:
 
   - If the path ends with the wildcard '*' and --recursive is supplied, the action will recursively match all artifacts that start with the supplied path
   - If the path does not end with a '*' and --recursive is supplied, the action will recursively match all descendants of the supplied folder
@@ -353,7 +355,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
   - The authoring content service does not allow pushing a "ready" state content item, if that content item currently has a "draft" outstanding. You can push a draft content item, whether a draft exists, or no artifact exists for that content ID. But you cannot push a "ready" content item if that item has a draft.  If you must push a ready item, for example, to recover from a server side mistake, where a draft exists, you can cancel the draft and try again. Or you can fix the issue with the authoring UI and then pull the content down to the local filesystem again for archiving.
 
   - Authoring artifacts refer to each other by internal identifiers (the 'id' field). The Watson Content Hub authoring services enforce validation of referential integrity as artifacts are created or updated through the public REST APIs.   For this reason, it is suggested that you use the -A or --All-authoring options when you push authoring artifacts. This option is not needed if you are pushing up only a new set of low level artifacts such as content types (where you could use -t to specify that's what what you want to push). Low-level artifacts are those artifacts without references to other types of artifacts. The all authoring artifact options push artifacts in order from those with no dependencies, to those with the most dependencies. This ordering helps avoid issues where dependent artifacts don't exist yet on the server, during a push.
-  
+
   - Pulling (exporting) a set of artifacts from one tenant and moving them to another by pushing (importing) to the new tenant is "additive", in that if something was removed from the source tenant between pull and push iterations, they won't automatically be removed from the target tenant.  You will need to use the Authoring UI to remove authoring artifacts (content, pages etc) on the target tenant explicitly,  if they were removed in the source tenant, when migrating a new version of an application to a target tenant (for example, when using multiple Watson Content Hub tenants to develop, test and then release iterative versions of an application).
 
 #### Git Repository

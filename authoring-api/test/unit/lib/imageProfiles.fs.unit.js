@@ -16,7 +16,7 @@ class ImageProfilesFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "imageProfilesFS", ImageProfilesUnitTest.VALID_IMAGE_PROFILE_1, ImageProfilesUnitTest.VALID_IMAGE_PROFILE_2 );
+        super.run(fsApi, ImageProfilesUnitTest.VALID_IMAGE_PROFILE_1, ImageProfilesUnitTest.VALID_IMAGE_PROFILE_2 );
     }
 }
 

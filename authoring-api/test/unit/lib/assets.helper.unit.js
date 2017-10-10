@@ -73,8 +73,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
         describe("Unit tests for assetsHelper.js", function () {
             // Initialize common resourses before running any unit tests.
             before(function (done) {
-                assetsHelper.reset();
-
                 // Create a mkdirp.sync stub that returns an undefined value.
                 stubMkdirp = sinon.stub(mkdirp, "sync");
                 stubMkdirp.returns(undefined);
@@ -129,7 +127,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubcompareMD5Hashes.returns(true);
                 self.addTestDouble(stubcompareMD5Hashes);
 
-
                 // Signal that the initialization is complete.
                 done();
             });
@@ -138,9 +135,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Reset the state of the helper.
-                assetsHelper.reset();
 
                 // Reset the state of the options, to remove any values that may have been set during the test.
                 options.initialize(context);
@@ -158,6 +152,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             // Run each of the tests defined in this class.
+            self.testSingleton();
             self.testEventEmitter();
             self.testGetAssetFolderName();
             self.testPullAsset();
@@ -174,6 +169,27 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             self.testListDeletedLocalAssetNames();
             self.testDeleteRemoteAsset();
             self.testSearchRemoteAsset();
+        });
+    }
+
+    testSingleton (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+        describe("is a singleton", function () {
+            it("should fail if try to create a helper", function (done) {
+                let error;
+                try {
+                    const newHelper = new assetsHelper.constructor();
+                    if (newHelper) {
+                        error = "The constructor should have failed.";
+                    } else {
+                        error = "The constructor should have thrown an error.";
+                    }
+                } catch (e){
+                    expect(e).to.equal("An instance of singleton class " + assetsHelper.constructor.name + " cannot be constructed");
+                }
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
         });
     }
 
@@ -887,9 +903,12 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
                 const stub = sinon.stub(assetsREST, "getItems");
                 stub.resolves([]);
+                const stubResources = sinon.stub(assetsREST, "getResourceList");
+                stubResources.resolves([]);
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
+                self.addTestDouble(stubResources);
 
                 // Call the method being tested.
                 let error;
@@ -903,6 +922,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledOnce;
+                        expect(stubResources).to.have.been.calledOnce;
 
                         // Verify that the hashes were called as expected.
                         expect(stubSetLastPull).to.have.been.calledOnce;
@@ -940,6 +960,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
                 stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
                 stubGet.onCall(3).resolves([]);
+                const stubResources = sinon.stub(assetsREST, "getResourceList");
+                stubResources.resolves([]);
 
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
@@ -1004,6 +1026,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the get stub was called four times.
                         expect(stubGet).to.have.callCount(4);
+                        expect(stubResources).to.have.been.calledOnce;
 
                         // Verify that the stream stub was called five times, each time with the expected path.
                         expect(stubStream).to.have.callCount(5);
@@ -1852,8 +1875,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the REST stub was called once with the specified path and content.
                         expect(stubREST).to.have.been.calledOnce;
-                        expect(stubREST.firstCall.args[5]).to.equal(AssetsUnitTest.ASSET_HBS_1);
-                        const streamContent = stubREST.firstCall.args[6].read(65536);
+                        expect(stubREST.firstCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        const streamContent = stubREST.firstCall.args[7].read(65536);
                         expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
 
                         // Verify that the hashes were called as expected.
@@ -2005,7 +2028,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                             // Verify that the REST stub was called once with the specified path and content.
                             expect(stubREST).to.have.been.calledOnce;
-                            expect(stubREST.firstCall.args[5]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_3);
+                            expect(stubREST.firstCall.args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_3);
                         } catch (err) {
                             error = err;
                         }
@@ -2068,8 +2091,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the REST stub was called once with the specified path and content.
                         expect(stubREST).to.have.been.calledOnce;
-                        expect(stubREST.firstCall.args[5]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_3);
-                        const streamContent = stubREST.firstCall.args[6].read(65536);
+                        expect(stubREST.firstCall.args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_3);
+                        const streamContent = stubREST.firstCall.args[7].read(65536);
                         expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
 
                         // Verify that the save stub was called once.
@@ -2144,8 +2167,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the REST stub was called once with the specified path and content.
                         expect(stubREST).to.have.been.calledOnce;
-                        expect(stubREST.firstCall.args[5]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_3);
-                        const streamContent = stubREST.firstCall.args[6].read(65536);
+                        expect(stubREST.firstCall.args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_3);
+                        const streamContent = stubREST.firstCall.args[7].read(65536);
                         expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
 
                         // Verify that the save stub was called once.
@@ -2333,7 +2356,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
                 // promises will be resolved. And in order to test error handling, one of the stub calls will reject.
                 const ASSET_ERROR = "There was an error pushing an asset. This error is expected by the test.";
-                const stubREST = sinon.stub(assetsREST, "pushItem", function (context, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
+                const stubREST = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
                     stream.emit("close");
                     const d = Q.defer();
                     if (pathname === AssetsUnitTest.ASSET_HTML_1) {
@@ -2367,12 +2390,16 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubContentLength = sinon.stub(assetsFS, "getContentLength");
                 stubContentLength.resolves(0);
 
+                const stubPushAllResources = sinon.stub(assetsHelper, "pushAllResources");
+                stubPushAllResources.resolves([]);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubFS);
                 self.addTestDouble(stubREST);
                 self.addTestDouble(stubContentLength);
                 self.addTestDouble(stubSave);
+                self.addTestDouble(stubPushAllResources);
 
                 // Call the method being tested.
                 let error;
@@ -2400,23 +2427,23 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the REST stub was called five times, with the expected args, and after the FS stub.
                         expect(stubREST).to.have.callCount(6);
-                        expect(stubREST.getCall(0).args[5]).to.equal(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubREST.getCall(1).args[5]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubREST.getCall(2).args[5]).to.equal(AssetsUnitTest.ASSET_HBS_1);
-                        expect(stubREST.getCall(3).args[5]).to.equal(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubREST.getCall(4).args[5]).to.equal(AssetsUnitTest.ASSET_JAR_1);
-                        expect(stubREST.getCall(5).args[5]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
-                        let requestContent = stubREST.getCall(0).args[6].read(65536);
+                        expect(stubREST.getCall(0).args[6]).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubREST.getCall(1).args[6]).to.equal(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubREST.getCall(2).args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubREST.getCall(3).args[6]).to.equal(AssetsUnitTest.ASSET_GIF_1);
+                        expect(stubREST.getCall(4).args[6]).to.equal(AssetsUnitTest.ASSET_JAR_1);
+                        expect(stubREST.getCall(5).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        let requestContent = stubREST.getCall(0).args[7].read(65536);
                         expect(Buffer.compare(htmlContent, requestContent)).to.equal(0);
-                        requestContent = stubREST.getCall(1).args[6].read(65536);
+                        requestContent = stubREST.getCall(1).args[7].read(65536);
                         expect(Buffer.compare(cssContent, requestContent)).to.equal(0);
-                        requestContent = stubREST.getCall(2).args[6].read(65536);
+                        requestContent = stubREST.getCall(2).args[7].read(65536);
                         expect(Buffer.compare(hbsContent, requestContent)).to.equal(0);
-                        requestContent = stubREST.getCall(3).args[6].read(65536);
+                        requestContent = stubREST.getCall(3).args[7].read(65536);
                         expect(Buffer.compare(gifContent, requestContent)).to.equal(0);
-                        requestContent = stubREST.getCall(4).args[6].read(65536);
+                        requestContent = stubREST.getCall(4).args[7].read(65536);
                         expect(Buffer.compare(jarContent, requestContent)).to.equal(0);
-                        requestContent = stubREST.getCall(5).args[6].read(65536);
+                        requestContent = stubREST.getCall(5).args[7].read(65536);
                         expect(Buffer.compare(jpgContent, requestContent)).to.equal(0);
                         expect(stubREST).to.have.been.calledAfter(stubFS);
 
@@ -2601,7 +2628,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
                 // promises will be resolved. And in order to test error handling, one of the stub calls will reject.
                 const ASSET_ERROR = "There was an error pushing an asset. This error is expected by the test.";
-                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
+                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
                     stream.emit("close");
                     const d = Q.defer();
                     if (pathname === AssetsUnitTest.ASSET_HTML_1) {
@@ -2653,14 +2680,14 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the push stub was called three times, once with each specified path and stream.
                         expect(stubPush).to.have.been.calledThrice;
-                        expect(stubPush.firstCall.args[5]).to.equal(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubPush.secondCall.args[5]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubPush.thirdCall.args[5]).to.equal(AssetsUnitTest.ASSET_HBS_1);
-                        let requestContent = stubPush.firstCall.args[6].read(65536);
+                        expect(stubPush.firstCall.args[6]).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubPush.secondCall.args[6]).to.equal(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubPush.thirdCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        let requestContent = stubPush.firstCall.args[7].read(65536);
                         expect(Buffer.compare(htmlContent, requestContent)).to.equal(0);
-                        requestContent = stubPush.secondCall.args[6].read(65536);
+                        requestContent = stubPush.secondCall.args[7].read(65536);
                         expect(Buffer.compare(cssContent, requestContent)).to.equal(0);
-                        requestContent = stubPush.thirdCall.args[6].read(65536);
+                        requestContent = stubPush.thirdCall.args[7].read(65536);
                         expect(Buffer.compare(hbsContent, requestContent)).to.equal(0);
 
                         // Verify that the get and push stubs were called in the order expected.

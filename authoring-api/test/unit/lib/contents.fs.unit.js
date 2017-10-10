@@ -31,7 +31,7 @@ class ContentsFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "contentFS", ContentsUnitTest.VALID_CONTENT_1, ContentsUnitTest.VALID_CONTENT_2);
+        super.run(fsApi, ContentsUnitTest.VALID_CONTENT_1, ContentsUnitTest.VALID_CONTENT_2);
     }
 }
 

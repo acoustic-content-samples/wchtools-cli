@@ -30,19 +30,6 @@ const i18n = utils.getI18N(__dirname + "/nls", ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-// Local function to determine whether to reject on login error.
-const rejectOnError = function () {
-    // The default behavior ist to reject the login promise on login error.
-    let retVal = true;
-
-    // Reject by default but allow for success on login error, for testing purposes.
-    if (process.env.LOGIN_REJECT_ON_ERROR === "false") {
-        retVal = false;
-    }
-
-    return retVal;
-};
-
 // FUTURE Need to work on this abstraction. LoginREST extends BaseREST so that it can leverage the addRetryOptions()
 // FUTURE method. It does not need the rest of the inherited methods. A lower-level common base class may be preferable.
 class LoginREST extends BaseREST {
@@ -89,9 +76,11 @@ class LoginREST extends BaseREST {
         if (process.env.TENANT_ID) {
             hdrs["x-ibm-dx-tenant-id"] = process.env.TENANT_ID;
         } else {
-            hdrs["x-ibm-dx-tenant-id"] = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
+            let id = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
+            if (id) {
+                hdrs["x-ibm-dx-tenant-id"] = id;
+            }
         }
-
         return hdrs;
     }
 
@@ -145,46 +134,44 @@ class LoginREST extends BaseREST {
                 if (!err && body && body.includes("FBTBLU101E")) {
                     err = new Error(body);
                 } else {
-                    requestOptions.auth.pass = '****';
                     err = utils.getError(err, body, response, requestOptions);
                 }
 
                 BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
                 utils.logErrors(context, "LoginREST.login", err);
-                if (rejectOnError()) {
-                    deferred.reject(err);
-                } else {
-                    deferred.resolve(response);
-                }
+                deferred.reject(err);
             } else if (response.headers && response.headers["set-cookie"] && response.headers["x-ibm-dx-tenant-id"]) {
                 // The login succeeded.
                 BaseREST.logRetryInfo(context, requestOptions, response.attempts);
 
                 const tenant = response.headers["x-ibm-dx-tenant-id"];
                 const baseUrl = response.headers["x-ibm-dx-tenant-base-url"];
-                if (tenant || baseUrl) {
-                    const existingBaseUrl = options.getProperty(context, "x-ibm-dx-tenant-base-url");
+                const existingBaseUrl = options.getProperty(context, "x-ibm-dx-tenant-base-url");
 
-                    // Resolve the promise with the tenant and baseUrl values from the login response.
-                    result["x-ibm-dx-tenant-id"] = tenant;
-                    result["x-ibm-dx-tenant-base-url"] = existingBaseUrl || baseUrl;
-                    result["base-url-from-login-response"] = baseUrl;
+                // Resolve the promise with the tenant and baseUrl values from the login response.
+                result["x-ibm-dx-tenant-id"] = tenant;
+                result["x-ibm-dx-tenant-base-url"] = existingBaseUrl || baseUrl;
+                result["base-url-from-login-response"] = baseUrl;
 
-                    // Keep track of the returned values, but do not overwrite an existing base URL.
-                    const loginResults = {"x-ibm-dx-tenant-id": tenant};
-                    if (!existingBaseUrl) {
-                        loginResults["x-ibm-dx-tenant-base-url"] = baseUrl;
-                    }
-                    context.logger.debug("LoginREST.login: Setting tenant options based on login response: " + JSON.stringify(loginResults));
-                    options.setOptions(context, loginResults);
+                // Keep track of the returned values, but do not overwrite an existing base URL.
+                const loginResults = {"x-ibm-dx-tenant-id": tenant};
+                if (!existingBaseUrl) {
+                    loginResults["x-ibm-dx-tenant-base-url"] = baseUrl;
                 }
+                context.logger.debug("LoginREST.login: Setting tenant options based on login response: " + JSON.stringify(loginResults));
                 context.logger.debug("LoginREST.login: cookie " + response.headers["set-cookie"]);
+                options.setOptions(context, loginResults);
                 deferred.resolve(result);
 
-                // Now set an interval timer to automatically relogin and refresh the login token before it expires.
-                const interval = options.getRelevantOption(context, opts, "reloginInterval") || (11 * 60 + 45) * 60 * 1000;
+                // Determine the interval to be used for the relogin timer.
+                let interval = options.getRelevantOption(context, opts, "reloginInterval");
+                if (typeof interval !== "number") {
+                    interval = (11 * 60 + 45) * 60 * 1000;
+                }
                 context.logger.debug("LoginREST.login: Setting relogin timer to " + interval + "ms.");
-                context.reloginInterval = setInterval(function () {
+
+                // Create a timer to relogin before the login token expires.
+                context.reloginTimer = setInterval(function () {
                     context.logger.debug("LoginREST.login: attempting to relogin");
                     request.get(requestOptions, function (err, res, body) {
                         const response = res || {};
@@ -198,35 +185,24 @@ class LoginREST extends BaseREST {
                     });
                 }, interval);
 
-                // Don't keep the event loop running if this interval is the only thing waiting.
-                context.reloginInterval.unref();
+                // Do not keep the event loop running if the timer is the only thing waiting.
+                context.reloginTimer.unref();
             } else {
                 BaseREST.logRetryInfo(context, requestOptions, res.attempts);
 
                 // The login did not return the expected authentication token or tenant id.
-                requestOptions.auth.pass = '****';
                 err = utils.getError(err, body, res, requestOptions);
 
                 // Log the actual error that was returned from the service.
                 const message = i18n.__("login_missing_authn");
                 utils.logErrors(context, message, err);
 
-                // Reject the promise, if allowed.
-                if (rejectOnError()) {
-                    deferred.reject(new Error(message));
-                } else {
-                    deferred.resolve(response);
-                }
+                // Reject the promise.
+                deferred.reject(new Error(message));
             }
         });
 
         return deferred.promise;
-    }
-
-    /**
-     * Remove any local values that may have been set previously.
-     */
-    reset () {
     }
 }
 

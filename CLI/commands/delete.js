@@ -128,7 +128,8 @@ class DeleteCommand extends BaseCommand {
                     } else {
                         return self.deleteByPath(helper, context, path);
                     }
-                } else if (webassets) {
+                } else {
+                    // Deleting web assets by search.
                     return self.deleteBySearch(helper, context, path);
                 }
             })
