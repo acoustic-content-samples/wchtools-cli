@@ -41,22 +41,93 @@ describe("options.js", function () {
         it("should return null for unknown property", function () {
             expect(options.getProperty(context, "red")).to.be.a('null');
         });
+
+        it("should return passed-in options object if no property specified", function () {
+            expect(options.getProperty("test")).to.equal("test");
+        });
+
+        it("should return null for undefined options object", function () {
+            expect(options.getProperty(undefined)).to.be.a('null');
+        });
     });
 
     describe("setOptions()", function () {
-        it("should not write to file if the options parameter is undefined", function () {
+        it("should not write to file if the options parameter is undefined", function (done) {
+            let error;
             const stub = sinon.stub(fs, "writeFileSync");
-            options.setOptions(context, undefined, true);
-            expect(stub).to.not.have.been.called;
-            stub.restore();
+            try {
+                options.setOptions(context, undefined, true);
+                expect(stub).to.not.have.been.called;
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                done(error);
+            }
         });
 
-        it("should write to file if the options property is defined", function () {
+        it("should write to the user home directory", function (done) {
+            let error;
             const stub = sinon.stub(fs, "writeFileSync");
-            stub.returns('foo');
-            options.setOptions(context, "options-test-property", true);
-            expect(stub).to.have.been.calledOnce;
-            stub.restore();
+            try {
+                const dir = options.setOptions(context, "options-test-property", true);
+                expect(stub).to.have.been.calledOnce;
+                expect(stub.args[0][0]).to.contain(utils.getUserHome());
+                expect(dir).to.contain(utils.getUserHome());
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                done(error);
+            }
+        });
+
+        it("should write to the working directory", function (done) {
+            let error;
+            const stub = sinon.stub(fs, "writeFileSync");
+            try {
+                const dir = options.setOptions(context, "options-test-property", true, ".");
+                expect(stub).to.have.been.calledOnce;
+                expect(stub.args[0][0]).to.contain(process.cwd());
+                expect(dir).to.contain(process.cwd());
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                done(error);
+            }
+        });
+
+        it("should write to the specified directory", function (done) {
+            let error;
+            const stub = sinon.stub(fs, "writeFileSync");
+            try {
+                const dir = options.setOptions(context, "options-test-property", true, BaseUnit.DUMMY_PATH);
+                expect(stub).to.have.been.calledOnce;
+                expect(stub.args[0][0]).to.contain(BaseUnit.DUMMY_PATH + path.sep);
+                expect(dir).to.contain(BaseUnit.DUMMY_PATH + path.sep);
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                done(error);
+            }
+        });
+
+        it("should write to the specified directory", function (done) {
+            let error;
+            const stub = sinon.stub(fs, "writeFileSync");
+            try {
+                const dir = options.setOptions(context, "options-test-property", true, BaseUnit.DUMMY_PATH + path.sep);
+                expect(stub).to.have.been.calledOnce;
+                expect(stub.args[0][0]).to.contain(BaseUnit.DUMMY_PATH + path.sep);
+                expect(dir).to.contain(BaseUnit.DUMMY_PATH + path.sep);
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                done(error);
+            }
         });
     });
 

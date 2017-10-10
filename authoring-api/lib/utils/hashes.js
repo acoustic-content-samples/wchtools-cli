@@ -20,6 +20,7 @@ const crypto = require("crypto");
 const path = require("path");
 const utils = require("./utils.js");
 const options = require("./options.js");
+const mkdirp = require("mkdirp");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const NEW = "new";
@@ -76,6 +77,14 @@ function compareMD5Hashes (hash1, hash2) {
             Buffer.compare(new Buffer(hash1, 'base64'), new Buffer(hash2, 'base64')) === 0);
 }
 
+function normalizePath (basePath) {
+    basePath = path.normalize(basePath);
+    if (!basePath.endsWith(path.sep)) {
+        basePath += path.sep;
+    }
+    return basePath;
+}
+
 /**
  * Get the path for the hashes file at the given path.
  *
@@ -88,9 +97,9 @@ function compareMD5Hashes (hash1, hash2) {
  * @private
  */
 function getHashesFilename (basePath) {
-    const filename = basePath + "/" + FILENAME;
+    const filename = normalizePath(basePath) + FILENAME;
     if (!fs.existsSync(filename)) {
-        const oldFilename = basePath + "/" + OLD_FILENAME;
+        const oldFilename = normalizePath(basePath) + OLD_FILENAME;
         if (fs.existsSync(oldFilename)) {
             fs.renameSync(oldFilename, filename);
         }
@@ -142,6 +151,7 @@ function getTenantKey (context, basePath, opts) {
     const tenantBaseUrl = getBaseUrl(context, opts);
     if (!tenantKey && tenantBaseUrl) {
         // attempt to find tenantKey from stored mapping of baseUrls to tenantIDs
+        basePath = normalizePath(basePath);
         const tenantsMap = context.hashes[basePath];
         Object.keys(tenantsMap).forEach(function (key) {
             const tenant = tenantsMap[key];
@@ -174,6 +184,7 @@ function loadTenantMap (context, basePath) {
     if (!context.hashes) {
         context.hashes = {};
     }
+    basePath = normalizePath(basePath);
     let tenantMap = context.hashes[basePath];
     if (!tenantMap) {
         tenantMap = {};
@@ -324,6 +335,69 @@ function saveHashes (context, basePath, hashMap, opts) {
     }
 }
 
+function updateResourceHashesFromEntry (context, basePath, id, entry, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
+    try {
+        // Get the existing tenant metadata at the specified location.
+        const hashMap = loadHashes(context, basePath, opts);
+
+        // Update the tenant metadata with the new entry.
+        hashMap[id] = entry;
+
+        // Save the updated tenant metadata to the hashes file at the specified location, and return the tenant map.
+        return saveHashes(context, basePath, hashMap, opts);
+    } catch (err) {
+        // Log the error and return the current state of the tenant map.
+        utils.logErrors(context, i18n.__("error_update_hashes"), err);
+        return loadTenantMap(context, basePath);
+    }
+}
+
+function updateResourceHashes (context, basePath, filePath, resource, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
+    try {
+        let md5 = undefined;
+        let mtime = undefined;
+        try {
+            // Get the MD5 hash value and the (local) last modified date for the specified file.
+            if (fs.existsSync(filePath)) {
+                md5 = generateMD5Hash(filePath);
+                mtime = fs.statSync(filePath).mtime;
+            }
+        } catch (ignore) {
+            // The specified file does not exist locally or cannot be read.
+        }
+
+        // If there is valid metadata for the specified file, save it to the hashes file at the specified location.
+        if (resource && resource.id && md5 && mtime) {
+            const relative = utils.getRelativePath(basePath, filePath);
+            const entry = {
+                md5: md5,
+                path: relative,
+                localLastModified: mtime,
+                contentType: resource.contentType
+            };
+
+            return updateResourceHashesFromEntry(context, basePath, resource.id, entry, opts);
+        } else {
+            // The tenant metadata was not updated, so just return the current state of the tenant map.
+            return loadTenantMap(context, basePath);
+        }
+    } catch (err) {
+        // Log the error and return the current state of the tenant map.
+        utils.logErrors(context, i18n.__("error_update_hashes"), err);
+        return loadTenantMap(context, basePath);
+    }
+}
+
 /**
  * Update the metadata for the given file in the hashes file at the specified location.
  *
@@ -371,6 +445,19 @@ function updateHashes (context, basePath, filePath, item, opts) {
             // If the item is an asset with a resource reference, save it as well.
             if (item.resource) {
                 entry.resource = item.resource;
+                if (!opts || !opts.noVirtualFolder) {
+                    const resourcesBasePath = basePath + "/../resources";
+                    if (!fs.existsSync(resourcesBasePath)) {
+                        mkdirp.sync(resourcesBasePath);
+                    }
+                    const resourceEntry = {
+                        md5: md5,
+                        path: "/../assets" + relative,
+                        localLastModified: mtime,
+                        contentType: undefined
+                    };
+                    updateResourceHashesFromEntry(context, resourcesBasePath, item.resource, resourceEntry, opts);
+                }
             }
 
             // Get the existing tenant metadata at the specified location.
@@ -673,6 +760,40 @@ function getMD5ForFile (context, basePath, filePath, opts) {
 }
 
 /**
+ * Get the local path for the given resource from the hashes file at the specified location for the specified tenant.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {String} id The ID of the resource.
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {Object} The local path for the given resource from the hashes file at the specified location for the specified
+ *          tenant, or null if the metadata is not found.
+ *
+ * @public
+ */
+function getPathForResource (context, basePath, id, opts) {
+    // If the context specifies that hashes should not be used, return null.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return null;
+    }
+
+    try {
+        // Get the tenant metadata from the hashes file at the specified location.
+        const hashMap = loadHashes(context, basePath, opts);
+
+        const entry = hashMap[id];
+
+        // Return the hash map entry containing the metadata for the specified file.
+        return entry ? entry.path : undefined;
+    } catch (err) {
+        // Log the error and return an empty object.
+        utils.logErrors(context, i18n.__("error_get_hashes_for_file"), err);
+        return null;
+    }
+}
+
+/**
  * Get an array of file paths from the hashes file at the specified location for the specified tenant.
  *
  * @param {Object} context The current API context.
@@ -853,6 +974,7 @@ const hashes = {
     isHashesFile: isHashesFile,
     generateMD5Hash: generateMD5Hash,
     compareMD5Hashes: compareMD5Hashes,
+    updateResourceHashes: updateResourceHashes,
     updateHashes: updateHashes,
     removeHashes: removeHashes,
     getFilePath: getFilePath,
@@ -862,6 +984,7 @@ const hashes = {
     getLastPushTimestamp: getLastPushTimestamp,
     setLastPushTimestamp: setLastPushTimestamp,
     getMD5ForFile: getMD5ForFile,
+    getPathForResource: getPathForResource,
     listFiles: listFiles,
     isLocalModified: isLocalModified,
     isRemoteModified: isRemoteModified,

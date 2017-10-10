@@ -31,7 +31,7 @@ class CategoriesFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "categoriesFS", CategoriesUnitTest.VALID_CATEGORY_1, CategoriesUnitTest.VALID_CATEGORY_2 );
+        super.run(fsApi, CategoriesUnitTest.VALID_CATEGORY_1, CategoriesUnitTest.VALID_CATEGORY_2 );
     }
 }
 

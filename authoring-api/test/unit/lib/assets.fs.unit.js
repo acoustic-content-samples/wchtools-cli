@@ -63,6 +63,8 @@ const DUMMY_STAT = {
     birthtime: DUMMY_DATE
 };
 
+let stubSync;
+
 class AssetsFsUnitTest extends AssetsUnitTest {
     constructor() {
         super();
@@ -71,17 +73,12 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     run () {
         const self = this;
 
-        describe("Unit tests for assetsFS.js", function () {
-            let stubSync;
-
+        describe("Unit tests for assets FS", function () {
             // Initialize common resourses before running the unit tests.
             before(function (done) {
                 // Create stub for mkdirp.sync so that we don't create any directories.
                 stubSync = sinon.stub(mkdirp, "sync");
                 stubSync.returns(null);
-
-                // Reset the state of the FS API.
-                assetsFS.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -91,9 +88,6 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Reset the state of the FS API.
-                assetsFS.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -110,6 +104,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
             // Run each of the tests defined in this class.
             self.testSingleton();
+            self.testGetDir();
+            self.testGetContentResourceDir();
+            self.testGetAssetPath();
             self.testGetPath();
             self.testGetItem();
             self.testSaveItem();
@@ -142,6 +139,145 @@ class AssetsFsUnitTest extends AssetsUnitTest {
         });
     }
 
+    testGetDir () {
+        const self = this;
+
+        describe("getDir", function () {
+            it("should create the directory if it doesn't exist", function (done) {
+                // Create a stub for the fs.existsSync function.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(false);
+                self.addTestDouble(stub);
+
+                // Get the current call count of the mkdirp stub.
+                const count = stubSync.callCount;
+
+                let error;
+                try {
+                    // Call the method being tested and verify that mkdirp was called.
+                    assetsFS.getDir(context);
+                    expect(stubSync.callCount).equal(count + 1);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should not create the directory if it already exists", function (done) {
+                // Create a stub for the fs.existsSync function.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(true);
+                self.addTestDouble(stub);
+
+                // Get the current call count of the mkdirp stub.
+                const count = stubSync.callCount;
+
+                let error;
+                try {
+                    // Call the method being tested and verify that mkdirp was called.
+                    assetsFS.getDir(context);
+                    expect(stubSync.callCount).equal(count);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+        });
+    }
+
+    testGetContentResourceDir () {
+        const self = this;
+
+        describe("getContentResourceDir", function () {
+            it("should create the directory if it doesn't exist", function (done) {
+                // Create a stub for the fs.existsSync function.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(false);
+                self.addTestDouble(stub);
+
+                // Get the current call count of the mkdirp stub.
+                const count = stubSync.callCount;
+
+                let error;
+                try {
+                    // Call the method being tested and verify that mkdirp was called.
+                    assetsFS.getContentResourceDir(context);
+                    expect(stubSync.callCount).equal(count + 1);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should not create the directory if it already exists", function (done) {
+                // Create a stub for the fs.existsSync function.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(true);
+                self.addTestDouble(stub);
+
+                // Get the current call count of the mkdirp stub.
+                const count = stubSync.callCount;
+
+                let error;
+                try {
+                    // Call the method being tested and verify that mkdirp was called.
+                    assetsFS.getContentResourceDir(context);
+                    expect(stubSync.callCount).equal(count);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+        });
+    }
+
+    testGetAssetPath () {
+        describe("getAssetPath", function () {
+            it("should not append the draft suffix if the asset is not a draft", function (done) {
+                let error;
+                try {
+                    // Call the method being tested and verify that mkdirp was called.
+                    const path = assetsFS.getAssetPath({path: "a"});
+                    expect(path).to.equal("a");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should append the draft suffix", function (done) {
+                let error;
+                try {
+                    // Call the method being tested and verify that mkdirp was called.
+                    const path = assetsFS.getAssetPath({path: "a", status: "draft"});
+                    expect(path).to.equal("a_wchdraft");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should insert the draft suffix", function (done) {
+                let error;
+                try {
+                    // Call the method being tested and verify that mkdirp was called.
+                    const path = assetsFS.getAssetPath({path: "a.b", status: "draft"});
+                    expect(path).to.equal("a_wchdraft.b");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+        });
+    }
+
     testGetPath () {
         describe("getPath", function () {
             // Restore options before running the unit tests.
@@ -161,11 +297,21 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             });
 
             it("should succeed when setting a new working directory", function (done) {
+                const folderName = assetsFS.getFolderName();
+                let path = assetsFS.getPath(context, UnitTest.DUMMY_NAME);
+
                 // Before setting the new working directory, the asset path should not contain that directory.
-                expect(assetsFS.getPath(context, UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
+                expect(path).to.not.contain(UnitTest.DUMMY_DIR);
+                expect(path).to.contain(folderName);
 
                 // If the working dir is set in the opts object, then the item path should contain that directory.
-                expect(assetsFS.getPath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR})).to.contain(UnitTest.DUMMY_DIR);
+                path = assetsFS.getPath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR});
+                expect(path).to.contain(UnitTest.DUMMY_DIR);
+                expect(path).to.contain(folderName);
+
+                // If the working dir is set in the opts object, then the item path should contain that directory.
+                path = assetsFS.getPath(context, UnitTest.DUMMY_NAME, {"noVirtualFolder": true});
+                expect(path).to.not.contain(folderName);
 
                 done();
             });
@@ -238,6 +384,46 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                         } catch (err) {
                             error = err;
                         }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if parsing the file throws an error", function (done) {
+                // Create a stub for fs.readFile to return a valid JSON string.
+                const stubRead = sinon.stub(fs, "readFile");
+                stubRead.yields(null, '{"json": "closing-curly-bracket"}');
+
+                // Create a stub for JSON.parse to return a valid JSON string.
+                const JSON_ERROR = "JSON parse error - expected by unit test.";
+                const stubParse = sinon.stub(JSON, "parse");
+                stubParse.throws(new Error(JSON_ERROR));
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubRead);
+                self.addTestDouble(stubParse);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.getItem(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stubs were called once with the expected values.
+                        expect(stubRead).to.have.been.calledOnce;
+                        expect(stubRead.firstCall.args[0]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubParse).to.have.been.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(JSON_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.

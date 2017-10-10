@@ -39,24 +39,24 @@ class PublishCommand extends BaseCommand {
         const verbose = self.getCommandLineOption("verbose");
         ToolsApi.getPublishingSiteRevisionsHelper().getRemoteItem(context, "default", opts)
             .then(function (siteRevision) {
-                let msg = i18n.__("cli_publishing_site_revision_state", {state: siteRevision.state});
+                const msg = i18n.__("cli_publishing_site_revision_state", {state: siteRevision.state});
                 helper.getPublishingJob(context, jobId, opts)
-                .then(function (job) {
-                    self.successMessage(msg + "\n" + i18n.__("cli_publishing_job_status", {job_status: job.state}));
-                    if (verbose) {
-                        logger.info(i18n.__("cli_publishing_site_revision", {site_revision: JSON.stringify(siteRevision, null, "    ")}));
-                        helper.getPublishingJobStatus(context, jobId, opts)
-                            .then(function(jobStatus) {
-                                job = Object.assign(job, jobStatus);
-                                logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
-                            })
-                        }
-                })
-                .catch(function (err) {
-                    const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                    self.errorMessage(curError);
-                    self.resetCommandLineOptions();
-                });
+                    .then(function (job) {
+                        self.successMessage(msg + "\n" + i18n.__("cli_publishing_job_status", {job_status: job.state}));
+                        if (verbose) {
+                            logger.info(i18n.__("cli_publishing_site_revision", {site_revision: JSON.stringify(siteRevision, null, "    ")}));
+                            helper.getPublishingJobStatus(context, jobId, opts)
+                                .then(function(jobStatus) {
+                                    job = Object.assign(job, jobStatus);
+                                    logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
+                                })
+                            }
+                    })
+                    .catch(function (err) {
+                        const curError = i18n.__("cli_publishing_job_error", {message: err.message});
+                        self.errorMessage(curError);
+                        self.resetCommandLineOptions();
+                    });
                 self.resetCommandLineOptions();
             })
             .catch(function (err) {
@@ -113,7 +113,7 @@ class PublishCommand extends BaseCommand {
             })
             .then(function (/*results*/) {
                 if (status) {
-                    PublishCommand.getJobIdFromStatusOption(helper, context, status, apiOptions)
+                    return PublishCommand.getJobIdFromStatusOption(helper, context, status, apiOptions)
                         .then(jobId => {
                             if (jobId) {
                                 self.displayJobStatus(helper, context, jobId, apiOptions);
@@ -125,12 +125,10 @@ class PublishCommand extends BaseCommand {
                     BaseCommand.displayToConsole(i18n.__('cli_publishing_job_started'));
                     self.spinner = ora();
                     self.spinner.start();
-                    helper.createPublishingJob(context, jobParameters, apiOptions)
+                    return helper.createPublishingJob(context, jobParameters, apiOptions)
                         .then(job => {
                             const createIdMsg = i18n.__('cli_publishing_job_created', {id: job.id});
-                            if (self.spinner) {
-                                self.spinner.stop();
-                            }
+                            self.spinner.stop();
                             self.successMessage(createIdMsg);
                             if (self.getCommandLineOption("verbose")) {
                                 logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
@@ -139,9 +137,7 @@ class PublishCommand extends BaseCommand {
                         })
                         .catch(err => {
                             const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                            if (self.spinner) {
-                                self.spinner.stop();
-                            }
+                            self.spinner.stop();
                             self.errorMessage(curError);
                             self.resetCommandLineOptions();
                         });

@@ -31,7 +31,7 @@ class TypesFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "itemTypesFS", TypesUnitTest.VALID_TYPE_1, TypesUnitTest.VALID_TYPE_2 );
+        super.run(fsApi, TypesUnitTest.VALID_TYPE_1, TypesUnitTest.VALID_TYPE_2 );
     }
 }
 

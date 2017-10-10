@@ -23,8 +23,10 @@ const UnitTest = require("./base.unit.js");
 
 // Require the node modules used in this test file.
 const sinon = require("sinon");
+const Q = require("q");
 
 // Require the local modules that will be stubbed and spied.
+const options = require(UnitTest.API_PATH + "lib/utils/options.js");
 const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const request = utils.getRequestWrapper();
 
@@ -38,7 +40,9 @@ const loginOptions = {
     "x-ibm-dx-tenant-base-url": "http://foo.com/api",
     "x-ibm-dx-tenant-id": tenantId,
     "username": UnitTest.DUMMY_NAME,
-    "password": "foobar"
+    "password": "This password should never appear in the log",
+    "retryMinTimeout": 10,
+    "retryMaxTimeout": 100
 };
 
 // The default API context used for unit tests.
@@ -52,26 +56,10 @@ class LoginRestUnitTest extends UnitTest {
     run() {
         const self = this;
         describe("Unit tests for loginREST.js", function() {
-            before(function (done) {
-                // Reset any values that may have been set by other tests.
-                loginREST.reset();
-
-                // Signal that the setup is complete.
-                done();
-            });
-
             // Cleanup common resourses consumed by a test.
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Signal that the cleanup is complete.
-                done();
-            });
-
-            after(function (done) {
-                // Reset any values that may have been set by these tests.
-                loginREST.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -101,10 +89,10 @@ class LoginRestUnitTest extends UnitTest {
                     } catch (err) {
                         error = err;
                     }
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
                 }
-
-                // Call mocha's done function to indicate that the test is over.
-                done(error);
             });
         });
     }
@@ -123,10 +111,57 @@ class LoginRestUnitTest extends UnitTest {
                     expect(requestOptions.auth.pass).to.equal(loginOptions["password"]);
                 } catch (err) {
                     error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
                 }
+            });
 
-                // Call mocha's done function to indicate that the test is over.
-                done(error);
+            it("should get the expected tenant value from the process", function (done) {
+                let error = undefined;
+                const origTenantId = process.env.TENANT_ID;
+                try {
+                    // Set a tenant ID on the process.
+                    process.env.TENANT_ID = UnitTest.DUMMY_ID;
+
+                    const requestOptions = loginREST.getRequestOptions(context, loginOptions);
+
+                    expect(requestOptions).to.exist;
+                    expect(requestOptions.uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                    expect(requestOptions.headers["x-ibm-dx-tenant-id"]).to.equal(UnitTest.DUMMY_ID);
+                    expect(requestOptions.auth.user).to.equal(loginOptions["username"]);
+                    expect(requestOptions.auth.pass).to.equal(loginOptions["password"]);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    // Restore the original tenant ID.
+                    if (origTenantId) {
+                        process.env.TENANT_ID = origTenantId;
+                    } else {
+                        delete process.env.TENANT_ID;
+                    }
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should get the URI from the base-url or api-gateway option", function (done) {
+                let error = undefined;
+                try {
+                    let requestOptions = loginREST.getRequestOptions(context, {"x-ibm-dx-tenant-base-url": "XXXXX"});
+                    expect(requestOptions).to.exist;
+                    expect(requestOptions.uri).to.contain("XXXXX");
+
+                    requestOptions = loginREST.getRequestOptions(context, {"x-ibm-dx-tenant-base-url": "", "dx-api-gateway": "YYYYY"});
+                    expect(requestOptions).to.exist;
+                    expect(requestOptions.uri).to.contain("YYYYY");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
             });
         });
     }
@@ -143,8 +178,12 @@ class LoginRestUnitTest extends UnitTest {
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
-                // The stub should be restored when the test is complete.
+                // Create a spy for the utils.logErrors method.
+                const spy = sinon.spy(utils, "logErrors");
+
+                // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stub);
+                self.addTestDouble(spy);
 
                 // Call the method being tested.
                 let error;
@@ -154,18 +193,21 @@ class LoginRestUnitTest extends UnitTest {
                         error = new Error("The promise for the login attempt should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the expected values.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
-                            expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(LOGIN_ERROR);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(LOGIN_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the stub was called once with the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+
+                        // Verify that the password was not included in the log message.
+                        expect(spy).to.have.been.calledOnce;
+                        expect(spy.firstCall.args[2].log).to.not.contain(loginOptions["password"]);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -183,8 +225,12 @@ class LoginRestUnitTest extends UnitTest {
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
-                // The stub should be restored when the test is complete.
+                // Create a spy for the utils.logErrors method.
+                const spy = sinon.spy(utils, "logErrors");
+
+                // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stub);
+                self.addTestDouble(spy);
 
                 // Call the method being tested.
                 let error;
@@ -194,19 +240,22 @@ class LoginRestUnitTest extends UnitTest {
                         error = new Error("The promise for the login attempt should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the expected values.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
-                            expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(LOGIN_ERROR);
+                        expect(err.message).to.contain(LOGIN_RESPONSE_CODE);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(LOGIN_ERROR);
-                            expect(err.message).to.contain(LOGIN_RESPONSE_CODE);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the stub was called once with the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+
+                        // Verify that the password was not included in the log message.
+                        expect(spy).to.have.been.calledOnce;
+                        expect(spy.firstCall.args[2].log).to.not.contain(loginOptions["password"]);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -223,8 +272,12 @@ class LoginRestUnitTest extends UnitTest {
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
-                // The stub should be restored when the test is complete.
+                // Create a spy for the utils.logErrors method.
+                const spy = sinon.spy(utils, "logErrors");
+
+                // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stub);
+                self.addTestDouble(spy);
 
                 // Call the method being tested.
                 let error;
@@ -234,18 +287,66 @@ class LoginRestUnitTest extends UnitTest {
                         error = new Error("The promise for the login attempt should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the expected values.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
-                            expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("login service failed");
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("login service failed");
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the stub was called once with the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+
+                        // Verify that the password was not included in the log message.
+                        expect(spy).to.have.been.calledOnce;
+                        expect(spy.firstCall.args[2].log).to.not.contain(loginOptions["password"]);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if the login response body contains FBTBLU101E", function (done) {
+                // Create a stub for the GET requests.
+                const stub = sinon.stub(request, "get");
+                const err = null;
+                const res = null;
+                const body = "A response body containing the string FBTBLU101E.";
+                stub.onCall(0).yields(err, res, body);
+
+                // Create a spy for the utils.logErrors method.
+                const spy = sinon.spy(utils, "logErrors");
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                loginREST.login(context, loginOptions)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the login attempt should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("FBTBLU101E");
+
+                        // Verify that the stub was called once with the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+
+                        // Verify that the password was not included in the log message.
+                        expect(spy).to.have.been.calledOnce;
+                        expect(spy.firstCall.args[2].message).to.not.contain(loginOptions["password"]);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -263,29 +364,190 @@ class LoginRestUnitTest extends UnitTest {
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
-                // The stub should be restored when the test is complete.
+                // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stub);
 
                 // Call the method being tested.
                 let error;
                 loginREST.login(context, loginOptions)
                     .then(function (retval) {
+                        // Verify that the expected value is returned.
+                        expect(retval).to.not.be.empty;
+                        expect(retval.username).to.contain(loginOptions.username);
+                        expect(retval["x-ibm-dx-tenant-id"]).to.equal("00000000-0000-0000-000000000000");
+
                         // Verify that the stub was called once with the expected values.
                         expect(stub).to.have.been.calledOnce;
                         expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
                         expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
-
-                        // Verify that the expected value is returned.
-                        expect(retval).to.not.be.empty;
-                        expect(retval.username).to.not.be.empty;
-                        expect(retval.username).to.contain(loginOptions.username);
-                        expect(retval["x-ibm-dx-tenant-id"]).to.not.be.empty;
-
                     })
                     .catch(function (err) {
                         error = err;
                     })
                     .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if the login response contains a base URL", function (done) {
+                // Create a stub for the GET requests.
+                const stub = sinon.stub(request, "get");
+                const LOGIN_RESPONSE_COOKIE = UnitTest.DUMMY_METADATA;
+                const err = null;
+                const res = {"statusCode": 302, "headers": {"set-cookie": LOGIN_RESPONSE_COOKIE, "x-ibm-dx-tenant-id": UnitTest.DUMMY_ID, "x-ibm-dx-tenant-base-url": UnitTest.DUMMY_URI}};
+                const body = null;
+                stub.onCall(0).yields(err, res, body);
+
+                // Create a stub for the options.getProperty method to return null for the base-url.
+                const originalGetProperty = options.getProperty;
+                const stubProperty = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "x-ibm-dx-tenant-base-url") {
+                        return null;
+                    } else {
+                        originalGetProperty(context, key);
+                    }
+                });
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(stubProperty);
+
+                // Save the base URL value.
+                const origBaseUrl = context["x-ibm-dx-tenant-base-url"];
+
+                // Call the method being tested.
+                let error;
+                loginREST.login(context, loginOptions)
+                    .then(function (retval) {
+                        // Verify that the expected value is returned.
+                        expect(retval).to.not.be.empty;
+                        expect(retval.username).to.contain(loginOptions.username);
+                        expect(retval["x-ibm-dx-tenant-id"]).to.equal(UnitTest.DUMMY_ID);
+                        expect(retval["x-ibm-dx-tenant-base-url"]).to.contain(UnitTest.DUMMY_URI);
+
+                        // Verify that the stub was called once with the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the base URL value.
+                        context["x-ibm-dx-tenant-base-url"] = origBaseUrl;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if the login request is retried once", function (done) {
+                // Create a stub for the GET requests.
+                const stub = sinon.stub(request.Request, "request");
+                const LOGIN_ERROR = "Error logging in, expected by uint test.";
+                const resFailure = {"statusCode": 500};
+                const resSuccess = {"statusCode": 302, "headers": {"set-cookie": UnitTest.DUMMY_METADATA, "x-ibm-dx-tenant-id": UnitTest.DUMMY_ID}};
+                stub.onCall(0).yields(new Error(LOGIN_ERROR), resFailure, null);
+                stub.onCall(1).yields(null, resSuccess, null);
+
+                // Create a spy for the utils.logWarnings method.
+                const spy = sinon.spy(utils, "logWarnings");
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                loginREST.login(context, loginOptions)
+                    .then(function (retval) {
+                        // Verify that the expected value is returned.
+                        expect(retval["username"]).to.equal(loginOptions.username);
+                        expect(retval["x-ibm-dx-tenant-id"]).to.equal(UnitTest.DUMMY_ID);
+
+                        // Verify that the stub was called twice with the expected values.
+                        expect(stub).to.have.been.calledTwice;
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+                        expect(stub.secondCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.secondCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+
+                        // Verify that the password was not included in the log message.
+                        expect(spy).to.have.been.calledOnce;
+                        expect(spy.firstCall.args[1]).to.not.contain(loginOptions["password"]);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if a relogin is attempted", function (done) {
+                // Create a stub for the GET requests.
+                const stub = sinon.stub(request, "get");
+                const resSuccess = {"statusCode": 302, "headers": {"set-cookie": UnitTest.DUMMY_METADATA, "x-ibm-dx-tenant-id": UnitTest.DUMMY_ID}};
+                stub.onFirstCall().yields(null, resSuccess, null);
+                stub.onSecondCall().yields(null, resSuccess, null);
+                const LOGIN_ERROR = "Error logging in, expected by uint test.";
+                stub.onThirdCall().yields(new Error(LOGIN_ERROR), null, null);
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Use an interval value that will cause an immediate relogin.
+                const clonedOptions = utils.clone(loginOptions);
+                clonedOptions["reloginInterval"] = 0;
+
+                // Call the method being tested.
+                let error;
+                loginREST.login(context, clonedOptions)
+                    .then(function (retval) {
+                        // Verify that the expected value is returned.
+                        expect(retval["username"]).to.equal(loginOptions.username);
+                        expect(retval["x-ibm-dx-tenant-id"]).to.equal(UnitTest.DUMMY_ID);
+
+                        // Verify that the stub was called once with the expected values.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+
+                        // Return a promise that will be resolved asynchronously, giving the relogin timer a chance to execute.
+                        const deferred = Q.defer();
+                        setTimeout(function () {deferred.resolve()}, 0);
+                        return deferred.promise;
+                    })
+                    .then(function () {
+                        // Verify that the stub was called again with the expected values.
+                        expect(stub).to.have.been.calledTwice;
+                        expect(stub.secondCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.secondCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+
+                        // Return a promise that will be resolved asynchronously, giving the relogin timer a chance to execute again.
+                        const deferred = Q.defer();
+                        setTimeout(function () {deferred.resolve()}, 0);
+                        return deferred.promise;
+                    })
+                    .then(function () {
+                        // Clear the relogin timer so that it won't keep executing.
+                        clearInterval(context.reloginTimer);
+
+                        // Verify that the stub was called again with the expected values.
+                        expect(stub).to.have.been.calledThrice;
+                        expect(stub.secondCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.secondCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Remove the interval value we added for this test.
+                        delete loginOptions["reloginInterval"];
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });

@@ -37,26 +37,18 @@ program
 	.option('-d, --debug', i18n.__('cli_opt_debug'));
 
 // Turn off colors when non-interactive
-colors.mode = process.stdout.isTTY ? colors.mode : 'none';
+/* istanbul ignore next */
+colors.mode = process.stdout.isTTY ? colors.mode : 'none'; // NOSONAR
 
 // Define a utility function for console.log(), so that only one line has to be excluded from the Sonar analysis.
 const displayToConsole = function (message) {
     console.log(message); // NOSONAR
 };
 
-// Setup logging and messaging
-const logMessages = [];
-program.log = (function (debugMode) {
-    if(debugMode)
-        utils.setLoggerLevel(utils.apisLog, 'DEBUG');
-	return function (logEntry) {
-		logMessages.push(logEntry);
-		if (debugMode) {
-            displayToConsole('--debug-- '.cyan + logEntry);
-		}
-	};
-})(process.argv.indexOf('--debug') >= 0 ||
-   process.argv.indexOf('-d') >= 0);
+program.debugMessage = function () {
+    const msg = util.format.apply(this, arguments);
+    displayToConsole(msg.cyan);
+};
 
 program.successMessage = function () {
 	const msg = util.format.apply(this, arguments);
@@ -73,9 +65,10 @@ program.errorMessage = function () {
     displayToConsole(msg.red);
 };
 
-program.on('*', function() {
-    displayToConsole('Unknown Command: ' + program.args.join(' '));
-	program.help();
+/* istanbul ignore next */
+program.on('*', function () {
+    program.outputHelp(); // NOSONAR
+    program.errorMessage('Unknown Command: ' + program.args.join(' ')); // NOSONAR
 });
 
 program.successMessageSave = program.successMessage;

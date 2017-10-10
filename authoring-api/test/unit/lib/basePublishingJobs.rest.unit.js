@@ -43,22 +43,10 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
     run (restApi, lookupUri,restName,itemPath1,itemPath2) {
         const self = this;
         describe("Unit tests for Rest " + restName, function() {
-            // Initialize common resources before running the unit tests.
-            before(function (done) {
-                // Reset the state of the REST API.
-                restApi.reset();
-
-                // Signal that the cleanup is complete.
-                done();
-            });
-
             // Cleanup common resources consumed by a test.
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Reset the state of the REST API.
-                restApi.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -302,8 +290,10 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 const res = {"statusCode": 404};
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
+
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
+
                 // Call the method being tested.
                 let error;
                 restApi.getPublishingJobStatus(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
@@ -319,6 +309,69 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                         } catch (err) {
                             error = err;
                         }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request returns an error but no response", function (done) {
+                const CANNOTFIND_ERROR = "cannot find item.";
+                const stub = sinon.stub(request, "get");
+
+                const err = new Error(CANNOTFIND_ERROR);
+                const res = null;
+                const body = null;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.getPublishingJobStatus(context, UnitTest.DUMMY_ID, {noErrorLog: "true"})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch (function (err) {
+                        try {
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain(CANNOTFIND_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request throws an error", function (done) {
+                const CANNOTFIND_ERROR = "cannot find item.";
+                const stub = sinon.stub(request, "get");
+                stub.onCall(0).throws(new Error(CANNOTFIND_ERROR));
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.getPublishingJobStatus(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch (function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(CANNOTFIND_ERROR);
+                    })
+                    .catch (function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -547,7 +600,7 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
 
     testCancelPublishingJob (restApi, lookupUri,restName,itemPath1,itemPath2) {
         const self = this;
-        describe("cancelPublishingJob", function() {
+        describe("cancelPublishingJob", function () {
             it("should fail when cancelling the item fails", function (done) {
                 // Create a stub for the DELETE request which returns an error.
                 const _ERROR = "Error cancelling the item.";
@@ -556,6 +609,79 @@ class BasePublishingJobsRestUnitTest extends BaseRestUnitTest {
                 const res = {"statusCode": 403};
                 const body = null;
                 stubDelete.yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                restApi.cancelPublishingJob(context, UnitTest.DUMMY_ID)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch (function (err) {
+                        try {
+                            // Verify that the delete stub was called once with a URI that contains the specified ID.
+                            expect(stubDelete).to.have.been.calledOnce;
+                            expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_ID);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain(_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when cancelling the item fails with no response", function (done) {
+                // Create a stub for the DELETE request which returns an error.
+                const _ERROR = "Error cancelling the item.";
+                const stubDelete = sinon.stub(request, "put");
+                const err = new Error(_ERROR);
+                const res = null;
+                const body = null;
+                stubDelete.yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                restApi.cancelPublishingJob(context, UnitTest.DUMMY_ID)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch (function (err) {
+                        try {
+                            // Verify that the delete stub was called once with a URI that contains the specified ID.
+                            expect(stubDelete).to.have.been.calledOnce;
+                            expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_ID);
+
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain(_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request to cancel the item throws an error", function (done) {
+                // Create a stub for the DELETE request which throws an error.
+                const _ERROR = "Error cancelling the item.";
+                const stubDelete = sinon.stub(request, "put");
+                stubDelete.throws(new Error(_ERROR));
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubDelete);

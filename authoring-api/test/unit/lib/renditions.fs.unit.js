@@ -31,7 +31,7 @@ class RenditionsFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "renditionsFS", RenditionsUnitTest.VALID_RENDITION_1, RenditionsUnitTest.VALID_RENDITION_2 );
+        super.run(fsApi, RenditionsUnitTest.VALID_RENDITION_1, RenditionsUnitTest.VALID_RENDITION_2 );
     }
 }
 

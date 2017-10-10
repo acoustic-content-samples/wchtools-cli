@@ -31,7 +31,7 @@ class PublishingSourcesFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "publishingSourcesFS", PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_1, PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_2);
+        super.run(fsApi, PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_1, PublishingSourcesUnitTest.VALID_PUBLISHING_SOURCE_2);
     }
 }
 

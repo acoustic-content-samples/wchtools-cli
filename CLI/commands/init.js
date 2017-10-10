@@ -148,7 +148,9 @@ class InitCommand extends BaseCommand {
             prompt.start();
             prompt.get(schemaProps, function (err, results) {
                 if (err) {
-                    console.warn(err.message);
+                    // Reset the command line options and display the error.
+                    self.resetCommandLineOptions();
+                    self.getProgram().errorMessage(i18n.__('cli_init_error', {message: err.toString()}));
                 } else {
                     self.updateOptions(context, results);
                 }

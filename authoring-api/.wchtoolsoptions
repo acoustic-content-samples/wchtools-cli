@@ -3,17 +3,17 @@
   "content": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "types": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "presentations": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "assets": {
     "offset": 0,
@@ -23,12 +23,12 @@
   "image-profiles": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "renditions": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "resources": {
     "offset": 0,
@@ -38,32 +38,32 @@
   "publishing": {
     "offset": 0,
     "limit": 100,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "publishing-sources": {
     "offset": 0,
     "limit": 100,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "publishing-profiles": {
     "offset": 0,
     "limit": 100,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "site-revisions": {
     "offset": 0,
     "limit": 100,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "categories": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "authoring-search": {
     "offset": 0,
     "limit": 200,
-    "concurrent-limit": 10
+    "concurrent-limit": 8
   },
   "layouts": {
     "offset": 0,

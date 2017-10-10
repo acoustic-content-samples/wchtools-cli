@@ -39,8 +39,6 @@ const optionsFileName = ".wchtoolsoptions";
  */
 function _getNestedProperty (obj, propertyNames) {
     let result = obj;
-    propertyNames = propertyNames || [];
-
     for (let i = 0; i < propertyNames.length; i++) {
         if (typeof result[propertyNames[i]] !== "undefined" && result[propertyNames[i]] !== null) {
             result = result[propertyNames[i]];

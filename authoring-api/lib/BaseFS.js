@@ -30,9 +30,6 @@ class BaseFS {
         this._extension = extension;
     }
 
-    reset () {
-    }
-
     getServiceName () {
         return this._serviceName;
     }

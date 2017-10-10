@@ -41,10 +41,9 @@ class BaseRestUnitTest extends UnitTest {
     run (restApi, lookupUri, restName, itemPath1, itemPath2) {
         const self = this;
         describe("Unit tests for Rest " + restName, function() {
-            // Initialize common resources before running the unit tests.
+            // Initialize common resourses before running the unit tests.
             before(function (done) {
-                // Reset the state of the REST API.
-                restApi.reset();
+                UnitTest.restoreOptions(context);
 
                 // Signal that the cleanup is complete.
                 done();
@@ -54,9 +53,6 @@ class BaseRestUnitTest extends UnitTest {
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Reset the state of the REST API.
-                restApi.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -139,6 +135,7 @@ class BaseRestUnitTest extends UnitTest {
             it("should succeed with valid options", function (done) {
                 const opts = {
                     "x-ibm-dx-tenant-base-url": "url-1",
+                    "x-ibm-dx-request-id": "test-request-id-suffix",
                     "x-ibm-dx-foo": "foo",
                     "x-ibm-dx-bar": 1,
                 };
@@ -150,6 +147,7 @@ class BaseRestUnitTest extends UnitTest {
                         // Verify that the options contain the expected values.
                         expect(requestOptions.uri).to.contain("url-1");
                         expect(requestOptions.headers["x-ibm-dx-tenant-base-url"]).to.be.undefined;
+                        expect(requestOptions.headers["x-ibm-dx-request-id"]).to.contain("test-request-id-suffix");
                         expect(requestOptions.headers["x-ibm-dx-foo"]).to.equal("foo");
                         expect(requestOptions.headers["x-ibm-dx-bar"]).to.be.undefined;
                         expect(requestOptions.headers["User-Agent"]).to.not.be.undefined;
@@ -195,18 +193,17 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("http");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("http");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(GET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(GET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -236,18 +233,17 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("http");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("http");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(URI_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(URI_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -321,16 +317,15 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once.
-                            expect(stub).to.have.been.calledOnce;
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(GET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(GET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -345,7 +340,7 @@ class BaseRestUnitTest extends UnitTest {
                 // The GET request is to retrieve the items, but returns an error.
                 const GET_ERROR = "Error getting the items.";
                 const err = new Error(GET_ERROR);
-                const res = {};
+                const res = null;
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
@@ -360,18 +355,17 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("http");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("http");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(GET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(GET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -401,18 +395,17 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain("http");
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain("http");
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(GET_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(GET_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -424,8 +417,8 @@ class BaseRestUnitTest extends UnitTest {
                 // Create a stub for the underlying GET requests.
                 const stub = sinon.stub(request.Request, "request");
 
-                // The GET request is to retrieve the assets, but returns an error.
-                const REQUEST_ERROR = "Error getting the assets.";
+                // The GET request is to retrieve the items, but returns an error.
+                const REQUEST_ERROR = "Error getting the items.";
                 const err = new Error(REQUEST_ERROR);
                 const body = null;
                 stub.onCall(0).yields(err, {"statusCode": 429}, body);
@@ -445,18 +438,56 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.callCount(5);
-                            expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(5);
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("technical difficulties");
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("technical difficulties");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request fails with a retriable error, but maxAttempts is 1", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the items, but returns an error.
+                const REQUEST_ERROR = "Error getting the items.";
+                const err = new Error(REQUEST_ERROR);
+                const body = null;
+                stub.yields(err, {"statusCode": 500}, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                let error;
+                restApi.getItems(context, {retryMaxAttempts: 1, retryMinTimeout: 10, retryMaxTimeout: 100})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(1);
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].json).to.equal(true);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("technical difficulties");
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -468,11 +499,11 @@ class BaseRestUnitTest extends UnitTest {
                 // Create a stub for the underlying GET requests.
                 const stub = sinon.stub(request.Request, "request");
 
-                // The GET request is to retrieve the assets, but returns an error.
-                const REQUEST_ERROR = "Error getting the assets.";
+                // The GET request is to retrieve the items, but returns an error.
+                const REQUEST_ERROR = "Error getting the items.";
                 const err = new Error(REQUEST_ERROR);
                 const body = null;
-                stub.onCall(0).yields(err, {"statusCode": 500}, body);
+                stub.onCall(0).yields(err, {"statusCode": 403}, body);
                 stub.onCall(1).yields(err, {"statusCode": 400}, body);
 
                 // The stub should be restored when the test is complete.
@@ -486,18 +517,55 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.callCount(2);
-                            expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(2);
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("technical difficulties");
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the request is retried then fails with 403 responses", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the items, but returns an error.
+                const REQUEST_ERROR = "Error getting the items.";
+                const err = new Error(REQUEST_ERROR);
+                const body = null;
+                stub.onCall(0).yields(err, {"statusCode": 403, "body": {"errors": [{"code": 3192}]}}, body);
+                stub.onCall(1).yields(err, {"statusCode": 403, "body": {"errors": [{"code": 3193}]}}, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                let error;
+                restApi.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(2);
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].json).to.equal(true);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -563,18 +631,17 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.callCount(5);
-                            expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(5);
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(REQUEST_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(REQUEST_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -604,18 +671,17 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the asset request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the stub was called once with the lookup URI and once with the asset URI.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
-                            expect(stub.firstCall.args[0].json).to.equal(true);
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].json).to.equal(true);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(REQUEST_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(REQUEST_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -673,7 +739,7 @@ class BaseRestUnitTest extends UnitTest {
                 const CANNOTFIND_ERROR = "cannot find item.";
                 const stub = sinon.stub(request, "get");
                 const err = new Error(CANNOTFIND_ERROR);
-                const res = {};
+                const res = null;
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
@@ -688,13 +754,12 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the item should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(CANNOTFIND_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(CANNOTFIND_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -721,6 +786,46 @@ class BaseRestUnitTest extends UnitTest {
                         // Verify that the expected error is returned.
                         expect(err.name).to.equal("Error");
                         expect(err.message).to.contain(OPTIONS_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the specified item does not exist, but noErrorLog is specified", function (done) {
+                const CANNOTFIND_ERROR = "cannot find item.";
+                const stub = sinon.stub(request, "get");
+                const err = new Error(CANNOTFIND_ERROR);
+                const res = null;
+                const body = null;
+                stub.onCall(0).yields(err, res, body);
+
+                // Create a spy for utils.logErrors to make sure it is not called.
+                const spy = sinon.spy(utils, "logErrors");
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                restApi.getItem(context, itemPath1, {noErrorLog: "true"})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called and the spy was not.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(spy).to.not.have.been.called;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(CANNOTFIND_ERROR);
                     })
                     .catch(function (err) {
                         error = err;
@@ -775,7 +880,7 @@ class BaseRestUnitTest extends UnitTest {
                 const CANNOTFIND_ERROR = "cannot find item.";
                 const stub = sinon.stub(request, "get");
                 const err = new Error(CANNOTFIND_ERROR);
-                const res = {};
+                const res = null;
                 const body = null;
                 stub.onCall(0).yields(err, res, body);
 
@@ -790,17 +895,62 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the item should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            if (restApi.supportsItemByPath()) {
-                                expect(err.message).to.contain(CANNOTFIND_ERROR);
-                            } else {
-                                expect(err.message).to.contain("does not support the by-path endpoint");
-                            }
-                        } catch (err) {
-                            error = err;
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        if (restApi.supportsItemByPath()) {
+                            expect(err.message).to.contain(CANNOTFIND_ERROR);
+                        } else {
+                            expect(err.message).to.contain("does not support the by-path endpoint");
                         }
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the specified item does not exist, but noErrorLog is specified", function (done) {
+                const CANNOTFIND_ERROR = "cannot find item.";
+                const stub = sinon.stub(request, "get");
+                const err = new Error(CANNOTFIND_ERROR);
+                const res = null;
+                const body = null;
+                stub.onCall(0).yields(err, res, body);
+
+                // Create a spy for utils.logErrors to make sure it is not called.
+                const spy = sinon.spy(utils, "logErrors");
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                restApi.getItemByPath(context, itemPath1, {noErrorLog: "true"})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called and the spy was not.
+                        if (restApi.supportsItemByPath()) {
+                            expect(stub).to.have.been.calledOnce;
+                            expect(spy).to.not.have.been.called;
+                        }
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        if (restApi.supportsItemByPath()) {
+                            expect(err.message).to.contain(CANNOTFIND_ERROR);
+                        } else {
+                            expect(err.message).to.contain("does not support the by-path endpoint");
+                        }
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -886,12 +1036,41 @@ class BaseRestUnitTest extends UnitTest {
     testDeleteItem (restApi, lookupUri, restName, itemPath1, itemPath2) {
         const self = this;
         describe("deleteItem", function() {
+            it("should fail when getting the request options fails", function (done) {
+                const OPTIONS_ERROR = "cannot get the request options";
+                const stub = sinon.stub(restApi, "getRequestOptions");
+                stub.onCall(0).rejects(OPTIONS_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.deleteItem(context, {id: UnitTest.DUMMY_ID})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(OPTIONS_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail when deleting the item fails", function (done) {
                 // Create a stub for the DELETE request which returns an error.
                 const _ERROR = "Error deleting the item.";
                 const stubDelete = sinon.stub(request, "del");
                 const err = new Error(_ERROR);
-                const res = {"statusCode": 403};
+                const res = null;
                 const body = null;
                 stubDelete.yields(err, res, body);
 
@@ -906,17 +1085,16 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the item should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the delete stub was called once with a URI that contains the specified ID.
-                            expect(stubDelete).to.have.been.calledOnce;
-                            expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_ID);
+                        // Verify that the delete stub was called once with a URI that contains the specified ID.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_ID);
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain(_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -996,9 +1174,36 @@ class BaseRestUnitTest extends UnitTest {
     testUpdateItem (restApi, lookupUri, restName, itemPath1, itemPath2) {
         const self = this;
 
-        // Execute several failure cases to test the various ways the server might return an error. Subsequent tests do
-        // not need to repeat the test matrix, they can just execute one of these tests to verify an error is returned.
         describe("updateItem", function() {
+            it("should fail when getting the request options fails", function (done) {
+                const OPTIONS_ERROR = "cannot get the request options";
+                const stub = sinon.stub(restApi, "getRequestOptions");
+                stub.onCall(0).rejects(OPTIONS_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, {id: UnitTest.DUMMY_ID})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(OPTIONS_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail when updating item fails with an error", function (done) {
                 // Create a stub for the requests.
                 const stub2 = sinon.stub(request, "put");
@@ -1006,7 +1211,7 @@ class BaseRestUnitTest extends UnitTest {
                 // The second GET request is to retrieve the items, but returns an error.
                 const UPDATE_ERROR = "Error updating the item.";
                 const err = new Error(UPDATE_ERROR);
-                const res = {};
+                const res = null;
                 const body = null;
                 stub2.onCall(0).yields(err, res, body);
 
@@ -1021,15 +1226,276 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            expect(stub2).to.have.been.calledOnce;
+                        expect(stub2).to.have.been.calledOnce;
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(UPDATE_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(UPDATE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when createOnly and updating an item fails with a non-conflict error", function (done) {
+                // Create a stub for the POST request.
+                const stubPost = sinon.stub(request, "post");
+                const CREATE_ERROR = "Error creating the item.";
+                const err = new Error(CREATE_ERROR);
+                const res = {"statusCode": 400};
+                const body = null;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // Create a spy for a PUT request, which should never be called for createOnly mode.
+                const spyPut = sinon.spy(request, "put");
+
+                // Create a stub for restApi.isCreateOnlyMode() to always return true.
+                const stubOnly = sinon.stub(restApi, "isCreateOnlyMode");
+                stubOnly.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(spyPut);
+                self.addTestDouble(stubOnly);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, {"id":"123"}, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify thqat the POST stub was called once and thge PUT stub was not called.
+                        expect(stubPost).to.have.been.calledOnce;
+                        expect(spyPut).to.not.have.been.called;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(CREATE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when createOnly and updating an item fails with a conflict", function (done) {
+                // Create a stub for the POST request.
+                const stubPost = sinon.stub(request, "post");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                const CREATE_ERROR = "Error creating the item.";
+                const err = new Error(CREATE_ERROR);
+                const res = {"statusCode": 409};
+                const body = null;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // Create a spy for a PUT request, which should never be called for createOnly mode.
+                const spyPut = sinon.spy(request, "put");
+
+                // Create a stub for restApi.isCreateOnlyMode() to always return true.
+                const stubOnly = sinon.stub(restApi, "isCreateOnlyMode");
+                stubOnly.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(spyPut);
+                self.addTestDouble(stubOnly);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, item1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        // Verify thqat the POST stub was called once and thge PUT stub was not called.
+                        expect(stubPost).to.have.been.calledOnce;
+                        expect(spyPut).to.not.have.been.called;
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(item1, item)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when createOnly and creating item succeeds", function (done) {
+                // Create a stub for the POST request to return a conflict error.
+                const stubPost = sinon.stub(request, "post");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                const err = null;
+                const res = {"statusCode": 201};
+                const body = item1;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // Create a spy for a PUT request, which should never be called for createOnly mode.
+                const spyPut = sinon.spy(request, "put");
+
+                // Create a stub for restApi.isCreateOnlyMode() to always return true.
+                const stubOnly = sinon.stub(restApi, "isCreateOnlyMode");
+                stubOnly.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(spyPut);
+                self.addTestDouble(stubOnly);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, item1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        // Verify thqat the POST stub was called once and thge PUT stub was not called.
+                        expect(stubPost).to.have.been.calledOnce;
+                        expect(spyPut).to.not.have.been.called;
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(item1, item)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when updating the item fails but can be retried", function (done) {
+                // Create a stub for the PUT request to return a conflict error.
+                const stubPut = sinon.stub(request, "put");
+                const UPDATE_ERROR = "Error updating the item, expected by unit test.";
+                const err = new Error(UPDATE_ERROR);
+                const res = {"statusCode": 400};
+                const body = null;
+                stubPut.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPut);
+
+                // Add a retry filter that always returns true.
+                context.filterRetryPush = function () {return true;};
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, {"id":"123"}, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        expect(stubPut).to.have.been.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(UPDATE_ERROR);
+                        expect(err.retry).to.equal(true);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Delete the filter that we added to the context.
+                        delete context.filterRetryPush;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when updating an item fails with a not found error and the create also fails", function (done) {
+                // Create a stub for the PUT request.
+                const stubPut = sinon.stub(request, "put");
+                const UPDATE_ERROR = "Error updating the item.";
+                let err = new Error(UPDATE_ERROR);
+                let res = {"statusCode": 404};
+                let body = null;
+                stubPut.onCall(0).yields(err, res, body);
+
+                // Create a stub for the POST request.
+                const stubPost = sinon.stub(request, "post");
+                const CREATE_ERROR = "Error creating the item.";
+                err = new Error(CREATE_ERROR);
+                res = {"statusCode": 400};
+                body = null;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(stubPut);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, {"id":"123"}, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify thqat the POST stub was called once and thge PUT stub was not called.
+                        expect(stubPost).to.have.been.calledOnce;
+                        expect(stubPut).to.have.been.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(CREATE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when updating an item fails with a not found error and the create succeeds", function (done) {
+                // Create a stub for the PUT request.
+                const stubPut = sinon.stub(request, "put");
+                const UPDATE_ERROR = "Error updating the item.";
+                let err = new Error(UPDATE_ERROR);
+                let res = {"statusCode": 404};
+                let body = null;
+                stubPut.onCall(0).yields(err, res, body);
+
+                // Create a stub for the POST request to return a conflict error.
+                const stubPost = sinon.stub(request, "post");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                err = null;
+                res = {"statusCode": 201};
+                body = item1;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(stubPut);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, item1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        // Verify thqat the PUT anbd POST stubs were called once.
+                        expect(stubPost).to.have.been.calledOnce;
+                        expect(stubPut).to.have.been.calledOnce;
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(item1, item)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -1059,15 +1525,14 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            expect(stub2).to.have.been.calledOnce;
+                        expect(stub2).to.have.been.calledOnce;
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(UPDATE_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(UPDATE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -1113,7 +1578,7 @@ class BaseRestUnitTest extends UnitTest {
                 // The second GET request is to retrieve the items metadata.
                 const stub = sinon.stub(request, "put");
                 const item1 = UnitTest.getJsonObject(itemPath1);
-                const body = item1;
+                const body = null;
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
@@ -1185,6 +1650,35 @@ class BaseRestUnitTest extends UnitTest {
         // Execute several failure cases to test the various ways the server might return an error. Subsequent tests do
         // not need to repeat the test matrix, they can just execute one of these tests to verify an error is returned.
         describe("createItem", function() {
+            it("should fail when getting the request options fails", function (done) {
+                const OPTIONS_ERROR = "cannot get the request options";
+                const stub = sinon.stub(restApi, "getRequestOptions");
+                stub.rejects(OPTIONS_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                restApi.createItem(context, {id: UnitTest.DUMMY_ID})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(OPTIONS_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail when creating item fails with an error", function (done) {
                 // Create a stub for the requests.
                 const stub2 = sinon.stub(request, "post");
@@ -1192,16 +1686,12 @@ class BaseRestUnitTest extends UnitTest {
                 // The second GET request is to retrieve the items, but returns an error.
                 const CREATE_ERROR = "Error creating the item.";
                 const err = new Error(CREATE_ERROR);
-                const res = {};
+                const res = null;
                 const body = null;
                 stub2.onCall(0).yields(err, res, body);
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub2);
-
-                const getStub = sinon.stub(request, "get");
-                getStub.onCall(0).yields(new Error("expected: Item not found"), {}, null);
-                self.addTestDouble(getStub);
 
                 // Call the method being tested.
                 let error;
@@ -1211,15 +1701,14 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            expect(stub2).to.have.been.calledOnce;
+                        expect(stub2).to.have.been.calledOnce;
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(CREATE_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(CREATE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -1241,9 +1730,43 @@ class BaseRestUnitTest extends UnitTest {
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub2);
 
-                const getStub = sinon.stub(request, "get");
-                getStub.onCall(0).yields(new Error("expected: Item not found"), {}, null);
-                self.addTestDouble(getStub);
+                // Call the method being tested.
+                let error;
+                restApi.createItem(context, {"id":"123"}, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        expect(stub2).to.have.been.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(UPDATE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when creating the item fails but can be retried", function (done) {
+                // Create a stub for the POST request to return a conflict error.
+                const stubPost = sinon.stub(request, "post");
+                const UPDATE_ERROR = "Error creating the item, expected by unit test.";
+                const err = new Error(UPDATE_ERROR);
+                const res = {"statusCode": 400};
+                const body = null;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+
+                // Add a retry filter that always returns true.
+                context.filterRetryPush = function () {return true;};
 
                 // Call the method being tested.
                 let error;
@@ -1253,23 +1776,27 @@ class BaseRestUnitTest extends UnitTest {
                         error = new Error("The promise for the request URI should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            expect(stub2).to.have.been.calledOnce;
+                        expect(stubPost).to.have.been.calledOnce;
 
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.equal(UPDATE_ERROR);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(UPDATE_ERROR);
+                        expect(err.retry).to.equal(true);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
+                        // Delete the filter that we added to the context.
+                        delete context.filterRetryPush;
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
             });
 
             it("should succeed when creating valid items", function (done) {
+                // Create a stub for the POST request to return a conflict error.
                 const err = null;
                 const res = {"statusCode": 200};
                 // The second GET request is to retrieve the items metadata.
@@ -1281,15 +1808,48 @@ class BaseRestUnitTest extends UnitTest {
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub2);
 
-                const getStub = sinon.stub(request, "get");
-                getStub.onCall(0).yields(new Error("expected: Item not found"), {}, null);
-                self.addTestDouble(getStub);
-
                 // Call the method being tested.
                 let error;
                 restApi.createItem(context, item1, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         expect(stub2).to.have.been.calledOnce;
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(item1, item)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when createOnly and item already exists", function (done) {
+                // Create a stub for the POST request to return a conflict error.
+                const stubPost = sinon.stub(request, "post");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                const err = null;
+                const res = {"statusCode": 409};
+                const body = item1;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // Create a stub for restApi.isCreateOnlyMode() to always return true.
+                const stubOnly = sinon.stub(restApi, "isCreateOnlyMode");
+                stubOnly.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(stubOnly);
+
+                // Call the method being tested.
+                let error;
+                restApi.createItem(context, item1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        expect(stubPost).to.have.been.calledOnce;
 
                         // Verify that the REST API returned the expected values.
                         expect(diff.diffJson(item1, item)).to.have.lengthOf(1);

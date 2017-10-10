@@ -16,12 +16,12 @@ limitations under the License.
 /**
  * Use the chai assertion framework.
  */
-var chai = require("chai");
+const chai = require("chai");
 
 /**
  * Use the chai-as-promised promise-assertion extension.
  */
-var chaiAsPromised = require("chai-as-promised");
+const chaiAsPromised = require("chai-as-promised");
 
 /**
  * Use the sinon spy/stub/mock framework.
@@ -36,7 +36,7 @@ require("sinon-as-promised");
 /**
  * Use the sinon-chai extension.
  */
-var sinonChai = require("sinon-chai");
+const sinonChai = require("sinon-chai");
 
 // Tell chai that it should be using chai-as-promised and sinon-chai.
 chai.use(chaiAsPromised);

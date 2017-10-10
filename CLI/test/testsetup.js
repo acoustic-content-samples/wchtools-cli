@@ -15,29 +15,33 @@ limitations under the License.
 */
 const path = require("path");
 const fs = require("fs");
-var cp = require('cp');
+const cp = require('cp');
 const utils = require("wchtools-api").getUtils();
 
-var loadPath = path.dirname(__filename);
-var cDir = path.normalize(loadPath + path.sep + '../commands');
+const loadPath = path.dirname(__filename);
+const cDir = path.normalize(loadPath + path.sep + '../commands');
 cp.sync(loadPath + '/copycommand/quote.js', cDir + '/quote.js');
-var dest = utils.getUserHome() + path.sep +  utils.ProductName + path.sep + "cli" +  path.sep + "plugins/hello";
+const dest = utils.getUserHome() + path.sep +  utils.ProductName + path.sep + "cli" +  path.sep + "plugins/hello";
 try {
     fs.mkdirSync(utils.getUserHome() + path.sep + utils.ProductName);
-}catch (e){
+} catch (e) {
+    // Ignore and keep going.
 }
 try {
     fs.mkdirSync(utils.getUserHome() + path.sep + utils.ProductName +  path.sep + "cli");
-}catch (e){
+} catch (e) {
+    // Ignore and keep going.
 }
 try {
     fs.mkdirSync(utils.getUserHome() + path.sep +  utils.ProductName +  path.sep + "cli" +  path.sep + "plugins");
-}catch (e){
+} catch (e) {
+    // Ignore and keep going.
 }
 try {
     fs.mkdirSync(dest);
-}catch (e){
+} catch (e) {
+    // Ignore and keep going.
 }
-var ndest = dest.split('\\').join('/');
+const ndest = dest.split('\\').join('/');
 fs.writeFileSync(dest + "/plugin.json",'{"name": "hello", "loadPath": "' + ndest + '"}');
 cp.sync(loadPath + '/copycommand/hello.js', dest + '/hello.js');

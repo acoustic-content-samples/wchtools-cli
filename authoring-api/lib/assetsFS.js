@@ -103,10 +103,23 @@ class AssetsFS extends BaseFS {
     }
 
     /**
+     * Get the path to the virtual folder for storing resources.  Does not create the directory.
+     *
+     * @param {Object} context The API context to be used by the get operation.
+     * @param {Object} [opts] The options to be used.
+     *
+     * @return {String} The virtual folder for storing resources.
+     */
+    getResourcesPath (context, opts) {
+        // All virtual folders are within the defined working directory.
+        return BaseFS.getWorkingDir(context, opts) + "resources" + path.sep;
+    }
+
+    /**
      * Get the virtual folder for storing web assets.
      *
      * @param {Object} context The API context to be used by the get operation.
-     * @param {Object} opts The options to be used.
+     * @param {Object} [opts] The options to be used.
      *
      * @return {String} The virtual folder for storing web assets.
      */
@@ -145,7 +158,7 @@ class AssetsFS extends BaseFS {
      * Note: The path defined for content assets always begins with a special folder used for content assets.
      *
      * @param {Object} context The API context to be used by the get operation.
-     * @param {Object} opts The options to be used.
+     * @param {Object} [opts] The options to be used.
      *
      * @return {String} The virtual folder for storing content assets.
      */
@@ -230,6 +243,10 @@ class AssetsFS extends BaseFS {
 
     getPath (context, name, opts) {
         return this.getAssetsPath(context, opts) + name;
+    }
+
+    getResourcePath (context, name, opts) {
+        return this.getResourcesPath(context, opts) + name;
     }
 
     getMetadataPath (context, name, opts) {
@@ -321,6 +338,17 @@ class AssetsFS extends BaseFS {
         });
     }
 
+    getRawResourcePath (context, id, filename, opts) {
+        return this.getResourcesPath(context, opts) + id.substring(0, 2) + "/" + id + "/" + filename;
+    }
+
+    renameResource (context, id, filename, opts) {
+        const origName = this.getResourcesPath(context, opts) + id;
+        const newName = this.getRawResourcePath(context, id, filename, opts);
+        mkdirp.sync(path.dirname(newName));
+        fs.renameSync(origName, newName);
+    }
+
     /**
      * Gets a read stream for an asset that is stored locally on the file system
      */
@@ -329,6 +357,22 @@ class AssetsFS extends BaseFS {
 
         try {
             const stream = fs.createReadStream(this.getPath(context, name, opts));
+            deferred.resolve(stream);
+        } catch (err) {
+            deferred.reject(err);
+        }
+
+        return deferred.promise;
+    }
+
+    /**
+     * Gets a read stream for a resource that is stored locally on the file system
+     */
+    getResourceReadStream (context, name, opts) {
+        const deferred = Q.defer();
+
+        try {
+            const stream = fs.createReadStream(this.getResourcePath(context, name, opts));
             deferred.resolve(stream);
         } catch (err) {
             deferred.reject(err);
@@ -448,12 +492,50 @@ class AssetsFS extends BaseFS {
         return deferred.promise;
     }
 
-    getFileStats (context, name, opts) {
+    /**
+     * Get a filtered list of file names from the local file system.
+     *
+     * @param {Object} context The API context to be used by the get operation.
+     * @param {Object} opts - The options to be used for the list operation.
+     *
+     * @returns {Q.Promise} A promise for a filtered list of file names from the local file system.
+     */
+    listResourceNames (context, opts) {
+        const deferred = Q.defer();
+        const resourcesDir = this.getResourcesPath(context, opts);
+
+        if (fs.existsSync(resourcesDir)) {
+            recursive(resourcesDir, function (err, files) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    files = files.map(function (file) {
+                        return utils.getRelativePath(resourcesDir, file);
+                    });
+
+                    files = files.filter(function (path) {
+                        if (!hashes.isHashesFile(path)) {
+                            return path;
+                        }
+                    });
+
+                    deferred.resolve(files);
+                }
+            });
+        } else {
+            // Silently return an empty array.
+            deferred.resolve([]);
+        }
+
+        return deferred.promise;
+    }
+
+    _getFileStats (context, path, opts) {
         const deferred = Q.defer();
 
-        fs.stat(this.getPath(context, name, opts), function (err, stats) {
+        fs.stat(path, function (err, stats) {
             if (err) {
-                utils.logErrors(context, i18n.__("error_fs_get_filestats", {"name": name}), err);
+                utils.logErrors(context, i18n.__("error_fs_get_filestats", {"name": path}), err);
                 deferred.reject(err);
             } else {
                 // Resolve with no name, this file was not modified since last change
@@ -463,16 +545,26 @@ class AssetsFS extends BaseFS {
         return deferred.promise;
     }
 
+    getFileStats (context, name, opts) {
+        return this._getFileStats(context, this.getPath(context, name, opts), opts);
+    }
+
+    getResourceFileStats (context, name, opts) {
+        return this._getFileStats(context, this.getResourcePath(context, name, opts), opts);
+    }
+
     getContentLength (context, name, opts) {
-        const deferred = Q.defer();
-        this.getFileStats(context, name, opts)
+        return this.getFileStats(context, name, opts)
             .then(function (stats) {
-                deferred.resolve(stats.size);
-            })
-            .catch(function (err) {
-                deferred.reject(err);
+                return stats.size;
             });
-        return deferred.promise;
+    }
+
+    getResourceContentLength (context, name, opts) {
+        return this.getResourceFileStats(context, name, opts)
+            .then(function (stats) {
+                return stats.size;
+            });
     }
 }
 

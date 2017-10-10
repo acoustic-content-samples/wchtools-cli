@@ -129,6 +129,33 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
+    getResourceListRequestOptions (context, opts) {
+        const deferred = Q.defer();
+        const restObject = this;
+        const headers = {
+            "Accept": "application/json",
+            "Accept-Language": utils.getHTTPLanguage(),
+            "Connection": "keep-alive",
+            "User-Agent": utils.getUserAgent()
+        };
+        BaseREST.addHeaderOverrides(context, headers, opts);
+
+        this.getRequestURI(context, opts)
+            .then(function (uri) {
+                uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
+                const requestOptions = {
+                    uri: uri + "/authoring/v1/resources/views/by-created",
+                    headers: headers
+                };
+                deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
     getAssetUpdateRequestOptions (context, id, opts) {
         const deferred = Q.defer();
         const restObject = this;
@@ -197,6 +224,58 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
+    getResourceList (context, opts) {
+        const restObject = this;
+        const deferred = Q.defer();
+        const offset = options.getRelevantOption(context, opts, "offset", "resources");
+        const limit = options.getRelevantOption(context, opts, "limit", "resources");
+        restObject.getResourceListRequestOptions(context, opts)
+            .then(function (requestOptions) {
+                requestOptions.uri = requestOptions.uri + "?offset=" + offset + "&limit=" + limit;
+                request.get(requestOptions, function (err, res, body) {
+                    const response = res || {};
+                    if (err || response.statusCode !== 200) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+                        utils.logErrors(context, i18n.__("get_items_error", {service_name: "resources"}), err);
+                        deferred.reject(err);
+                    } else if (body) {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        try {
+                            const parsed = JSON.parse(body);
+                            deferred.resolve(parsed.items ? parsed.items : parsed);
+                        } catch (err) {
+                            deferred.resolve(body);
+                        }
+                    }
+                });
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    _extractFilename (header) {
+        let filename = undefined;
+        if (header) {
+            let index = header.indexOf("filename*");
+            if (index > 0) {
+                filename = header.substring(index + 9);
+                filename = filename.substring(filename.indexOf("=") + 1).trim();
+                filename = filename.substring(filename.lastIndexOf("'") + 1).trim();
+            } else {
+                index = header.indexOf("filename");
+                if (index > 0) {
+                    filename = header.substring(index + 8);
+                    filename = filename.substring(filename.indexOf("=") + 1).trim();
+                }
+            }
+        }
+        return filename;
+    }
+
     /**
      * Download the specified asset and save it to the given stream.
      *
@@ -210,12 +289,20 @@ class AssetsREST extends BaseREST {
     pullItem (context, asset, stream, opts) {
         const deferred = Q.defer();
 
+        const helper = this;
         // Initialize the request options.
         this.getDownloadRequestOptions(context, opts)
             .then(function (reqOptions) {
                 reqOptions.uri = reqOptions.uri + "/" + asset.resource;
                 // Make the request and pipe the response to the specified stream.
                 const responseStream = request.get(reqOptions);
+                if (opts && opts.returnDisposition) {
+                    responseStream.on("response", function (response) {
+                        const disposition = response.headers["content-disposition"];
+                        asset.disposition = helper._extractFilename(disposition);
+                        asset.contentType = response.headers["content-type"];
+                    });
+                }
                 responseStream.pipe(stream);
 
                 // Check the "response" event to make sure the response was successful.
@@ -270,7 +357,7 @@ class AssetsREST extends BaseREST {
      * @param length
      * @param opts
      */
-    pushItem (context, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+    pushItem (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
         const restObject = this;
 
         // Make sure the path name starts with a leading slash.
@@ -284,8 +371,8 @@ class AssetsREST extends BaseREST {
         // in the normal way, because a resource PUT request is used to create a resource with a specific id.
         const createOnly = restObject.isCreateOnlyMode(context, opts);
 
-        // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
-        const updateContentResource = isContentResource && !replaceContentResource && resourceId;
+        // A web asset always uses PUT to update the resource, content assets only POST if replaceContentResource is true or there is no resourceId.
+        const updateContentResource = ((isContentResource && !replaceContentResource) || (!isContentResource)) && resourceId;
 
         // Do not retry resource push requests. The stream passed in can only be read for the first request.
         const rOpts = utils.cloneOpts(opts);
@@ -348,7 +435,8 @@ class AssetsREST extends BaseREST {
                                         request.put(reqOptions, function (err, res, body) {
                                             const response = res || {};
                                             if (response.statusCode === 404) {
-                                                // We may be pushing an existing asset defn to a new tenant DB, so create the asset defn instead
+                                                // We may be pushing an existing asset defn to a new tenant DB, so create the asset defn instead.
+                                                reqOptions = utils.clone(reqOptions);
                                                 reqOptions.uri = reqOptions.uri.substring(0, reqOptions.uri.lastIndexOf('/'));
                                                 delete reqOptions.body.rev;
                                                 postAssetMetadata(context, reqOptions, deferred, createOnly);
@@ -366,13 +454,15 @@ class AssetsREST extends BaseREST {
                                         postAssetMetadata(context, reqOptions, deferred, createOnly);
                                     }
                                 });
-                        } else {
+                        } else if (!isRaw) {
                             // Creating new asset metadata. Fernando web asset or create-only.
                             restObject.getRequestOptions(context, opts)
                                 .then(function (reqOptions) {
                                     reqOptions.body = requestBody;
                                     postAssetMetadata(context, reqOptions, deferred, createOnly);
                                 });
+                        } else {
+                            deferred.resolve(body);
                         }
                     }
                 };

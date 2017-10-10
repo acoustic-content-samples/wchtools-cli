@@ -50,7 +50,6 @@ class BaseHelperUnitTest extends UnitTest {
         describe("Unit tests for Helper " + restApi.getServiceName(), function () {
             // Initialize common resourses before running the unit tests.
             before(function (done) {
-                helper.reset();
                 UnitTest.restoreOptions(context);
 
                 // Remove the artifact folder before the tests are run.
@@ -64,9 +63,6 @@ class BaseHelperUnitTest extends UnitTest {
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Reset the state of the helper.
-                helper.reset();
 
                 // Signal that the cleanup is complete.
                 done();

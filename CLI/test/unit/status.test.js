@@ -15,7 +15,7 @@ limitations under the License.
 */
 describe("status.js", function() {
     describe("start and stop status()", function() {
-        var status = require("../../lib/status.js");
+        const status = require("../../lib/status.js");
         it("it should succeed", function() {
             process.stdout.isTTY = true;
             status.start();

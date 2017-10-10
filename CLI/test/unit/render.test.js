@@ -48,7 +48,6 @@ const helper = ToolsApi.getPublishingJobsHelper();
 const loginHelper = ToolsApi.getLogin();
 
 const toolsCli = require("../../wchToolsCli");
-const LONG_TIMEOUT = 80000;
 
 describe("Test Render command", function () {
     let stubLogin;
@@ -64,8 +63,6 @@ describe("Test Render command", function () {
     });
 
     it("check render command" , function (done) {
-        this.timeout(LONG_TIMEOUT);
-
         const stubJob = sinon.stub(helper, "createPublishingJob");
         stubJob.resolves({id: 'foo'});
 
@@ -91,8 +88,6 @@ describe("Test Render command", function () {
     });
 
     it("check render with -rv args" , function (done) {
-        this.timeout(LONG_TIMEOUT);
-
         const stubJob = sinon.stub(helper, "createPublishingJob");
         stubJob.resolves({id: 'foo'});
 
@@ -117,10 +112,9 @@ describe("Test Render command", function () {
     });
 
     it("check default render fail" , function (done) {
-        this.timeout(LONG_TIMEOUT);
-
+        const JOB_ERROR = "Error creating a publishing job, expected by unit test.";
         const stubJob = sinon.stub(helper, "createPublishingJob");
-        stubJob.rejects("Error");
+        stubJob.rejects(JOB_ERROR);
 
         let error;
         toolsCli.parseArgs(['', process.cwd() + '/index.js', 'render', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
@@ -132,7 +126,7 @@ describe("Test Render command", function () {
                 try {
                     // The stub should only have been called once, and it should have been before the spy.
                     expect(stubJob).to.have.been.calledOnce;
-                    expect(err.message).to.contain('Error');
+                    expect(err.message).to.contain(JOB_ERROR);
                 } catch (err) {
                     error = err;
                 }
@@ -169,4 +163,32 @@ describe("Test Render command", function () {
             });
     });
 
+    it("test fails when initialization fails", function (done) {
+        const INIT_ERROR = "API initialization failed, as expected by unit test.";
+        const stub = sinon.stub(ToolsApi, "getInitializationErrors");
+        stub.returns([new Error(INIT_ERROR)]);
+
+        let error;
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'render', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
+            .then(function () {
+                // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                error = new Error("The command should have failed.");
+            })
+            .catch(function (err) {
+                // The stub should have been called and the expected error should have been returned.
+                expect(stub).to.have.been.calledOnce;
+                expect(err.message).to.contain(INIT_ERROR);
+            })
+            .catch (function (err) {
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // Restore the stubbed method.
+                stub.restore();
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    });
 });

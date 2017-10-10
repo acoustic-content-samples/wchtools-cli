@@ -64,12 +64,34 @@ class PublishingJobsHelperUnitTest extends PublishingJobsUnitTest {
             });
 
             // Run each of the tests defined in this class.
+            self.testSingleton();
             self.testGetPublishingJobs();
             self.testGetPublishingJob();
             self.testGetPublishingJobStatus();
             self.testCreatePublishingJob();
             self.testCancelPublishingJob();
             self.testDeletePublishingJob();
+        });
+    }
+
+    testSingleton () {
+        describe("is a singleton", function () {
+            it("should fail if try to create a helper Type", function (done) {
+                let error;
+                try {
+                    const newHelper = new publishingJobsHelper.constructor();
+                    if (newHelper) {
+                        error = "The constructor should have failed.";
+                    } else {
+                        error = "The constructor should have thrown an error.";
+                    }
+                } catch (e){
+                    expect(e).to.equal("An instance of singleton class PublishingJobsHelper cannot be constructed");
+                }
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
         });
     }
 

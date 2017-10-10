@@ -710,4 +710,83 @@ describe("Unit tests for wchToolsApi.js", function () {
                 });
         });
     });
+
+    describe("pushModifiedItems", function () {
+        it("should succeed when no items to push", function (done) {
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushModifiedItems");
+            stubImageProfiles.resolves([]);
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "pushModifiedItems");
+            stubCategories.resolves([]);
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "pushModifiedItems");
+            stubAssets.resolves([]);
+            const stubRenditions = sinon.stub(ToolsApi.getRenditionsHelper(), "pushModifiedItems");
+            stubRenditions.resolves([]);
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "pushModifiedItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "pushModifiedItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "pushModifiedItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushModifiedItems");
+            stubContent.resolves([]);
+            const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushModifiedItems");
+            stubSites.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushModifiedItems");
+            stubPages.resolves([]);
+            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushModifiedItems");
+            stubSources.resolves([]);
+            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushModifiedItems");
+            stubProfiles.resolves([]);
+            const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushModifiedItems");
+            stubSiteRevisions.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            const api = new ToolsApi();
+            api.pushModifiedItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubRenditions).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubSites).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubSources).to.have.been.calledOnce;
+                    expect(stubProfiles).to.have.been.calledOnce;
+                    expect(stubSiteRevisions).to.have.been.calledOnce;
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(0);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubRenditions.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubSites.restore();
+                    stubPages.restore();
+                    stubSources.restore();
+                    stubProfiles.restore();
+                    stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+    });
 });

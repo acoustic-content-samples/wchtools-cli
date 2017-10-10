@@ -1,5 +1,11 @@
 # Changelog
 
+### v2.0.9 changes since 2.0.3
+
+  - Added pull of image and video resources not referenced by asset metadata, during asset pull,  stored under workingdir/resources,  so that push to a new tenant where content references such resources, will work.
+  - Fix for modified tracking issue when pulling publishing config (profiles, job definitions, site revision) multiple times.
+  - Additional unit test coverage.
+
 ### v2 changes since v1.x
 
   - Added support for pushing and pulling site and page artifacts with -s -p

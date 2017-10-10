@@ -69,6 +69,30 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
                         done(error);
                     });
             });
+
+            it("should fail calling delete - no options", function (done) {
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItem(context, UnitTest.DUMMY_METADATA)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain("Delete");
+                            expect(err.message).to.contain(UnitTest.DUMMY_METADATA.id);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 }

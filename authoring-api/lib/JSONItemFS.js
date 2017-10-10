@@ -21,6 +21,7 @@ const mkdirp = require("mkdirp");
 const path = require("path");
 const Q = require("q");
 const hashes = require("./utils/hashes.js");
+const options = require("./utils/options.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const CONFLICT_EXTENSION = '.conflict';
@@ -199,6 +200,9 @@ class JSONItemFS extends BaseFS {
                             fs.writeFileSync(filepath, JSON.stringify(item, null, "  "));
                             if (!hasConflict) {
                                 hashes.updateHashes(context, fsObject.getPath(context, opts), filepath, item, opts);
+
+                                // Add the item to the cache, if a cache has been enabled.
+                                JSONItemFS.addItemToCache(context, filepath, item, opts);
                             }
                             return resolve(item);
                         } catch (err) {
@@ -284,22 +288,118 @@ class JSONItemFS extends BaseFS {
      */
     getItem (context, name, opts) {
         const deferred = Q.defer();
-        fs.readFile(this.getItemPath(context, name, opts), function (err, body) {
-            if (err) {
-                utils.logErrors(context, i18n.__("error_fs_get_item"), err);
-                deferred.reject(err);
-            } else {
-                try {
-                    const item = JSON.parse(body.toString());
-                    deferred.resolve(item);
-                } catch (error) {
-                    const msg = i18n.__("error_parsing_item", {name: name, message: error.message});
-                    utils.logErrors(context, msg, error);
-                    deferred.reject((error instanceof SyntaxError) ? new SyntaxError(msg) : new Error(msg));
+        const filepath = this.getItemPath(context, name, opts);
+
+        // Get the item from the cache, if a cache has been enabled.
+        let item = JSONItemFS.getItemFromCache(context, filepath, opts);
+        if (item) {
+            deferred.resolve(item);
+        } else {
+            fs.readFile(filepath, function (err, body) {
+                if (err) {
+                    utils.logErrors(context, i18n.__("error_fs_get_item"), err);
+                    deferred.reject(err);
+                } else {
+                    try {
+                        // Add the item to the cache, if a cache has been enabled.
+                        item = JSON.parse(body.toString());
+                        JSONItemFS.addItemToCache(context, filepath, item, opts);
+                        deferred.resolve(item);
+                    } catch (error) {
+                        const msg = i18n.__("error_parsing_item", {name: name, message: error.message});
+                        utils.logErrors(context, msg, error);
+                        deferred.reject((error instanceof SyntaxError) ? new SyntaxError(msg) : new Error(msg));
+                    }
                 }
-            }
-        });
+            });
+        }
         return deferred.promise;
+    }
+
+    /**
+     * Get the local file cache.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Map} The local file cache, or null.
+     *
+     * @private
+     */
+    static getLocalCache (context, opts) {
+        const cache = options.getRelevantOption(context, opts, "localFileCache");
+        if (cache && cache.constructor && cache.constructor.name === "Map") {
+            return cache;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Determine whether the local file cache is enabled.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Boolean} state A value of true indicates that the cache should be enabled. A value of false indicates
+     *        that the cache should be disabled.
+     * @param {Object} opts Any override options to be used for this operation.
+     */
+    static setCacheEnabled (context, state, opts) {
+        if (JSONItemFS.isCacheEnabled(context, opts) !== state) {
+            if (state) {
+                context["localFileCache"] = new Map();
+            } else {
+                delete context["localFileCache"];
+            }
+        }
+    }
+
+    /**
+     * Determine whether the local file cache is enabled.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the local file cache is enabled. A return value of false
+     *          indicates that the local file cache is disabled.
+     */
+    static isCacheEnabled (context, opts) {
+        const cache = JSONItemFS.getLocalCache(context, opts);
+        return (cache !== null);
+    }
+
+    /**
+     * Add the specified item to the cache using the given filepath.
+     *
+     * Note: If the cache has not been enabled, no error will be signaled.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} filepath The filepath of the item to be added to the cache.
+     * @param {Object} item The item to be added to the cache.
+     * @param {Object} opts Any override options to be used for this operation.
+     */
+    static addItemToCache (context, filepath, item, opts) {
+        const cache = JSONItemFS.getLocalCache(context, opts);
+        if (cache) {
+            cache.set(filepath, item);
+        }
+    }
+
+    /**
+     * Get the item for the given filepath from the cache.
+     *
+     * Note: If the cache has not been enabled, no error will be signaled.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} filepath The filepath of the item to get from the cache.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Object} The item for the given filepath from the cache.
+     */
+    static getItemFromCache (context, filepath, opts) {
+        const cache = JSONItemFS.getLocalCache(context, opts);
+        if (cache) {
+            return cache.get(filepath);
+        }
     }
 }
 

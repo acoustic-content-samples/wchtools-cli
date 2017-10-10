@@ -79,12 +79,10 @@ class RenderCommand extends BaseCommand {
                 BaseCommand.displayToConsole(i18n.__('cli_rendering_job_started'));
                 self.spinner = ora();
                 self.spinner.start();
-                helper.createPublishingJob(context, jobParameters, self.getApiOptions())
+                return helper.createPublishingJob(context, jobParameters, self.getApiOptions())
                     .then(job => {
                         const createIdMsg = i18n.__('cli_rendering_job_created', {id: job.id});
-                        if (self.spinner) {
-                            self.spinner.stop();
-                        }
+                        self.spinner.stop();
                         self.successMessage(createIdMsg);
                         if (self.getCommandLineOption("verbose")) {
                             logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
@@ -92,12 +90,8 @@ class RenderCommand extends BaseCommand {
                         self.resetCommandLineOptions();
                     })
                     .catch(err => {
-                        const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                        if (self.spinner) {
-                            self.spinner.stop();
-                        }
-                        self.errorMessage(curError);
-                        self.resetCommandLineOptions();
+                        self.spinner.stop();
+                        throw(err);
                     });
             })
             .catch(err => {

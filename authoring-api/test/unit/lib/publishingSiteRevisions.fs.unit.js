@@ -31,7 +31,7 @@ class PublishingSiteRevisionsFsUnitTest extends BaseFsUnit {
         super();
     }
     run() {
-        super.run(fsApi, "publishingSiteRevisionsFS", PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISION_1, PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISION_2);
+        super.run(fsApi, PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISION_1, PublishingSiteRevisionsUnitTest.VALID_PUBLISHING_SITEREVISION_2);
     }
 }
 

@@ -34,17 +34,20 @@ const JSONItemFS = require(UnitTest.API_PATH + "lib/JSONItemFS.js");
 // Require the local module being tested.
 const fsApi = require(UnitTest.API_PATH + "lib/pagesFS.js").instance;
 
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
+
 class PagesFsUnitTest extends BaseFsUnit {
     constructor() {
         super();
     }
 
     run() {
-        super.run(fsApi, "pagesFS", PagesUnitTest.VALID_PAGE_1, PagesUnitTest.VALID_PAGE_2 );
+        super.run(fsApi, PagesUnitTest.VALID_PAGE_1, PagesUnitTest.VALID_PAGE_2 );
     }
 
     // Override the base FS test to handle the difference between names (pages return a path instead of a name).
-    listNamesSuccess (fsApi, fsName, itemName1, itemName2, done) {
+    listNamesSuccess (fsApi, itemName1, itemName2, done) {
         // Create a stub that will return a list of item names from the recursive function.
         const stub = sinon.stub(fs, "readdir");
         const err = null;
@@ -87,60 +90,60 @@ class PagesFsUnitTest extends BaseFsUnit {
     }
 
     // Override the base FS test to do tests for renaming pages.
-    testHandleRename (fsApi, fsName, itemName1, itemName2) {
+    testHandleRename (fsApi, itemName1, itemName2) {
         const self = this;
         describe("PagesFS.handleRename", function() {
             it("should not delete old file if old file does not exist", function (done) {
-                self.handleRename_NoOldPageFile(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_NoOldPageFile(fsApi, itemName1, itemName2 , done);
             });
 
             it("should not delete old page file if new file exists", function (done) {
-                self.handleRename_NewPageFileExists(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_NewPageFileExists(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file if all conditions met", function (done) {
-                self.handleRename_DeleteOldPageFile_FromRootFolder(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_FromRootFolder(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file but not parent", function (done) {
-                self.handleRename_DeleteOldPageFile_FromPageFolder_NotEmpty(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_FromPageFolder_NotEmpty(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file but error deleting parent", function (done) {
-                self.handleRename_DeleteOldPageFile_FromPageFolder_Empty_Error(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_FromPageFolder_Empty_Error(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file and parent", function (done) {
-                self.handleRename_DeleteOldPageFile_FromPageFolder_Empty(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_FromPageFolder_Empty(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file but error renaming old folder", function (done) {
-                self.handleRename_DeleteOldPageFile_RenameOldPageFolder_Error(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_RenameOldPageFolder_Error(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file and rename old folder", function (done) {
-                self.handleRename_DeleteOldPageFile_RenameOldPageFolder(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_RenameOldPageFolder(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file but error moving old folder files", function (done) {
-                self.handleRename_DeleteOldPageFile_MoveOldChildPages_Error(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_MoveOldChildPages_Error(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file and move old folder files", function (done) {
-                self.handleRename_DeleteOldPageFile_MoveOldChildPages(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRename_DeleteOldPageFile_MoveOldChildPages(fsApi, itemName1, itemName2 , done);
             });
 
             it("should get all descendent files", function (done) {
-                self.getDescendentFilePaths_All(fsApi, fsName, itemName1, itemName2 , done);
+                self.getDescendentFilePaths_All(fsApi, itemName1, itemName2 , done);
             });
 
             it("should get the *.json descendent files", function (done) {
-                self.getDescendentFilePaths_Json(fsApi, fsName, itemName1, itemName2 , done);
+                self.getDescendentFilePaths_Json(fsApi, itemName1, itemName2 , done);
             });
         });
     }
 
-    handleRename_NoOldPageFile (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_NoOldPageFile (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -179,7 +182,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_NewPageFileExists (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_NewPageFileExists (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -219,7 +222,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_FromRootFolder (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_FromRootFolder (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -263,7 +266,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_FromPageFolder_NotEmpty (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_FromPageFolder_NotEmpty (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -311,7 +314,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_FromPageFolder_Empty_Error (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_FromPageFolder_Empty_Error (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -361,7 +364,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_FromPageFolder_Empty (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_FromPageFolder_Empty (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -409,7 +412,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_RenameOldPageFolder_Error (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_RenameOldPageFolder_Error (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -454,7 +457,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_RenameOldPageFolder (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_RenameOldPageFolder (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -514,7 +517,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_MoveOldChildPages_Error (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_MoveOldChildPages_Error (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -563,7 +566,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    handleRename_DeleteOldPageFile_MoveOldChildPages (fsApi, fsName, itemName1, itemName2, done) {
+    handleRename_DeleteOldPageFile_MoveOldChildPages (fsApi, itemName1, itemName2, done) {
         // Create a stub for hashes.getItemPath that will return a file path.
         const stubPath = sinon.stub(hashes, "getFilePath");
         stubPath.returns(UnitTest.DUMMY_PATH);
@@ -630,7 +633,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    getDescendentFilePaths_All (fsApi, fsName, itemName1, itemName2, done) {
+    getDescendentFilePaths_All (fsApi, itemName1, itemName2, done) {
         // Use the directory of test resources for assets, since it has a known hierarchy.
         const directory = UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + "/assets";
 
@@ -665,7 +668,7 @@ class PagesFsUnitTest extends BaseFsUnit {
         }
     }
 
-    getDescendentFilePaths_Json (fsApi, fsName, itemName1, itemName2, done) {
+    getDescendentFilePaths_Json (fsApi, itemName1, itemName2, done) {
         // Use the directory of test resources for assets, since it has a known hierarchy.
         const directory = UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + "/assets";
 

@@ -39,11 +39,11 @@ class LayoutsFsUnitTest extends BaseFsUnit {
     }
 
     run () {
-        super.run(fsApi, "layoutsFS", LayoutsUnitTest.VALID_LAYOUT_1, LayoutsUnitTest.VALID_LAYOUT_2);
+        super.run(fsApi, LayoutsUnitTest.VALID_LAYOUT_1, LayoutsUnitTest.VALID_LAYOUT_2);
     }
 
     // Override the base FS test to handle the difference between names (layouts return a path instead of a name).
-    listNamesSuccess (fsApi, fsName, itemName1, itemName2, done) {
+    listNamesSuccess (fsApi, itemName1, itemName2, done) {
         // Create a stub that will return a list of item names from the recursive function.
         const stub = sinon.stub(fs, "readdir");
         const err = null;

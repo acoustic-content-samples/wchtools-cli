@@ -45,9 +45,6 @@ class PublishingJobsHelper {
         return this[singleton];
     }
 
-    reset () {
-    }
-
     createPublishingJob (context, jobParameters, opts) {
         return rest.createPublishingJob(context, jobParameters, opts);
     }

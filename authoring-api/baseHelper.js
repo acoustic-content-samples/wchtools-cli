@@ -831,9 +831,6 @@ class BaseHelper {
         return (item && typeof item === "object");
     }
 
-    reset () {
-    }
-
     /**
      *
      * @param {Object} context The API context to be used for this operation.

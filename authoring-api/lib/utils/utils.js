@@ -32,7 +32,7 @@ const userAgent = ProductAbrev + "/" + ProductVersion;
 const i18nModule = require("i18n-2");
 const i18n = getI18N(__dirname, ".json", "en");
 const vPath = new RegExp('[?<>*|"]');
-const loggers = [];
+const loggers = {};
 let httplang;
 
 // Enable the request module cookie jar so cookies can be shared across response, request with this request wrapper
@@ -250,6 +250,7 @@ function getError (err, body, response, requestOptions) {
         return error;
     }
     catch (e) {
+        /* istanbul ignore next */
         return e;
     }
 }
@@ -336,6 +337,8 @@ let apisLogConfig;
 
 // Only log to the console if we are running the tests on the jenkins server
 const buildTag = process.env.BUILD_TAG;
+
+/* istanbul ignore next */
 if (buildTag && buildTag.indexOf('jenkins') !== -1) {
     apisLogConfig = {
         appenders: [
@@ -493,6 +496,7 @@ function pathNormalize (filePath) {
  * @returns {*}
  */
 function getUserHome () {
+    /* istanbul ignore next */
     return process.env[(process.platform === 'win32') ? 'USERPROFILE' : 'HOME'];
 }
 
@@ -652,9 +656,9 @@ function replaceAll (original, find, replace) {
 function reset () {
     // Remove any calculated values.
     httplang = null;
-    while (loggers.length > 0) {
-        loggers.pop();
-    }
+    Object.keys(loggers).forEach(function (key) {
+        delete loggers[key];
+    })
 }
 
 /**

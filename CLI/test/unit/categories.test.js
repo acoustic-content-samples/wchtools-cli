@@ -19,18 +19,16 @@ limitations under the License.
 "use strict";
 
 const helper = require("wchtools-api").getCategoriesHelper();
-const rest = require("../../../authoring-api/lib/categoriesREST.js").instance;
-const fs = require("../../../authoring-api/lib/categoriesFS.js").instance;
 
-// Presentations Tests with CLI
+// Categories Tests with CLI
 const BASE_NAME = 'category';
 const PullUnitTest = require("./lib/pull.unit.js");
 const pullUnitTest = new PullUnitTest();
-pullUnitTest.run(helper, rest, fs, '--categories', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_cmd.json');
+pullUnitTest.run(helper, '--categories', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const PushUnitTest = require("./lib/push.unit.js");
 const pushUnitTest = new PushUnitTest();
-pushUnitTest.run(helper, rest, fs, '--categories', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name', '_cmd.json');
+pushUnitTest.run(helper, '--categories', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
 
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();

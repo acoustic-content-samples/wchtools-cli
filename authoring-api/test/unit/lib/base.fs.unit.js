@@ -29,6 +29,7 @@ const sinon = require("sinon");
 // Require the local modules that will be stubbed, mocked, and spied.
 const mkdirp = require('mkdirp');
 const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
+const JSONItemFS = require(UnitTest.API_PATH + "lib/JSONItemFS.js");
 
 // Test "stats" data.
 const DUMMY_DATE = new Date("Mon, 10 Oct 2011 23:24:11 GMT");
@@ -57,9 +58,9 @@ class BaseFsApiUnitTest extends UnitTest {
         super();
     }
 
-    run (fsApi, fsName, itemName1, itemName2) {
+    run (fsApi, itemName1, itemName2) {
         const self = this;
-        describe("Unit tests for FS " +fsName, function () {
+        describe("Unit tests for " + fsApi.getServiceName() + "FS " , function () {
             let stubSync;
 
             // Initialize common resources before running the unit tests.
@@ -67,9 +68,6 @@ class BaseFsApiUnitTest extends UnitTest {
                 // Create a stub for the mkdirp.sync() function, so that we don't create any directories.
                 stubSync = sinon.stub(mkdirp, "sync");
                 stubSync.returns(null);
-
-                // Reset the state of the FS API.
-                fsApi.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -79,9 +77,6 @@ class BaseFsApiUnitTest extends UnitTest {
             afterEach(function (done) {
                 // Restore any stubs and spies used for the test.
                 self.restoreTestDoubles();
-
-                // Reset the state of the FS API.
-                fsApi.reset();
 
                 // Signal that the cleanup is complete.
                 done();
@@ -97,26 +92,26 @@ class BaseFsApiUnitTest extends UnitTest {
             });
 
             // Run each of the tests defined in this class.
-            self.testSingleton(fsApi, fsName, itemName1, itemName2);
-            self.testGetItem(fsApi, fsName, itemName1, itemName2);
-            self.testGetFileStats(fsApi, fsName, itemName1, itemName2);
-            self.testGetPath(fsApi, fsName, itemName1, itemName2);
-            self.testHandleRename(fsApi, fsName, itemName1, itemName2);
-            self.testSaveItem(fsApi, fsName, itemName1, itemName2);
-            self.testListNames(fsApi, fsName, itemName1, itemName2);
-            self.testGetItems(fsApi, fsName, itemName1, itemName2);
+            self.testSingleton(fsApi, itemName1, itemName2);
+            self.testGetItem(fsApi, itemName1, itemName2);
+            self.testGetFileStats(fsApi, itemName1, itemName2);
+            self.testGetPath(fsApi, itemName1, itemName2);
+            self.testHandleRename(fsApi, itemName1, itemName2);
+            self.testSaveItem(fsApi, itemName1, itemName2);
+            self.testListNames(fsApi, itemName1, itemName2);
+            self.testGetItems(fsApi, itemName1, itemName2);
         });
     }
 
-    testSingleton (fsApi, fsName, itemName1, itemName2) {
+    testSingleton (fsApi, itemName1, itemName2) {
         describe("is a singleton", function () {
             it("should fail if try to create a fsAPI Type", function (done) {
-                BaseFsApiUnitTest.singletonCreate(fsApi, fsName, itemName1, itemName2,done);
+                BaseFsApiUnitTest.singletonCreate(fsApi, itemName1, itemName2, done);
             });
         });
     }
 
-    static singletonCreate (fsApi, fsName, itemName1, itemName2, done) {
+    static singletonCreate (fsApi, itemName1, itemName2, done) {
         let error;
         try {
             const api = new fsApi.constructor();
@@ -132,7 +127,7 @@ class BaseFsApiUnitTest extends UnitTest {
         done(error);
     }
 
-    testGetItem (fsApi, fsName, itemName1, itemName2) {
+    testGetItem (fsApi, itemName1, itemName2) {
         const self = this;
 
         describe("getItem", function () {
@@ -266,24 +261,76 @@ class BaseFsApiUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("should cache items when enabled", function (done) {
+                // Create a stub that will read an item from a file.
+                const stubRead = sinon.stub(fs, "readFile");
+                stubRead.yields(null, '{"id": "' + UnitTest.DUMMY_ID + '", "name": "' + itemName1 + '"}');
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubRead);
+
+                // Enable the item cache.
+                JSONItemFS.setCacheEnabled(context, true, UnitTest.DUMMY_OPTIONS);
+
+                // Call the method being tested.
+                let error;
+                fsApi.getItem(context, itemName1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        // Verify that the read stub was called once and the expected item was returned.
+                        expect(stubRead).to.have.been.calledOnce;
+                        expect(item["id"]).to.equal(UnitTest.DUMMY_ID);
+
+                        // Call the method being tested again.
+                        return fsApi.getItem(context, itemName1, UnitTest.DUMMY_OPTIONS);
+                    })
+                    .then(function (item) {
+                        // Verify that the read stub was not called again, but the item was returned from the cache.
+                        expect(stubRead).to.have.been.calledOnce;
+                        expect(item["id"]).to.equal(UnitTest.DUMMY_ID);
+
+                        // Disable the item cache.
+                        JSONItemFS.setCacheEnabled(context, false, UnitTest.DUMMY_OPTIONS);
+
+                        // Call the method being tested again.
+                        return fsApi.getItem(context, itemName1, UnitTest.DUMMY_OPTIONS);
+                    })
+                    .then(function (item) {
+                        // Verify that the read stub was called again, and the expected item was returned.
+                        expect(stubRead).to.have.been.calledTwice;
+                        expect(item["id"]).to.equal(UnitTest.DUMMY_ID);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Disable the item cache.
+                        JSONItemFS.setCacheEnabled(context, false, UnitTest.DUMMY_OPTIONS);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
-    testGetFileStats (fsApi, fsName, itemName1, itemName2) {
+    testGetFileStats (fsApi, itemName1, itemName2) {
         const self = this;
 
         describe("getFileStats", function () {
             it("should fail when getting stats the fails with an error", function (done) {
-                self.getFileStatsError(fsApi, fsName, itemName1, itemName2 , done);
+                self.getFileStatsError(fsApi, itemName1, itemName2 , done);
             });
 
             it("should succeed when getting stats for a valid item", function (done) {
-                self.getFileStatsSuccess(fsApi, fsName, itemName1, itemName2 , done);
+                self.getFileStatsSuccess(fsApi, itemName1, itemName2 , done);
             });
         });
     }
 
-    getFileStatsError (fsApi, fsName, itemName1, itemName2, done) {
+    getFileStatsError (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.stat to return an error.
         const ITEM_ERROR = "Error getting the item stats.";
         const stub = sinon.stub(fs, "stat");
@@ -320,7 +367,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    getFileStatsSuccess (fsApi, fsName, itemName1, itemName2, done) {
+    getFileStatsSuccess (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.stat to return a stats object.
         const stub = sinon.stub(fs, "stat");
         const err = null;
@@ -352,7 +399,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     };
 
-    testGetPath (fsApi, fsName, itemName1, itemName2) {
+    testGetPath (fsApi, itemName1, itemName2) {
         const self = this;
         describe("getPath", function () {
             // Restore options before running the unit tests.
@@ -372,12 +419,12 @@ class BaseFsApiUnitTest extends UnitTest {
             });
 
             it("should succeed when setting a new working directory", function (done) {
-                self.getPathSuccess(fsApi, fsName, itemName1, itemName2 , done);
+                self.getPathSuccess(fsApi, itemName1, itemName2 , done);
             });
         });
     }
 
-    getPathSuccess (fsApi, fsName, itemName1, itemName2, done) {
+    getPathSuccess (fsApi, itemName1, itemName2, done) {
         // Before setting the new working directory, the item path should not contain that directory.
         expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
 
@@ -387,28 +434,28 @@ class BaseFsApiUnitTest extends UnitTest {
         done();
     }
 
-    testHandleRename (fsApi, fsName, itemName1, itemName2) {
+    testHandleRename (fsApi, itemName1, itemName2) {
         const self = this;
         describe("handleRename", function() {
             it("should not delete old file if new file exists", function (done) {
-                self.handleRenameNewFileExists(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRenameNewFileExists(fsApi, itemName1, itemName2 , done);
             });
 
             it("should not delete old file if no original push file name", function (done) {
-                self.handleRenameNoPushFileName(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRenameNoPushFileName(fsApi, itemName1, itemName2 , done);
             });
 
             it("should not delete old file if old file does not exist", function (done) {
-                self.handleRenameNoOldFile(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRenameNoOldFile(fsApi, itemName1, itemName2 , done);
             });
 
             it("should delete old file if all conditions met", function (done) {
-                self.handleRenameDeleteOldFile(fsApi, fsName, itemName1, itemName2 , done);
+                self.handleRenameDeleteOldFile(fsApi, itemName1, itemName2 , done);
             });
         });
     }
 
-    handleRenameNewFileExists (fsApi, fsName, itemName1, itemName2, done) {
+    handleRenameNewFileExists (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return true.
         const stub = sinon.stub(fs, "existsSync");
         stub.returns(true);
@@ -436,7 +483,7 @@ class BaseFsApiUnitTest extends UnitTest {
         }
     }
 
-    handleRenameNoPushFileName (fsApi, fsName, itemName1, itemName2, done) {
+    handleRenameNoPushFileName (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return false.
         const stub = sinon.stub(fs, "existsSync");
         stub.returns(false);
@@ -464,7 +511,7 @@ class BaseFsApiUnitTest extends UnitTest {
         }
     }
 
-    handleRenameNoOldFile (fsApi, fsName, itemName1, itemName2, done) {
+    handleRenameNoOldFile (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return false.
         const stub = sinon.stub(fs, "existsSync");
         stub.onFirstCall().returns(false);
@@ -493,7 +540,7 @@ class BaseFsApiUnitTest extends UnitTest {
         }
     }
 
-    handleRenameDeleteOldFile (fsApi, fsName, itemName1, itemName2, done) {
+    handleRenameDeleteOldFile (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return false for the new file and true for the old file.
         const stubExists = sinon.stub(fs, "existsSync");
         stubExists.onFirstCall().returns(false);
@@ -522,32 +569,32 @@ class BaseFsApiUnitTest extends UnitTest {
         }
     }
 
-    testSaveItem (fsApi, fsName, itemName1, itemName2) {
+    testSaveItem (fsApi, itemName1, itemName2) {
         const self = this;
         describe("saveItem", function() {
             it("should fail when the filename is invalid", function (done) {
-                self.saveItemBadFileName(fsApi, fsName, itemName1, itemName2 , done);
+                self.saveItemBadFileName(fsApi, itemName1, itemName2 , done);
             });
 
             it("should fail when creating the new item directory fails", function (done) {
-                self.saveItemDirectoryError(fsApi, fsName, itemName1, itemName2 , done);
+                self.saveItemDirectoryError(fsApi, itemName1, itemName2 , done);
             });
 
             it("should fail when saving the new item file fails", function (done) {
-                self.saveItemFileError(fsApi, fsName, itemName1, itemName2 , done);
+                self.saveItemFileError(fsApi, itemName1, itemName2 , done);
             });
 
             it("should succeed when the new item has a conflict", function (done) {
-                self.saveItemConflict(fsApi, fsName, itemName1, itemName2 , done);
+                self.saveItemConflict(fsApi, itemName1, itemName2 , done);
             });
 
             it("should succeed when saving the new item file succeeds", function (done) {
-                self.saveItemSuccess(fsApi, fsName, itemName1, itemName2 , done);
+                self.saveItemSuccess(fsApi, itemName1, itemName2 , done);
             });
         });
     }
 
-    saveItemBadFileName (fsApi, fsName, itemName1, itemName2, done) {
+    saveItemBadFileName (fsApi, itemName1, itemName2, done) {
         // Call the method being tested.
         let error;
         const INVALID_NAME = "http://foo.com/bar";
@@ -571,7 +618,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    saveItemDirectoryError (fsApi, fsName, itemName1, itemName2, done) {
+    saveItemDirectoryError (fsApi, itemName1, itemName2, done) {
         // Create a stub for mkdirp.mkdirp to return an error.
         const DIR_ERROR = "Error creating the new item directory.";
         const stub = sinon.stub(mkdirp, "mkdirp");
@@ -606,7 +653,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    saveItemFileError (fsApi, fsName, itemName1, itemName2, done) {
+    saveItemFileError (fsApi, itemName1, itemName2, done) {
         // Create a stub for mkdirp.mkdirp that just continues on without an error.
         const stubDir = sinon.stub(mkdirp, "mkdirp");
         stubDir.yields();
@@ -647,7 +694,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    saveItemConflict (fsApi, fsName, itemName1, itemName2, done) {
+    saveItemConflict (fsApi, itemName1, itemName2, done) {
         // Create a stub for mkdirp.mkdirp that just continues on without an error.
         const stubDir = sinon.stub(mkdirp, "mkdirp");
         stubDir.yields();
@@ -686,7 +733,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    saveItemSuccess (fsApi, fsName, itemName1, itemName2, done) {
+    saveItemSuccess (fsApi, itemName1, itemName2, done) {
         // Create a stub for mkdirp.mkdirp that just continues on without an error.
         const stubDir = sinon.stub(mkdirp, "mkdirp");
         stubDir.yields();
@@ -725,24 +772,24 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    testListNames (fsApi, fsName, itemName1, itemName2) {
+    testListNames (fsApi, itemName1, itemName2) {
         const self = this;
         describe("listNames", function () {
             it("should fail when the path doesn't exist", function (done) {
-                self.listNamesPathNotFound(fsApi, fsName, itemName1, itemName2 , done);
+                self.listNamesPathNotFound(fsApi, itemName1, itemName2 , done);
             });
 
             it("should fail when getting the item names fails", function (done) {
-                self.listNamesReadError(fsApi, fsName, itemName1, itemName2 , done);
+                self.listNamesReadError(fsApi, itemName1, itemName2 , done);
             });
 
             it("should succeed when getting item names", function (done) {
-                self.listNamesSuccess(fsApi, fsName, itemName1, itemName2 , done);
+                self.listNamesSuccess(fsApi, itemName1, itemName2 , done);
             });
         });
     }
 
-    listNamesPathNotFound (fsApi, fsName, itemName1, itemName2, done) {
+    listNamesPathNotFound (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return false.
         const stubExists = sinon.stub(fs, "existsSync");
         stubExists.returns(false);
@@ -775,7 +822,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    listNamesReadError (fsApi, fsName, itemName1, itemName2, done) {
+    listNamesReadError (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
         stubExists.returns(true);
@@ -815,7 +862,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    listNamesSuccess (fsApi, fsName, itemName1, itemName2, done) {
+    listNamesSuccess (fsApi, itemName1, itemName2, done) {
         // Create a stub that will return a list of item names from the recursive function.
         const stub = sinon.stub(fs, "readdir");
         const err = null;
@@ -857,7 +904,7 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    testGetItems (fsApi, fsName, itemName1, itemName2) {
+    testGetItems (fsApi, itemName1, itemName2) {
         const self = this;
         describe("getItems", function () {
             it("should succeed when getting item names", function (done) {

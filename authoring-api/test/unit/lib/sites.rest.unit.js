@@ -32,10 +32,11 @@ const path1 = SitesUnitTest.VALID_SITES_DIRECTORY + SitesUnitTest.VALID_SITE_1;
 const path2 = SitesUnitTest.VALID_SITES_DIRECTORY + SitesUnitTest.VALID_SITE_2;
 
 class SitesRestUnitTest extends BaseRestUnit {
-    constructor() {
+    constructor () {
         super();
     }
-    run(){
+
+    run () {
         super.run(restApi, lookupUri, "sites", path1, path2);
     }
 }

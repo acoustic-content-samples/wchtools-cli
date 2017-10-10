@@ -21,10 +21,49 @@ const path = require('path');
 const oslocale = require("os-locale");
 const Q = require("q");
 const utils = require("../../lib/utils/utils.js");
+const i18n = utils.getI18N(__dirname, ".json", "en");
 const BaseUnit = require("./lib/base.unit.js");
 
 describe("utils", function () {
     const context = BaseUnit.DEFAULT_API_CONTEXT;
+
+    describe("isValidApiUrl", function () {
+        it("should return false for undefined URL", function (done) {
+            let error;
+            try {
+                const valid = utils.isValidApiUrl();
+                expect(valid).to.be.false;
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return false for an invalid URL", function (done) {
+            let error;
+            try {
+                const valid = utils.isValidApiUrl('foo');
+                expect(valid).to.be.false;
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return true for a valid URL", function (done) {
+            let error;
+            try {
+                const valid = utils.isValidApiUrl('https://dch-dxcloud.rtp.raleigh.ibm.com/api');
+                expect(valid).to.be.true;
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+    });
 
     describe("isInvalidPath", function () {
         it("should return false for a valid path", function (done) {
@@ -231,7 +270,7 @@ describe("utils", function () {
             }
         });
 
-        it("should return an error based on the errors property on the response body", function (done) {
+        it("should return an error based on the errors (array) property on the response body", function (done) {
             const TEST_ERROR_1 = "First error message used for testing.";
             const TEST_ERROR_2 = "Second error message used for testing.";
             const testError = null;
@@ -243,6 +282,40 @@ describe("utils", function () {
                 const error = utils.getError(testError, testBody, testResponse, testRequestOptions);
                 expect(error.message).to.contain(TEST_ERROR_1);
                 expect(error.message).to.contain(TEST_ERROR_2);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return an error based on the errors (non-array Error) property on the response body", function (done) {
+            const TEST_ERROR_1 = "First error message used for testing.";
+            const testError = null;
+            const testBody = {"errors": new Error(TEST_ERROR_1)};
+            const testResponse = null;
+            const testRequestOptions = null;
+            let error;
+            try {
+                const error = utils.getError(testError, testBody, testResponse, testRequestOptions);
+                expect(error.message).to.contain(TEST_ERROR_1);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return an error based on the errors (non-array string) property on the response body", function (done) {
+            const TEST_ERROR_1 = "First error message used for testing.";
+            const testError = null;
+            const testBody = {"errors": TEST_ERROR_1};
+            const testResponse = null;
+            const testRequestOptions = null;
+            let error;
+            try {
+                const error = utils.getError(testError, testBody, testResponse, testRequestOptions);
+                expect(error.message).to.contain(TEST_ERROR_1);
             } catch (err) {
                 error = err;
             } finally {
@@ -262,6 +335,90 @@ describe("utils", function () {
             } catch (err) {
                 error = err;
             } finally {
+                done(error);
+            }
+        });
+    });
+
+    describe("logErrors", function () {
+        it("should log the error passed in", function (done) {
+            const TEST_HEADING = "heading";
+            const TEST_ERROR = "Error message used for testing.";
+            const stub = sinon.stub(context.logger, "error");
+
+            let error;
+            try {
+                utils.logErrors(context, TEST_HEADING, new Error(TEST_ERROR));
+                expect(stub).to.have.been.calledOnce;
+                expect(stub.args[0][0]).to.contain(TEST_HEADING);
+                expect(stub.args[0][0]).to.contain(TEST_ERROR);
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                done(error);
+            }
+        });
+
+        it("should log the string passed in", function (done) {
+            const TEST_HEADING = "heading";
+            const TEST_ERROR = "Error message used for testing.";
+            const stub = sinon.stub(context.logger, "error");
+
+            let error;
+            try {
+                utils.logErrors(context, TEST_HEADING, TEST_ERROR);
+                expect(stub).to.have.been.calledOnce;
+                expect(stub.args[0][0]).to.contain(TEST_ERROR);
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                done(error);
+            }
+        });
+    });
+
+    describe("logDebugInfo", function () {
+        it("should log the info passed in", function (done) {
+            const TEST_INFO = "Debug message used for testing";
+            const stubLevel = sinon.stub(context.logger, "isLevelEnabled");
+            stubLevel.returns(true);
+            const stubDebug = sinon.stub(context.logger, "debug");
+
+            let error;
+            try {
+                utils.logDebugInfo(context, TEST_INFO);
+                expect(stubDebug).to.have.been.calledOnce;
+                expect(stubDebug.args[0][0]).to.contain(TEST_INFO);
+            } catch (err) {
+                error = err;
+            } finally {
+                stubLevel.restore();
+                stubDebug.restore();
+                done(error);
+            }
+        });
+        it("should log the info, response, and options passed in", function (done) {
+            const TEST_INFO = "Debug message used for testing";
+            const TEST_RESPONSE = {"statusCode": 400};
+            const TEST_REQUEST_OPTIONS = {"uri": "http://debug.test.com"};
+            const stubLevel = sinon.stub(context.logger, "isLevelEnabled");
+            stubLevel.returns(true);
+            const stubDebug = sinon.stub(context.logger, "debug");
+
+            let error;
+            try {
+                utils.logDebugInfo(context, TEST_INFO, TEST_RESPONSE, TEST_REQUEST_OPTIONS);
+                expect(stubDebug).to.have.been.calledOnce;
+                expect(stubDebug.args[0][0]).to.contain(TEST_INFO);
+                expect(stubDebug.args[0][0]).to.contain("http://debug.test.com");
+                expect(stubDebug.args[0][0]).to.contain("400");
+            } catch (err) {
+                error = err;
+            } finally {
+                stubLevel.restore();
+                stubDebug.restore();
                 done(error);
             }
         });
@@ -590,6 +747,9 @@ describe("utils", function () {
                 promises3.push(delay200);
             }
 
+            const stubEnabled = sinon.stub(context.logger, "isDebugEnabled");
+            stubEnabled.returns(true);
+
             const limit = 2;
             return utils.throttledAll(context, promises3, limit)
                 .then(function (res) {
@@ -600,6 +760,9 @@ describe("utils", function () {
                     for (let i = 3; i < res.length; i++) {
                         expect(res[i].state).to.equals("fulfilled");
                     }
+                })
+                .finally(function () {
+                    stubEnabled.restore();
                 });
         });
 
@@ -644,8 +807,21 @@ describe("utils", function () {
     describe("clone", function () {
         it("should return a matching object", function (done) {
             try {
-                const obj = utils.clone({assets:'foo'});
-                expect(obj).to.be.an("object");
+                const orig = {assets:'foo'};
+                const clone = utils.clone(orig);
+                orig.assets = 'bar';
+                expect(clone).to.be.an("object");
+                expect(clone.assets).to.equal('foo');
+                done();
+            } catch (e) {
+                done(e);
+            }
+        });
+
+        it("should return the passed in string", function (done) {
+            try {
+                const obj = utils.clone('foo');
+                expect(obj).to.be.a("string");
                 done();
             } catch (e) {
                 done(e);
@@ -670,6 +846,38 @@ describe("utils", function () {
             try {
                 const logger = utils.getLogger(utils.apisLog);
                 expect(logger).to.be.an("object");
+                done();
+            } catch (e) {
+                done(e);
+            }
+        });
+
+        it("should return null", function (done) {
+            try {
+                const logger = utils.getLogger("foo");
+                expect(logger).to.be.a("null");
+                done();
+            } catch (e) {
+                done(e);
+            }
+        });
+    });
+
+    describe("setLoggerLevel", function () {
+        it("should succeed", function (done) {
+            try {
+                utils.setLoggerLevel(utils.apisLog, "WARN");
+                done();
+            } catch (e) {
+                done(e);
+            }
+        });
+    });
+
+    describe("reset", function () {
+        it("should succeed", function (done) {
+            try {
+                utils.reset();
                 done();
             } catch (e) {
                 done(e);
