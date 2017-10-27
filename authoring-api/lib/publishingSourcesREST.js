@@ -15,7 +15,7 @@ limitations under the License.
 */
 "use strict";
 
-const BaseREST = require("./BaseREST.js");
+const JSONItemREST = require("./JSONItemREST.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -24,7 +24,7 @@ const singletonEnforcer = Symbol();
 
 const NAME = "publishing-sources";
 
-class PublishingSourcesREST extends BaseREST {
+class PublishingSourcesREST extends JSONItemREST {
 
     constructor(enforcer) {
         if (enforcer !== singletonEnforcer) {

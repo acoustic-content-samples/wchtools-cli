@@ -108,13 +108,20 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             self.testGetContentResourceDir();
             self.testGetAssetPath();
             self.testGetPath();
+            self.testGetResourcePath();
+            self.testGetRawResourcePath();
+            self.testRenameResource();
             self.testGetItem();
             self.testSaveItem();
             self.testGetItemReadStream();
+            self.testGetResourceReadStream();
             self.testGetItemWriteStream();
             self.testListNames();
+            self.testListResourceNames();
             self.testGetFileStats();
+            self.testGetResourceFileStats();
             self.testGetContentLength();
+            self.testGetResourceContentLength();
         });
     }
 
@@ -298,22 +305,137 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
             it("should succeed when setting a new working directory", function (done) {
                 const folderName = assetsFS.getFolderName();
-                let path = assetsFS.getPath(context, UnitTest.DUMMY_NAME);
+                let path = assetsFS.getPath(context);
 
                 // Before setting the new working directory, the asset path should not contain that directory.
                 expect(path).to.not.contain(UnitTest.DUMMY_DIR);
                 expect(path).to.contain(folderName);
 
                 // If the working dir is set in the opts object, then the item path should contain that directory.
-                path = assetsFS.getPath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR});
+                path = assetsFS.getPath(context, {"workingDir": UnitTest.DUMMY_DIR});
                 expect(path).to.contain(UnitTest.DUMMY_DIR);
                 expect(path).to.contain(folderName);
 
                 // If the working dir is set in the opts object, then the item path should contain that directory.
-                path = assetsFS.getPath(context, UnitTest.DUMMY_NAME, {"noVirtualFolder": true});
+                path = assetsFS.getPath(context, {"noVirtualFolder": true});
                 expect(path).to.not.contain(folderName);
 
                 done();
+            });
+        });
+    }
+
+    testGetResourcePath () {
+        describe("getResourcePath", function () {
+            // Restore options before running the unit tests.
+            before(function (done) {
+                UnitTest.restoreOptions(context);
+
+                // Signal that the cleanup is complete.
+                done();
+            });
+
+            // Restore options after running the unit tests.
+            after(function (done) {
+                UnitTest.restoreOptions(context);
+
+                // Signal that the cleanup is complete.
+                done();
+            });
+
+            it("should succeed when setting a new working directory", function (done) {
+                // Before setting the new working directory, the resource path should not contain that directory.
+                let path = assetsFS.getResourcePath(context, UnitTest.DUMMY_NAME);
+                expect(path).to.contain(assetsFS.getResourcesPath(context));
+                expect(path).to.not.contain(UnitTest.DUMMY_DIR);
+                expect(path).to.contain(UnitTest.DUMMY_NAME);
+
+                // If the working dir is set in the opts object, then the resource path should contain that directory.
+                path = assetsFS.getResourcePath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR});
+                expect(path).to.contain(assetsFS.getResourcesPath(context, {"workingDir": UnitTest.DUMMY_DIR}));
+                expect(path).to.contain(UnitTest.DUMMY_DIR);
+                expect(path).to.contain(UnitTest.DUMMY_NAME);
+
+                // Make sure "noVirtualFolder" has no effect, since resources cannot be pushed or pulled explicitly.
+                path = assetsFS.getResourcePath(context, UnitTest.DUMMY_NAME, {"noVirtualFolder": true});
+                expect(path).to.contain(assetsFS.getResourcesPath(context), {"noVirtualFolder": true});
+                expect(path).to.contain(UnitTest.DUMMY_NAME);
+
+                done();
+            });
+        });
+    }
+
+    testGetRawResourcePath () {
+        describe("getRawResourcePath", function () {
+            // Restore options before running the unit tests.
+            before(function (done) {
+                UnitTest.restoreOptions(context);
+
+                // Signal that the cleanup is complete.
+                done();
+            });
+
+            // Restore options after running the unit tests.
+            after(function (done) {
+                UnitTest.restoreOptions(context);
+
+                // Signal that the cleanup is complete.
+                done();
+            });
+
+            it("should succeed whether setting a new working directory or not", function (done) {
+                // Before setting the new working directory, the raw resource path should not contain that directory.
+                let path = assetsFS.getRawResourcePath(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME);
+                expect(path).to.contain(assetsFS.getResourcesPath(context));
+                expect(path).to.not.contain(UnitTest.DUMMY_DIR);
+                expect(path).to.contain(UnitTest.DUMMY_ID);
+                expect(path).to.contain(UnitTest.DUMMY_NAME);
+
+                // If the working dir is set in the opts object, then the raw resource path should contain that directory.
+                path = assetsFS.getRawResourcePath(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR});
+                expect(path).to.contain(assetsFS.getResourcesPath(context, {"workingDir": UnitTest.DUMMY_DIR}));
+                expect(path).to.contain(UnitTest.DUMMY_DIR);
+                expect(path).to.contain(UnitTest.DUMMY_ID);
+                expect(path).to.contain(UnitTest.DUMMY_NAME);
+
+                done();
+            });
+        });
+    }
+
+    testRenameResource () {
+        const self = this;
+
+        describe("renameResource", function () {
+            it("should create the new resource folder and rename the file", function (done) {
+                // Create a stub for fs.renameSync so that the file is not actually renamed.
+                const stubRename = sinon.stub(fs, "renameSync");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubRename);
+
+                let error;
+                try {
+                    // Call the method being tested.
+                    assetsFS.renameResource(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR});
+
+                    // Verify that mkdirp was called with the expected value.
+                    const resourcesPath = assetsFS.getResourcesPath(context, {"workingDir": UnitTest.DUMMY_DIR});
+                    expect(stubSync.lastCall.args[0]).to.contain(resourcesPath);
+                    expect(stubSync.lastCall.args[0]).to.contain(UnitTest.DUMMY_ID);
+
+                    // Verify that rename was called with the expected value.
+                    expect(stubRename.args[0][0]).to.contain(resourcesPath);
+                    expect(stubRename.args[0][0]).to.contain(UnitTest.DUMMY_ID);
+                    expect(stubRename.args[0][1]).to.contain(resourcesPath);
+                    expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_ID);
+                    expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_NAME);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
             });
         });
     }
@@ -638,6 +760,82 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                         stream.setEncoding("utf-8");
                         const content = stream.read(1024);
                         expect(content).to.equal(ASSET_CONTENT);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testGetResourceReadStream () {
+        const self = this;
+
+        describe("getResourceReadStream", function () {
+            it("should fail when creating the resource stream fails", function (done) {
+                // Create a stub for fs.createReadStream to return an error.
+                const RESOURCE_ERROR = "Error creating the resource read stream.";
+                const stub = sinon.stub(fs, "createReadStream");
+                stub.throws(new Error(RESOURCE_ERROR));
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.getResourceReadStream(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the resource stream should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once with the specified resource path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.firstCall.args[0]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(RESOURCE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting the stream for a valid resource", function (done) {
+                // Create a stub for fs.createReadStream to return a stream.
+                const stub = sinon.stub(fs, "createReadStream");
+                const resourceStream = new stream.Readable();
+                const RESOURCE_CONTENT = "Contents of the resource file.";
+                resourceStream.push(RESOURCE_CONTENT);
+                resourceStream.push(null);
+                stub.returns(resourceStream);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.getResourceReadStream(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (stream) {
+                        // Verify that the stub was called once with the specified path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][0]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+
+                        // Verify that the FS API returned the expected stream.
+                        stream.setEncoding("utf-8");
+                        const content = stream.read(1024);
+                        expect(content).to.equal(RESOURCE_CONTENT);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -1609,6 +1807,159 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             });
     }
 
+    testListResourceNames () {
+        const self = this;
+
+        describe("listResourceNames", function () {
+            it("should succeed when the resource directory does not exist", function (done) {
+                // Create a stub for fs.existsSync that will return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.withArgs(assetsFS.getResourcesPath(context)).returns(false);
+
+                self.addTestDouble(stubExists);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.listResourceNames(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (names) {
+                        // Verify that the stub was called once.
+                        expect(stubExists).to.have.been.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(names).to.be.an("Array");
+                        expect(names).to.have.lengthOf(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the subverted functions.
+                        // noinspection JSUnresolvedFunction
+                        requireSubvert.cleanUp();
+
+                        // Reload assetsFS, so that it gets the original version of recursive.
+                        assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when getting resource directory contents fails", function (done) {
+                const opts = UnitTest.DUMMY_OPTIONS;
+
+                // Create a stub for fs.existsSync that will return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.withArgs(assetsFS.getResourcesPath(context, opts)).returns(true);
+
+                self.addTestDouble(stubExists);
+
+                // Create a stub that will return an error from the recursive function.
+                const RESOURCES_ERROR = "Error getting the asset names.";
+                const stubReaddir = sinon.stub();
+                stubReaddir.yields(new Error(RESOURCES_ERROR), null);
+
+                // Subvert the "recursive-readdir" module with the specified stub.
+                // noinspection JSUnresolvedFunction
+                requireSubvert.subvert("recursive-readdir", stubReaddir);
+
+                // Reload assetsFS, so that it gets the subverted version of the recursive function.
+                // noinspection JSUnresolvedFunction
+                assetsFS = requireSubvert.require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                // Call the method being tested.
+                let error;
+                assetsFS.listResourceNames(context, opts)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the resource names should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once.
+                        expect(stubReaddir).to.have.been.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(RESOURCES_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the subverted functions.
+                        // noinspection JSUnresolvedFunction
+                        requireSubvert.cleanUp();
+
+                        // Reload assetsFS, so that it gets the original version of recursive.
+                        assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting resource directory contents succeeds", function (done) {
+                const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY};
+
+                // Create a stub for fs.existsSync that will return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.withArgs(assetsFS.getResourcesPath(context, opts)).returns(true);
+
+                self.addTestDouble(stubExists);
+
+                // Create a stub that will return a list of asset names from the recursive function.
+                const stub = sinon.stub();
+                const err = null;
+                const resourcePaths = [
+                    AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1,
+                    AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_1,
+                    AssetsUnitTest.VALID_ASSETS_DIRECTORY + "/" + ".wchtoolshashes"
+                ];
+                stub.yields(err, resourcePaths);
+
+                // Subvert the "recursive-readdir" module with the specified stub.
+                // noinspection JSUnresolvedFunction
+                requireSubvert.subvert("recursive-readdir", stub);
+
+                // Reload assetsFS, so that it gets the subverted version of the recursive function.
+                // noinspection JSUnresolvedFunction
+                assetsFS = requireSubvert.require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                // Call the method being tested.
+                let error;
+                assetsFS.listResourceNames(context, opts)
+                    .then(function (paths) {
+                        // Verify that the get stub was called once with the lookup URI.
+                        expect(stub).to.have.been.calledOnce;
+
+                        // Verify that the expected values are returned.
+                        expect(paths).to.have.lengthOf(2);
+                        expect(paths[0]).to.be.oneOf(["/../assets" + AssetsUnitTest.ASSET_JPG_1, "/../assets" + AssetsUnitTest.ASSET_CSS_1]);
+                        expect(paths[1]).to.be.oneOf(["/../assets" + AssetsUnitTest.ASSET_JPG_1, "/../assets" + AssetsUnitTest.ASSET_CSS_1]);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the subverted functions.
+                        // noinspection JSUnresolvedFunction
+                        requireSubvert.cleanUp();
+
+                        // Reload assetsFS, so that it gets the original version of recursive.
+                        assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                        // Restore the default options.
+                        UnitTest.restoreOptions(context);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
     testGetFileStats () {
         const self = this;
 
@@ -1683,6 +2034,79 @@ class AssetsFsUnitTest extends AssetsUnitTest {
         });
     }
 
+    testGetResourceFileStats () {
+        const self = this;
+
+        describe("getResourceFileStats", function () {
+            it("should fail when getting stats fails", function (done) {
+                // Create a stub for fs.stat to return an error.
+                const RESOURCE_ERROR = "Error getting the resource stats.";
+                const stub = sinon.stub(fs, "stat");
+                const err = new Error(RESOURCE_ERROR);
+                const stats = null;
+                stub.yields(err, stats);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.getResourceFileStats(context, AssetsUnitTest.ASSET_JAR_1)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the resource stats should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once with the specified URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][0]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(RESOURCE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting stats for a valid resource", function (done) {
+                // Create a stub for fs.stat to return a stats object.
+                const stub = sinon.stub(fs, "stat");
+                const err = null;
+                stub.yields(err, DUMMY_STAT);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.getResourceFileStats(context, AssetsUnitTest.ASSET_PNG_1)
+                    .then(function (stats) {
+                        // Verify that the stub was called once with the specified path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][0]).to.contain(AssetsUnitTest.ASSET_PNG_1);
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(stats, DUMMY_STAT)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
     testGetContentLength () {
         const self = this;
 
@@ -1733,6 +2157,76 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 // Call the method being tested.
                 let error;
                 assetsFS.getContentLength(context, AssetsUnitTest.ASSET_JAR_1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (size) {
+                        // Verify that the stub was called once with the specified path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][1]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+
+                        // Verify that the expected value was returned.
+                        expect(size).to.equal(128);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testGetResourceContentLength () {
+        const self = this;
+
+        describe("getResourceContentLength", function () {
+            it("should fail when getting stats fails", function (done) {
+                // Create a stub for assetsFS.getResourceFileStats to return an error.
+                const RESOURCE_ERROR = "Error getting the resource stats.";
+                const stub = sinon.stub(assetsFS, "getResourceFileStats");
+                stub.rejects(RESOURCE_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.getResourceContentLength(context, AssetsUnitTest.ASSET_JAR_1, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the resource stats should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once with the specified URI.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][1]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(RESOURCE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting stats for a valid resource", function (done) {
+                // Create a stub for assetsFS.getResourceFileStats to return values.
+                const stub = sinon.stub(assetsFS, "getResourceFileStats");
+                stub.resolves({"size": 128});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.getResourceContentLength(context, AssetsUnitTest.ASSET_JAR_1, UnitTest.DUMMY_OPTIONS)
                     .then(function (size) {
                         // Verify that the stub was called once with the specified path.
                         expect(stub).to.have.been.calledOnce;

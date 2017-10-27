@@ -177,7 +177,7 @@ describe("hashes", function () {
         it("should create a hashes file with metadata for the specified file", function (done) {
             let error = undefined;
             try {
-                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEXT_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, undefined, TEXT_FILE_METADATA, TEXT_FILE_PATH, undefined, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -199,7 +199,7 @@ describe("hashes", function () {
             // At this point the hashes file should already contain information for the text file.
             let error = undefined;
             try {
-                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, undefined, IMAGE_FILE_METADATA, IMAGE_FILE_PATH, undefined, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -220,7 +220,7 @@ describe("hashes", function () {
             // At this point the hashes file should already contain information for the text and image files.
             let error = undefined;
             try {
-                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, null, null, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, undefined, null, null, undefined, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -263,7 +263,7 @@ describe("hashes", function () {
 
             let error = undefined;
             try {
-                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEXT_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, undefined, TEXT_FILE_METADATA, TEXT_FILE_PATH, undefined, TEST_OPTS);
                 delete context.hashes[TEST_DIRECTORY_PATH + path.sep][TEST_TENANT_ID][IMAGE_FILE_ID];
 
                 // An error is logged each time the hashes file is read. The updateHashes method reads the hashes file
@@ -309,7 +309,7 @@ describe("hashes", function () {
             let error = undefined;
             try {
                 context.hashes[TEST_DIRECTORY_PATH + path.sep].updateCount = 25;
-                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, undefined, IMAGE_FILE_METADATA, IMAGE_FILE_PATH, undefined, TEST_OPTS);
                 delete context.hashes[TEST_DIRECTORY_PATH + path.sep][TEST_TENANT_ID][IMAGE_FILE_ID];
 
                 expect(stubLog).to.have.been.calledOnce;
@@ -349,7 +349,7 @@ describe("hashes", function () {
 
             let error = undefined;
             try {
-                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, IMAGE_FILE_METADATA, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, undefined, IMAGE_FILE_METADATA, IMAGE_FILE_PATH, undefined, TEST_OPTS);
 
                 expect(stubLog).to.have.been.calledOnce;
                 expect(stubLog.firstCall.args[0]).to.contain("Error in updateHashes");
@@ -382,7 +382,7 @@ describe("hashes", function () {
             try {
                 const metadata = utils.clone(TEXT_FILE_METADATA);
                 metadata.resource = TEXT_FILE_RESOURCE_ID_2;
-                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, metadata, TEST_OPTS);
+                const result = hashes.updateHashes(context, TEST_DIRECTORY_PATH, undefined, metadata, TEXT_FILE_PATH, undefined, TEST_OPTS);
                 expect(result).to.exist;
                 const tenantValues = result[TEST_TENANT_ID];
                 expect(tenantValues).to.exist;
@@ -629,7 +629,7 @@ describe("hashes", function () {
         it("should return false (not new or modified) for an existing local file that has not been modified", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isLocalModified(context, null, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, null, TEST_DIRECTORY_PATH, undefined, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -664,7 +664,7 @@ describe("hashes", function () {
 
             let error = undefined;
             try {
-                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, undefined, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;
@@ -689,7 +689,7 @@ describe("hashes", function () {
 
             let error = undefined;
             try {
-                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, undefined, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
                 // Note that this test will modify the metadata in the hashes file. The last modified date for the text
                 // file will now be the "tomorrow" date.
@@ -704,7 +704,7 @@ describe("hashes", function () {
         it("should return false (not modified) for a local file that has no metadata", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, undefined, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -716,7 +716,7 @@ describe("hashes", function () {
         it("should return true (is new) for a local file that has no metadata", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isLocalModified(context, [hashes.NEW], TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.NEW], TEST_DIRECTORY_PATH, undefined, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;
@@ -728,7 +728,7 @@ describe("hashes", function () {
         it("should return false (not modified) for a local file that does not exist", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.MODIFIED], TEST_DIRECTORY_PATH, undefined, NONEXISENT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -740,7 +740,7 @@ describe("hashes", function () {
         it("should return false (not new) for a local file that does not exist", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isLocalModified(context, [hashes.NEW], TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isLocalModified(context, [hashes.NEW], TEST_DIRECTORY_PATH, undefined, NONEXISENT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -754,7 +754,7 @@ describe("hashes", function () {
         it("should return false (not new or modified) for a remote file that exists locally and has not been modified", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isRemoteModified(context, null, TEXT_FILE_METADATA, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, null, TEXT_FILE_METADATA, TEST_DIRECTORY_PATH, undefined, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -766,7 +766,7 @@ describe("hashes", function () {
         it("should return false (not modified) for a remote file that has no local metadata", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isRemoteModified(context, [hashes.MODIFIED], IMAGE_FILE_METADATA, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, [hashes.MODIFIED], IMAGE_FILE_METADATA, TEST_DIRECTORY_PATH, undefined, IMAGE_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.false;
             } catch (err) {
                 error = err;
@@ -780,7 +780,7 @@ describe("hashes", function () {
             try {
                 const modifiedMetadata = utils.clone(TEXT_FILE_METADATA);
                 modifiedMetadata.rev = TEXT_FILE_MODIFIED_REV;
-                const result = hashes.isRemoteModified(context, [hashes.MODIFIED], modifiedMetadata, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, [hashes.MODIFIED], modifiedMetadata, TEST_DIRECTORY_PATH, undefined, TEXT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;
@@ -792,7 +792,7 @@ describe("hashes", function () {
         it("should return true (is new) for a remote file that does not exist locally", function (done) {
             let error = undefined;
             try {
-                const result = hashes.isRemoteModified(context, [hashes.NEW], {}, TEST_DIRECTORY_PATH, NONEXISENT_FILE_PATH, TEST_OPTS);
+                const result = hashes.isRemoteModified(context, [hashes.NEW], {}, TEST_DIRECTORY_PATH, undefined, NONEXISENT_FILE_PATH, TEST_OPTS);
                 expect(result).to.be.true;
             } catch (err) {
                 error = err;

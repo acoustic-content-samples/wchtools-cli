@@ -82,7 +82,7 @@
   },
   "pages": {
     "offset": 0,
-    "limit": 200,
+    "limit": 5000,
     "concurrent-limit": 1
   },
   "retryMaxAttempts": 5,
@@ -90,5 +90,6 @@
   "retryMaxTimeout": 16000,
   "retryFactor": 2,
   "retryRandomize": false,
-  "retryStatusCodes": []
+  "retryStatusCodes": [],
+  "disablePushPullResources": true
 }

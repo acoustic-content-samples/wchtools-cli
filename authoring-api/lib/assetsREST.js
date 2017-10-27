@@ -247,6 +247,8 @@ class AssetsREST extends BaseREST {
                         } catch (err) {
                             deferred.resolve(body);
                         }
+                    } else {
+                        deferred.resolve([]);
                     }
                 });
             })
@@ -399,7 +401,15 @@ class AssetsREST extends BaseREST {
                     if (handleError) {
                         err = utils.getError(err, body, response, reqOptions);
                         BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
-                        utils.logErrors(context, "AssetsRest.pushItem resourceRequestCallback: ", err);
+
+                        // Check to see if this operation should be retried.
+                        if (context.filterRetryPush && context.filterRetryPush(context, err, opts)) {
+                            // The operation will be retried, so do not log the error yet.
+                            err.retry = true;
+                        } else {
+                            // The operation will not be retried, so log the error.
+                            utils.logErrors(context, "AssetsRest.pushItem resourceRequestCallback: ", err);
+                        }
                         deferred.reject(err);
                     } else {
                         BaseREST.logRetryInfo(context, reqOptions, response.attempts);

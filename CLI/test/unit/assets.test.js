@@ -40,3 +40,4 @@ listUnitTest.run(helper, '-w', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '
 const DeleteUnitTest = require("./lib/delete.unit.js");
 const deleteUnitTest = new DeleteUnitTest();
 deleteUnitTest.run(helper, '-w', BASE_NAME + '-1');
+deleteUnitTest.run(helper, '-a', BASE_NAME + '-1');

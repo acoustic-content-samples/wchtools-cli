@@ -76,7 +76,7 @@ class LoginREST extends BaseREST {
         if (process.env.TENANT_ID) {
             hdrs["x-ibm-dx-tenant-id"] = process.env.TENANT_ID;
         } else {
-            let id = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
+            const id = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
             if (id) {
                 hdrs["x-ibm-dx-tenant-id"] = id;
             }
@@ -153,10 +153,27 @@ class LoginREST extends BaseREST {
                 result["x-ibm-dx-tenant-base-url"] = existingBaseUrl || baseUrl;
                 result["base-url-from-login-response"] = baseUrl;
 
+                // Add the tenant tier if it's available.
+                if (body) {
+                    try {
+                        // A login response originally contained items for each tenant the specified user had access to.
+                        // The response array currently contains only the item for the specific tenant and user.
+                        const bodyObject = JSON.parse(body);
+                        if (Array.isArray(bodyObject) && bodyObject[0]) {
+                            result["tier"] = bodyObject[0].tier;
+                        }
+                    } catch (err) {
+                        // Ignore
+                    }
+                }
+
                 // Keep track of the returned values, but do not overwrite an existing base URL.
                 const loginResults = {"x-ibm-dx-tenant-id": tenant};
                 if (!existingBaseUrl) {
                     loginResults["x-ibm-dx-tenant-base-url"] = baseUrl;
+                }
+                if (result["tier"]) {
+                    loginResults["tier"] = result["tier"];
                 }
                 context.logger.debug("LoginREST.login: Setting tenant options based on login response: " + JSON.stringify(loginResults));
                 context.logger.debug("LoginREST.login: cookie " + response.headers["set-cookie"]);

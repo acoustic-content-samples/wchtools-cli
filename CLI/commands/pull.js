@@ -217,12 +217,12 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function() {
-                if (self.getCommandLineOption("layouts")) {
+                if (self.getCommandLineOption("layouts") && !self.isBaseTier(context)) {
                     return self.handlePullPromise(self.pullLayouts(context), continueOnError);
                 }
             })
             .then(function() {
-                if (self.getCommandLineOption("layoutMappings")) {
+                if (self.getCommandLineOption("layoutMappings") && !self.isBaseTier(context)) {
                     return self.handlePullPromise(self.pullLayoutMappings(context), continueOnError);
                 }
             })
@@ -242,12 +242,12 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("sites")) {
+                if (self.getCommandLineOption("sites") && !self.isBaseTier(context)) {
                     return self.handlePullPromise(self.pullSites(context), continueOnError);
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("pages")) {
+                if (self.getCommandLineOption("pages") && !self.isBaseTier(context)) {
                     return self.handlePullPromise(self.pullPages(context), continueOnError);
                 }
             })

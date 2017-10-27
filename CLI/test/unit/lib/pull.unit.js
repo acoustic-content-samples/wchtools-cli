@@ -91,7 +91,49 @@ class PullUnitTest extends UnitTest {
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts');
                         expect(msg).to.contain('1 error');
-                   })
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "pullModifiedItems" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test resource emitters working", function (done) {
+                if (switches !== "-a" ) {
+                    return done();
+                }
+
+                // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pullModifiedItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("resource-pulled", itemName1);
+                        emitter.emit("resource-pulled", itemName2);
+                        emitter.emit("resource-pulled-error", {message: "This failure was expected by the unit test"}, badItem);
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts');
+                        expect(msg).to.contain('1 error');
+                    })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;

@@ -64,10 +64,10 @@ class UnitTest {
 
     // Dummy values to be used when real values are not required.
     static get DUMMY_DIR () { return authorApiPath + "test/unit/dummy" + path.sep; };
-    static get DUMMY_ID () { return "test"; };
-    static get DUMMY_NAME () { return "test"; };
-    static get DUMMY_PATH () { return "test"; };
-    static get DUMMY_URI () { return "/test"; };
+    static get DUMMY_ID () { return "test-id"; };
+    static get DUMMY_NAME () { return "test-name"; };
+    static get DUMMY_PATH () { return "test-path"; };
+    static get DUMMY_URI () { return "/test-uri"; };
     static get DUMMY_METADATA () { return {"id": "xxx", "path": "test1"}; };
     static get DUMMY_OPTIONS () { return {}; };
 

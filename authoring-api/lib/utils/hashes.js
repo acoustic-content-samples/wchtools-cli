@@ -15,6 +15,7 @@ limitations under the License.
 */
 "use strict";
 
+const Q = require("q");
 const fs = require("fs");
 const crypto = require("crypto");
 const path = require("path");
@@ -29,6 +30,9 @@ const DELETED = "del";
 
 const OLD_FILENAME = ".dxhashes";
 const FILENAME = ".wchtoolshashes";
+
+const HASH_ALGORITHM = "md5";
+const HASH_ENCODING = "base64";
 
 /**
  * Returns true if the supplied pathname is a hashes metadata file.
@@ -54,11 +58,37 @@ function isHashesFile (filename) {
  * @private
  */
 function generateMD5Hash (filename) {
-    const hash = crypto.createHash("md5");
+    const hash = crypto.createHash(HASH_ALGORITHM);
     const content = fs.readFileSync(filename); // returns a Buffer
     hash.update(content);
-    const md5 = hash.digest("base64"); // returns a base-64 encoded string
+    const md5 = hash.digest(HASH_ENCODING); // returns a base-64 encoded string
     return md5;
+}
+
+/**
+ * Generates the MD5 hash for the contents of the given read stream.
+ *
+ * @param {String} readStream The stream for which an MD5 hash is to be generated.
+ *
+ * @returns {String} The MD5 hash for the contents of the given read stream.
+ *
+ * @private
+ */
+function generateMD5HashFromStream (readStream) {
+    const deferred = Q.defer();
+    const hash = crypto.createHash(HASH_ALGORITHM);
+
+    readStream.on("data", function (data) {
+        hash.update(data);
+    });
+    readStream.on("end", function () {
+        deferred.resolve(hash.digest(HASH_ENCODING));
+    });
+    readStream.on("error", function (err) {
+        deferred.reject(err);
+    });
+
+    return deferred.promise;
 }
 
 /**
@@ -74,7 +104,7 @@ function generateMD5Hash (filename) {
 function compareMD5Hashes (hash1, hash2) {
     return (hash1 && hash2) &&
             ((hash1 === hash2) ||
-            Buffer.compare(new Buffer(hash1, 'base64'), new Buffer(hash2, 'base64')) === 0);
+            Buffer.compare(new Buffer(hash1, HASH_ENCODING), new Buffer(hash2, HASH_ENCODING)) === 0);
 }
 
 function normalizePath (basePath) {
@@ -357,19 +387,18 @@ function updateResourceHashesFromEntry (context, basePath, id, entry, opts) {
     }
 }
 
-function updateResourceHashes (context, basePath, filePath, resource, opts) {
+function updateResourceHashes (context, basePath, filePath, resource, md5, opts) {
     // If the context specifies that hashes should not be used, return an empty tenant map.
     if (!options.getRelevantOption(context, opts, "useHashes")) {
         return {};
     }
 
     try {
-        let md5 = undefined;
         let mtime = undefined;
         try {
             // Get the MD5 hash value and the (local) last modified date for the specified file.
             if (fs.existsSync(filePath)) {
-                md5 = generateMD5Hash(filePath);
+                md5 = md5 || generateMD5Hash(filePath);
                 mtime = fs.statSync(filePath).mtime;
             }
         } catch (ignore) {
@@ -411,7 +440,7 @@ function updateResourceHashes (context, basePath, filePath, resource, opts) {
  *
  * @public
  */
-function updateHashes (context, basePath, filePath, item, opts) {
+function updateHashes (context, basePath, filePath, item, resourcePath, resourceMD5, opts) {
     // If the context specifies that hashes should not be used, return an empty tenant map.
     if (!options.getRelevantOption(context, opts, "useHashes")) {
         return {};
@@ -420,6 +449,12 @@ function updateHashes (context, basePath, filePath, item, opts) {
     try {
         let md5 = undefined;
         let mtime = undefined;
+        let mtimeResource = undefined;
+        // special case for web assets with no metadata file and only a resource
+        if (!filePath) {
+            filePath = resourcePath;
+            md5 = resourceMD5;
+        }
         try {
             // Get the MD5 hash value and the (local) last modified date for the specified file.
             if (fs.existsSync(filePath)) {
@@ -428,6 +463,17 @@ function updateHashes (context, basePath, filePath, item, opts) {
             }
         } catch (ignore) {
             // The specified file does not exist locally or cannot be read.
+        }
+        if (resourcePath) {
+            try {
+                // Get the MD5 hash value and the (local) last modified date for the specified file.
+                if (fs.existsSync(resourcePath)) {
+                    resourceMD5 = resourceMD5 || generateMD5Hash(resourcePath);
+                    mtimeResource = fs.statSync(resourcePath).mtime;
+                }
+            } catch (ignore) {
+                // The specified file does not exist locally or cannot be read.
+            }
         }
 
         // If there is valid metadata for the specified file, save it to the hashes file at the specified location.
@@ -444,16 +490,20 @@ function updateHashes (context, basePath, filePath, item, opts) {
 
             // If the item is an asset with a resource reference, save it as well.
             if (item.resource) {
+                const resourceRelative = utils.getRelativePath(basePath, resourcePath);
                 entry.resource = item.resource;
+                entry.resourcePath = resourceRelative;
+                entry.resourceMD5 = resourceMD5;
+                entry.resourceLocalLastModified = mtimeResource;
                 if (!opts || !opts.noVirtualFolder) {
                     const resourcesBasePath = basePath + "/../resources";
                     if (!fs.existsSync(resourcesBasePath)) {
                         mkdirp.sync(resourcesBasePath);
                     }
                     const resourceEntry = {
-                        md5: md5,
-                        path: "/../assets" + relative,
-                        localLastModified: mtime,
+                        md5: resourceMD5,
+                        path: "/../assets" + resourceRelative,
+                        localLastModified: mtimeResource,
                         contentType: undefined
                     };
                     updateResourceHashesFromEntry(context, resourcesBasePath, item.resource, resourceEntry, opts);
@@ -487,7 +537,7 @@ function updateHashes (context, basePath, filePath, item, opts) {
 }
 
 /**
- * Remove the metadata for the given file in the hashes file at the specified location.
+ * Remove the metadata for the specified ids in the hashes file at the specified location.
  *
  * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
@@ -532,6 +582,36 @@ function removeHashes (context, basePath, ids, opts) {
     } catch (err) {
         // Log the error and return the current state of the tenant map.
         utils.logErrors(context, i18n.__("error_remove_hashes"), err);
+        return loadTenantMap(context, basePath);
+    }
+}
+
+/**
+ * Remove the metadata for the current tenant in the hashes file at the specified location.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {Object} The updated tenant map for the hashes file at the given location, or an empty object.
+ *
+ * @public
+ */
+function removeAllHashes (context, basePath, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
+    try {
+        const tenantMap = loadTenantMap(context, basePath);
+        const tenantKey = getTenantKey(context, basePath, opts);
+        delete tenantMap[tenantKey];
+        writeHashes(basePath, tenantMap);
+        return tenantMap;
+    } catch (err) {
+        // Log the error and return the current state of the tenant map.
+        utils.logErrors(context, i18n.__("error_remove_all_hashes"), err);
         return loadTenantMap(context, basePath);
     }
 }
@@ -839,11 +919,13 @@ function listFiles (context, basePath, opts) {
  *
  * @public
  */
-function isLocalModified (context, flags, basePath, filePath, opts) {
+function isLocalModified (context, flags, basePath, metadataPath, resourcePath, opts) {
     // If the context specifies that hashes should not be used, return false.
     if (!options.getRelevantOption(context, opts, "useHashes")) {
         return false;
     }
+
+    const filePath = metadataPath || resourcePath;
 
     // Check for both new and modified by default.
     flags = flags || [NEW, MODIFIED];
@@ -859,6 +941,14 @@ function isLocalModified (context, flags, basePath, filePath, opts) {
     } catch (err) {
         // The file doesn't exist.
     }
+    let statResource;
+    if (resourcePath && metadataPath) {
+        try {
+            statResource = fs.statSync(resourcePath);
+        } catch (err) {
+            // The file doesn't exist.
+        }
+    }
 
     // Determine whether the local file is modified.
     let modified = false;
@@ -868,7 +958,9 @@ function isLocalModified (context, flags, basePath, filePath, opts) {
         context.logger.debug("hashes.isLocalModified MODIFIED stat.mtime", stat ? stat.mtime.getTime() : undefined);
 
         // For performance first compare the timestamps. If the timestamps are equal, assume the file is not modified.
-        if (fileHashes && fileHashes.localLastModified && stat && stat.mtime.getTime() !== Date.parse(fileHashes.localLastModified)) {
+        if (fileHashes &&
+            ((fileHashes.localLastModified && stat && stat.mtime.getTime() !== Date.parse(fileHashes.localLastModified)) ||
+             (fileHashes.resourceLocalLastModified && statResource && statResource.mtime.getTime() !== Date.parse(fileHashes.resourceLocalLastModified)))) {
             // The timestamps don't match so check the md5 hashes.
             const md5 = generateMD5Hash(filePath);
             context.logger.debug("hashes.isLocalModified MODIFIED fileHashes md5", fileHashes.md5);
@@ -878,7 +970,14 @@ function isLocalModified (context, flags, basePath, filePath, opts) {
                 // The md5 hashes don't match so the file is modified.
                 context.logger.debug("hashes.isLocalModified MODIFIED file is modified");
                 modified = true;
-            } else {
+            } else if (resourcePath && metadataPath) {
+                const resourceMD5 = generateMD5Hash(resourcePath);
+                if (fileHashes.resourceMD5 && resourceMD5 !== fileHashes.resourceMD5) {
+                    context.logger.debug("hashes.isLocalModified MODIFIED file is modified due to resource MD5");
+                    modified = true;
+                }
+            }
+            if (!modified) {
                 // The md5 hashes match, but the timestamps did not. Update the timestamp in hashes so that we may not
                 // need to generate the md5 hash next time.
                 const hashMap = loadHashes(context, basePath, opts);
@@ -927,11 +1026,13 @@ function isLocalModified (context, flags, basePath, filePath, opts) {
  *
  * @public
  */
-function isRemoteModified (context, flags, item, basePath, filePath, opts) {
+function isRemoteModified (context, flags, item, basePath, metadataPath, resourcePath, opts) {
     // If the context specifies that hashes should not be used, return false.
     if (!options.getRelevantOption(context, opts, "useHashes")) {
         return false;
     }
+
+    const filePath = metadataPath || resourcePath;
 
     // Check for both new and modified by default.
     flags = flags || [NEW, MODIFIED];
@@ -973,10 +1074,12 @@ function isRemoteModified (context, flags, item, basePath, filePath, opts) {
 const hashes = {
     isHashesFile: isHashesFile,
     generateMD5Hash: generateMD5Hash,
+    generateMD5HashFromStream: generateMD5HashFromStream,
     compareMD5Hashes: compareMD5Hashes,
     updateResourceHashes: updateResourceHashes,
     updateHashes: updateHashes,
     removeHashes: removeHashes,
+    removeAllHashes: removeAllHashes,
     getFilePath: getFilePath,
     setFilePath: setFilePath,
     getLastPullTimestamp: getLastPullTimestamp,

@@ -15,7 +15,7 @@ limitations under the License.
 */
 "use strict";
 
-const BaseHelper = require("./baseHelper.js");
+const JSONItemHelper = require("./JSONItemHelper.js");
 const rest = require("./lib/itemTypesREST").instance;
 const fS = require("./lib/itemTypesFS").instance;
 const utils = require("./lib/utils/utils.js");
@@ -24,7 +24,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class ItemTypesHelper extends BaseHelper {
+class ItemTypesHelper extends JSONItemHelper {
     /**
      * The constructor for an ItemTypesHelper object. This constructor implements a singleton pattern, and will fail if
      * called directly. The static instance property can be used to get the singleton instance.
@@ -35,7 +35,7 @@ class ItemTypesHelper extends BaseHelper {
         if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ItemTypesHelper"});
         }
-        super(rest, fS, "types");
+        super(rest, fS, "types", "content-type");
     }
 
     /**
@@ -88,6 +88,56 @@ class ItemTypesHelper extends BaseHelper {
         }
 
         return retVal;
+    }
+
+    /**
+     * Determine whether retry delete is enabled.
+     *
+     * @returns {Boolean} A return value of true indicates that retry delete is enabled.
+     *
+     * @override
+     */
+    isRetryDeleteEnabled () {
+        return true;
+    }
+
+    /**
+     * Determine whether the given error indicates that the delete should be retried.
+     *
+     * @param {Object} context The current context to be used by the API.
+     * @param {Error} error The error returned from the failed delete operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the delete should be retried.
+     *
+     * @override
+     */
+    filterRetryDelete (context, error) {
+        let retVal = false;
+
+        // A reference error has a response code of 400 and an error code equal to 2503, or in the range 6000 - 7000.
+        if (error && error["response"] && (error["response"]["statusCode"] === 400)) {
+            const responseBody = error["response"]["body"];
+            if (responseBody && responseBody["errors"] && responseBody["errors"].length > 0) {
+                // The response has returned one or more errors. If any of these is a reference error, then return true.
+                // That means we'll retry the delete again, even though any non-reference errors might not benefit from
+                // the retry. This shouldn't be an issue though, because if the retry does not delete at least one item,
+                // a subsequent retry will not be attempted.
+                retVal = responseBody["errors"].some(function (error) {
+                    const contentRefNotFound = (error["code"] === 2503);
+                    const generalRefNotFound = (error["code"] >= 6000 && error["code"] < 7000);
+                    return (contentRefNotFound || generalRefNotFound);
+                });
+            }
+        }
+
+        return retVal;
+    }
+    /**
+     * Determine whether the helper supports deleting items by id.
+     * @override
+     */
+    supportsDeleteById() {
+        return true;
     }
 }
 

@@ -62,7 +62,19 @@ class DeleteUnitTest extends UnitTest {
                 self.testDeleteByPath(helper, switches, itemName1);
             }
             if (helper.supportsDeleteByPathRecursive()) {
-                self.testDeleteBySearch(helper, switches, itemName1);
+                self.testDeleteBySearch(helper, switches, itemName1, '--path');
+                self.testDeleteBySearch(helper, switches, itemName1, '--named');
+            } else if (switches.includes("-t")) {
+                self.testDeleteBySearch(helper, switches, itemName1, '--named');
+                self.testDeleteBySearch(helper, switches, itemName1, '--tag');
+                self.testDeleteAll (helper, switches, itemName1);
+            } else if (switches.includes("-c")) {
+                self.testDeleteBySearch(helper, switches, itemName1, '--named');
+                self.testDeleteBySearch(helper, switches, itemName1, '--tag');
+                self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteBySearch(helper, switches, itemName1, '--by-type-name');
+            } else if (switches.includes("-a")) {
+                self.testDeleteBySearch(helper, switches, itemName1, '--tag');
             }
             self.testDeleteParamFail(helper, switches, itemName1);
         });
@@ -223,7 +235,7 @@ class DeleteUnitTest extends UnitTest {
         });
     }
 
-    testDeleteBySearch (helper, switches, itemName1) {
+    testDeleteBySearch (helper, switches, itemName1, searchArg) {
         describe("Deleting items by search", function () {
             it("should fail if no matching artifacts", function(done) {
                 const stubSearch = sinon.stub(helper, "searchRemote");
@@ -231,7 +243,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -255,14 +267,14 @@ class DeleteUnitTest extends UnitTest {
 
             it("should succeed for a single artifact", function(done) {
                 const stubSearch = sinon.stub(helper, "searchRemote");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}]);
+                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
 
                 const stubDelete = sinon.stub(helper, "deleteRemoteItem");
                 stubDelete.resolves(itemName1);
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function (msg) {
                         // The stub should only have been called once, and the expected message should have been returned.
                         expect(stubDelete).to.have.been.calledOnce;
@@ -285,7 +297,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should fail when single delete fails", function(done) {
                 const stubSearch = sinon.stub(helper, "searchRemote");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}]);
+                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
 
                 const DELETE_ERROR = "Delete failure expected by unit test.";
                 const stubDelete = sinon.stub(helper, "deleteRemoteItem");
@@ -293,7 +305,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -326,7 +338,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-P', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-P', searchArg, itemName1])
                     .then(function () {
                         // The stub should only have been called once, and the expected message should have been returned.
                         expect(stubSearch).to.have.been.calledOnce;
@@ -358,7 +370,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', searchArg, itemName1])
                     .then(function (msg) {
                         // The stub should only have been called once, and the expected message should have been returned.
                         expect(stubDelete).to.have.been.calledThrice;
@@ -393,7 +405,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', searchArg, itemName1])
                     .then(function (msg) {
                         // The stub should only have been called once, and the expected message should have been returned.
                         expect(stubDelete).to.have.been.calledThrice;
@@ -426,7 +438,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', searchArg, itemName1])
                     .then(function (msg) {
                         // The stub should only have been called once, and the expected message should have been returned.
                         expect(stubDelete).to.have.been.calledThrice;
@@ -459,7 +471,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', searchArg, itemName1])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -493,7 +505,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q', searchArg, itemName1])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -531,7 +543,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function (msg) {
                         // The stub should only have been called once, and the expected message should have been returned.
                         expect(stubSearch).to.have.been.calledOnce;
@@ -570,7 +582,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -608,7 +620,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function (msg) {
                         // The stub should only have been called once, and the expected message should have been returned.
                         expect(stubSearch).to.have.been.calledOnce;
@@ -638,7 +650,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api', '--path', itemName1])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -667,7 +679,7 @@ class DeleteUnitTest extends UnitTest {
             STAT_ERROR.code = "Invalid directory";
             stub.throws(STAT_ERROR);
             let error;
-            toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--path', 'foo', '--dir', '....'])
+            toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, searchArg, 'foo', '--dir', '....'])
                 .then(function (/*msg*/) {
                     // This is not expected. Pass the error to the "done" function to indicate a failed test.
                     error = new Error("The command should have failed.");
@@ -713,6 +725,48 @@ class DeleteUnitTest extends UnitTest {
                     });
             });
 
+            it("should fail if --all by itself", function (done) {
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", '--all'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // The expected error should have been returned.
+                        expect(err.message).to.contain('must be specified');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if --all specifies --preview", function (done) {
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--preview'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // The expected error should have been returned.
+                        expect(err.message).to.contain('all');
+                        expect(err.message).to.contain('does not support')
+                        expect(err.message).to.contain('--preview');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail if no id, path, or named parameter is specified", function (done) {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
@@ -722,10 +776,31 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected error should have been returned.
-                        expect(err.message).to.contain('Either --id or --path must be specified.');
+                        expect(err.message).to.contain('specified');
                     })
                     .catch(function (err) {
                         error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if --content, but not --id, is specified", function (done) {
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", "--content", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // The expected error should have been returned.
+                            expect(err.message).to.contain('--id');
+                        } catch (err) {
+                            error = err;
+                        }
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -742,7 +817,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected error should have been returned.
-                        expect(err.message).to.contain('Delete currently only supports deleting a web asset, layout or layout mapping');
+                        expect(err.message).to.contain('An artifact type must be specified.');
                     })
                     .catch(function (err) {
                         error = err;
@@ -762,7 +837,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected error should have been returned.
-                        expect(err.message).to.contain('one artifact type at a time');
+                        expect(err.message).to.contain('Only one artifact type can be deleted at a time');
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -806,9 +881,11 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        // The stub should have been called and the expected error should have been returned.
-                        expect(stubId).to.have.been.calledOnce;
-                        expect(err.message).to.contain('--id argument is not supported');
+                        if (!(switches.includes('-a') || (switches.includes('-w')))) {
+                            // The stub should have been called and the expected error should have been returned.
+                            expect(stubId).to.have.been.calledOnce;
+                            expect(err.message).to.contain('--id argument is not supported');
+                        }
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -837,10 +914,7 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        // The stubs should have been called and the expected error should have been returned.
-                        expect(stubPath).to.have.been.calledOnce;
-                        expect(stubRecursive).to.have.been.calledOnce;
-                        expect(err.message).to.contain('--path argument is not supported');
+                        // Stubs may not have been called if artifact type errored out before calling them
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -856,7 +930,14 @@ class DeleteUnitTest extends UnitTest {
                     });
             });
 
-            it("should fail if recursive delete by path is not supported", function (done) {
+            it("should fail if delete by path but not recursive delete by path is supported", function (done) {
+
+                // No op if it doesn't even support deletes by path
+                if (!helper.supportsDeleteByPath()) {
+                    done();
+                    return;
+                }
+
                 const stubPath = sinon.stub(helper, "supportsDeleteByPath");
                 stubPath.returns(true);
 
@@ -901,9 +982,11 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        // The stub should have been called and the expected error should have been returned.
-                        expect(stub).to.have.been.calledOnce;
-                        expect(err.message).to.contain(INIT_ERROR);
+                        if (helper.supportsDeleteBypath) {
+                            // The stub should have been called and the expected error should have been returned.
+                            expect(stub).to.have.been.calledOnce;
+                            expect(err.message).to.contain(INIT_ERROR);
+                        }
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -918,6 +1001,249 @@ class DeleteUnitTest extends UnitTest {
                     });
             });
         });
+    }
+
+    testDeleteAll (helper, switches, itemName1) {
+        describe("Deleting all items", function () {
+            it("should succeed if no matching artifacts", function(done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                    stubSearch.resolves([]);
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                        .then(function (msg) {
+                            expect(msg).to.contain('There were no artifacts to be deleted.');
+                        })
+                        .catch(function (err) {
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's stubbed methods.
+                            stubSearch.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+
+                it("should succeed for a single artifact", function(done) {
+                    const stubSearch = sinon.stub(helper, "getRemoteItems");
+                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+
+                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                    stubDelete.resolves(itemName1);
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-v', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                        .then(function (msg) {
+                            // The stub should only have been called once, and the expected message should have been returned.
+                            expect(stubDelete).to.have.been.calledOnce;
+                            expect(msg).to.contain('Deleted 1 artifact');
+                        })
+                        .catch(function (err) {
+                            // Pass the error to the "done" function to indicate a failed test.
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's stubbed methods.
+                            stubSearch.restore();
+                            stubDelete.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+
+                it("should report when single delete fails", function(done) {
+                    const stubSearch = sinon.stub(helper, "getRemoteItems");
+                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+
+                    const DELETE_ERROR = "Delete failure expected by unit test.";
+                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                    stubDelete.rejects(DELETE_ERROR);
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                        .then(function (msg) {
+                            expect(stubSearch).to.have.been.calledOnce;
+                            expect(stubDelete).to.have.been.calledOnce;
+                            expect(msg).to.contain('Delete all complete. Encountered 1 error while deleting artifacts.');
+                        })
+                        .catch(function (err) {
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's stubbed methods.
+                            stubSearch.restore();
+                            stubDelete.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+
+                it("should succeed when some deletes fail - quiet", function(done) {
+                    const stubSearch = sinon.stub(helper, "getRemoteItems");
+                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                    const DELETE_ERROR = "Delete failure expected by unit test.";
+                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                    stubDelete.onFirstCall().resolves(itemName1);
+                    stubDelete.onSecondCall().rejects(DELETE_ERROR);
+                    stubDelete.onThirdCall().rejects(DELETE_ERROR);
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
+                        .then(function (msg) {
+                            // The stub should only have been called once, and the expected message should have been returned.
+                            expect(stubDelete).to.have.been.calledThrice;
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 1 artifact');
+                            expect(msg).to.contain('Encountered 2 errors');
+                            expect(msg).to.contain('wchtools-cli.log');
+                        })
+                        .catch(function (err) {
+                            // Pass the error to the "done" function to indicate a failed test.
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's stubbed methods.
+                            stubSearch.restore();
+                            stubDelete.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+
+                it("should succeed when all deletes fail - quiet", function(done) {
+                    const stubSearch = sinon.stub(helper, "getRemoteItems");
+                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                    const DELETE_ERROR = "Delete failure expected by unit test.";
+                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                    stubDelete.onFirstCall().rejects(DELETE_ERROR);
+                    stubDelete.onSecondCall().rejects(DELETE_ERROR);
+                    stubDelete.onThirdCall().rejects(DELETE_ERROR);
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
+                        .then(function (msg) {
+                            // The stub should only have been called once, and the expected message should have been returned.
+                            expect(stubDelete).to.have.been.calledThrice;
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Encountered 3 errors');
+                            expect(msg).to.contain('wchtools-cli.log');
+                        })
+                        .catch(function (err) {
+                            // Pass the error to the "done" function to indicate a failed test.
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's stubbed methods.
+                            stubSearch.restore();
+                            stubDelete.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+
+                it("should succeed for multiple artifacts - quiet", function(done) {
+                    const stubSearch = sinon.stub(helper, "getRemoteItems");
+                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                    stubDelete.onFirstCall().resolves(itemName1);
+                    stubDelete.onSecondCall().resolves(itemName1 + "2");
+                    stubDelete.onThirdCall().resolves(itemName1 + "3");
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
+                        .then(function (msg) {
+                            // The stub should only have been called once, and the expected message should have been returned.
+                            expect(stubDelete).to.have.been.calledThrice;
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        })
+                        .catch(function (err) {
+                            // Pass the error to the "done" function to indicate a failed test.
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's stubbed methods.
+                            stubSearch.restore();
+                            stubDelete.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+
+                it("should report if the getRemoteItems fails", function (done) {
+                    const stub = sinon.stub(helper, "getRemoteItems");
+                    const SEARCH_FAIL = "The getRemoteItems failed, as expected by a unit test.";
+                    stub.rejects(new Error(SEARCH_FAIL));
+
+                    const stubPrompt = sinon.stub(prompt, "get");
+                    stubPrompt.yields(null, {"confirm": "y"});
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api'])
+                        .then(function (msg) {
+                            expect(stub).to.have.been.calledOnce;
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Encountered 1 error while deleting artifacts.')
+                        })
+                        .catch(function (err) {
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the stubbed method.
+                            stub.restore();
+                            stubPrompt.restore();
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+            });
+
+            it("should cancel if user says n", function (done) {
+                const stub = sinon.stub(helper, "getRemoteItems");
+                const SEARCH_FAIL = "The getRemoteItems failed, as expected by a unit test.";
+                stub.rejects(new Error(SEARCH_FAIL));
+
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "n"});
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        expect(err.msg).to.contain('Delete all cancelled by user.');
+                        expect(stub).to.not.have.been.called;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
+                        stubPrompt.restore();
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
     }
 }
 

@@ -42,6 +42,7 @@ class TypesHelperUnitTest extends BaseHelperUnit {
 
     runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
         this.testFilterRetryPushContent(helper);
+        this.testSearchRemote (restApi,helper, path1, path2, badPath);
     }
 
     testFilterRetryPushContent (helper) {

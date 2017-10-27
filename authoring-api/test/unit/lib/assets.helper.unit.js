@@ -49,6 +49,7 @@ let stubMkdirp;
 
 // Stubs for the hashes methods.
 let stubGenerateMD5Hash;
+let stubGenerateMD5HashFromStream;
 let stubUpdateHashes;
 let stubGetLastPush;
 let stubSetLastPush;
@@ -88,6 +89,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubGenerateMD5Hash = sinon.stub(hashes, "generateMD5Hash");
                 stubGenerateMD5Hash.returns(undefined);
                 self.addTestDouble(stubGenerateMD5Hash);
+
+                stubGenerateMD5HashFromStream = sinon.stub(hashes, "generateMD5HashFromStream");
+                stubGenerateMD5HashFromStream.resolves(undefined);
+                self.addTestDouble(stubGenerateMD5HashFromStream);
 
                 stubUpdateHashes = sinon.stub(hashes, "updateHashes");
                 stubUpdateHashes.returns(undefined);
@@ -154,7 +159,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             // Run each of the tests defined in this class.
             self.testSingleton();
             self.testEventEmitter();
-            self.testGetAssetFolderName();
+            self.testGetVirtualFolderName();
             self.testPullAsset();
             self.testPullAllAssets();
             self.testPullModifiedAssets();
@@ -243,9 +248,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
         });
    }
 
-    testGetAssetFolderName () {
+    testGetVirtualFolderName () {
         const self = this;
-        describe("getAssetFolderName", function () {
+        describe("getVirtualFolderName", function () {
             it("should get the asset folder name from the FS API.", function () {
                 // Create an assetsFS.getFolderName stub that returns the folder name.
                 const FAKE_FOLDER_NAME = "Fake name for the assets folder.";
@@ -256,7 +261,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 self.addTestDouble(stub);
 
                 // Call the method being tested.
-                const folderName = assetsHelper.getAssetFolderName();
+                const folderName = assetsHelper.getVirtualFolderName();
 
                 // Verify that the stub was called and that the helper returned the expected value.
                 expect(stub).to.have.been.calledOnce;
@@ -739,8 +744,12 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubStream.resolves(stream);
 
                 // Create an assetsREST.pullItem stub that return asset metadata.
-                const stubPull = sinon.stub(assetsREST, "pullItem");
-                stubPull.resolves(assetMetadata3);
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(assetMetadata3);
+                    return d.promise;
+                });
 
                 // Create an assetsFS.saveItem spy to make sure it doesn't get called.
                 const spySave = sinon.spy(assetsFS, "saveItem");
@@ -773,7 +782,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the hashes were called as expected.
                         expect(stubUpdateHashes).to.have.been.calledOnce;
-                        expect(stubUpdateHashes.firstCall.args[2]).to.contain(AssetsUnitTest.ASSET_PNG_1);
+                        expect(stubUpdateHashes.firstCall.args[4]).to.contain(AssetsUnitTest.ASSET_PNG_1);
                         expect(stubUpdateHashes.firstCall.args[3].path).to.contain(AssetsUnitTest.ASSET_PNG_1);
                     })
                     .catch(function (err) {
@@ -812,8 +821,12 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubStream.resolves(stream);
 
                 // Create an assetsREST.pullItem stub that returns asset metadata.
-                const stubPull = sinon.stub(assetsREST, "pullItem");
-                stubPull.resolves(assetMetadata3);
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(assetMetadata3);
+                    return d.promise;
+                });
 
                 // Create an assetsFS.saveItem stub that returns asset metadata.
                 const stubSave = sinon.stub(assetsFS, "saveItem");
@@ -912,7 +925,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.pullAllItems(context, {offset: 0, limit: 2})
+                assetsHelper.pullAllItems(context, {offset: 0, limit: 2, disablePushPullResources: false})
                     .then(function (assets) {
                         // Verify that the helper returned the expected values.
                         // Note that pullAllAssets is designed to return a metadata array, but currently it does not.
@@ -986,13 +999,27 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stream5.tag = STREAM_TAG_5;
                 stubStream.onCall(4).resolves(stream5);
 
+                const emitPipe = function(stream, res) {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(res);
+                    return d.promise;
+                };
+
                 // Create a stub for assetsREST.pullItem that returns a promise for the asset metadata.
-                const stubPull = sinon.stub(assetsREST, "pullItem");
-                stubPull.onCall(0).resolves(assetMetadata1);
-                stubPull.onCall(1).resolves(assetMetadata2);
-                stubPull.onCall(2).resolves(assetMetadata3);
-                stubPull.onCall(3).resolves(assetMetadata4);
-                stubPull.onCall(4).resolves(assetMetadata6);
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        return emitPipe(stream1, assetMetadata1);
+                    } else if (stubPull.callCount === 2) {
+                        return emitPipe(stream2, assetMetadata2);
+                    } else if (stubPull.callCount === 3) {
+                        return emitPipe(stream3, assetMetadata3);
+                    } else if (stubPull.callCount === 4) {
+                        return emitPipe(stream4, assetMetadata4);
+                    } else if (stubPull.callCount === 5) {
+                        return emitPipe(stream5, assetMetadata6);
+                    }
+                });
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = assetsHelper.getEventEmitter(context);
@@ -1003,12 +1030,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
+                self.addTestDouble(stubResources);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.pullAllItems(context, {offset: 0, limit: 2})
+                assetsHelper.pullAllItems(context, {offset: 0, limit: 2, disablePushPullResources: false})
                     .then(function (assets) {
                         // Verify that the helper returned the expected values.
                         // Note that pullAllAssets is designed to return a metadata array, but currently it does not.
@@ -1066,15 +1094,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSetLastPull).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.have.callCount(5);
-                        expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubUpdateHashes.args[1][2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CSS_1);
                         expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubUpdateHashes.args[2][2]).to.contain(AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubUpdateHashes.args[2][4]).to.contain(AssetsUnitTest.ASSET_JPG_1);
                         expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_JPG_1);
-                        expect(stubUpdateHashes.args[3][2]).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_GIF_1);
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubUpdateHashes.args[4][2]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(stubUpdateHashes.args[4][4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
                         expect(stubUpdateHashes.args[4][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
                     })
                     .catch(function (err) {
@@ -1132,12 +1160,25 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stream4.tag = STREAM_TAG_4;
                 stubStream.onCall(3).resolves(stream4);
 
+                const emitPipe = function(stream, res) {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(res);
+                    return d.promise;
+                };
+
                 // Create a stub for assetsREST.pullItem that returns a promise for the asset metadata.
-                const stubPull = sinon.stub(assetsREST, "pullItem");
-                stubPull.onCall(0).resolves(assetMetadata1);
-                stubPull.onCall(1).resolves(assetMetadata3);
-                stubPull.onCall(2).resolves(assetMetadata4);
-                stubPull.onCall(3).resolves(assetMetadata6);
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        return emitPipe(stream1, assetMetadata1);
+                    } else if (stubPull.callCount === 2) {
+                        return emitPipe(stream2, assetMetadata3);
+                    } else if (stubPull.callCount === 3) {
+                        return emitPipe(stream3, assetMetadata4);
+                    } else if (stubPull.callCount === 4) {
+                        return emitPipe(stream4, assetMetadata6);
+                    }
+                });
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = assetsHelper.getEventEmitter(context);
@@ -1205,13 +1246,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSetLastPull).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.have.callCount(4);
-                        expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubUpdateHashes.args[1][2]).to.contain(AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_JPG_1);
                         expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_JPG_1);
-                        expect(stubUpdateHashes.args[2][2]).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(stubUpdateHashes.args[2][4]).to.contain(AssetsUnitTest.ASSET_GIF_1);
                         expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubUpdateHashes.args[3][2]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
                     })
                     .catch(function (err) {
@@ -1249,6 +1290,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
                 stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
                 stubGet.onCall(3).resolves([]);
+                const stubResources = sinon.stub(assetsREST, "getResourceList");
+                stubResources.resolves([]);
 
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
@@ -1258,8 +1301,12 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubStream.onCall(0).resolves(stream1);
 
                 // Create a stub for assetsREST.pullItem that returns a promise for the asset metadata.
-                const stubPull = sinon.stub(assetsREST, "pullItem");
-                stubPull.onCall(0).resolves(assetMetadata2);
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream1.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(assetMetadata2);
+                    return d.promise;
+                });
 
                 // Create an assetsFS.saveItem stub that returns asset metadata.
                 const stubSave = sinon.stub(assetsFS, "saveItem");
@@ -1274,6 +1321,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
+                self.addTestDouble(stubResources);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubSave);
@@ -1422,13 +1470,27 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stream5.tag = STREAM_TAG_5;
                 stubStream.onCall(4).resolves(stream5);
 
+                const emitPipe = function(stream, res) {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(res);
+                    return d.promise;
+                };
+
                 // Create a stub for assetsREST.pullItem that returns a promise for the asset metadata.
-                const stubPull = sinon.stub(assetsREST, "pullItem");
-                stubPull.onCall(0).resolves(assetMetadata1);
-                stubPull.onCall(1).resolves(assetMetadata2);
-                stubPull.onCall(2).resolves(assetMetadata3);
-                stubPull.onCall(3).resolves(assetMetadata4);
-                stubPull.onCall(4).resolves(assetMetadata6);
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        return emitPipe(stream1, assetMetadata1);
+                    } else if (stubPull.callCount === 2) {
+                        return emitPipe(stream2, assetMetadata2);
+                    } else if (stubPull.callCount === 3) {
+                        return emitPipe(stream3, assetMetadata3);
+                    } else if (stubPull.callCount === 4) {
+                        return emitPipe(stream4, assetMetadata4);
+                    } else if (stubPull.callCount === 5) {
+                        return emitPipe(stream5, assetMetadata6);
+                    }
+                });
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = assetsHelper.getEventEmitter(context);
@@ -1506,15 +1568,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSetLastPull).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.have.callCount(5);
-                        expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubUpdateHashes.args[1][2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CSS_1);
                         expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubUpdateHashes.args[2][2]).to.contain(AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubUpdateHashes.args[2][4]).to.contain(AssetsUnitTest.ASSET_JPG_1);
                         expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_JPG_1);
-                        expect(stubUpdateHashes.args[3][2]).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_GIF_1);
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubUpdateHashes.args[4][2]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(stubUpdateHashes.args[4][4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
                         expect(stubUpdateHashes.args[4][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
                     })
                     .catch(function (err) {
@@ -1573,13 +1635,27 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stream5.tag = STREAM_TAG_5;
                 stubStream.onCall(4).resolves(stream5);
 
+                const emitPipe = function(stream, res) {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(res);
+                    return d.promise;
+                };
+
                 // Create a stub for assetsREST.pullItem that returns a promise for the asset metadata.
-                const stubPull = sinon.stub(assetsREST, "pullItem");
-                stubPull.onCall(0).resolves(assetMetadata1);
-                stubPull.onCall(1).resolves(assetMetadata2);
-                stubPull.onCall(2).resolves(assetMetadata3);
-                stubPull.onCall(3).resolves(assetMetadata4);
-                stubPull.onCall(4).resolves(assetMetadata5);
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        return emitPipe(stream1, assetMetadata1);
+                    } else if (stubPull.callCount === 2) {
+                        return emitPipe(stream2, assetMetadata2);
+                    } else if (stubPull.callCount === 3) {
+                        return emitPipe(stream3, assetMetadata3);
+                    } else if (stubPull.callCount === 4) {
+                        return emitPipe(stream4, assetMetadata4);
+                    } else if (stubPull.callCount === 5) {
+                        return emitPipe(stream5, assetMetadata5);
+                    }
+                });
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = assetsHelper.getEventEmitter(context);
@@ -1650,15 +1726,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSetLastPull).to.have.been.calledOnce;
 
                         expect(stubUpdateHashes).to.have.callCount(5);
-                        expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubUpdateHashes.args[1][2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CSS_1);
                         expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubUpdateHashes.args[2][2]).to.contain(AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubUpdateHashes.args[2][4]).to.contain(AssetsUnitTest.ASSET_JPG_1);
                         expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_JPG_1);
-                        expect(stubUpdateHashes.args[3][2]).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_GIF_1);
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubUpdateHashes.args[4][2]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(stubUpdateHashes.args[4][4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
                         expect(stubUpdateHashes.args[4][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
                     })
                     .catch(function (err) {
@@ -1883,7 +1959,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSetLastPush).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.have.been.calledOnce;
-                        expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HBS_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HBS_1);
                     })
                     .catch(function (err) {
@@ -2257,10 +2333,14 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
                 stubIsContentResource.returns(false);
 
+                const stubPushAllResources = sinon.stub(assetsHelper, "pushAllResources");
+                stubPushAllResources.resolves([]);
+
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubPush);
                 self.addTestDouble(stubIsContentResource);
+                self.addTestDouble(stubPushAllResources);
 
                 // Call the method being tested.
                 let error;
@@ -2465,15 +2545,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSetLastPush).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.have.callCount(5);
-                        expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubUpdateHashes.args[1][2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CSS_1);
                         expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubUpdateHashes.args[2][2]).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(stubUpdateHashes.args[2][4]).to.contain(AssetsUnitTest.ASSET_GIF_1);
                         expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubUpdateHashes.args[3][2]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
-                        expect(stubUpdateHashes.args[4][2]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[4][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
                         expect(stubUpdateHashes.args[4][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
                     })
                     .catch(function (err) {
@@ -2551,9 +2631,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubPush = sinon.stub(assetsHelper, "pushItem");
                 stubPush.rejects(ASSET_ERROR);
 
+                const stubPushModifiedResources = sinon.stub(assetsHelper, "pushModifiedResources");
+                stubPushModifiedResources.resolves([]);
+
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubPush);
+                self.addTestDouble(stubPushModifiedResources);
 
                 // Call the method being tested.
                 let error;
@@ -2712,9 +2796,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSetLastPush).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.have.been.calledTwice;
-                        expect(stubUpdateHashes.firstCall.args[2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubUpdateHashes.firstCall.args[4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.firstCall.args[3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubUpdateHashes.secondCall.args[2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubUpdateHashes.secondCall.args[4]).to.contain(AssetsUnitTest.ASSET_CSS_1);
                         expect(stubUpdateHashes.secondCall.args[3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
                     })
                     .catch(function (err) {
@@ -3523,9 +3607,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Call the method being tested.
                 let error;
                 assetsHelper.deleteRemoteItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
-                    .then(function (message) {
-                        // Verify that the helper returned the expected message.
-                        expect(message).to.equal(DELETE_MESSAGE);
+                    .then(function (item) {
+                        // Verify that the helper returned the expected value.
+                        expect(item.id).to.equal(UnitTest.DUMMY_METADATA.id);
+                        expect(item.path).to.equal(UnitTest.DUMMY_METADATA.path);
 
                         // Verify that the delete stub was called once with the expected id.
                         expect(stubDelete).to.have.been.calledOnce;
@@ -3561,7 +3646,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const recursive = false;
                 const searchOptions = undefined;
                 const opts = undefined;
-                assetsHelper.searchRemote(context, searchPath, recursive, searchOptions, opts)
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
                     .then(function (documents) {
                         // Verify that the helper returned the expected message.
                         expect(documents).to.have.lengthOf(0);
@@ -3594,7 +3679,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const recursive = false;
                 const searchOptions = {q: "*:*", fl: "id", fq: "test"};
                 const opts = {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS};
-                assetsHelper.searchRemote(context, searchPath, recursive, searchOptions, opts)
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive )
                     .then(function (documents) {
                         // Verify that the helper returned the expected message.
                         expect(documents).to.have.lengthOf(0);
@@ -3628,7 +3713,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const recursive = false;
                 const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
                 const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
-                assetsHelper.searchRemote(context, searchPath, recursive, searchOptions, opts)
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
                     .then(function (documents) {
                         // Verify that the helper returned the expected message.
                         expect(documents).to.have.lengthOf(0);

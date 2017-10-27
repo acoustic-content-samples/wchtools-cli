@@ -199,7 +199,7 @@ class JSONItemFS extends BaseFS {
                             fsObject.pruneItem(item, opts);
                             fs.writeFileSync(filepath, JSON.stringify(item, null, "  "));
                             if (!hasConflict) {
-                                hashes.updateHashes(context, fsObject.getPath(context, opts), filepath, item, opts);
+                                hashes.updateHashes(context, fsObject.getPath(context, opts), filepath, item, undefined, undefined, opts);
 
                                 // Add the item to the cache, if a cache has been enabled.
                                 JSONItemFS.addItemToCache(context, filepath, item, opts);

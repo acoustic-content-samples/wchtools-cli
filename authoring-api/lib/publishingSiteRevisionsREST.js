@@ -15,14 +15,14 @@ limitations under the License.
 */
 "use strict";
 
-const BaseREST = require("./BaseREST.js");
+const JSONItemREST = require("./JSONItemREST.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class PublishingSiteRevisionsREST extends BaseREST {
+class PublishingSiteRevisionsREST extends JSONItemREST {
 
     constructor(enforcer) {
         if (enforcer !== singletonEnforcer) {

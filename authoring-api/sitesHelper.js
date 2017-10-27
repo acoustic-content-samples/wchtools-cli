@@ -15,7 +15,7 @@ limitations under the License.
 */
 "use strict";
 
-const BaseHelper = require("./baseHelper.js");
+const JSONItemHelper = require("./JSONItemHelper.js");
 const rest = require("./lib/sitesREST").instance;
 const SitesFS = require("./lib/sitesFS");
 const fS = SitesFS.instance;
@@ -25,7 +25,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class SitesHelper extends BaseHelper {
+class SitesHelper extends JSONItemHelper {
     /**
      * The constructor for an SitesHelper object. This constructor implements a singleton pattern, and will fail if
      * called directly. The static instance property can be used to get the singleton instance.

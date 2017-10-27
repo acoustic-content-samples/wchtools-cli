@@ -241,8 +241,8 @@ class AssetsFS extends BaseFS {
         return (path.indexOf(DRAFT_SUFFIX) !== -1);
     }
 
-    getPath (context, name, opts) {
-        return this.getAssetsPath(context, opts) + name;
+    getPath (context, opts) {
+        return this.getAssetsPath(context, opts);
     }
 
     getResourcePath (context, name, opts) {
@@ -254,7 +254,7 @@ class AssetsFS extends BaseFS {
             // make sure teh resource directory is created and append the name that includes the path including dxdam */
             return this.getContentResourcePath(context, opts) + name + this.getExtension();
         }
-        return this.getPath(context, name, opts);
+        return this.getPath(context, opts) + name;
     }
 
     /**
@@ -262,7 +262,7 @@ class AssetsFS extends BaseFS {
      *
      * If the asset provided is in draft status, then the _wchdraft suffix is appended.
      *
-     * @param {Object} the asset
+     * @param {Object} asset the asset
      * @return {String} the path for the provided asset
      */
     getAssetPath(asset) {
@@ -343,7 +343,7 @@ class AssetsFS extends BaseFS {
     }
 
     renameResource (context, id, filename, opts) {
-        const origName = this.getResourcesPath(context, opts) + id;
+        const origName = this.getResourcePath(context, id, opts);
         const newName = this.getRawResourcePath(context, id, filename, opts);
         mkdirp.sync(path.dirname(newName));
         fs.renameSync(origName, newName);
@@ -356,7 +356,7 @@ class AssetsFS extends BaseFS {
         const deferred = Q.defer();
 
         try {
-            const stream = fs.createReadStream(this.getPath(context, name, opts));
+            const stream = fs.createReadStream(this.getPath(context, opts) + name);
             deferred.resolve(stream);
         } catch (err) {
             deferred.reject(err);
@@ -390,7 +390,7 @@ class AssetsFS extends BaseFS {
         const deferred = Q.defer();
 
         // Get the file path for the specified file, creating the working directory if necessary.
-        const filepath = this.getPath(context, name, opts);
+        const filepath = this.getPath(context, opts) + name;
 
         // Create any directories specified in the file's path.
         mkdirp.mkdirp(path.dirname(filepath), function (err) {
@@ -546,7 +546,7 @@ class AssetsFS extends BaseFS {
     }
 
     getFileStats (context, name, opts) {
-        return this._getFileStats(context, this.getPath(context, name, opts), opts);
+        return this._getFileStats(context, this.getPath(context, opts) + name, opts);
     }
 
     getResourceFileStats (context, name, opts) {
