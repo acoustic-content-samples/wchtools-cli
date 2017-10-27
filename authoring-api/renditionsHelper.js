@@ -15,17 +15,18 @@ limitations under the License.
 */
 "use strict";
 
-const BaseHelper = require("./baseHelper.js");
+const JSONItemHelper = require("./JSONItemHelper.js");
 const rest = require("./lib/renditionsREST").instance;
 const fS = require("./lib/renditionsFS").instance;
 const utils = require("./lib/utils/utils.js");
+const hashes = require("./lib/utils/hashes.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const Q = require("q");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class RenditionsHelper extends BaseHelper {
+class RenditionsHelper extends JSONItemHelper {
     /**
      * The constructor for a RenditionsHelper object. This constructor implements a singleton pattern, and will fail if
      * called directly. The static instance property can be used to get the singleton instance.
@@ -63,6 +64,17 @@ class RenditionsHelper extends BaseHelper {
     deleteRemoteItem(context, item, opts) {
         const message = i18n.__("delete_rendition_error", {"id": item.id, "opts": JSON.stringify(opts ? opts : {})});
         return Q.reject(new Error(message));
+    }
+
+    /**
+     * Remove all renditions hash information.
+     *
+     * @param {Object} context The current context to be used by the API.
+     * @param {Object} opts - The options to be used for this operation.
+     */
+    removeAllHashes(context, opts) {
+        const basePath = this._fsApi.getPath(context, opts);
+        hashes.removeAllHashes(context, basePath, opts);
     }
 }
 

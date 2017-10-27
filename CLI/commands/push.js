@@ -204,6 +204,9 @@ class PushCommand extends BaseCommand {
         if (self.getCommandLineOption("forceOverride")) {
             self.setApiOption("force-override", true);
         }
+        if (self.getCommandLineOption("createOnly")) {
+            self.setApiOption("createOnly", true);
+        }
 
         self.readyToPush()
             .then(function () {
@@ -1205,6 +1208,7 @@ function pushCommand (program) {
         .option('-I --ignore-timestamps',i18n.__('cli_push_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_push_opt_all'))
         .option('-f --force-override',   i18n.__('cli_push_opt_force_override'))
+        .option('--create-only',         i18n.__('cli_push_opt_create_only'))
         .option('--named <named>',       i18n.__('cli_push_opt_named'))
         .option('--path <path>',         i18n.__('cli_push_opt_path'))
         .option('--dir <dir>',           i18n.__('cli_push_opt_dir'))

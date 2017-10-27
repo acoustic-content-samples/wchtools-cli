@@ -22,7 +22,7 @@
 		<div>This show a chart created with the jQPlot open source
 			charting library. The data for this chart in this example is defined
 			in the JS code.</div>
-		<div>&nbsp;&nbsp;</div>
+		<div>&nbsp;multilevel/cli-test-spa&nbsp;</div>
 	</div>
 	<h2 class="blockHeading">jqPlot Chart Sample</h2>
 	<div id="ChartDiv"

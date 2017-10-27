@@ -59,6 +59,6 @@
   "retry_failed_retry": "Una richiesta (%(id)d) ritentata (attempt %(attempt)d) non è riuscita entro il numero massimo di tentativi. %(message)s",
   "retry_next_attempt": "Una richiesta (%(id)d) verrà ritentata (attempt %(attempt)d) in %(delay)d millisecondi.",
   "retry_success": "Una richiesta (%(id)d) ritentata è riuscita dopo %(attempt)d tentativi.",
-  "retry_max_attempts": "Una richiesta (%(id)d) è stata ritentata il numero massimo di volte. "
+  "retry_max_attempts": "Una richiesta (%(id)d) è stata ritentata il numero massimo di volte."
 }
 

@@ -43,7 +43,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             const helper = ToolsApi.getAssetsHelper();
             expect(helper).to.be.ok;
             expect(helper._artifactName).to.equal("assets");
-            expect(helper).to.have.property("getAssetFolderName");
+            expect(helper).to.have.property("getVirtualFolderName");
             expect(helper).to.have.property("pushModifiedItems");
             expect(helper).to.have.property("deleteRemoteItem");
             done();

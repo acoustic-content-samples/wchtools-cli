@@ -55,8 +55,8 @@
   "conflict":"サービスでこの成果物の要求を処理中にエラーが発生し、エラー状態が返されました。",
   "login_missing_authn":"ログイン・サービスが、有効な認証情報で応答できませんでした。",
   "digest_mismatch": "プルしたアセット %(asset)s のダイジェスト %(cli_digest)s がサーバー・ダイジェスト %(server_digest)s と一致しません。",
-  "retry_failed_request": "失敗した要求 (%(id)d) は再試行されます。%(message)s",
-  "retry_failed_retry": "再試行 (attempt %(attempt)d) した要求 (%(id)d) は、最大再試行回数になる前に失敗しました。%(message)s",
+  "retry_failed_request": "失敗した要求 (%(id)d) は再試行されます。 %(message)s",
+  "retry_failed_retry": "再試行 (attempt %(attempt)d) した要求 (%(id)d) は、最大再試行回数になる前に失敗しました。 %(message)s",
   "retry_next_attempt": "要求 (%(id)d) は  %(delay)d ミリ秒後に再試行 (再試行 %(attempt)d) されます。",
   "retry_success": "再試行された要求 (%(id)d) は、%(attempt)d 回の再試行後に成功しました。",
   "retry_max_attempts": "要求 (%(id)d) は最大回数の再試行が行われました。"

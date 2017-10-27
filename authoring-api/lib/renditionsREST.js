@@ -15,7 +15,7 @@ limitations under the License.
 */
 "use strict";
 
-const BaseREST = require("./BaseREST.js");
+const JSONItemREST = require("./JSONItemREST.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const Q = require("q");
@@ -23,7 +23,7 @@ const Q = require("q");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class RenditionsREST extends BaseREST {
+class RenditionsREST extends JSONItemREST {
     constructor (enforcer) {
         if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "RenditionsREST"});

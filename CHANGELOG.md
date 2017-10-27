@@ -1,5 +1,20 @@
 # Changelog
 
+### v2.1.3 changes since v2.0.9
+
+ - Temporarily disable pulling and pushing resources not associated with asset metadata, pending further authoring API improvements.
+ - Create md5 hashes by stream rather than reading artifacts into memory first, to decrease memory use and improve performance
+ - Minor usability improvements around error and warning message strings.
+ - Check for asset metadata json file changes too (not just asset binary file changes) when using push modified.
+ - Check for tenant tier before pulling -A (eg, to not attempt to pull layouts, mappings, sites and pages for Essentials tier WCH tenants)
+ - Added ability to delete managed content assets by path with delete -a --path /dxdam/pathtofile (with optional trailing wildcard)
+ - Added ability to delete content and types by id with delete -c --id {id} or -t --id {id}.
+ - Added ability to delete assets, content and types by tag with delete -c --tag "tagname" or -T "tagname"
+ - Added ability to delete content and types by name with delete -c --name {name} or -c --n {name}.
+ - Added ability to delete content by type name, delete -c --by-type-name "type name".
+ - Added ability to delete ALL instances of a specified artifact type (eg, all pages) or ALL artifacts, eg, with delete -A --all or -p --all
+   Note, the WCH APIs won't allow deletion if something references that content or type, so this only deletes unreferenced content and types.
+
 ### v2.0.9 changes since 2.0.3
 
   - Added pull of image and video resources not referenced by asset metadata, during asset pull,  stored under workingdir/resources,  so that push to a new tenant where content references such resources, will work.

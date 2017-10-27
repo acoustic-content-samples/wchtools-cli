@@ -30,6 +30,8 @@ const rimraf = require("rimraf");
 const diff = require("diff");
 const sinon = require("sinon");
 const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
+const BaseHelper = require(UnitTest.API_PATH + "baseHelper.js");
+const searchREST = require(UnitTest.API_PATH + "lib/authoringSearchREST.js").instance;
 
 // The default API context used for unit tests.
 const context = UnitTest.DEFAULT_API_CONTEXT;
@@ -79,11 +81,13 @@ class BaseHelperUnitTest extends UnitTest {
 
             // Run each of the tests defined in this class.
             self.testSingleton(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testStaticGetters();
             self.testEventEmitter(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetVirtualFolderName(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetLocalItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetLocalItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetRemoteItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testInitializeRetryPush(helper);
             self.testCreateRemoteItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testPushItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testPushAllItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
@@ -126,6 +130,22 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
+            });
+        });
+    }
+
+    testStaticGetters () {
+        describe("static getters", function () {
+            it("should succeed getting the various statis values", function (done) {
+                expect(BaseHelper.RETRY_PUSH_ITEM_COUNT).to.exist;
+                expect(BaseHelper.RETRY_PUSH_ITEMS).to.exist;
+                expect(BaseHelper.RETRY_PUSH_ITEM_NAME).to.exist;
+                expect(BaseHelper.RETRY_PUSH_ITEM_HEADING).to.exist;
+                expect(BaseHelper.RETRY_PUSH_ITEM_ERROR).to.exist;
+                expect(BaseHelper.RETRY_PUSH_ITEM_DELAY).to.exist;
+
+                // Call mocha's done function to indicate that the test is over.
+                done();
             });
         });
     }
@@ -390,6 +410,24 @@ class BaseHelperUnitTest extends UnitTest {
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
+            });
+        });
+    }
+
+    testInitializeRetryPush (helper) {
+        describe("initializeRetryPush", function () {
+            it("should succeed when initializing the retry push properties.", function (done) {
+                let context = {};
+                helper.initializeRetryPush(context, null);
+                expect(context.retryPush[BaseHelper.RETRY_PUSH_ITEM_COUNT]).to.equal(0);
+                expect(context.retryPush[BaseHelper.RETRY_PUSH_ITEMS]).to.have.lengthOf(0);
+
+                context = {};
+                helper.initializeRetryPush(context, ["foo", "bar"]);
+                expect(context.retryPush[BaseHelper.RETRY_PUSH_ITEM_COUNT]).to.equal(2);
+                expect(context.retryPush[BaseHelper.RETRY_PUSH_ITEMS]).to.have.lengthOf(0);
+
+                done();
             });
         });
     }
@@ -2069,6 +2107,74 @@ class BaseHelperUnitTest extends UnitTest {
             });
         });
     }
+
+    testSearchRemote (restApi, helper, path1, path2, badPath) {
+        const self = this;
+        describe("searchRemote", function () {
+            it("should succeed when searchREST.searchRemote succeeds.", function (done) {
+                const itemMetadata1 = UnitTest.getJsonObject(path1);
+                const stubRest = sinon.stub(searchREST, "search");
+                stubRest.resolves({"documents": [itemMetadata1] });
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubRest);
+
+                let error;
+                helper.searchRemote(context, {"fq": [ "name:(\"" + UnitTest.DUMMY_NAME + "\")"]}, UnitTest.DUMMY_OPTIONS)
+                    .then(function (documents) {
+                        // Verify that the stubs and the spy were called in the correct order.
+                        expect(stubRest).to.have.been.called;
+                        // Verify that the specified item was returned.
+                        expect(documents).to.not.be.empty;
+                        expect(documents[0].id).to.equal(itemMetadata1.id);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when the search call fails.", function (done) {
+                // Create a restApi.getItem stub that returns an error.
+                const ITEM_ERROR = "An error occurred.";
+                const stub = sinon.stub(searchREST, "search");
+                stub.rejects(ITEM_ERROR);
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.searchRemote(context, {"fq": [ "name:(\"" + UnitTest.DUMMY_NAME + "\")"]} , UnitTest.DUMMY_OPTIONS)
+                    .then(function (/*item*/) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the pulled item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub and the spy were called.
+                            expect(stub).to.have.been.called;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.equal(ITEM_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+        });
+    }
+
+
 }
 
 module.exports = BaseHelperUnitTest;

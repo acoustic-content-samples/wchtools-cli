@@ -33,3 +33,7 @@ pushUnitTest.run(helper, '--content', BASE_NAME + '-1', BASE_NAME + '-2', BASE_N
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();
 listUnitTest.run(helper, '--content', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
+
+const DeleteUnitTest = require("./lib/delete.unit.js");
+const deleteUnitTest = new DeleteUnitTest();
+deleteUnitTest.run(helper, '-c', BASE_NAME + '-1');

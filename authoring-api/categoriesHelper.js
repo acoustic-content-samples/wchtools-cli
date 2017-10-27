@@ -15,7 +15,7 @@ limitations under the License.
 */
 "use strict";
 
-const BaseHelper = require("./baseHelper.js");
+const JSONItemHelper = require("./JSONItemHelper.js");
 const JSONItemFS = require("./lib/categoriesFS");
 const Q = require("q");
 const rest = require("./lib/categoriesREST").instance;
@@ -26,7 +26,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class CategoriesHelper extends BaseHelper {
+class CategoriesHelper extends JSONItemHelper {
     /**
      * The constructor for a CategoriesHelper object. This constructor implements a singleton pattern, and will fail if
      * called directly. The static instance property can be used to get the singleton instance.
@@ -77,6 +77,23 @@ class CategoriesHelper extends BaseHelper {
      */
     canPushItem (item) {
         // Don't push system categories.
+        return (item && item["permanent"] !== true);
+    }
+
+    /**
+     * Determine whether the given item can be deleted.
+     *
+     * @param {Object} item The item to be deleted.
+     * @param {Object} isDeleteAll Flag that indicates whether the item will be deleted during a delete all operation.
+     * @param {Object} opts - The options to be used for the delete operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the item can be deleted. A return value of false
+     *                    indicates that the item cannot be deleted.
+     *
+     * @override
+     */
+    canDeleteItem (item, isDeleteAll, opts) {
+        // Don't delete system categories.
         return (item && item["permanent"] !== true);
     }
 

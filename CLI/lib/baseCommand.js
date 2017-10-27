@@ -539,8 +539,7 @@ class BaseCommand {
         if (password) {
             // The password was specified on the command line.
             this.setApiOption("password", password);
-        }
-        else if (process.env.WCHTOOLS_PASSWORD) {
+        } else if (process.env.WCHTOOLS_PASSWORD) {
             // The password was specified in an environment variable.
             password = process.env.WCHTOOLS_PASSWORD;
             this.setApiOption("password", password);
@@ -558,7 +557,7 @@ class BaseCommand {
             {
                 password:
                 {
-                    description: i18n.__('cli_base_password'),
+                    description: i18n.__('cli_base_password_for_user', {"username": username}),
                     hidden: true,
                     required: true
                 }
@@ -657,6 +656,13 @@ class BaseCommand {
         }
         return this._logger;
     }
+
+    /**
+     * Is base tier if context has tier === "Base"
+     */
+     isBaseTier(context) {
+         return (context.tier === "Base");
+     }
 }
 
 module.exports = BaseCommand;

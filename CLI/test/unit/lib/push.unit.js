@@ -110,6 +110,50 @@ class PushUnitTest extends UnitTest {
                     });
             });
 
+            it("test resource emitters working", function (done) {
+                if (switches !== "-a" ) {
+                    return done();
+                }
+
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("resource-pushed", itemName1);
+                        emitter.emit("resource-pushed", itemName2);
+                        emitter.emit("resource-pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                const unique = uuid.v4();
+                const downloadTarget = DOWNLOAD_TARGET + unique;
+                mkdirp.sync(downloadTarget);
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts successfully');
+                        expect(msg).to.contain('1 error');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "pushModifiedItems" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test generic push working", function (done) {
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
                 const stub = sinon.stub(helper, "pushModifiedItems", function (context) {

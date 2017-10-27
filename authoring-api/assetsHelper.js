@@ -17,6 +17,7 @@ limitations under the License.
 
 const fs = require("fs");
 const Q = require("q");
+const BaseHelper = require("./baseHelper.js");
 const AssetsREST = require("./lib/assetsREST.js");
 const assetsREST = AssetsREST.instance;
 const SearchREST = require("./lib/authoringSearchREST.js");
@@ -43,14 +44,14 @@ const WAIT_FOR_CLOSE = process.env.WCHTOOLS_WAIT_FOR_CLOSE || false;
  *
  * Note: This validation could be removed once the mkdirp issue has been addressed.
  *
- * @param {String} path - The file path to be validated.
+ * @param {String} filePath - The file path to be validated.
  *
  * @return {Boolean} A return value of true indicates the specified file path is valid.
  *
  * @private
  */
-const isValidWindowsPathname = function (path) {
-    return (path && !utils.isInvalidPath(path) && !path.includes("http:") && !path.includes("https:"));
+const isValidWindowsPathname = function (filePath) {
+    return (filePath && !utils.isInvalidPath(filePath) && !filePath.includes("http:") && !filePath.includes("https:"));
 };
 
 const singleton = Symbol();
@@ -66,7 +67,7 @@ const singletonEnforcer = Symbol();
  *
  * @class AssetsHelper
  */
-class AssetsHelper {
+class AssetsHelper extends BaseHelper {
     /**
      * The constructor for an assets helper object.
      *
@@ -77,35 +78,7 @@ class AssetsHelper {
             throw i18n.__("singleton_construct_error", {classname: "AssetsHelper"});
         }
 
-        /**
-         * @member {AssetsREST} _restApi - The REST API object managed by this helper.
-         */
-        this._restApi = assetsREST;
-
-        /**
-         * @member {AssetsFS} _fsApi - The FS object managed by this helper.
-         */
-        this._fsApi = assetsFS;
-
-        /**
-         * @member {String} _artifactName - The name of the "artifact type" managed by this helper.
-         */
-        this._artifactName = "assets";
-
-        /**
-         * @member {String} NEW - State flag indicating that an item is new.
-         */
-        this.NEW = hashes.NEW;
-
-        /**
-         * @member {String} MODIFIED - State flag indicating that an item has been modified.
-         */
-        this.MODIFIED = hashes.MODIFIED;
-
-        /**
-         * @member {String} DELETED - State flag indicating that an item has been deleted.
-         */
-        this.DELETED = hashes.DELETED;
+        super(assetsREST, assetsFS, "assets", "asset");
 
         /**
          * @member {Number} ASSET_TYPES_WEB_ASSETS - Constant indicating an asset type of web assets.
@@ -133,37 +106,6 @@ class AssetsHelper {
             this[singleton] = new AssetsHelper(singletonEnforcer);
         }
         return this[singleton];
-    }
-
-    /**
-     * Get the event emitter used by the Assets Helper.
-     *
-     * @param {Object} context The current context to be used by the API.
-     *
-     * @returns {Object} The event emitter used by the Assets Helper.
-     */
-    getEventEmitter (context) {
-        return context.eventEmitter;
-    }
-
-    /**
-     * Get the logger used by the Assets Helper.
-     *
-     * @param {Object} context The current context to be used by the API.
-     *
-     * @returns {Object} The logger used by the Assets Helper.
-     */
-    getLogger (context) {
-        return context.logger;
-    }
-
-    /**
-     * Get the name of the virtual folder used to store assets.
-     *
-     * @returns {String} The name of the virtual folder used to store assets.
-     */
-    getAssetFolderName () {
-        return this._fsApi.getFolderName();
     }
 
     /**
@@ -205,6 +147,20 @@ class AssetsHelper {
     }
 
     /**
+     * Get the name to be displayed for the given item.
+     *
+     * @param {Object} item - The item for which to get the name.
+     *
+     * @returns {String} The name to be displayed for the given item.
+     *
+     * @override
+     */
+    getName (item) {
+        // Display the asset path.
+        return item.path;
+    }
+
+    /**
      * Pull the specified asset from the content hub.
      *
      * @param {Object} context - The context to be used for the push operation.
@@ -227,33 +183,49 @@ class AssetsHelper {
             // Get the local file stream to be written.
             return helper._fsApi.getItemWriteStream(context, assetPath, opts)
                 .then(function (stream) {
+
+                    let md5Promise;
+                    stream.on("pipe", function (src) {
+                        md5Promise = hashes.generateMD5HashFromStream(src);
+                    });
+
                     // Download the specified asset contents and write them to the given stream.
                     return helper._restApi.pullItem(context, asset, stream, opts)
                         .then(function (asset) {
-                            const basePath = helper._fsApi.getAssetsPath(context, opts);
-                            const filePath = helper._fsApi.getPath(context, assetPath, opts);
+                            return md5Promise.then(function (md5) {
+                                const basePath = helper._fsApi.getAssetsPath(context, opts);
+                                const filePath = helper._fsApi.getPath(context, opts) + assetPath;
 
-                            const md5 = hashes.generateMD5Hash(filePath);
-                            if (!hashes.compareMD5Hashes(md5, asset.digest)) {
-                                const err = i18n.__("digest_mismatch", {cli_digest: md5, asset: assetPath, server_digest: asset.digest});
-                                const logger = helper.getLogger(context);
-                                logger.error(err);
-                                throw new Error(err);
-                            }
-                            hashes.updateHashes(context, basePath, filePath, asset, opts);
+                                if (!hashes.compareMD5Hashes(md5, asset.digest)) {
+                                    const err = i18n.__("digest_mismatch", {cli_digest: md5, asset: assetPath, server_digest: asset.digest});
+                                    const logger = helper.getLogger(context);
+                                    logger.error(err);
+                                    throw new Error(err);
+                                }
 
-                            // Notify any listeners that the asset at the given path was pulled.
-                            const emitter = helper.getEventEmitter(context);
-                            if (emitter) {
-                                emitter.emit("pulled", assetPath);
-                            }
+                                // Notify any listeners that the asset at the given path was pulled.
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("pulled", assetPath);
+                                }
 
-                            // Save the asset metadata for content resources.
-                            let result = asset;
-                            if (helper._fsApi.isContentResource(asset)) {
-                                result = helper._fsApi.saveItem(context, asset, opts);
-                            }
-                            return result;
+                                // Save the asset metadata for content resources.
+                                const result = Q.defer();
+                                if (helper._fsApi.isContentResource(asset)) {
+                                    try {
+                                        result.resolve(helper._fsApi.saveItem(context, asset, opts));
+                                    } catch (err) {
+                                        result.reject(err);
+                                    }
+                                } else {
+                                    result.resolve(asset);
+                                }
+                                return result.promise.finally(function (value) {
+                                    const metadataPath = helper._fsApi.isContentResource(asset) ? helper._fsApi.getMetadataPath(context, assetPath, opts) : undefined;
+                                    hashes.updateHashes(context, basePath, metadataPath, asset, filePath, md5, opts);
+                                    return value;
+                                });
+                            });
                         });
                 });
         }
@@ -374,48 +346,33 @@ class AssetsHelper {
     }
 
     /**
-     * Get the items on the remote content hub.
-     *
-     * @param {Object} context The API context to be used by the get operation.
-     * @param {Object} opts - The options to be used to get the items.
-     *
-     * @returns {Q.Promise} A promise to get the items on the remote content hub.
-     *
-     * @resolves {Array} The items on the remote content hub.
-     */
-    getRemoteItems (context, opts) {
-        // Return the REST object's promise to get the remote items.
-        return this._restApi.getItems(context, opts);
-    }
-
-    /**
      * Pull the asset with the specified path from the content hub.
      *
      * @param {Object} context The API context to be used for this operation.
-     * @param {String} path - The path of the asset to be pulled.
+     * @param {String} assetPath - The path of the asset to be pulled.
      * @param {Object} opts - The options to be used for the pull operation.
      *
      * @returns {Q.Promise} A promise for the asset that was pulled.
      */
-    pullItem (context, path, opts) {
+    pullItem (context, assetPath, opts) {
         // The content hub assets API does not support retrieving an item by path. So in order to pull a specific item,
         // get the items from the content hub one chunk at a time, and look for an asset with the specified path.
         const helper = this;
         return this._restApi.getItems(context, opts)
             .then(function (assets) {
                 // Find the asset with the specified path.
-                return helper._findItemByPath(context, assets, path, opts);
+                return helper._findItemByPath(context, assets, assetPath, opts);
             })
             .then(function (asset) {
                 // The asset with the specified path was found, so pull it.
                 const logger = helper.getLogger(context);
-                logger.trace("Pull found asset: " + path);
+                logger.trace("Pull found asset: " + assetPath);
                 return helper._pullAsset(context, asset, opts);
             })
             .catch(function (err) {
                 // The asset with the specified name was not found.
                 const logger = helper.getLogger(context);
-                logger.trace("Pull could not find asset: " + path);
+                logger.trace("Pull could not find asset: " + assetPath);
                 throw err;
             });
     }
@@ -427,6 +384,11 @@ class AssetsHelper {
         // Get the local file stream to be written.
         return helper._fsApi.getItemWriteStream(context, resourcePath, opts)
             .then(function (stream) {
+                let md5Promise;
+                stream.on("pipe", function (src) {
+                    md5Promise = hashes.generateMD5HashFromStream(src);
+                });
+
                 // Construct a fake "asset" to pass to the pullItem method.  We just need the resource id and path.
                 const asset = {
                     id: resource.id,
@@ -442,7 +404,9 @@ class AssetsHelper {
                         helper._fsApi.renameResource(context, resource.id, asset.disposition, opts);
                         const newname = helper._fsApi.getRawResourcePath(context, resource.id, asset.disposition, opts);
                         const relative = utils.getRelativePath(basePath, newname);
-                        hashes.updateResourceHashes(context, basePath, newname, asset, opts);
+                        md5Promise.then(function (md5) {
+                            hashes.updateResourceHashes(context, basePath, newname, asset, md5, opts);
+                        });
 
                         // Notify any listeners that the resource at the given path was pulled.
                         const emitter = helper.getEventEmitter(context);
@@ -475,8 +439,8 @@ class AssetsHelper {
                 resourceList = resourceList.filter(function (resource) {
                     // Filter the list of resources and return only those that aren't pulled for assets.
                     const basePath = helper._fsApi.getResourcesPath(context, opts);
-                    const path = hashes.getPathForResource(context, basePath, resource.id, opts);
-                    if (!path) {
+                    const resourcePath = hashes.getPathForResource(context, basePath, resource.id, opts);
+                    if (!resourcePath) {
                         return resource;
                     }
                 });
@@ -616,10 +580,14 @@ class AssetsHelper {
         // Handle any necessary actions once the pull operations have completed.
         return deferred.promise
             .then(function (items) {
-                return helper.pullResources(context, opts)
-                    .then(function () {
-                        return items;
-                    });
+                if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
+                    return items;
+                } else {
+                    return helper.pullResources(context, opts)
+                        .then(function () {
+                            return items;
+                        });
+                }
             })
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
@@ -665,10 +633,14 @@ class AssetsHelper {
         // Handle any necessary actions once the pull operations have completed.
         return deferred.promise
             .then(function (items) {
-                return helper.pullResources(context, opts)
-                    .then(function () {
-                        return items;
-                    });
+                if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
+                    return items;
+                } else {
+                    return helper.pullResources(context, opts)
+                        .then(function () {
+                            return items;
+                        });
+                }
             })
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
@@ -695,6 +667,16 @@ class AssetsHelper {
      */
     _pushNameList (context, paths, opts) {
         const helper = this;
+
+        // If retry is enabled for this helper, handle any necessary setup.
+        if (this.isRetryPushEnabled()) {
+            // Initialize the retry state on the context.
+            context.retryPush = {};
+            helper.initializeRetryPush(context, paths);
+
+            // Add the filter for determining whether a failed push should be retried.
+            context.filterRetryPush = this.filterRetryPush.bind(this);
+        }
 
         // Push ready assets and draft assets in separate batches.
         const drafts = [];
@@ -754,7 +736,75 @@ class AssetsHelper {
                     helper._setLastPushTimestamps(context, opts);
                 }
                 return assets;
+            })
+            .finally(function () {
+                // Once the promise has been settled, remove the retry push state from the context.
+                delete context.retryPush;
+                delete context.filterRetryPush;
             });
+    }
+
+    /**
+     * Get the retry information for the asset with the specified path.
+     *
+     * @param {Object} context - The context to be used for the push operation.
+     * @param {String} assetPath - The attempt number of the current attempt.
+     * @param {Object} opts - The options to be used for the push operation.
+     *
+     * @returns {Object} The retry information for the asset with the specified path.
+     */
+    _getRetryItem (context, assetPath, opts) {
+        let retryItem;
+        const retryItems = this.getRetryPushProperty(context, BaseHelper.RETRY_PUSH_ITEMS);
+        if (retryItems) {
+            retryItem = retryItems.find(function (item) {
+                return item[BaseHelper.RETRY_PUSH_ITEM_NAME] === assetPath;
+            });
+        }
+
+        if (retryItem) {
+            // The retry item already exists, so increment the retry count.
+            retryItem[BaseHelper.RETRY_PUSH_ITEM_COUNT] += 1;
+        } else {
+            // The retry item doesn't exist, so add a new retry item for this asset.
+            retryItem = {};
+            retryItem[BaseHelper.RETRY_PUSH_ITEM_NAME] = assetPath;
+            retryItem[BaseHelper.RETRY_PUSH_ITEM_COUNT] = 1;
+            this.addRetryPushProperties(context, retryItem);
+        }
+
+        // Determine whether this asset has reached the attempt limit.
+        const maxAttempts = options.getRelevantOption(context, opts, "retryMaxAttempts");
+        if (retryItem[BaseHelper.RETRY_PUSH_ITEM_COUNT] >= maxAttempts) {
+            // This asset has reached the attempt limit, so don't return a retry item.
+            retryItem = null;
+        } else {
+            const serviceName = this._restApi.getServiceName();
+            const minTimeout = options.getRelevantOption(context, opts, "retryMinTimeout", serviceName);
+            const maxTimeout = options.getRelevantOption(context, opts, "retryMaxTimeout", serviceName);
+            const factor = options.getRelevantOption(context, opts, "retryFactor", serviceName);
+            const randomize = (options.getRelevantOption(context, opts, "retryRandomize", serviceName) === true);
+
+            // The delay is set to the minimum timeout by default.
+            let delay = minTimeout;
+
+            // If the delay is being randomized, multiply by a random factor between 1 and 2.
+            if (randomize === true) {
+                const randomnessFactor = 1.0 + Math.random();
+                delay = randomnessFactor * delay;
+            }
+
+            // Use an exponential backoff strategy if a factor has been defined.
+            if (factor !== 0) {
+                const backoffFactor = Math.pow(factor, retryItem[BaseHelper.RETRY_PUSH_ITEM_COUNT] - 1);
+                delay = backoffFactor * delay;
+            }
+
+            // Make sure the delay is not longer than the maximum timeout.
+            retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY] = Math.min(delay, maxTimeout);
+        }
+
+        return retryItem;
     }
 
     /**
@@ -774,11 +824,12 @@ class AssetsHelper {
         helper._fsApi.getContentLength(context, path, opts)
             .then(function (length) {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
-                const assetFile = helper._fsApi.getPath(context, path, opts);
+                const assetFile = helper._fsApi.getPath(context, opts) + path;
                 const assetHashesMD5 = hashes.getMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
                 const isContentResource = helper._fsApi.isContentResource(path);
                 let resourceId;
                 let resourceMd5 = isContentResource ? assetHashesMD5 : undefined;
+                const diskResourceMd5 = hashes.generateMD5Hash(assetFile);
 
                 // In order to push the asset to the content hub, open a read stream for the asset file.
                 let streamOpened;
@@ -788,7 +839,7 @@ class AssetsHelper {
                         .then(function (asset) {
                             // Get the resource ID and the MD5 hash if they aren't already defined.
                             resourceId = asset.resource;
-                            resourceMd5 = resourceMd5 || hashes.generateMD5Hash(assetFile);
+                            resourceMd5 = resourceMd5 || diskResourceMd5;
 
                             // Keep track of the asset metadata.
                             opts = utils.cloneOpts(opts);
@@ -804,7 +855,7 @@ class AssetsHelper {
                 } else {
                     // There is no metadata file, so open a read stream for the asset file.
                     streamOpened = helper._fsApi.getItemReadStream(context, path, opts);
-                    resourceMd5 = resourceMd5 || hashes.generateMD5Hash(assetFile);
+                    resourceMd5 = resourceMd5 || diskResourceMd5;
                     // Use the resources's MD5 hash as the resourceId.
                     resourceId = resourceMd5 ? new Buffer(resourceMd5, "base64").toString("hex") : undefined;
                 }
@@ -818,32 +869,42 @@ class AssetsHelper {
                         });
 
                         // Determine how to set replaceContentReource - if the saved md5 doesn't match the md5 of the resource
-                        const replaceContentResource = isContentResource && (resourceMd5 !== hashes.generateMD5Hash(assetFile));
+                        const replaceContentResource = isContentResource && (resourceMd5 !== diskResourceMd5);
 
                         // Push the asset to the content hub.
                         helper._restApi.pushItem(context, false, isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
                             .then(function (asset) {
                                 // Save the asset metadata to a local file.
+                                const done = Q.defer();
                                 const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
                                 if (isContentResource && rewriteOnPush) {
-                                    // Don't wait for the metadata to be saved, and don't reject the push if the save fails.
-                                    helper._fsApi.saveItem(context, asset, opts);
-                                }
-
-                                // Once the metadata file has been saved, resolve the top-level promise.
-                                if (WAIT_FOR_CLOSE) {
-                                    // Also wait for the stream to close before resolving the top-level promise.
-                                    streamClosed.promise
-                                        .then(function () {
-                                            deferred.resolve(asset);
-                                        });
+                                    // Wait for the metadata to be saved, and don't reject the push if the save fails.
+                                    try {
+                                        done.resolve(helper._fsApi.saveItem(context, asset, opts));
+                                    } catch (err) {
+                                        done.resolve(err);
+                                    }
                                 } else {
-                                    deferred.resolve(asset);
+                                    done.resolve(asset);
                                 }
 
                                 // Update the hashes for the pushed asset.
-                                const assetPath = helper._fsApi.getPath(context, helper._fsApi.getAssetPath(asset), opts);
-                                hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), assetPath, asset, opts);
+                                const assetPath = helper._fsApi.getPath(context, opts) + helper._fsApi.getAssetPath(asset);
+                                const metadataPath = isContentResource ? helper._fsApi.getMetadataPath(context, helper._fsApi.getAssetPath(asset), opts) : undefined;
+                                done.promise.finally(function () {
+                                    hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), metadataPath, asset, assetPath, diskResourceMd5, opts);
+
+                                    // Once the metadata file has been saved, resolve the top-level promise.
+                                    if (WAIT_FOR_CLOSE) {
+                                        // Also wait for the stream to close before resolving the top-level promise.
+                                        streamClosed.promise
+                                            .then(function () {
+                                                deferred.resolve(asset);
+                                            });
+                                    } else {
+                                        deferred.resolve(asset);
+                                    }
+                                });
 
                                 // The push succeeded so emit a "pushed" event.
                                 const emitter = helper.getEventEmitter(context);
@@ -855,21 +916,40 @@ class AssetsHelper {
                                 // Failed to push the asset file, so explicitly close the read stream.
                                 helper._closeStream(context, readStream, streamClosed);
 
-                                // Reject the top-level promise.
-                                if (WAIT_FOR_CLOSE) {
-                                    // Also wait for the stream to close before rejecting the top-level promise.
-                                    streamClosed.promise
-                                        .then(function () {
-                                            deferred.reject(err);
-                                        });
-                                } else {
-                                    deferred.reject(err);
-                                }
+                                // Get the retry item for this asset, if one exists.
+                                const retryItem = err.retry && helper._getRetryItem(context, path, opts);
 
-                                // The push failed so emit a "pushed-error" event.
-                                const emitter = helper.getEventEmitter(context);
-                                if (emitter) {
-                                    emitter.emit("pushed-error", err, path);
+                                // Retry the push of this asset if we have a retry item.
+                                if (retryItem) {
+                                    // Log a warning that the push of this item will be retried.
+                                    utils.logWarnings(context, i18n.__("pushed_item_retry", {name: path, message: err.log ? err.log : err.message}));
+
+                                    // Retry the push after the calculated delay.
+                                    setTimeout(function () {
+                                        helper.pushItem(context, path, opts)
+                                            .then(function (asset) {
+                                                deferred.resolve(asset);
+                                            })
+                                            .catch(function (err) {
+                                                deferred.reject(err);
+                                            });
+                                        }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
+                                } else {
+                                    // The push will not be retried, reject the promise and emit a "pushed-error" event.
+                                    if (WAIT_FOR_CLOSE) {
+                                        // Also wait for the stream to close before rejecting the top-level promise.
+                                        streamClosed.promise
+                                            .then(function () {
+                                                deferred.reject(err);
+                                            });
+                                    } else {
+                                        deferred.reject(err);
+                                    }
+
+                                    const emitter = helper.getEventEmitter(context);
+                                    if (emitter) {
+                                        emitter.emit("pushed-error", err, path);
+                                    }
                                 }
                             });
                     })
@@ -904,9 +984,7 @@ class AssetsHelper {
             .then(function (length) {
 
                 // In order to push the resource to the content hub, open a read stream for the resource file.
-                let streamOpened = helper._fsApi.getResourceReadStream(context, resourcePath, opts);
-
-                streamOpened
+                helper._fsApi.getResourceReadStream(context, resourcePath, opts)
                     .then(function (readStream) {
                         // Create a promise that will be resolved when the read stream is closed.
                         const streamClosed = Q.defer();
@@ -915,8 +993,8 @@ class AssetsHelper {
                         });
 
                         const resourceMd5 = hashes.generateMD5Hash(helper._fsApi.getResourcePath(context, resourcePath, opts));
-                        // The resourceId should be the resource's MD5 hash, fall back to using the directory name (original ID) that was pulled.
-                        const resourceId = resourceMd5 ? new Buffer(resourceMd5, "base64").toString("hex") : path.basename(path.dirname(resourcePath));
+                        // For the resourceId, use the directory name (original ID) that was pulled.
+                        const resourceId = path.basename(path.dirname(resourcePath));
 
                         // Push the resource to the content hub.
                         helper._restApi.pushItem(context, true, true, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
@@ -942,21 +1020,41 @@ class AssetsHelper {
                                 // Failed to push the resource file, so explicitly close the read stream.
                                 helper._closeStream(context, readStream, streamClosed);
 
-                                // Reject the top-level promise.
-                                if (WAIT_FOR_CLOSE) {
-                                    // Also wait for the stream to close before rejecting the top-level promise.
-                                    streamClosed.promise
-                                        .then(function () {
-                                            deferred.reject(err);
-                                        });
-                                } else {
-                                    deferred.reject(err);
-                                }
+                                // Get the retry item for this asset, if one exists.
+                                const retryItem = err.retry && helper._getRetryItem(context, resourcePath, opts);
 
-                                // The push failed so emit a "resource-pushed-error" event.
-                                const emitter = helper.getEventEmitter(context);
-                                if (emitter) {
-                                    emitter.emit("resource-pushed-error", err, resourcePath);
+                                // Retry the push of this asset if we have a retry item.
+                                if (retryItem) {
+                                    // Log a warning that the push of this item will be retried.
+                                    utils.logWarnings(context, i18n.__("pushed_item_retry", {name: resourcePath, message: err.log ? err.log : err.message}));
+
+                                    // Retry the push after the calculated delay.
+                                    setTimeout(function () {
+                                        helper._pushResource(context, resourcePath, opts)
+                                            .then(function (asset) {
+                                                deferred.resolve(asset);
+                                            })
+                                            .catch(function (err) {
+                                                deferred.reject(err);
+                                            });
+                                    }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
+                                } else {
+                                    // Reject the top-level promise.
+                                    if (WAIT_FOR_CLOSE) {
+                                        // Also wait for the stream to close before rejecting the top-level promise.
+                                        streamClosed.promise
+                                            .then(function () {
+                                                deferred.reject(err);
+                                            });
+                                    } else {
+                                        deferred.reject(err);
+                                    }
+
+                                    // The push failed so emit a "resource-pushed-error" event.
+                                    const emitter = helper.getEventEmitter(context);
+                                    if (emitter) {
+                                        emitter.emit("resource-pushed-error", err, resourcePath);
+                                    }
                                 }
                             });
                     })
@@ -975,6 +1073,17 @@ class AssetsHelper {
 
     _pushResourceList (context, paths, opts) {
         const helper = this;
+
+        // If retry is enabled for this helper, handle any necessary setup.
+        if (this.isRetryPushEnabled()) {
+            // Initialize the retry state on the context.
+            context.retryPush = {};
+            helper.initializeRetryPush(context, paths);
+
+            // Add the filter for determining whether a failed push should be retried.
+            context.filterRetryPush = this.filterRetryPush.bind(this);
+        }
+
         // Throttle the number of resources to be pushed concurrently, using the currently configured limit.
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
         const results = utils.throttledAll(context, paths.map(function (path) {
@@ -1006,6 +1115,11 @@ class AssetsHelper {
                     hashes.setLastPushTimestamp(context, this._fsApi.getResourcesPath(context, opts), new Date(), opts);
                 }
                 return resources;
+            })
+            .finally(function () {
+                // Once the promise has been settled, remove the retry push state from the context.
+                delete context.retryPush;
+                delete context.filterRetryPush;
             });
     }
 
@@ -1068,10 +1182,14 @@ class AssetsHelper {
                 return helper._pushNameList(context, names, opts);
             })
             .then(function (results) {
-                return helper.pushAllResources(context, opts)
-                    .then(function (resourceResults) {
-                        return results;
-                    });
+                if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
+                    return results;
+                } else {
+                    return helper.pushAllResources(context, opts)
+                        .then(function (resourceResults) {
+                            return results;
+                        });
+                }
             });
     }
 
@@ -1092,11 +1210,126 @@ class AssetsHelper {
                 return helper._pushNameList(context, names, opts);
             })
             .then(function (results) {
-                return helper.pushModifiedResources(context, opts)
-                    .then(function (resourceResults) {
-                        return results;
-                    })
+                if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
+                    return results;
+                } else {
+                    return helper.pushModifiedResources(context, opts)
+                        .then(function (resourceResults) {
+                            return results;
+                        })
+                }
             });
+    }
+
+    /**
+     * Determine whether retry push is enabled.
+     *
+     * @returns {Boolean} A return value of true indicates that retry push is enabled.
+     *
+     * @override
+     */
+    isRetryPushEnabled () {
+        return true;
+    }
+
+    /**
+     * Determine whether the push that failed with the given error should be retried.
+     *
+     * @param {Object} context The current context to be used by the API.
+     * @param {Error} error The error returned from the failed push operation.
+     * @param {Object} opts - The options to be used for the push operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the push should be retried.
+     *
+     * @override
+     */
+    filterRetryPush (context, error, opts) {
+        let retVal = false;
+
+        if (error.statusCode) {
+            // Determine whether the request should be retried, based on the status code for the error.
+            switch (error.statusCode) {
+                // 403 Forbidden - Handle the special case that sometimes occurs during authorization. In general we
+                // wouldn't retry on this error, but if it happens during authorization, a retry frequently succeeds.
+                case 403: {
+                    retVal = true;
+                    // For a 403, don't bother retrying if the error code is 3193 (operation not allowed based on tenant tier).
+                    const response = error.response;
+                    if (response && response.body && response.body.errors && response.body.errors.length > 0) {
+                        response.body.errors.forEach(function (e) {
+                            if (e.code === 3193) {
+                                retVal = false;
+                            }
+                        });
+                    }
+                    break;
+                }
+                // 429 Too Many Requests - The user has sent too many requests in a given amount of time ("rate limiting").
+                case 429:
+                // 500 Internal Server Error - The server has encountered a situation it doesn't know how to handle.
+                // case 500:
+                // TODO 500 is temporarily disabled because large resources sometimes fail with an Akamai 500 error, and we
+                // TODO don't want to retry in that case. Enable retry on 500 errors once that Akamai issue has been fixed.
+                // 502 Bad Gateway - The server is working as a gateway and got an invalid response needed to handle the request.
+                case 502:
+                // 503 Service Unavailable - The server is not ready to handle the request. It could be down for maintenance or just overloaded.
+                case 503:
+                // 504 Gateway Timeout - The server is acting as a gateway and cannot get a response in time.
+                case 504: {
+                    retVal = true;
+                    break;
+                }
+                default: {
+                    // Look for any other status codes that should be retried for this service.
+                    const otherCodes = options.getRelevantOption(context, opts, "retryStatusCodes", this._restApi.getServiceName());
+                    retVal = otherCodes && (otherCodes.length > 0) && (otherCodes.indexOf(error.statusCode) !== -1);
+                }
+            }
+        }
+
+        return retVal;
+    }
+
+    /**
+     * Determine whether retry delete is enabled.
+     *
+     * @returns {Boolean} A return value of true indicates that retry delete is enabled.
+     *
+     * @override
+     */
+    isRetryDeleteEnabled () {
+        return true;
+    }
+
+    /**
+     * Determine whether the given error indicates that the delete should be retried.
+     *
+     * @param {Object} context The current context to be used by the API.
+     * @param {Error} error The error returned from the failed delete operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the delete should be retried.
+     *
+     * @override
+     */
+    filterRetryDelete (context, error) {
+        let retVal = false;
+        // A reference error has a response code of 400 and an error code equal to 3008, or in the range 6000 - 7000.
+        if (error && error["response"] && (error["response"]["statusCode"] === 400)) {
+            const responseBody = error["response"]["body"];
+            if (responseBody && responseBody["errors"] && responseBody["errors"].length > 0) {
+                // The response has returned one or more errors. If any of these is a reference error, then return true.
+                // That means we'll retry the delete again, even though any non-reference errors might not benefit from
+                // the retry. This shouldn't be an issue though, because if the retry does not delete at least one item,
+                // a subsequent retry will not be attempted.
+                retVal = responseBody["errors"].some(function (error) {
+                    const ecode = error["code"];
+                    const assetRefNotFound = (ecode === 3008);
+                    const generalRefNotFound = (ecode >= 6000 && ecode < 7000);
+                    return (assetRefNotFound || generalRefNotFound);
+                });
+            }
+        }
+        return retVal;
     }
 
     /**
@@ -1110,7 +1343,7 @@ class AssetsHelper {
      *
      * @private
      */
-    _listAssetChunk (context, listFn, opts) {
+    _listItemChunk (context, listFn, opts) {
         // Get the next "chunk" of assets metadata.
         const helper = this;
         return listFn(opts)
@@ -1176,25 +1409,11 @@ class AssetsHelper {
             opts.offset = offset +  maxChunkSize;
 
             // List the next chunk of assets from the content hub.
-            helper._listAssetChunk(context, listFn, opts)
+            helper._listItemChunk(context, listFn, opts)
                 .then(function (listInfo) {
                     helper._recurseList(context, listFn, deferred, results, listInfo, opts);
                 });
         }
-    }
-
-    /**
-     * Determine whether the helper supports deleting items by id.
-     */
-    supportsDeleteById () {
-        return false;
-    }
-
-    /**
-     * Determine whether the helper supports deleting items by path.
-     */
-    supportsDeleteByPath () {
-        return false;
     }
 
     /**
@@ -1204,8 +1423,13 @@ class AssetsHelper {
         return true;
     }
 
-    searchRemote (context, path, recursive, searchOptions, opts) {
+    searchRemote (context, searchOptions, opts, path, recursive) {
         const deferred = Q.defer();
+
+        if (!path) {
+            searchOptions["fl"] = ["name", "id", "path"];
+            return super.searchRemote(context, searchOptions, opts);
+        }
 
         if (!searchOptions) {
             searchOptions = {};
@@ -1254,7 +1478,7 @@ class AssetsHelper {
         }
         searchOptions["fq"].push("path:" + searchPath);
 
-        // define a list function to work with the _listAssetChunk/_recurseList methods for handling paging
+        // define a list function to work with the _listItemChunk/_recurseList methods for handling paging
         const listFn = function(opts) {
             const listFnDeferred = Q.defer();
             searchREST.search(context, searchOptions, opts)
@@ -1284,7 +1508,7 @@ class AssetsHelper {
 
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
         const helper = this;
-        helper._listAssetChunk(context, listFn, opts)
+        helper._listItemChunk(context, listFn, opts)
             .then(function (listInfo) {
                 // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
@@ -1357,7 +1581,7 @@ class AssetsHelper {
 
         // Get the first chunk of remote assets, and then recursively retrieve any additional chunks.
         const helper = this;
-        helper._listAssetChunk(context, listFn, opts)
+        helper._listItemChunk(context, listFn, opts)
             .then(function (listInfo) {
                 // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
@@ -1402,8 +1626,9 @@ class AssetsHelper {
                 return items.filter(function (item) {
                     try {
                         // Determine whether the remote asset was modified, based on the specified flags.
-                        const itemPath = helper._fsApi.getPath(context, helper._fsApi.getAssetPath(item), opts);
-                        return hashes.isRemoteModified(context, flags, item, dir, itemPath, opts);
+                        const metadataPath = helper._fsApi.getMetadataPath(context, helper._fsApi.getAssetPath(item), opts);
+                        const itemPath = helper._fsApi.getPath(context, opts) + helper._fsApi.getAssetPath(item);
+                        return hashes.isRemoteModified(context, flags, item, dir, metadataPath, itemPath, opts);
                     } catch (err) {
                         utils.logErrors(context, i18n.__("error_filtering_remote_items"), err);
                     }
@@ -1427,7 +1652,7 @@ class AssetsHelper {
         // Use getModifiedRemoteItems() as the list function, so that only modified assets will be pulled.
         const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(this, context, flags);
-        helper._listAssetChunk(context, listFn, opts)
+        helper._listItemChunk(context, listFn, opts)
             .then(function (listInfo) {
                 // There are no results initially, so just pass null for the results. The accumulated array of asset
                 // metadata for all listed items will be available when "deferred" has been resolved.
@@ -1528,8 +1753,9 @@ class AssetsHelper {
                 // Filter the list so that it only contains modified asset paths.
                 const results = assetPaths
                     .filter(function (assetPath) {
-                        const path = helper._fsApi.getPath(context, assetPath, opts);
-                        return hashes.isLocalModified(context, flags, dir, path, opts);
+                        const metadataPath = helper._fsApi.getMetadataPath(context, assetPath, opts);
+                        const path = helper._fsApi.getPath(context, opts) + assetPath;
+                        return hashes.isLocalModified(context, flags, dir, metadataPath, path, opts);
                     });
 
                 // Add the deleted asset paths if the flag was specified.
@@ -1580,7 +1806,7 @@ class AssetsHelper {
                 const results = resourcePaths
                     .filter(function (resourcePath) {
                         const path = helper._fsApi.getResourcePath(context, resourcePath, opts);
-                        return hashes.isLocalModified(context, flags, dir, path, opts);
+                        return hashes.isLocalModified(context, flags, dir, undefined, path, opts);
                     });
 
                 return results;
@@ -1622,25 +1848,29 @@ class AssetsHelper {
     }
 
     /**
-     * Delete the asset with the specified path on the content hub.
+     * Determine whether the given item can be deleted.
      *
-     * @param {Object} context The API context to be used for this operation.
-     * @param {Object} asset - An asset on the content hub.
+     * @param {Object} item The item to be deleted.
+     * @param {Object} isDeleteAll Flag that indicates whether the item will be deleted during a delete all operation.
      * @param {Object} opts - The options to be used for the delete operation.
      *
-     * @returns {Q.Promise} A promise that is resolved with a message describing the delete action.
+     * @returns {Boolean} A return value of true indicates that the item can be deleted. A return value of false
+     *                    indicates that the item cannot be deleted.
+     *
+     * @override
      */
-    deleteRemoteItem (context, asset, opts) {
-        const helper = this;
-        return helper._restApi.deleteItem(context, asset, opts)
-            .then(function (message) {
-                // The delete was successful, so update the hashes.
-                const basePath = helper._fsApi.getAssetsPath(context, opts);
-                hashes.removeHashes(context, basePath, [asset.id], opts);
+    canDeleteItem (item, isDeleteAll, opts) {
+        if (isDeleteAll) {
+            if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
+                // Filter out any content assets.
+                return !this._fsApi.isContentResource(item);
+            } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
+                // Filter out any web assets.
+                return this._fsApi.isContentResource(item);
+            }
+        }
 
-                // Resolve the promise with the message returned from the REST service.
-                return message;
-            })
+        return true;
     }
 
     /**

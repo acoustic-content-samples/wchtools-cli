@@ -130,7 +130,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
   To push (import) all pages, content model, content, and assets to a local working directory, run the following command:
 
-    wchtools pull -A --dir <path-to-working-directory>
+    wchtools push -A --dir <path-to-working-directory>
 
   This will push the artifacts in the order of least dependencies (eg, image profiles), to most (eg, pages), in order for dependent items to be there before items that depend on them.
 
@@ -154,12 +154,11 @@ Then follow the Getting Started instructions below, to configure and start using
 
   Since non-managed (not located under assets/dxdam/...) web application assets are manipulated only via the wchtools CLI at this time and not by the Authoring UI, you must use wchtools to delete a web application asset, should you choose to do so.  To delete a web application asset, specify the portion of the asset path that was below the <working-directory>/assets/  folder, when you pushed the web resource, as shown in the following command.
 
-    wchtools delete -w --path js/mytestscript.js
+    wchtools delete -w --path /js/mytestscript.js
 
   The delete command supports the following options:
 
     -p --path <path> this specifies the path to the assets, layout or layout mapping to delete.  Not applicable to other artifact types at this time.
-    --id Delete a layout or layout mapping by id (as opposed to path).  This argument cannot be combined with the --path argument.
     -r --recursive this specifies whether the delete should apply recursively to all descendants of the matching folder path
     -P --preview this specifies whether to simply preview the artifacts to be deleted, but does not actually execute the delete operation
     -q --quiet this specifies whether the user should be prompted for each artifact to be deleted
@@ -170,6 +169,84 @@ Then follow the Getting Started instructions below, to configure and start using
   - If the path does not end with a '*' and --recursive is supplied, the action will recursively match all descendants of the supplied folder
   - If the path ends with the wildcard '*' and --recursive is not supplied, the action will match all artifacts that start with the supplied path but will not match any children of the artifacts
   - If the path does not end with a '*' and --recursive is not supplied, the action will match only the path supplied by the user.  If this path is a folder, the direct children of the folder will match.
+
+#### Deleting managed content assets (Assets visible in WCH UI and having path /dxdam/...  below workingdir/assets)
+
+  You may delete managed content assets via wchtools as of 2.1.x and later.
+
+  Managed content assets (eg, images and videos) are those uploaded via Authoring UI and/or located under /dxdam/... in the local filesystem working directory.
+
+  The path that you specify to the delete command is the path that the asset is known to the WCH Authoring Services such as /dxdam/myimages/background.png and not the full local filesystem absolute path.
+
+  For example, if you have mistakenly uploaded one, or a large number of images, by pushing from /dxdam/myimages/... you may now delete them with:
+
+    wchtools delete -a -v --path /dxdam/myimages/myincorrectimage.png
+
+  To delete all images directly under /dxdam/myimages from the WCH Authoring services:
+
+    wchtools delete -a -v --path /dxdam/myimages/*
+
+  To delete a folder path and all children folders and files
+
+    wchtools delete -a -v --path /dxdam/myimages --recursive
+
+#### Deleting content, types or assets by specified tag
+
+  To delete content, types or assets with a specific tag, specify the artifact type and -T or --tag followed by the tag,  enclosing the tag in quotes if it contains a space character.
+
+    wchtools delete -c -v --tag "IBM Sample"
+    wchtools delete -t -v --tag "IBM Sample"
+    wchtools delete -a -v --tag beach
+
+  Note:  The Watson Content Hub API will not allow you to delete assets or types that are still referenced by content, and this version of the wchtools delete command only allows for deletion of a single artifact type, by tag, at a time.
+
+#### Deleting content or types by name
+
+  To delete content or types by name, specify the artifact type and -n or --name followed by the name of the artifact,  enclosing the name in quotes if it contains a space character.
+
+    wchtools delete -c -v --tag "My Test Article"
+    wchtools delete -t --tag "Sample Article"
+
+  Note:  The Watson Content Hub API will not allow you to delete types that are still referenced by content, and this version of the wchtools delete command only allows for deletion of a single artifact type, by name, at a time.
+
+#### Deleting content by the name of the content type that the content is associated with
+
+  To delete content by type name (ie, all articles of type "Sample Article"), specify -c --by-type-name  followed by the name of the content type.
+
+    wchtools delete -c -v --by-type-name "Sample Article"
+
+  Note:  As with deleting assets with wildcards,  if the command would result in deleting multiple artifacts, you will be queried with each content item name, and may answer y or n to delete (or not) each content item.  Use the -q --quiet argument to avoid the prompt and have it delete whatever the search by type finds for content items with that type name.
+
+#### Deleting content, types, layouts and layout mappings by id
+
+  You may delete content, types, layouts or layout mappings by id
+
+    --id {id-of-artifact} Delete a layout or layout mapping by id (as opposed to path).  This argument cannot be combined with the --path argument.
+
+  The WCH APIs do not allow for deleting a specified artifact if that artifact has references to it from other items (eg, content reference by another content item, type referenced by a mapping).   You should receive an error that the item has references to it, if you attempt to delete an artifact that has incoming references.
+
+  For example:
+
+    wchtools delete -c -v --id {content-item-id}
+    wchtools delete -m -v --id {layout-mapping-id}
+    wchtools delete -t -v --id {type-id}
+    wchtools delete -l -v --id {layout-id}
+
+#### Deleting "all" instances of a specified artifact type or all instances of all artifact types
+
+  A less common use case, but still useful when you need to clean out a demo or prototype tenant or site to populate your content hub tenant with all new data, is the need to delete all artifacts of a specified type (eg, all pages) or all artifacts of all types (eg, to clear all the sample article assets, type, content from an Essentials tier tenant, or to clear all Oslo pages from a Trial tenant, in order to populate it with your own pages).
+
+  To delete all pages from your tenant:
+
+    wchtools delete -p --all -v  
+
+  To delete all instances of all artifacts from your tenant:
+
+    wchtools delete -A --all -v
+
+    - use with care and only after using up to date wchtools to pull all artifacts to a safe location
+    - use only when you intend to completely clean out your Watson Content Hub tenant of all artifacts, to start with a clean empty hub.
+
 
 #### Triggering a publish job
   By default, authoring artifacts such as assets are published to the delivery system when they are uploaded and authoring artifacts such as content are moved from draft to ready state. Therefore, an explicit publish command is not necessary.   If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
@@ -276,7 +353,9 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
 #### Creating and managing templates, layouts and layout mappings
 
- - Watson Content Hub now supports Handlebars templates for rendering purposes, where a content type and item can be mapped to a layout object, via layout mapping, where the layout object then refers to a handlebars template, that is associated with that content type.
+ - To work with Watson Content Hub sites based on an Angular Single Page Application, with Angular layout components and type mappings, please refer to the WCH Site Customization documentation here: https://developer.ibm.com/customer-engagement/docs/wch/developing-your-own-website/customizing-sample-site/
+
+ - Watson Content Hub also supports Handlebars templates for rendering purposes, where a content type and item can be mapped to a layout object, via layout mapping, where the layout object then refers to a handlebars template, that is associated with that content type.
 
  - For example, you can create a handlebars template under working-dir/assets/templates/article.hbs  for the "Article" content type
 
