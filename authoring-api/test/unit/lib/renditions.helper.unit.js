@@ -22,7 +22,9 @@ limitations under the License.
 const UnitTest = require("./base.unit.js");
 const RenditionsUnitTest = require("./renditions.unit.js");
 const BaseHelperUnitTest = require("./base.helper.unit.js");
+
 const sinon = require("sinon");
+const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
 
 // Require the local module being tested.
 const restApi = require(UnitTest.API_PATH + "lib/renditionsREST.js").instance;
@@ -36,16 +38,20 @@ const badPath = RenditionsUnitTest.INVALID_RENDITIONS_DIRECTORY + RenditionsUnit
 const context = UnitTest.DEFAULT_API_CONTEXT;
 
 class RenditionsHelperUnitTest extends BaseHelperUnitTest {
-    constructor() {
+    constructor () {
         super();
     }
 
-    run(){
-        super.run(restApi, fsApi,helper,  path1, path2, badPath);
+    run () {
+        super.run(restApi, fsApi, helper,  path1, path2, badPath);
+    }
+
+    runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
+        this.testRemoveAllHashes(helper);
     }
 
     testDeleteRemoteItem (restApi, fsApi, helper){
-        describe("deleteItem", function () {
+        describe("deleteRemoteItem", function () {
             it("should fail calling delete", function (done) {
                 // Call the method being tested.
                 let error;
@@ -55,14 +61,13 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
                         error = new Error("The promise for the item should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("Delete");
-                            expect(err.message).to.contain(UnitTest.DUMMY_METADATA.id);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("Delete");
+                        expect(err.message).to.contain(UnitTest.DUMMY_METADATA.id);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -79,19 +84,94 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
                         error = new Error("The promise for the item should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
-                            expect(err.message).to.contain("Delete");
-                            expect(err.message).to.contain(UnitTest.DUMMY_METADATA.id);
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("Delete");
+                        expect(err.message).to.contain(UnitTest.DUMMY_METADATA.id);
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
+            });
+        });
+    }
+
+    testDeleteRemoteItems (restApi, fsApi, helper){
+        describe("deleteRemoteItems", function () {
+            it("should fail calling delete", function (done) {
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("Delete");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail calling delete - no options", function (done) {
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain("Delete");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testRemoveAllHashes (helper){
+        const self = this;
+        describe("removeAllHashes", function () {
+            it("should call through to the hashes method", function (done) {
+                // Create a stub for the hashes method.
+                const stub = sinon.stub(hashes, "removeAllHashes");
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    helper.removeAllHashes(context, UnitTest.DUMMY_OPTIONS);
+
+                    // Verify that the stub was called with the expected value.
+                    expect(stub).to.have.been.calledOnce;
+                    expect(stub.args[0][[1]]).to.contain("renditions");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
             });
         });
     }

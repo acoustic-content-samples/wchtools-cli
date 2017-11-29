@@ -18,10 +18,8 @@ limitations under the License.
 const fs = require("fs");
 const path = require("path");
 const mkdirp = require("mkdirp");
-const Q = require("q");
 const options = require("./utils/options.js");
 const utils = require("./utils/utils.js");
-const i18n = utils.getI18N(__dirname, ".json", "en");
 
 class BaseFS {
     constructor (serviceName, folderName, extension) {
@@ -46,6 +44,7 @@ class BaseFS {
      * Returns the path to the working directory based on the given options.
      *
      * @param {Object} context The API context to be used by the file operation.
+     * @param {Object} opts Any override options to be used for this operation.
      */
     static getWorkingDir (context, opts) {
         const workingDir = options.getRelevantOption(context, opts, "workingDir") || process.cwd();
@@ -57,6 +56,7 @@ class BaseFS {
      * Returns the path to the item directory based on the given options, but does not create it.
      *
      * @param {Object} context The API context to be used by the file operation.
+     * @param {Object} opts Any override options to be used for this operation.
      */
     getPath (context, opts) {
         return BaseFS.getWorkingDir(context, opts) + this.getFolderName() + path.sep;
@@ -71,30 +71,6 @@ class BaseFS {
             mkdirp.sync(dir);
         }
         return dir;
-    }
-
-    /**
-     *
-     * @param {Object} context The API context to be used by the file operation.
-     * @param name
-     * @param opts
-     *
-     * @returns {Q.Promise}
-     */
-    getFileStats (context, name, opts) {
-        const deferred = Q.defer();
-
-        // TODO Need to refine this abstraction. The getItemPath method is defined by the JSONItemFS class.
-        fs.stat(this.getItemPath(context, name, opts), function (err, stats) {
-            if (err) {
-                utils.logErrors(context, i18n.__("error_fs_get_filestats", {"name": name}), err);
-                deferred.reject(err);
-            } else {
-                deferred.resolve(stats);
-            }
-        });
-
-        return deferred.promise;
     }
 }
 

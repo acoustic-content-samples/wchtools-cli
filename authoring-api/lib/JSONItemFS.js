@@ -162,7 +162,7 @@ class JSONItemFS extends BaseFS {
      */
      pruneItem (item, opts) {
          // Base class doesn't prune anything yet, but subclasses likely do.
-     }
+    }
 
     /**
      * Locally saves the given item according to the config settings. The item will
@@ -216,19 +216,48 @@ class JSONItemFS extends BaseFS {
     }
 
     /**
+     * Delete the specified item from the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} item The item to delete.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Q.Promise} A promise that resolves with the full path of the deleted item file, or with no value if the
+     *                      file did not exist. If there was an error, the promise rejects with that error.
+     */
+    deleteItem (context, item, opts) {
+        const deferred = Q.defer();
+        const filepath = this.getItemPath(context, item, opts);
+
+        if (fs.existsSync(filepath)) {
+            // Delete the file with the specified path.
+            fs.unlink(filepath, function (err) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    deferred.resolve(filepath);
+                }
+            });
+        } else {
+            deferred.resolve();
+        }
+
+        return deferred.promise;
+    }
+
+    /**
      * @param {Object} context The API context to be used by the get operation.
      * @param {Object} opts Any override options to be used for this operation.
      *
-     * @returns {Q.Promise} a promise that resolves with the list of all items stored
-     *                    in the working dir.
-     *                    There is no guarantee that the names refer to a valid file.
+     * @returns {Q.Promise} A promise that resolves with the list of all items stored in the working dir.
+     *                      There is no guarantee that the names refer to a valid file.
      */
     listNames (context, opts) {
         const fsObject = this;
         return Q.Promise(function (resolve, reject) {
-            const path = fsObject.getPath(context, opts);
-            if (fs.existsSync(path)) {
-                fs.readdir(path, function (err, files) {
+            const virtualFolderPath = fsObject.getPath(context, opts);
+            if (fs.existsSync(virtualFolderPath)) {
+                fs.readdir(virtualFolderPath, function (err, files) {
                     if (err) {
                         reject(err);
                     } else {
@@ -236,7 +265,36 @@ class JSONItemFS extends BaseFS {
                         const names = files.filter(function (file) {
                             return file.endsWith(extension);
                         }).map(function (file) {
-                            return file.replace(extension, "");
+                            let id;
+                            let name;
+                            let path;
+                            try {
+                                // Parse the file and get the id and name properties.
+                                const item = JSON.parse(fs.readFileSync(virtualFolderPath + file));
+                                id = item.id;
+                                name = item.name;
+                            } catch (err) {
+                                // ignore: couldn't read the file to obtain the id/name metadata
+                            }
+
+                            if (id) {
+                                // The file contains the expected metadata, so add a path property.
+                                path = file.replace(extension, "");
+                            } else {
+                                // The file does not contain the expected metadata. Leave the id property undefined, so
+                                // that the returned object is known to be invalid. Add a name property that will allow
+                                // the file path to be reconstructed by the getFileName method. And add a path property
+                                // that is the path to the actual file, so that it can be displayed correctly.
+                                name = file.replace(extension, "");
+                                path = file;
+                            }
+
+                            // Return an object that has the metadata necessary for display.
+                            return {
+                                id: id,
+                                name: name,
+                                path: path
+                            };
                         });
                         resolve(names);
                     }
@@ -285,6 +343,8 @@ class JSONItemFS extends BaseFS {
      *
      * @returns {Q.Promise} A promise that resolves with the requested item. The promise
      *                    will reject if the item doesn't exist.
+     *
+     * @override
      */
     getItem (context, name, opts) {
         const deferred = Q.defer();
@@ -313,6 +373,29 @@ class JSONItemFS extends BaseFS {
                 }
             });
         }
+        return deferred.promise;
+    }
+
+    /**
+     *
+     * @param {Object} context The API context to be used by the file operation.
+     * @param name
+     * @param opts
+     *
+     * @returns {Q.Promise}
+     */
+    getFileStats (context, name, opts) {
+        const deferred = Q.defer();
+
+        fs.stat(this.getItemPath(context, name, opts), function (err, stats) {
+            if (err) {
+                utils.logErrors(context, i18n.__("error_fs_get_filestats", {"name": name}), err);
+                deferred.reject(err);
+            } else {
+                deferred.resolve(stats);
+            }
+        });
+
         return deferred.promise;
     }
 

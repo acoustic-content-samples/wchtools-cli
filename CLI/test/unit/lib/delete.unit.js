@@ -32,6 +32,7 @@ const utils = ToolsApi.getUtils();
 const toolsCli = require("../../../wchToolsCli");
 const mkdirp = require("mkdirp");
 const prompt = require("prompt");
+const options = ToolsApi.getOptions();
 
 class DeleteUnitTest extends UnitTest {
     constructor () {
@@ -40,7 +41,7 @@ class DeleteUnitTest extends UnitTest {
 
     run (helper, switches, itemName1) {
         const self = this;
-        describe("Unit tests for delete  " + switches, function () {
+        describe("Unit tests for delete " + switches, function () {
             let stubLogin;
             before(function (done) {
                 stubLogin = sinon.stub(self.getLoginHelper(), "login");
@@ -64,19 +65,31 @@ class DeleteUnitTest extends UnitTest {
             if (helper.supportsDeleteByPathRecursive()) {
                 self.testDeleteBySearch(helper, switches, itemName1, '--path');
                 self.testDeleteBySearch(helper, switches, itemName1, '--named');
-            } else if (switches.includes("-t")) {
+            }
+
+            if (switches.includes("-t")) {
                 self.testDeleteBySearch(helper, switches, itemName1, '--named');
                 self.testDeleteBySearch(helper, switches, itemName1, '--tag');
                 self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteParamFail(helper, switches, itemName1);
             } else if (switches.includes("-c")) {
                 self.testDeleteBySearch(helper, switches, itemName1, '--named');
                 self.testDeleteBySearch(helper, switches, itemName1, '--tag');
                 self.testDeleteAll (helper, switches, itemName1);
                 self.testDeleteBySearch(helper, switches, itemName1, '--by-type-name');
+                self.testDeleteParamFail(helper, switches, itemName1);
+                self.testDeletePageContentFail (helper, itemName1);
             } else if (switches.includes("-a")) {
                 self.testDeleteBySearch(helper, switches, itemName1, '--tag');
+                self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteAll (helper, "-aw", itemName1);
+                self.testDeleteParamFail(helper, switches, itemName1);
+            } else if (switches.includes("-w") || switches.includes("-l") || switches.includes("-m")) {
+                self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteParamFail(helper, switches, itemName1);
+            } else if (switches.includes("-i") || switches.includes("-C") || switches.includes("-p")) {
+                self.testDeleteAll (helper, switches, itemName1);
             }
-            self.testDeleteParamFail(helper, switches, itemName1);
         });
     }
 
@@ -206,10 +219,10 @@ class DeleteUnitTest extends UnitTest {
 
             it("should succeed if the helper succeeds", function (done) {
                 const stubGet = sinon.stub(helper, "getRemoteItemByPath");
-                stubGet.resolves({path: itemName1});
+                stubGet.resolves({path: itemName1, hierarchicalPath: itemName1});
 
                 const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                stubDelete.resolves({path: itemName1});
+                stubDelete.resolves({path: itemName1,  hierarchicalPath: itemName1});
 
                 // Execute the command to delete the items to the download directory.
                 let error;
@@ -429,7 +442,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should succeed for multiple artifacts - quiet", function(done) {
                 const stubSearch = sinon.stub(helper, "searchRemote");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+                stubSearch.resolves([{"name": itemName1, "id": UnitTest.DUMMY_ID}, {"name": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"name": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
 
                 const stubDelete = sinon.stub(helper, "deleteRemoteItem");
                 stubDelete.onFirstCall().resolves(itemName1);
@@ -700,6 +713,30 @@ class DeleteUnitTest extends UnitTest {
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 });
+        });
+    }
+
+    testDeletePageContentFail (helper, itemName) {
+        describe("Deleting items with bad params", function () {
+            it("should fail if --page-content is specified with non pages arg", function (done) {
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", '-c', '--id', '1234', '--page-content', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // The expected error should have been returned.
+                        expect(err.message).to.contain('--page-content');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -1006,221 +1043,368 @@ class DeleteUnitTest extends UnitTest {
     testDeleteAll (helper, switches, itemName1) {
         describe("Deleting all items", function () {
             it("should succeed if no matching artifacts", function(done) {
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([]);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        expect(msg).to.contain('There were no artifacts to be deleted.');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubGet.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should not delete for a base tier", function(done) {
+                if (switches !== "-l" && switches !== "-m" && switches !== "-p") {
+                    return done();
+                }
+
+                // Create a stub to return a value for the "tier" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "tier") {
+                        return "Base";
+                    } else {
+                        return originalGetProperty(context, key);
+                    }
+                });
+
+                const stub = sinon.stub(helper, "getRemoteItems");
+                stub.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.resolves(itemName1);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-v', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // The stub should only have been called once, and the expected message should have been returned.
+                        expect(stub).to.not.have.been.called;
+                        expect(stubCanDelete).to.not.have.been.called;
+                        expect(stubDelete).to.not.have.been.called;
+                        expect(msg).to.contain("no artifacts");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubGet.restore();
+                        stub.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed for a single artifact", function(done) {
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
+                const stubRemove = sinon.stub(renditionsHelper, "removeAllHashes");
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.resolves(itemName1);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-v', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // The stub should only have been called once, and the expected message should have been returned.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(msg).to.contain('Deleted 1 artifact');
+
+                        // There are no renditions returned from getRemoteItems, so expect that the hashes were removed.
+                        expect(stubRemove).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubGet.restore();
+                        stubRenditions.restore();
+                        stubRemove.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should report when single delete fails", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
-                    stubSearch.resolves([]);
+                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
 
-                    // Execute the command to delete the items to the download directory.
-                    let error;
-                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
-                        .then(function (msg) {
-                            expect(msg).to.contain('There were no artifacts to be deleted.');
-                        })
-                        .catch(function (err) {
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Restore the helper's stubbed methods.
-                            stubSearch.restore();
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([{"id": "someRendition"}]);
 
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
+                const stubRemove = sinon.stub(renditionsHelper, "removeAllHashes");
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const DELETE_ERROR = "Delete failure expected by unit test.";
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.rejects(DELETE_ERROR);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        expect(stubSearch).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(msg).to.contain('Delete all complete. Encountered 1 error while deleting artifacts.');
+
+                        // There were renditions returned from getRemoteItems, so expect that the hashes were not removed.
+                        expect(stubRemove).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubRenditions.restore();
+                        stubRemove.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when some deletes fail - quiet", function(done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const DELETE_ERROR = "Delete failure expected by unit test.";
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().resolves(itemName1);
+                stubDelete.onSecondCall().rejects(DELETE_ERROR);
+                stubDelete.onThirdCall().rejects(DELETE_ERROR);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
+                    .then(function (msg) {
+                        // The stub should only have been called once, and the expected message should have been returned.
+                        expect(stubDelete).to.have.been.calledThrice;
+                        expect(msg).to.contain('complete');
+                        expect(msg).to.contain('Deleted 1 artifact');
+                        expect(msg).to.contain('Encountered 2 errors');
+                        expect(msg).to.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when all deletes fail - quiet", function(done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const DELETE_ERROR = "Delete failure expected by unit test.";
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().rejects(DELETE_ERROR);
+                stubDelete.onSecondCall().rejects(DELETE_ERROR);
+                stubDelete.onThirdCall().rejects(DELETE_ERROR);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
+                    .then(function (msg) {
+                        // The stub should only have been called once, and the expected message should have been returned.
+                        expect(stubDelete).to.have.been.calledThrice;
+                        expect(msg).to.contain('complete');
+                        expect(msg).to.contain('Encountered 3 errors');
+                        expect(msg).to.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed for multiple artifacts - quiet", function(done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "y"});
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().resolves(itemName1);
+                stubDelete.onSecondCall().resolves(itemName1 + "2");
+                stubDelete.onThirdCall().resolves(itemName1 + "3");
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // The stub should only have been called once, and the expected message should have been returned.
+                        expect(stubDelete).to.have.been.calledThrice;
+                        expect(msg).to.contain('complete');
+                        expect(msg).to.contain('Deleted 3 artifacts');
+                        expect(msg).to.not.contain('errors');
+                        expect(msg).to.not.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubPrompt.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if the getRemoteItems fails (continue on error)", function (done) {
+                const stub = sinon.stub(helper, "getRemoteItems");
+                const REMOTE_FAIL = "The getRemoteItems failed, as expected by a unit test.";
+                stub.rejects(new Error(REMOTE_FAIL));
+
+                // Create a stub to return a value for the "continueOnError" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "continueOnError") {
+                        return true;
+                    } else {
+                        return originalGetProperty(context, key);
+                    }
                 });
 
-                it("should succeed for a single artifact", function(done) {
-                    const stubSearch = sinon.stub(helper, "getRemoteItems");
-                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "y"});
 
-                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                    stubDelete.resolves(itemName1);
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('complete');
+                        expect(msg).to.contain('Encountered 1 error while deleting artifacts.');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
+                        stubGet.restore();
+                        stubPrompt.restore();
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
 
-                    // Execute the command to delete the items to the download directory.
-                    let error;
-                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-v', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
-                        .then(function (msg) {
-                            // The stub should only have been called once, and the expected message should have been returned.
-                            expect(stubDelete).to.have.been.calledOnce;
-                            expect(msg).to.contain('Deleted 1 artifact');
-                        })
-                        .catch(function (err) {
-                            // Pass the error to the "done" function to indicate a failed test.
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Restore the helper's stubbed methods.
-                            stubSearch.restore();
-                            stubDelete.restore();
+            it("should fail if the getRemoteItems fails (no continue on error)", function (done) {
+                const stub = sinon.stub(helper, "getRemoteItems");
+                const REMOTE_FAIL = "The getRemoteItems failed, as expected by a unit test.";
+                stub.rejects(new Error(REMOTE_FAIL));
 
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
+                // Create a stub to return a value for the "continueOnError" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "continueOnError") {
+                        return false;
+                    } else {
+                        return originalGetProperty(context, key);
+                    }
                 });
 
-                it("should report when single delete fails", function(done) {
-                    const stubSearch = sinon.stub(helper, "getRemoteItems");
-                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "y"});
 
-                    const DELETE_ERROR = "Delete failure expected by unit test.";
-                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                    stubDelete.rejects(DELETE_ERROR);
-
-                    // Execute the command to delete the items to the download directory.
-                    let error;
-                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
-                        .then(function (msg) {
-                            expect(stubSearch).to.have.been.calledOnce;
-                            expect(stubDelete).to.have.been.calledOnce;
-                            expect(msg).to.contain('Delete all complete. Encountered 1 error while deleting artifacts.');
-                        })
-                        .catch(function (err) {
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Restore the helper's stubbed methods.
-                            stubSearch.restore();
-                            stubDelete.restore();
-
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
-                });
-
-                it("should succeed when some deletes fail - quiet", function(done) {
-                    const stubSearch = sinon.stub(helper, "getRemoteItems");
-                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
-
-                    const DELETE_ERROR = "Delete failure expected by unit test.";
-                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                    stubDelete.onFirstCall().resolves(itemName1);
-                    stubDelete.onSecondCall().rejects(DELETE_ERROR);
-                    stubDelete.onThirdCall().rejects(DELETE_ERROR);
-
-                    // Execute the command to delete the items to the download directory.
-                    let error;
-                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
-                        .then(function (msg) {
-                            // The stub should only have been called once, and the expected message should have been returned.
-                            expect(stubDelete).to.have.been.calledThrice;
-                            expect(msg).to.contain('complete');
-                            expect(msg).to.contain('Deleted 1 artifact');
-                            expect(msg).to.contain('Encountered 2 errors');
-                            expect(msg).to.contain('wchtools-cli.log');
-                        })
-                        .catch(function (err) {
-                            // Pass the error to the "done" function to indicate a failed test.
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Restore the helper's stubbed methods.
-                            stubSearch.restore();
-                            stubDelete.restore();
-
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
-                });
-
-                it("should succeed when all deletes fail - quiet", function(done) {
-                    const stubSearch = sinon.stub(helper, "getRemoteItems");
-                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
-
-                    const DELETE_ERROR = "Delete failure expected by unit test.";
-                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                    stubDelete.onFirstCall().rejects(DELETE_ERROR);
-                    stubDelete.onSecondCall().rejects(DELETE_ERROR);
-                    stubDelete.onThirdCall().rejects(DELETE_ERROR);
-
-                    // Execute the command to delete the items to the download directory.
-                    let error;
-                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
-                        .then(function (msg) {
-                            // The stub should only have been called once, and the expected message should have been returned.
-                            expect(stubDelete).to.have.been.calledThrice;
-                            expect(msg).to.contain('complete');
-                            expect(msg).to.contain('Encountered 3 errors');
-                            expect(msg).to.contain('wchtools-cli.log');
-                        })
-                        .catch(function (err) {
-                            // Pass the error to the "done" function to indicate a failed test.
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Restore the helper's stubbed methods.
-                            stubSearch.restore();
-                            stubDelete.restore();
-
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
-                });
-
-                it("should succeed for multiple artifacts - quiet", function(done) {
-                    const stubSearch = sinon.stub(helper, "getRemoteItems");
-                    stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
-
-                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                    stubDelete.onFirstCall().resolves(itemName1);
-                    stubDelete.onSecondCall().resolves(itemName1 + "2");
-                    stubDelete.onThirdCall().resolves(itemName1 + "3");
-
-                    // Execute the command to delete the items to the download directory.
-                    let error;
-                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
-                        .then(function (msg) {
-                            // The stub should only have been called once, and the expected message should have been returned.
-                            expect(stubDelete).to.have.been.calledThrice;
-                            expect(msg).to.contain('complete');
-                            expect(msg).to.contain('Deleted 3 artifacts');
-                            expect(msg).to.not.contain('errors');
-                            expect(msg).to.not.contain('wchtools-cli.log');
-                        })
-                        .catch(function (err) {
-                            // Pass the error to the "done" function to indicate a failed test.
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Restore the helper's stubbed methods.
-                            stubSearch.restore();
-                            stubDelete.restore();
-
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
-                });
-
-                it("should report if the getRemoteItems fails", function (done) {
-                    const stub = sinon.stub(helper, "getRemoteItems");
-                    const SEARCH_FAIL = "The getRemoteItems failed, as expected by a unit test.";
-                    stub.rejects(new Error(SEARCH_FAIL));
-
-                    const stubPrompt = sinon.stub(prompt, "get");
-                    stubPrompt.yields(null, {"confirm": "y"});
-
-                    // Execute the command to delete the items to the download directory.
-                    let error;
-                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api'])
-                        .then(function (msg) {
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('complete');
-                            expect(msg).to.contain('Encountered 1 error while deleting artifacts.')
-                        })
-                        .catch(function (err) {
-                            error = err;
-                        })
-                        .finally(function () {
-                            // Restore the stubbed method.
-                            stub.restore();
-                            stubPrompt.restore();
-                            // Call mocha's done function to indicate that the test is over.
-                            done(error);
-                        });
-                });
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        expect(msg).to.contain('There were no artifacts to be deleted.');
+                    })
+                    .catch(function (err) {
+                        expect(stub).to.have.been.calledOnce;
+                        expect(err.message).to.contain(REMOTE_FAIL);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
+                        stubGet.restore();
+                        stubPrompt.restore();
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
             });
 
             it("should cancel if user says n", function (done) {
                 const stub = sinon.stub(helper, "getRemoteItems");
-                const SEARCH_FAIL = "The getRemoteItems failed, as expected by a unit test.";
-                stub.rejects(new Error(SEARCH_FAIL));
+                const REMOTE_FAIL = "The getRemoteItems failed, as expected by a unit test.";
+                stub.rejects(new Error(REMOTE_FAIL));
 
                 const stubPrompt = sinon.stub(prompt, "get");
                 stubPrompt.yields(null, {"confirm": "n"});
@@ -1228,7 +1412,7 @@ class DeleteUnitTest extends UnitTest {
                 // Execute the command to delete the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--user', 'foo', '--password','password', '--url', 'http://foo.bar/api'])
-                    .then(function (msg) {
+                    .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
@@ -1244,6 +1428,7 @@ class DeleteUnitTest extends UnitTest {
                         done(error);
                     });
             });
+        });
     }
 }
 

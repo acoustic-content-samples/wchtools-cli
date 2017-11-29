@@ -286,6 +286,8 @@ class AssetsFS extends BaseFS {
      * @param {Object} opts The options to be used.
      *
      * @returns {Q.Promise} A promise that resolves to the item with the given path on the local filesystem.
+     *
+     * @override
      */
     getItem (context, path, opts) {
         const deferred = Q.defer();
@@ -336,6 +338,96 @@ class AssetsFS extends BaseFS {
                 }
             });
         });
+    }
+
+    /**
+     * Delete the specified asset from the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} itemPath The path of the asset to delete.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Q.Promise} A promise that resolves with the full path of the deleted asset file, or with no value if
+     *                      the file did not exist. If there was an error, the promise rejects with that error.
+     */
+    deleteAsset (context, itemPath, opts) {
+        const deferred = Q.defer();
+        const filepath = this.getAssetsPath(context, opts) + itemPath;
+
+        if (fs.existsSync(filepath)) {
+            // Delete the file with the specified path.
+            fs.unlink(filepath, function (err) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    deferred.resolve(filepath);
+                }
+            });
+        } else {
+            deferred.resolve();
+        }
+
+        return deferred.promise;
+    }
+
+    /**
+     * Delete the specified metadata file from the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} itemPath The path of the item to delete.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Q.Promise} A promise that resolves with the full path of the deleted resource file, or with no value if
+     *                      the file did not exist. If there was an error, the promise rejects with that error.
+     */
+    deleteMetadata (context, itemPath, opts) {
+        const deferred = Q.defer();
+        const filepath = this.getMetadataPath(context, itemPath, opts);
+
+        if (fs.existsSync(filepath)) {
+            // Delete the file with the specified path.
+            fs.unlink(filepath, function (err) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    deferred.resolve(filepath);
+                }
+            });
+        } else {
+            deferred.resolve();
+        }
+
+        return deferred.promise;
+    }
+
+    /**
+     * Delete the specified resource file from the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} resourcePath The path of the resource to delete.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Q.Promise} A promise that resolves with the full path of the deleted resource file, or with no value if
+     *                      the file did not exist. If there was an error, the promise rejects with that error.
+     */
+    deleteResource (context, resourcePath, opts) {
+        const deferred = Q.defer();
+        const filepath = this.getResourcePath(context, resourcePath, opts);
+
+        if (fs.existsSync(filepath)) {
+            // Delete the file with the specified path.
+            fs.unlink(filepath, function (err) {
+                if (err) {
+                    deferred.reject(err);
+                } else {
+                    deferred.resolve(filepath);
+                }
+            });
+        } else {
+            deferred.resolve();
+        }
+
+        return deferred.promise;
     }
 
     getRawResourcePath (context, id, filename, opts) {
@@ -422,6 +514,7 @@ class AssetsFS extends BaseFS {
      * @returns {Q.Promise} A promise for a filtered list of file names from the local file system.
      */
     listNames (context, filter, opts) {
+        const fsObject = this;
         const deferred = Q.defer();
         const assetDir = this.getAssetsPath(context, opts);
 
@@ -480,8 +573,22 @@ class AssetsFS extends BaseFS {
                             }
                         });
                     }
-
-                    deferred.resolve(files);
+                    deferred.resolve(files.map(function (file) {
+                        let id;
+                        if (file.startsWith("/" + CONTENT_RESOURCE_DIRECTORY)) {
+                            const path = fsObject.getMetadataPath(context, file, opts);
+                            try {
+                                const item = JSON.parse(fs.readFileSync(path));
+                                id = item.id;
+                            } catch (err) {
+                                // ignore: we couldn't read the metadata file to get the id
+                            }
+                        }
+                        return {
+                            id: id,
+                            path: file
+                        };
+                    }));
                 }
             });
         } else {
@@ -519,7 +626,12 @@ class AssetsFS extends BaseFS {
                         }
                     });
 
-                    deferred.resolve(files);
+                    deferred.resolve(files.map(function (file) {
+                        return {
+                            path: file,
+                            id: path.basename(path.dirname(file))
+                        };
+                    }));
                 }
             });
         } else {

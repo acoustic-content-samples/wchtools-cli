@@ -30,6 +30,7 @@
   "deleted_asset": "L'actif dont l'ID est %(id)s a été supprimé",
   "create_asset_metadata_error": "Erreur lors de la création des métadonnées d'actif : ",
   "deleted_item": "L'élément dont l'ID est %(id)s a été supprimé",
+  "deleted_item_retry": "Nouvelle tentative de suppression de l'élément '%(name)s'. Erreur : %(message)s",
   "get_item_error": "Erreur lors de l'obtention de l'élément %(service_name)s : ",
   "create_item_error": "Erreur lors de la création de l'élément %(service_name)s : ",
   "update_item_error": "Erreur lors de la mise à jour de l'élément %(service_name)s : ",
@@ -39,6 +40,7 @@
   "error_save_hashes": "Erreur dans saveHashes : ",
   "error_update_hashes": "Erreur dans updateHashes : ",
   "error_remove_hashes": "Erreur dans removeHashes : ",
+  "error_remove_all_hashes": "Erreur dans removeAllHashes : ",
   "error_set_last_pull_timestamp": "Erreur dans setLastPullTimestamp : ",
   "error_set_last_push_timestamp": "Erreur dans setLastPushTimestamp : ",
   "error_get_hashes_for_file": "Erreur dans getHashesForFile : ",
@@ -59,6 +61,6 @@
   "retry_failed_retry": "Une demande (%(id)d) renouvelée (tentative %(attempt)d) a échoué avant que le nombre maximal de tentatives n'ait été atteint. %(message)s",
   "retry_next_attempt": "Une demande (%(id)d) sera renouvelée (tentative %(attempt)d) dans %(delay)d millisecondes.",
   "retry_success": "Une demande (%(id)d) renouvelée a abouti après %(attempt)d tentatives.",
-  "retry_max_attempts": "Une demande (%(id)d) a été renouvelée autant de fois que possible. "
+  "retry_max_attempts": "Une demande (%(id)d) a été renouvelée autant de fois que possible."
 }
 

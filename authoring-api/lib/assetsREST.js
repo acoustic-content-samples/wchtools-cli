@@ -377,8 +377,7 @@ class AssetsREST extends BaseREST {
         const updateContentResource = ((isContentResource && !replaceContentResource) || (!isContentResource)) && resourceId;
 
         // Do not retry resource push requests. The stream passed in can only be read for the first request.
-        const rOpts = utils.cloneOpts(opts);
-        rOpts.retryMaxAttempts = 1;
+        const rOpts = utils.cloneOpts(opts, {retryMaxAttempts: 1});
 
         const resourceRequestOptions = updateContentResource ? this.getResourcePUTOptions(context, resourceId, resourceMd5, pathname, rOpts) : this.getResourcePOSTOptions(context, pathname, rOpts);
 

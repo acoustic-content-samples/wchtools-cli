@@ -94,7 +94,7 @@ class CategoriesHelper extends JSONItemHelper {
      */
     canDeleteItem (item, isDeleteAll, opts) {
         // Don't delete system categories.
-        return (item && item["permanent"] !== true);
+        return super.canDeleteItem(item, isDeleteAll, opts) && item["permanent"] !== true;
     }
 
     /**

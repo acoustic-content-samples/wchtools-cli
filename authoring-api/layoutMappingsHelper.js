@@ -15,7 +15,7 @@ limitations under the License.
 */
 "use strict";
 
-const JSONItemHelper = require("./JSONItemHelper.js");
+const JSONPathBasedItemHelper = require("./JSONPathBasedItemHelper.js");
 const rest = require("./lib/layoutMappingsREST").instance;
 const fS = require("./lib/layoutMappingsFS").instance;
 const utils = require("./lib/utils/utils.js");
@@ -24,7 +24,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class LayoutMappingsHelper extends JSONItemHelper {
+class LayoutMappingsHelper extends JSONPathBasedItemHelper {
     /**
      * The constructor for a LayoutsHelper object. This constructor implements a singleton pattern, and will fail
      * if called directly. The static instance property can be used to get the singleton instance.

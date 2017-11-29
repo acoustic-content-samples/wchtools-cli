@@ -886,8 +886,8 @@ class BaseFsApiUnitTest extends UnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
-                expect(itemName1).to.contains(paths[0]);
-                expect(itemName2).to.contains(paths[1]);
+                expect(itemName1).to.contains(paths[0].path);
+                expect(itemName2).to.contains(paths[1].path);
             })
             .catch (function (err) {
                 // NOTE: A failed expectation from above will be handled here.

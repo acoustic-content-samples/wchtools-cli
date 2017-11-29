@@ -463,11 +463,18 @@ function logDebugInfo (context, info, response, requestOptions) {
  * Clone the opts object so you can add an option without affecting the shared object.
  *
  * @param {Object} opts The opts object to be cloned.
+ * @param {Object} values optional key/value pairs to be added to the cloned options.
  *
  * @returns {Object} The cloned opts object.
  */
-function cloneOpts (opts) {
-    return opts ? clone(opts) : {};
+function cloneOpts (opts, values) {
+    const newOpts = opts ? clone(opts) : {};
+    if (values) {
+        Object.keys(values).forEach(function (key) {
+            newOpts[key] = values[key];
+        });
+    }
+    return newOpts;
 }
 
 /**
@@ -490,6 +497,30 @@ function clone (obj) {
 function pathNormalize (filePath) {
     return path.normalize(filePath);
 }
+
+/**
+ * Remove parent directories of the given file path, if they are empty.
+ *
+ * @param {String} basePath The base directory that cannot be deleted.
+ * @param {String} filePath The path of a file that has been deleted.
+ */
+function removeEmptyParentDirectories (basePath, filePath) {
+    // Start with the parent folder of the specified file.
+    let folderPath = path.dirname(filePath);
+
+    while (folderPath !== basePath) {
+        // The parent folder is not the base path, so delete it if it is empty.
+        const files = fs.readdirSync(folderPath);
+        if (!files || files.length === 0) {
+            // The folder is now empty, so delete it and move to the parent folder.
+            fs.rmdirSync(folderPath);
+            folderPath = path.dirname(folderPath);
+        } else {
+            // The folder is not empty, so we're done.
+            break;
+        }
+    }
+};
 
 /**
  * get the user home directory for Windows, Linus or mac
@@ -680,6 +711,7 @@ const utils = {
     cloneOpts: cloneOpts,
     clone: clone,
     pathNormalize: pathNormalize,
+    removeEmptyParentDirectories: removeEmptyParentDirectories,
     getUserHome: getUserHome,
     getLogger: getLogger,
     setLoggerLevel: setLoggerLevel,

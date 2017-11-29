@@ -45,7 +45,7 @@ class JSONPathBasedItemFS extends JSONItemFS {
         return super.getItem(context, name, opts)
             .then(function(item) {
                 // Set the path (property to be set is based on class.)
-                fsObject.setMutablePath(item, name);
+                fsObject.setMutablePath(item, (name && name.path) ? name.path : name);
                 return item;
             });
     }
@@ -108,8 +108,9 @@ class JSONPathBasedItemFS extends JSONItemFS {
             relpath = item;
         } else {
             relpath = item.path || item.hierarchicalPath || ("/" + item.name + this.getExtension());
-            if (!relpath.endsWith(this.getExtension()))
-                relpath += this.getExtension()
+        }
+        if (!relpath.endsWith(this.getExtension())) {
+            relpath += this.getExtension();
         }
         const abspath = this.getPath(context, opts) + relpath;
         return abspath;
@@ -138,7 +139,20 @@ class JSONPathBasedItemFS extends JSONItemFS {
                         const names = files.filter(function(file) {
                             return file.endsWith(extension);
                         }).map(function(file) {
-                            return utils.getRelativePath(artifactDir, file);
+                            let id;
+                            let name;
+                            try {
+                                const item = JSON.parse(fs.readFileSync(file));
+                                id = item.id;
+                                name = item.name;
+                            } catch (err) {
+                                // ignore: we couldn't open the file to read the id/name
+                            }
+                            return {
+                                id: id,
+                                name: name,
+                                path: utils.getRelativePath(artifactDir, file)
+                            };
                         });
                         resolve(names);
                     }

@@ -39,7 +39,7 @@ class JSONItemHelper extends BaseHelper {
      * @param {BaseREST} restApi - The REST API object managed by this helper.
      * @param {BaseFS} fsApi - The FS object managed by this helper.
      * @param {String} artifactName - The name of the "artifact type" managed by this helper.
-     * @param {String} classification - Optional classification of the artifact type - defaults to artifactName
+     * @param {String} [classification] - Optional classification of the artifact type - defaults to artifactName
      */
     constructor (restApi, fsApi, artifactName, classification) {
         super(restApi, fsApi, artifactName, classification);
@@ -134,11 +134,10 @@ class JSONItemHelper extends BaseHelper {
      *
      * @resolves {Array} The items on the remote content hub.
      */
-    getRemoteItem(context, id, opts) {
+    getRemoteItem (context, id, opts) {
         // Return the REST object's promise to get the remote item.
         return this._restApi.getItem(context, id, opts);
     }
-
 
     /**
      * Create the given item on the remote content hub.
@@ -174,13 +173,10 @@ class JSONItemHelper extends BaseHelper {
         const helper = this;
         return helper._fsApi.getItem(context, name, opts)
             .then(function (item) {
-                // Save the original file name, in case the result of the push is saved to a file with a different name.
-                opts = utils.cloneOpts(opts);
-                opts.originalPushFileName = name;
-
                 // Check whether the item should be uploaded.
                 if (helper.canPushItem(item)) {
-                    return helper._uploadItem(context, item, opts);
+                    // Save the original file name, in case the result of the push is saved to a file with a different name.
+                    return helper._uploadItem(context, item, utils.cloneOpts(opts, {originalPushFileName: name}));
                 } else {
                     // This really shouldn't happen. But if we try to push an item that can't be pushed, add a log entry.
                     helper.getLogger(context).info(i18n.__("cannot_push_item" , {name: name}));
@@ -240,6 +236,10 @@ class JSONItemHelper extends BaseHelper {
             });
     }
 
+    makeEmittedObject(context, item, opts) {
+        return {id: item.id, name: item.name, path: item.path, displayName: this.getName(item)};
+    }
+
     /**
      * Pull the item with the given id from the remote content hub to the local file system.
      *
@@ -256,7 +256,7 @@ class JSONItemHelper extends BaseHelper {
     pullItem (context, id, opts) {
         // Return the promise to get the remote item and save it on the local file system.
         const helper = this;
-        return helper._restApi.getItem(context, id, opts)
+        return helper.getRemoteItem(context, id, opts)
             .then(function (item) {
                 // Check whether the item should be saved to file.
                 if (helper.canPullItem(item)) {
@@ -271,7 +271,7 @@ class JSONItemHelper extends BaseHelper {
                     // Use the event emitter to indicate that the item was successfully pulled.
                     const emitter = helper.getEventEmitter(context);
                     if (emitter) {
-                        emitter.emit("pulled", helper.getName(item));
+                        emitter.emit("pulled", helper.makeEmittedObject(context, item, opts));
                     }
                 }
 
@@ -304,13 +304,19 @@ class JSONItemHelper extends BaseHelper {
         // Keep track of the error count.
         context.pullErrorCount = 0;
 
+        const deletions = options.getRelevantOption(context, opts, "deletions");
+        let allFSItems;
+        if (deletions) {
+            allFSItems = this.listLocalItemNames(context, opts);
+        }
+
         // Pull a "chunk" of remote items and and then recursively pull any remaining chunks.
         const helper = this;
         const listFn = helper.getRemoteItems.bind(helper, context);
         helper._pullItemsChunk(context, listFn, opts)
-            .then(function (items) {
+            .then(function (pullInfo) {
                 // The deferred will get resolved when all chunks have been pulled.
-                helper._recursePull(context, listFn, deferred, [], items, opts);
+                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -322,7 +328,22 @@ class JSONItemHelper extends BaseHelper {
                 if (context.pullErrorCount === 0) {
                     hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), new Date(), opts);
                 }
-                return items;
+                const emitter = helper.getEventEmitter(context);
+                if (deletions && emitter) {
+                    return allFSItems.then(function (values) {
+                        const pulledIDs = items.map(function (item) {
+                            return item.id;
+                        });
+                        values.forEach(function (item) {
+                            if (pulledIDs.indexOf(item.id) === -1) {
+                                emitter.emit("local-only", item);
+                            }
+                        });
+                        return items;
+                    });
+                } else {
+                    return items;
+                }
             })
             .finally(function () {
                 delete context.pullErrorCount;
@@ -350,9 +371,9 @@ class JSONItemHelper extends BaseHelper {
         const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(helper, context, [helper.NEW, helper.MODIFIED]);
         helper._pullItemsChunk(context, listFn, opts)
-            .then(function (items) {
+            .then(function (pullInfo) {
                 // The deferred will get resolved when all chunks have been pulled.
-                helper._recursePull(context, listFn, deferred, [], items, opts);
+                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -404,9 +425,9 @@ class JSONItemHelper extends BaseHelper {
                 });
                 if (flags.indexOf(helper.DELETED) !== -1) {
                     return helper.listLocalDeletedNames(context, opts)
-                        .then(function (itemNames) {
-                            itemNames.forEach(function (itemName) {
-                                results.push(itemName);
+                        .then(function (items) {
+                            items.forEach(function (item) {
+                                results.push(item);
                             });
                             return results;
                         });
@@ -422,22 +443,32 @@ class JSONItemHelper extends BaseHelper {
         const dir = fsObject.getPath(context, opts);
         const extension = fsObject.getExtension();
         deferred.resolve(hashes.listFiles(context, dir, opts)
-            .filter(function (path) {
+            .filter(function (item) {
                 let stat = undefined;
                 try {
-                    stat = fs.statSync(dir + path);
+                    stat = fs.statSync(dir + item.path);
                 } catch (ignore) {
                     // ignore this error we're testing to see if a file exists
                 }
                 return !stat;
             })
-            .filter(function (file) {
-                return file.endsWith(extension);
+            .filter(function (item) {
+                return item.path.endsWith(extension);
             })
-            .map(function (file) {
-                return file.replace(extension, "");
+            .map(function (item) {
+                return {
+                    id: item.id,
+                    path: item.path.replace(extension, "")
+                };
             }));
         return deferred.promise;
+    }
+
+    _makeListItemResult (context, item, opts) {
+        return {
+            id: item.id,
+            name: item.name
+        };
     }
 
     /**
@@ -462,7 +493,7 @@ class JSONItemHelper extends BaseHelper {
                 // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
                 // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
             })
             .catch(function (err) {
                 // If the list function's promise is rejected, propogate that to the deferred that was returned.
@@ -474,7 +505,7 @@ class JSONItemHelper extends BaseHelper {
             .then(function (items) {
                 // Turn the resulting list of items (metadata) into a list of item names.
                 return items.map(function (item) {
-                    return helper.getName(item);
+                    return helper._makeListItemResult(context, item, opts);
                 });
             });
     }
@@ -517,12 +548,11 @@ class JSONItemHelper extends BaseHelper {
      */
     listModifiedRemoteItemNames (context, flags, opts) {
         const deferred = Q.defer();
-        const results = null;
         const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(helper, context, flags);
         helper._listItemChunk(context, listFn, opts)
             .then(function (listInfo) {
-                helper._recurseList(context, listFn, deferred, results, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -531,13 +561,13 @@ class JSONItemHelper extends BaseHelper {
         return deferred.promise
             .then(function (items) {
                 const results = items.map(function (item) {
-                    return helper.getName(item);
+                    return helper._makeListItemResult(context, item, opts);
                 });
                 if (flags.indexOf(helper.DELETED) !== -1) {
                     return helper.listRemoteDeletedNames(context, opts)
-                        .then(function (itemNames) {
-                            itemNames.forEach(function (itemName) {
-                                results.push(itemName);
+                        .then(function (items) {
+                            items.forEach(function (item) {
+                                results.push(item);
                             });
                             return results;
                         });
@@ -562,17 +592,20 @@ class JSONItemHelper extends BaseHelper {
         const extension = this._fsApi.getExtension();
 
         this.listRemoteItemNames(context, opts)
-            .then(function (remoteItemNames) {
+            .then(function (remoteItems) {
                 deferred.resolve(
                     hashes.listFiles(context, dir, opts)
-                        .filter(function (file) {
-                            return file.endsWith(extension);
+                        .filter(function (item) {
+                            return item.path.endsWith(extension);
                         })
-                        .map(function (file) {
-                            return file.replace(extension, "");
+                        .map(function (item) {
+                            return {
+                                id: item.id,
+                                path: item.path.replace(extension, "")
+                            };
                         })
-                        .filter(function (path) {
-                            return (remoteItemNames.indexOf(path) === -1);
+                        .filter(function (item) {
+                            return (remoteItems.indexOf(item.path) === -1);
                         })
                 );
             })
@@ -649,7 +682,7 @@ class JSONItemHelper extends BaseHelper {
             .then(function (item) {
                 const emitter = helper.getEventEmitter(context);
                 if (emitter) {
-                    emitter.emit("pushed", helper.getName(item));
+                    emitter.emit("pushed", helper.makeEmittedObject(context, item, opts));
                 }
                 const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
                 if (rewriteOnPush) {
@@ -682,11 +715,9 @@ class JSONItemHelper extends BaseHelper {
                     utils.logErrors(context, heading, err);
                     const saveFileOnConflict = options.getRelevantOption(context, opts, "saveFileOnConflict");
                     if (saveFileOnConflict && isUpdate && err.statusCode === 409) {
-                        return helper._restApi.getItem(context, item.id, opts)
+                        return helper.getRemoteItem(context, item.id, opts)
                             .then(function (item) {
-                                const cOpts = utils.cloneOpts(opts);
-                                cOpts.conflict = true;
-                                return helper._fsApi.saveItem(context, item, cOpts);
+                                return helper._fsApi.saveItem(context, item, utils.cloneOpts(opts, {conflict: true}));
                             })
                             .catch(function (error) {
                                 // Log a warning if there was an error getting the conflicting item or saving it.
@@ -743,7 +774,7 @@ class JSONItemHelper extends BaseHelper {
                     const retryItems = helper.getRetryPushProperty(context, BaseHelper.RETRY_PUSH_ITEMS);
                     if (retryItems && retryItems.length > 0) {
                         // There are items to retry, so check to see whether any push operations were successful.
-                        const itemCount = helper.getRetryPushProperty(context, BaseHelper.RETRY_PUSH_ITEM_COUNT) || 0;
+                        const itemCount = helper.getRetryPushProperty(context, BaseHelper.RETRY_PUSH_ITEM_COUNT);
                         if (retryItems.length < itemCount) {
                             // At least one push operation was successful, so proceed with the retry.
                             const names = [];
@@ -814,6 +845,9 @@ class JSONItemHelper extends BaseHelper {
         const helper = this;
         listFn(opts)
             .then(function (itemList) {
+                // Keep track of the original number of items in the chunk.
+                const chunkSize = itemList.length;
+
                 // Filter the list to exclude any items that should not be saved to file.
                 itemList = itemList.filter(function (item) {
                     const canPullItem = helper.canPullItem(item);
@@ -826,13 +860,13 @@ class JSONItemHelper extends BaseHelper {
                 });
 
                 const promises = itemList.map(function (item) {
-                    const name = helper.getName(item);
-
+                    // make the emitted object before calling saveItem which prunes important data from the object!
+                    const obj = helper.makeEmittedObject(context, item, opts);
                     return helper._fsApi.saveItem(context, item, opts)
                         .then(function () {
                             const emitter = helper.getEventEmitter(context);
                             if (emitter) {
-                                emitter.emit("pulled", name);
+                                emitter.emit("pulled", obj);
                             }
                             return item;
                         });
@@ -853,7 +887,7 @@ class JSONItemHelper extends BaseHelper {
                                 context.pullErrorCount++;
                             }
                         });
-                        deferred.resolve(items);
+                        deferred.resolve({chunkSize: chunkSize, items: items});
                     });
             })
             .catch(function (err) {
@@ -862,11 +896,11 @@ class JSONItemHelper extends BaseHelper {
         return deferred.promise;
     }
 
-    _recursePull (context, listFn, deferred, allItems, items, opts) {
+    _recursePull (context, listFn, deferred, allItems, pullInfo, opts) {
         const helper = this;
         //append the results from the previous chunk to the allItems array
-        allItems.push.apply(allItems, items);
-        const iLen = items.length;
+        allItems.push.apply(allItems, pullInfo.items);
+        const iLen = pullInfo.chunkSize;
         const limit = options.getRelevantOption(context, opts, "limit", helper._artifactName);
         //test to see if we got less than the full chunk size
         if (iLen === 0 || iLen < limit) {
@@ -875,13 +909,14 @@ class JSONItemHelper extends BaseHelper {
         } else {
             //get the next chunk
             const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
-            opts = utils.cloneOpts(opts);
-            opts.offset = offset + limit;
+            opts = utils.cloneOpts(opts, {offset: offset + limit});
             this._pullItemsChunk(context, listFn, opts)
-                .then(function (items) {
-                    helper._recursePull(context, listFn, deferred, allItems, items, opts);
+                .then(function (pullInfo) {
+                    helper._recursePull(context, listFn, deferred, allItems, pullInfo, opts);
                 })
                 .catch(function (err) {
+                    // FUTURE This should probably behave the same way as an error when pulling an item (add reason, emit error,
+                    // FUTURE increment error count.) That way the promise is still resolved with the successfully pulled items.
                     deferred.reject(err);
                 });
         }
@@ -889,11 +924,7 @@ class JSONItemHelper extends BaseHelper {
 
     _recurseList (context, listFn, deferred, results, listInfo, opts) {
         // If a results array is specified, accumulate the items listed.
-        if (results) {
-            results = results.concat(listInfo.items);
-        } else {
-            results = listInfo.items;
-        }
+        results = results.concat(listInfo.items);
 
         const iLen = listInfo.length;
         const limit = options.getRelevantOption(context, opts, "limit", this._artifactName);
@@ -901,8 +932,7 @@ class JSONItemHelper extends BaseHelper {
             deferred.resolve(results);
         } else {
             const offset = options.getRelevantOption(context, opts, "offset", this._artifactName);
-            opts = utils.cloneOpts(opts);
-            opts.offset = offset +  limit;
+            opts = utils.cloneOpts(opts, {offset: offset + limit});
             const helper = this;
             helper._listItemChunk(context, listFn, opts)
                 .then(function (listInfo) {
@@ -913,6 +943,6 @@ class JSONItemHelper extends BaseHelper {
 }
 
 /**
- * Export the BaseHelper class.
+ * Export the JSONItemHelper class.
  */
 module.exports = JSONItemHelper;

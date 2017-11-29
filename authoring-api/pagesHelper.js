@@ -15,7 +15,7 @@ limitations under the License.
 */
 "use strict";
 
-const JSONItemHelper = require("./JSONItemHelper.js");
+const JSONPathBasedItemHelper = require("./JSONPathBasedItemHelper.js");
 const rest = require("./lib/pagesREST").instance;
 const fS = require("./lib/pagesFS").instance;
 const utils = require("./lib/utils/utils.js");
@@ -24,7 +24,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class PagesHelper extends JSONItemHelper {
+class PagesHelper extends JSONPathBasedItemHelper {
     /**
      * The constructor for an SitesHelper object. This constructor implements a singleton pattern, and will fail if
      * called directly. The static instance property can be used to get the singleton instance.
@@ -72,12 +72,30 @@ class PagesHelper extends JSONItemHelper {
      * @override
      */
     canDeleteItem (item, isDeleteAll, opts) {
+        let retVal = super.canDeleteItem(item, isDeleteAll, opts);
         if (isDeleteAll) {
-            // Only delete the top-level pages. Child pages will be deleted automatically.
-            return item && !item["parentId"];
-        } else {
-            return true;
+            // For a delete all operation, only delete the top-level pages. Child pages will be deleted automatically.
+            retVal = retVal && !item["parentId"];
         }
+        return retVal;
+    }
+    
+    /**
+     * Determine whether the helper supports deleting items by id.
+     *
+     * @override
+     */
+    supportsDeleteById() {
+        return true;
+    }
+
+    /**
+     * Determine whether the helper supports deleting items by path.
+     *
+     * @override
+     */
+    supportsDeleteByPath() {
+        return true;
     }
 }
 

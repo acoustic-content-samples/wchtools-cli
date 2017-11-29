@@ -35,6 +35,10 @@ const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "pages", "u
 const path1 = PagesUnitTest.VALID_PAGES_DIRECTORY + PagesUnitTest.VALID_PAGE_1;
 const path2 = PagesUnitTest.VALID_PAGES_DIRECTORY + PagesUnitTest.VALID_PAGE_2;
 
+// Require the local modules that will be stubbed, mocked, and spied.
+const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
+const request = utils.getRequestWrapper();
+
 // The default API context used for unit tests.
 const context = UnitTest.DEFAULT_API_CONTEXT;
 
@@ -45,6 +49,7 @@ class PagesRestUnitTest extends BaseRestUnit {
 
     run () {
         super.run(restApi, lookupUri, "pages", path1, path2);
+        this.testDeleteItemWithContent(restApi, lookupUri, "pages", path1, path2);
     }
 
     testUpdateItem (restApi, lookupUri, restName, itemPath1, itemPath2) {
@@ -118,6 +123,57 @@ class PagesRestUnitTest extends BaseRestUnit {
                         done(error);
                     });
             });
+        });
+    }
+
+    testDeleteItemWithContent (restApi, lookupUri, restName, itemPath1, itemPath2) {
+        const self = this;
+
+        describe("deletePageWithContent", function () {
+
+            afterEach(function (done) {
+                // Restore any stubs and spies used for the test.
+                self.restoreTestDoubles();
+
+                // Signal that the cleanup is complete.
+                done();
+            });
+
+            it("should succeed with delete-content query parameter", function (done) {
+
+                // Create a stub for the DELETE request to delete the specified item.
+                const DELETE_MESSAGE = "The item was deleted.";
+                const stubDelete = sinon.stub(request, "del");
+                const err = null;
+                const res = {"statusCode": 200};
+                const body = DELETE_MESSAGE;
+                stubDelete.yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                restApi.deleteItem(context, {id:UnitTest.DUMMY_ID}, {"delete-content":true})
+                    .then(function (message) {
+                        // Verify that the delete stub was called once with a URI that contains the specified ID.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[0].uri).to.contain(UnitTest.DUMMY_ID);
+                        expect(stubDelete.firstCall.args[0].uri).to.contain("?delete-content=true");
+                        // Verify that the REST API returned the expected value.
+                        expect(message).to.equal(DELETE_MESSAGE);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
         });
     }
 }

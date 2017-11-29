@@ -616,7 +616,7 @@ describe("hashes", function () {
                 const result = hashes.listFiles(context, TEST_DIRECTORY_PATH, TEST_OPTS);
                 expect(result).to.exist;
                 expect(result.length).to.equal(1);
-                expect(result[0]).to.equal(TEXT_FILE_RELATIVE_PATH);
+                expect(result[0].path).to.equal(TEXT_FILE_RELATIVE_PATH);
             } catch (err) {
                 error = err;
             } finally {

@@ -1,5 +1,14 @@
 # Changelog
 
+### v2.2 changes since 2.1.3
+
+ - Add ability to delete --pages by --path and optionally also delete --page-content when deleting a page.
+ - Add ability to pull --deletions, to be prompted (or quietly) delete local files not referenced by a full pull of all artifacts of the specified type(s).
+ - Update readme to describe use of Federated IDs with wchtools and WCH REST APIs
+ - Update readme to describe where to get NodeJS, that npm is installed with NodeJS, that recent 6.x is required for use with WCH Site SPA
+ - Update list command to not attempt to list layouts, layout mappings, pages or sites, if using an Essentials tier tenant
+ - Fix bug where delete path arg had implied you could use -p short form of --path, since -p is reserved as short form of --pages. Path must be specified via the full --path argument.
+
 ### v2.1.3 changes since v2.0.9
 
  - Temporarily disable pulling and pushing resources not associated with asset metadata, pending further authoring API improvements.
