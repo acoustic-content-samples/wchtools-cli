@@ -51,6 +51,31 @@ class PagesREST extends JSONItemREST {
     }
 
     /*
+     * Does this WCH REST API currently support the by-path end point?
+     */
+    supportsItemByPath() {
+        return true;
+    }
+
+    /*
+     * Return the item by-path query param (default == path)
+     */
+    getItemByPathQueryParameterName() {
+        return "hierarchicalPath";
+    }
+
+    /*
+     * Ask the authoring API to return the specified artifact by path
+     */
+    getItemByPath (context, path, opts) {
+        // Page path is dynamically constructed from page names, so would never
+        // have a .json suffix. Strip off the .json suffix if there.
+        if (path && path.endsWith(".json"))
+          path = path.replace(".json", "");
+        return super.getItemByPath(context, path, opts);
+    }
+
+    /*
      * Override _getItems so we can add the pages specific query param
      */
     _getItems (context, uriSuffix, queryParams, opts) {
@@ -60,6 +85,22 @@ class PagesREST extends JSONItemREST {
         queryParams.include="hierarchicalPath";
         return super._getItems(context, uriSuffix, queryParams, opts);
     }
+
+    /*
+     * Overrideable method for delete URI for the REST object
+     * @param {string} uri
+     * @return {string} uri, optionally modified, with query parameters
+     *
+     * @override
+     */
+    getDeleteUri( uri, opts ) {
+        if (opts && opts["delete-content"] ) {
+            return uri + "?delete-content=true";
+        } else {
+            return uri;
+        }
+    }
+
 
     /*
      * Override createItem so we can add the hierarchical path.

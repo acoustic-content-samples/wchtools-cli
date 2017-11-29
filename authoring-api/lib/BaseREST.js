@@ -360,20 +360,31 @@ class BaseREST {
         return false;
     }
 
+    /*
+     * Return the item by-path query param (default == path)
+     */
+    getItemByPathQueryParameterName() {
+        return "path";
+    }
+
+    /*
+     * Ask the authoring API to return the specified artifact by path
+     */
     getItemByPath (context, path, opts) {
         const deferred = Q.defer();
         const serviceName = this.getServiceName();
+        const self = this;
         if (this.supportsItemByPath()) {
             this.getRequestOptions(context, opts)
                 .then(function (requestOptions) {
-                    requestOptions.uri = requestOptions.uri + "/by-path?path=" + path;
+                    requestOptions.uri = requestOptions.uri + "/by-path?" + self.getItemByPathQueryParameterName() + "=" + path + "&include=" + self.getItemByPathQueryParameterName();
                     request.get(requestOptions, function (err, res, body) {
                         const response = res || {};
                         if (err || response.statusCode !== 200) {
                             err = utils.getError(err, body, response, requestOptions);
                             BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
 
-                            // special case where we are just seeing if the item does exisit and if not it's not an error
+                            // special case where we are just seeing if the item does exist and if not it's not an error
                             if (!opts || opts.noErrorLog !== "true") {
                                 utils.logErrors(context, i18n.__("get_item_error", {"service_name": serviceName}), err);
                             }
@@ -416,6 +427,15 @@ class BaseREST {
         return false;
     }
 
+    /*
+     * Overrideable method for delete URI for the REST object
+     * @param {string} uri
+     * @return {string} uri, optionally modified, with query parameters
+     */
+    getDeleteUri( uri, opts ) {
+        return uri;
+    }
+
     /**
      * Delete the given item.
      *
@@ -430,7 +450,7 @@ class BaseREST {
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
-                requestOptions.uri = requestOptions.uri + "/" + item.id;
+                requestOptions.uri = restObject.getDeleteUri(requestOptions.uri + "/" + item.id, opts);
                 utils.logDebugInfo(context, 'delete item:' + restObject.getServiceName(), undefined, requestOptions);
 
                 // del ==> delete

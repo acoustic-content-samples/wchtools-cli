@@ -52,6 +52,15 @@ class ListCommand extends BaseCommand {
         super(program);
     }
 
+    _calculateTabs (maxLength, str) {
+        const TAB_LENGTH = 8;
+        let tabs = '';
+        for (let i = 0; i <= Math.trunc(maxLength / TAB_LENGTH) - Math.trunc(str.length / TAB_LENGTH); i++) {
+            tabs += '\t';
+        }
+        return tabs;
+    }
+
     /**
      * List the specified artifacts.
      */
@@ -127,14 +136,83 @@ class ListCommand extends BaseCommand {
                         }
 
                         // Display (or log) the list of items for the current type.
-                        const itemNames = result.value.value;
-                        itemNames.forEach(function (itemName) {
+                        const items = result.value.value;
+                        let maxId = 0;
+                        let maxName = 0;
+                        let maxPath = 0;
+                        items.forEach(function (item) {
+                            if (item.id) {
+                                maxId = Math.max(maxId, item.id.length);
+                            }
+                            if (item.name) {
+                                maxName = Math.max(maxName, item.name.length);
+                            }
+                            if (item.path) {
+                                maxPath = Math.max(maxPath, item.path.length);
+                            }
+                        });
+                        let headingMsg = "";
+                        let headingDivider = "";
+                        if (maxId > 0) {
+                            const ID_HEADING = i18n.__('cli_list_id_heading');
+                            headingMsg += ID_HEADING;
+                            headingMsg += self._calculateTabs(maxId, ID_HEADING);
+                            let dividerSegment = "";
+                            for (let i = 0; i < maxId; i++) {
+                                dividerSegment += "-";
+                            }
+                            headingDivider += dividerSegment;
+                            headingDivider += self._calculateTabs(maxId, dividerSegment);
+                        }
+                        if (maxName > 0) {
+                            const NAME_HEADING = i18n.__('cli_list_name_heading');
+                            headingMsg += NAME_HEADING;
+                            headingMsg += self._calculateTabs(maxName, NAME_HEADING);
+                            let dividerSegment = "";
+                            for (let i = 0; i < maxName; i++) {
+                                dividerSegment += "-";
+                            }
+                            headingDivider += dividerSegment;
+                            headingDivider += self._calculateTabs(maxName, dividerSegment);
+                        }
+                        if (maxPath > 0) {
+                            const PATH_HEADING = i18n.__('cli_list_path_heading');
+                            headingMsg += PATH_HEADING;
+                            for (let i = 0; i < maxPath; i++) {
+                                headingDivider += "-";
+                            }
+                        }
+                        if (!self.getCommandLineOption("quiet")) {
+                            BaseCommand.displayToConsole(headingMsg);
+                            BaseCommand.displayToConsole(headingDivider);
+                        } else {
+                            const logger = self.getLogger();
+                            logger.info(headingMsg);
+                            logger.info(headingDivider);
+                        }
+                        items.forEach(function (item) {
                             artifactsCount++;
+                            let msg = item;
+                            if (item.id || item.name || item.path) {
+                                if (item.id) {
+                                    msg = item.id;
+                                    msg += self._calculateTabs(maxId, item.id);
+                                } else {
+                                    msg = "";
+                                }
+                                if (item.name) {
+                                    msg += item.name;
+                                    msg += self._calculateTabs(maxName, item.name);
+                                }
+                                if (item.path) {
+                                    msg += item.path;
+                                }
+                            }
                             if (!self.getCommandLineOption("quiet")) {
-                                BaseCommand.displayToConsole(itemName);
+                                BaseCommand.displayToConsole(msg);
                             } else {
                                 const logger = self.getLogger();
-                                logger.info(itemName);
+                                logger.info(msg);
                             }
                         });
                     }
@@ -299,12 +377,12 @@ class ListCommand extends BaseCommand {
         }
 
         // Handle the layouts option.
-        if (this.getCommandLineOption("layouts")) {
+        if (this.getCommandLineOption("layouts") && !this.isBaseTier(context)) {
             promises.push(this.listLayouts(context));
         }
 
         // Handle the layout mappings option.
-        if (this.getCommandLineOption("layoutMappings")) {
+        if (this.getCommandLineOption("layoutMappings") && !this.isBaseTier(context)) {
             promises.push(this.listLayoutMappings(context));
         }
 
@@ -318,11 +396,11 @@ class ListCommand extends BaseCommand {
             promises.push(this.listRenditions(context));
         }
 
-        if (this.getCommandLineOption("sites")) {
+        if (this.getCommandLineOption("sites") && !this.isBaseTier(context)) {
             promises.push(this.listSites(context));
         }
 
-        if (this.getCommandLineOption("pages")) {
+        if (this.getCommandLineOption("pages") && !this.isBaseTier(context)) {
             promises.push(this.listPages(context));
         }
 

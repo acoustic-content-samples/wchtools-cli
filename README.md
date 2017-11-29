@@ -10,13 +10,25 @@ The IBM Watson Content Hub Developer Tools provide a command line interface (CLI
 Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/LICENSE) and [NOTICE](https://github.com/ibm-wch/wchtools-cli/blob/master/NOTICE) files at the root of this project's git repository before you download and get started with this toolkit.
 
 ### Install
- Pre-Requisite: Before you install the wchtools CLI, you must install Node 4.3 or a later 4.x or 6.x version. IBM Node 4.6 or a later 4.x or 6.x version is suggested.
 
- You may install the wchtools CLI as a node module directly from the npm registry at https://npmjs.com,  or by downloading and installing a release from the wchtools-cli git repository.
+ Pre-Requisite: Before you install the wchtools CLI, you must install NodeJS.
+
+   - For use with the WCH Single Page Application (SPA) Site, Node 6.x is required
+   - For non-site-spa use, Node 4.3 or later may be used.
+   - Early versions of Node 6.x (e.g 6.2) cause an issue with the tooling's use of event emitter, so the most recent version of Node 6.x is recommended, to benefit from both functional and security fixes in NodeJS itself.
+
+ NodeJS is available at the following locations
+
+  - IBM version https://developer.ibm.com/node/sdk/v6/
+  - Public open source version https://nodejs.org/en/
+
+ You may install the wchtools CLI as a node module directly from the npm registry at https://npmjs.com .   If for some reason you are unable to access the public npm registry, you may download and installing a release from the wchtools-cli git repository releases tab as described below.
 
 #### Installing the wchtools-cli module from the npm registry
 
 Execute the following npm command, to install the wchtools CLI module and its dependencies from the npm registry:
+
+  - Note, npm is a node package manager utility that is installed when you install Node itself.
 
   -For Windows:
 
@@ -66,14 +78,34 @@ Then follow the Getting Started instructions below, to configure and start using
 
 ### Getting Started
 
-  After you successfully install the wchtools CLI, initialize the username and the API URL for your Watson Content Hub tenant.   Obtain the API URL from the "Hub Information" dialog available off the top navigation bar of the content hub authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
+  After you successfully install the wchtools CLI, initialize the username and the API URL for your Watson Content Hub tenant.   Obtain the API URL from the "Hub Information" dialog, which is available from a drop-down menu off the username on the top navigation bar of the content hub authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
 
-  e.g.:
+#### Initializing wchtools with a non-federated IBM id
 
       wchtools init
       User: myWCHusername@mycompany.com
       API URL: https://my11.digitalexperience.ibm.com/api/00000000-1111-2222-3333-444444444444
 
+#### Using a Federated Identity (user) with Watson Content Hub tooling and APIs
+
+  Some user IBM ids are "Federated" accounts as described here: https://console.bluemix.net/docs/admin/adminpublic.html#federatedid
+
+  Federated user accounts may use the WCH Authoring UI with the user's username and password, but cannot use that same username and password for either WCH REST API access, or for use with wchtools, which uses those same WCH REST APIs.
+
+  If your IBM id account is federated, you may receive an error when wchtools tries to authenticate that user to the WCH login API, indicating that you are trying to use a federated account.   If this happens, you may instead create an API key as described in the following IBM Bluemix documentation, and then use "apikey" as the username and the value of that API key as the password, for both WCH REST APIs and for wchtools.
+
+    https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
+
+  When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use.   Then use "apikey" as the value for "Username" on the init command or as passed to the --user argument of wchtools, and use the value of the API key as the password to authenticate with, associated with that API key.
+
+      wchtools  init
+      Username: apikey
+      API URL: https://my11.digitalexperience.ibm.com/api/00000000-1111-2222-3333-444444444444
+
+      wchtools list -A --server
+      Password:  0zXyZMapDLGaFDmebg1Fh1d2wDLMXmvXbU666t0TL-zz
+
+#### Trying your first wchtools commands
 
   Then try the following commands:
 
@@ -86,6 +118,8 @@ Then follow the Getting Started instructions below, to configure and start using
     wchtools  pull --help
         - Use this command to get a list of all options for the pull command.
 
+    wchtools  list --help
+        - Use this command to get a list of all options for the list command.
 
 ### Local filesystem layout and working directory
 
@@ -150,6 +184,37 @@ Then follow the Getting Started instructions below, to configure and start using
 
     wchtools push -w --dir <path-to-working-directory>
 
+### Pulling all artifact instances and deleting local stale copies
+
+By default a wchtools pull of all or specified artifact types, only pulls new or updated (modified) items, using a by-modified endpoint on each WCH Authoring API.    The wchtools pull -I or --ignore-timestamps  options will pull all artifacts of that type (whether modified or not, but is still additive and update only (it only gets a list of everything that currently exists on the server for each authoring service, and pulls those to the local working directory.  For any artifacts that were pulled previously, but have since been deleted on the server by a business user using the authoring UI, (eg, drafts of content or assets,  or content items no longer needed), you may still have local copies of those artifacts locally, if you had pulled them from WCH prior to their deletion.
+
+wchtools 2.2 and later adds a new pull option called --deletions which can help with this scenario.
+
+wchtools pull -A (or specified artifact type)  with --deletions
+  - Is a super-set of -I --ignore-timestamps, in that it will walk every instance of the specified artifact types, ensuring you have the latest copy of each
+  - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the WCH authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.   
+  - It asks whether you want to delete these local-only files, rather than deleting by default, in case they were local files just created by the developer, that you just haven't pushed yet.
+  -If you know the local working directory shouldn't have any locally created files that you haven't pushed yet (eg, it's used for backup only, not for creating new artifacts) you may run wchtools pull -A --deletions --quiet to tell it to quietly (no-prompt) delete artifacts that exist locally but were not pulled during this pull --deletions (ignoring timestamps) session.
+  
+#### Pulling all artifact types, ignoring timestamps, prompting to delete stale local files
+
+    wchtools pull -A -v --deletions
+
+#### Pulling all artifact types, ignoring timestamps, quietly deleting stale local files (files not found on the server)
+
+    wchtools pull -A -v --deletions --quiet
+    
+#### Pulling only assets, ignoring timestamps, prompting to delete stale local files (files not found on the server)
+
+    wchtools pull -a -v --deletions
+
+
+### Delete command (for explicit deletion of server side artifacts)
+
+The delete command allows you to delete specified artifacts from Watson Content Hub.
+
+It is for remote service hosted artifact deletion only, not for deleting files off the local filesystem.  Use your operating system's file explorer or command line delete support, to delete local files from the local working directory.
+
 #### Deleting non-managed web assets such as html, Javascript and CSS, from the Watson Content Hub
 
   Since non-managed (not located under assets/dxdam/...) web application assets are manipulated only via the wchtools CLI at this time and not by the Authoring UI, you must use wchtools to delete a web application asset, should you choose to do so.  To delete a web application asset, specify the portion of the asset path that was below the <working-directory>/assets/  folder, when you pushed the web resource, as shown in the following command.
@@ -189,6 +254,27 @@ Then follow the Getting Started instructions below, to configure and start using
   To delete a folder path and all children folders and files
 
     wchtools delete -a -v --path /dxdam/myimages --recursive
+
+#### Deleting pages by hierarchical path or by id
+
+  You can delete pages by hierarchical path, or by id.  The hierarchical path is the tree based path shown in the Watson Content Hub site manager user interface, which is not necessarily the same as the URL path to the page.  The hierarchical path is made up of the page names, separated by / characters (eg, /Home/Products/Outdoors) and is case sensitive.   The "path" field when creating a page or editing a page settings is for the URL path, which by default is the same as the hierarchical name based path, but may differ, if a sites developer decides to set alternate URL path fields for some pages.   To see a list of "hierarchical" page paths for your site, try the following command:
+  
+    wchtools list --pages --server
+  
+  Note, Watson Content Hub will delete all child pages of a specified page, when that page is deleted, whether deleted from the Sites UI, wchtools, or via API, so be sure you want to delete that entire page hierarchy before deleting a page that has child pages below it.
+
+    wchtools delete -p -v --path /Home/Products/Details    (delete the page named Details, and any child pages below that)
+
+    wchtools delete -p -v --path "/Home/Lawn and Garden"  (delete page "Lawn and Garden" and any pages below that)
+
+    wchtools delete -p -v --id {page-id}
+
+  NOTE:  the WCH Sites API treats the page path (constructed by concatenating the "Name" fields of pages, with / separators) as case sensitive, so it will not find a page named "Lawn and Garden"  if you pass the path "/Home/lawn and garden".
+
+  By default the WCH Sites Pages API endpoint only deletes the page definition when you delete a page, but leaves the page content directly associated with that page behind, in case you need to do anything with that content before deleting it.
+  To delete both the page and the page content at the same time, pass the additional --page-content flag to the delete -p command.
+
+    wchtools delete -p -v --path /testpage --page-content  (delete testpage and the page content item that was created with testpage).
 
 #### Deleting content, types or assets by specified tag
 

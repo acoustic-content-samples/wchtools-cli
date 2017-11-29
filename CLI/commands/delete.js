@@ -57,16 +57,20 @@ class DeleteCommand extends BaseCommand {
         const types = this.getCommandLineOption("types");
         const layouts = this.getCommandLineOption("layouts");
         const layoutMappings = this.getCommandLineOption("layoutMappings");
+        const pages = this.getCommandLineOption("pages");
         const id = this.getCommandLineOption("id");
         const path = this.getCommandLineOption("path");
         const named = this.getCommandLineOption("named");
         const tag = this.getCommandLineOption("tag");
         const byTypeName = this.getCommandLineOption("byTypeName");
         const recursive = this.getCommandLineOption("recursive");
+        const all = this.getCommandLineOption("all");
+        const allAuthoring = this.getCommandLineOption("allAuthoring");
+        const pageContent = this.getCommandLineOption("pageContent");
         let helper;
 
         // Handle the various validation checks.
-        if (this.getCommandLineOption("all")) {
+        if (all) {
             if (this.getOptionArtifactCount() === 0) {
                 // Delete all requires at least one artifact type to be specified.
                 this.errorMessage(i18n.__("cli_delete_all_no_type"));
@@ -96,6 +100,8 @@ class DeleteCommand extends BaseCommand {
                 helper = ToolsApi.getLayoutMappingsHelper();
             } else if (content) {
                 helper = ToolsApi.getContentHelper();
+            } else if (pages) {
+                helper = ToolsApi.getPagesHelper();
             } else if (types) {
                 helper = ToolsApi.getItemTypeHelper();
             }
@@ -118,13 +124,13 @@ class DeleteCommand extends BaseCommand {
                 return;
             } else if (webassets && !(path || named)) {
                 this.errorMessage(i18n.__('cli_delete_path_required'));
-            this.resetCommandLineOptions();
-            return;
-        } else if (assets && ! (path || named || tag)) {
-            this.errorMessage(i18n.__('cli_delete_path_tag_required'));
                 this.resetCommandLineOptions();
                 return;
-            } else if ((layouts || layoutMappings) && !(id || path)) {
+            } else if (assets && ! (path || named || tag)) {
+                this.errorMessage(i18n.__('cli_delete_path_tag_required'));
+                this.resetCommandLineOptions();
+                return;
+            } else if ((layouts || layoutMappings || pages) && !(id || path)) {
                 this.errorMessage(i18n.__('cli_delete_no_id_or_path'));
                 this.resetCommandLineOptions();
                 return;
@@ -144,7 +150,17 @@ class DeleteCommand extends BaseCommand {
                 this.errorMessage(i18n.__('cli_delete_recursive_not_supported'));
                 this.resetCommandLineOptions();
                 return;
+            } else if (pageContent && !pages) {
+                this.errorMessage(i18n.__('cli_delete_page_content_req_pages'));
+                this.resetCommandLineOptions();
+                return;
             }
+        }
+
+        // If --page-content specified with -p --pages then set flag to delete
+        // page content too.  Note needed with -A --all which deletes content anyway.
+        if (pages && pageContent && !(allAuthoring && all)) {
+            this.setApiOption("delete-content", true);
         }
 
         // Make sure the "dir" option can be handled successfully.
@@ -170,28 +186,32 @@ class DeleteCommand extends BaseCommand {
                 return login.login(context, self.getApiOptions());
             })
             .then(function () {
-                if (self.getCommandLineOption("all")) {
+                if (all) {
+                    // Handle delete all first, since multiple artifact types can be specified.
                     return self.deleteAll(context);
-                } else if (layouts || layoutMappings) {
+                } else if (layouts || layoutMappings || pages) {
+                    // The valid options for layouts and layout mappings are id and path.
                     if (id) {
                         return self.deleteById(helper, context, id);
                     } else {
-                        return self.deleteByPath(helper, context, path);
+                        return self.deleteByPath(helper, context, path, (pages ? "hierarchicalPath" : "path"));
                     }
                 } else if (webassets || assets) {
-                    if (tag) {
+                    // The tag option is valid for assets. The path and named options are valid for both assets and web assets.
+                    if (assets && tag) {
                         return self.deleteBySearch(helper, context, "tags", tag);
                     } else {
                         return self.deleteByPathSearch(helper, context, path || named);
                     }
-                } else if (content || types) {
+                } else {
+                    // The typeName option is valid for content. The id, named, and tag options are valid for both content and types.
                     if (content && byTypeName) {
                         return self.deleteBySearch(helper, context, "type", byTypeName);
                     } else if (id) {
                         return self.deleteById(helper, context, id);
                     } else if (named) {
                         return self.deleteBySearch(helper, context, "name", named);
-                    } else if (tag) {
+                    } else {
                         return self.deleteBySearch(helper, context, "tags", tag);
                     }
                 }
@@ -229,13 +249,13 @@ class DeleteCommand extends BaseCommand {
      * @param {Object} context The API context associated with this delete command.
      * @param {String} path The path of the artifact to delete.
      */
-    deleteByPath (helper, context, path) {
+    deleteByPath (helper, context, path, displayField) {
         const self = this;
         const opts = this.getApiOptions();
 
         return helper.getRemoteItemByPath(context, path, opts)
             .then(function (item) {
-                return self.deleteMatchingItems(helper, context, [item], "path", path, opts);
+                return self.deleteMatchingItems(helper, context, [item], displayField, path, opts);
             });
     }
 
@@ -320,8 +340,7 @@ class DeleteCommand extends BaseCommand {
             const item = items[0];
             logger.info(i18n.__("cli_deleting_artifact", {"name": item[displayField]}));
             return helper.deleteRemoteItem(context, item, opts)
-                .then(function (message) {
-                    logger.info(message);
+                .then(function () {
                     self.successMessage(i18n.__('cli_delete_success', {name: item[displayField]}));
                 })
                 .catch(function (err) {
@@ -700,7 +719,7 @@ class DeleteCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when all layout artifacts are deleted.
      */
     deleteAllLayouts (context) {
-        if (context.tier === "Base") {
+        if (options.getProperty(context, "tier") === "Base") {
             // Layouts are not available in a Base tenant, so just return a resolved promise.
             return Q.resolve();
         } else {
@@ -718,7 +737,7 @@ class DeleteCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when all layout mappings artifacts are deleted.
      */
     deleteAllLayoutMappings (context) {
-        if (context.tier === "Base") {
+        if (options.getProperty(context, "tier") === "Base") {
             // Layout Mappings are not available in a Base tenant, so just return a resolved promise.
             return Q.resolve();
         } else {
@@ -776,9 +795,14 @@ class DeleteCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when all page artifacts are deleted.
      */
     deleteAllPages (context) {
-        const helper = ToolsApi.getPagesHelper();
+        if (options.getProperty(context, "tier") === "Base") {
+            // Pages are not available in a Base tenant, so just return a resolved promise.
+            return Q.resolve();
+        } else {
+            const helper = ToolsApi.getPagesHelper();
 
-        return this.deleteAllItems(context, helper, "cli_deleting_all_pages", "hierarchicalPath");
+            return this.deleteAllItems(context, helper, "cli_deleting_all_pages", "hierarchicalPath");
+        }
     }
 
     deleteAllItems (context, helper, messageKey, displayField) {
@@ -825,8 +849,7 @@ class DeleteCommand extends BaseCommand {
 
         // Check to see if there are any remaining renditions.
         const helper = ToolsApi.getRenditionsHelper();
-        const opts = utils.cloneOpts(this.getApiOptions());
-        opts.limit = 1;
+        const opts = utils.cloneOpts(this.getApiOptions(), {limit: 1});
         helper.getRemoteItems(context, opts)
             .then(function (items) {
                 if (!items || items.length === 0) {
@@ -868,6 +891,8 @@ class DeleteCommand extends BaseCommand {
         this.setCommandLineOption("recursive", undefined);
         this.setCommandLineOption("preview", undefined);
         this.setCommandLineOption("quiet", undefined);
+        this.setCommandLineOption("pageContent", undefined);
+        this.setCommandLineOption("allAuthoring", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -886,11 +911,12 @@ function deleteCommand (program) {
         .option('-i --image-profiles',   i18n.__('cli_delete_opt_image_profiles'))
         .option('-C --categories',       i18n.__('cli_delete_opt_categories'))
         .option('-p --pages',            i18n.__('cli_delete_opt_pages'))
+        .option('--page-content',        i18n.__('cli_delete_opt_page_content'))
         .option('-A --all-authoring',    i18n.__('cli_delete_opt_all'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('--all',                 i18n.__('cli_delete_opt_all_artifacts'))
         .option('--id <id>',             i18n.__('cli_delete_opt_id'))
-        .option('-p --path <path>',      i18n.__('cli_delete_opt_path'))
+        .option('--path <path>',         i18n.__('cli_delete_opt_path'))
         .option('-n --named <name>',     i18n.__('cli_delete_opt_name'))
         .option('-T --tag <tag>',        i18n.__('cli_delete_opt_tag'))
         .option('--by-type-name <name>', i18n.__('cli_delete_opt_by_type_name'))

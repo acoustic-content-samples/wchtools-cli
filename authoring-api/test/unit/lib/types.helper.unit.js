@@ -42,7 +42,8 @@ class TypesHelperUnitTest extends BaseHelperUnit {
 
     runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
         this.testFilterRetryPushContent(helper);
-        this.testSearchRemote (restApi,helper, path1, path2, badPath);
+        this.testFilterRetryDeleteContent(helper);
+        this.testSearchRemote(restApi, helper, path1, path2, badPath);
     }
 
     testFilterRetryPushContent (helper) {
@@ -119,6 +120,98 @@ class TypesHelperUnitTest extends BaseHelperUnit {
         });
     }
 
+    testFilterRetryDeleteContent (helper) {
+        describe("filterRetryDelete", function () {
+            it("should return false with no error.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    expect(helper.filterRetryDelete(context)).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return false with no error response body.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const DELETE_ERROR = "There was a delete error - expected by the unit test.";
+                    const deleteError = new Error(DELETE_ERROR);
+                    deleteError.response = {"statusCode": 400};
+                    expect(helper.filterRetryDelete(context, deleteError)).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return false with the wrong error code.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const DELETE_ERROR = "There was a delete error - expected by the unit test.";
+                    const deleteError = new Error(DELETE_ERROR);
+                    deleteError.response = {"statusCode": 400, "body": {"errors": [{"code": 7000}]}};
+                    expect(helper.filterRetryDelete(context, deleteError)).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true with error 3004.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    // Create an error that will cause the item to be retried.
+                    const DELETE_ERROR = "There was a delete error - expected by the unit test.";
+                    const deleteError = new Error(DELETE_ERROR);
+                    deleteError.response = {"statusCode": 400, "body": {"errors": [{"code": 2503}]}};
+                    expect(helper.filterRetryDelete(context, deleteError)).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true with an error between 6000 and 7000.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    // Create an error that will cause the item to be retried.
+                    const DELETE_ERROR = "There was a delete error - expected by the unit test.";
+                    const deleteError = new Error(DELETE_ERROR);
+                    deleteError.response = {"statusCode": 400, "body": {"errors": [{"code": 6500}]}};
+                    expect(helper.filterRetryDelete(context, deleteError)).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+    }
 }
 
 module.exports = TypesHelperUnitTest;

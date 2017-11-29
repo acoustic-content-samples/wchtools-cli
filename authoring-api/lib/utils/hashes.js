@@ -587,6 +587,49 @@ function removeHashes (context, basePath, ids, opts) {
 }
 
 /**
+ * Remove the metadata for the specified path in the hashes file at the specified location.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {Object} itemPath The path of the item to remove the metadata for.
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {Object} The updated tenant map for the hashes file at the given location, or an empty object.
+ *
+ * @public
+ */
+function removeHashesByPath (context, basePath, itemPath, opts) {
+    // If the context specifies that hashes should not be used, return an empty tenant map.
+    if (!options.getRelevantOption(context, opts, "useHashes")) {
+        return {};
+    }
+
+    try {
+        if (itemPath) {
+            // Get the existing tenant metadata at the specified location.
+            const hashMap = loadHashes(context, basePath, opts);
+
+            // Remove all matching entries for the current tenant.
+            Object.keys(hashMap).forEach(function (key) {
+                if (hashMap[key].path === itemPath) {
+                    delete hashMap[key];
+                }
+            });
+
+            // Save the updated tenant metadata to the hashes file at the specified location, and return the tenant map.
+            return saveHashes(context, basePath, hashMap, opts);
+        } else {
+            // The tenant metadata was not updated, so just return the current state of the tenant map.
+            return loadTenantMap(context, basePath);
+        }
+    } catch (err) {
+        // Log the error and return the current state of the tenant map.
+        utils.logErrors(context, i18n.__("error_remove_hashes_by_path"), err);
+        return loadTenantMap(context, basePath);
+    }
+}
+
+/**
  * Remove the metadata for the current tenant in the hashes file at the specified location.
  *
  * @param {Object} context The current API context.
@@ -900,8 +943,11 @@ function listFiles (context, basePath, opts) {
             return (key !== "lastPullTimestamp" && key !== "lastPushTimestamp" && key !== "baseUrls");
         })
         .map(function (fileKey) {
-            // Return the file path for each file entry.
-            return hashMap[fileKey].path;
+            // Return the id and file path for each file entry.
+            return {
+                id: fileKey,
+                path: hashMap[fileKey].path
+            };
         });
 }
 
@@ -994,13 +1040,13 @@ function isLocalModified (context, flags, basePath, metadataPath, resourcePath, 
     }
 
     // Determine whether the local file is new.
-    if (flags.indexOf(NEW) !== -1) {
+    if (!modified && flags.indexOf(NEW) !== -1) {
         context.logger.debug("hashes.isLocalModified NEW fileHashes", (fileHashes !== undefined));
         context.logger.debug("hashes.isLocalModified NEW fileHashes localLastModified", fileHashes ? fileHashes.localLastModified : undefined);
         context.logger.debug("hashes.isLocalModified NEW fileHashes md5", fileHashes ? fileHashes.md5 : undefined);
 
         // The local file is new if it exists but the metadata in the hashes file does not exist.
-        if (stat && (!fileHashes || !fileHashes.localLastModified || !fileHashes.md5)) {
+        if ((stat && (!fileHashes || !fileHashes.localLastModified || !fileHashes.md5)) || (statResource && (!fileHashes || !fileHashes.resourceLocalLastModified || !fileHashes.resourceMD5))) {
             context.logger.debug("hashes.isLocalModified NEW file is new");
             modified = true;
         }
@@ -1079,6 +1125,7 @@ const hashes = {
     updateResourceHashes: updateResourceHashes,
     updateHashes: updateHashes,
     removeHashes: removeHashes,
+    removeHashesByPath: removeHashesByPath,
     removeAllHashes: removeAllHashes,
     getFilePath: getFilePath,
     setFilePath: setFilePath,

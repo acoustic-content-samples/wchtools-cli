@@ -69,9 +69,7 @@ class PublishCommand extends BaseCommand {
     static getJobIdFromStatusOption(helper, context, status, opts) {
         // If status is boolean==true then --status was specified without a job id so lookup most recent job
         if (status === true) {
-            opts = utils.cloneOpts(opts);
-            opts.limit = 1;
-            return helper.getPublishingJobs(context, opts)
+            return helper.getPublishingJobs(context, utils.cloneOpts(opts, {limit: 1}))
                 .then(jobs => {
                     return ((jobs && jobs.length>0) ? jobs[0].id : null);
                 });

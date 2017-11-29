@@ -352,14 +352,14 @@ class PushCommand extends BaseCommand {
         }
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const assetPushed = function (name) {
+        const assetPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_asset_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_asset_pushed_2', item));
         };
         emitter.on("pushed", assetPushed);
-        const resourcePushed = function (name) {
+        const resourcePushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_resource_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_resource_pushed_2', item));
         };
         emitter.on("resource-pushed", resourcePushed);
 
@@ -424,9 +424,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingImageProfiles);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const imageProfilePushed = function (name) {
+        const imageProfilePushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_image_profile_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_image_profile_pushed_2', item));
         };
         emitter.on("pushed", imageProfilePushed);
 
@@ -484,9 +484,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingLayouts);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const layoutPushed = function (name) {
+        const layoutPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_layout_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_layout_pushed_2', item));
         };
         emitter.on("pushed", layoutPushed);
 
@@ -544,9 +544,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingLayoutMappings);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const artifactPushed = function (name) {
+        const artifactPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_layout_mapping_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_layout_mapping_pushed_2', item));
         };
         emitter.on("pushed", artifactPushed);
 
@@ -604,9 +604,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingRenditions);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const renditionPushed = function (name) {
+        const renditionPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_rendition_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_rendition_pushed_2', item));
         };
         emitter.on("pushed", renditionPushed);
 
@@ -664,9 +664,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingCategories);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const categoryPushed = function (name) {
+        const categoryPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_cat_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_cat_pushed_2', item));
         };
         emitter.on("pushed", categoryPushed);
 
@@ -724,9 +724,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingTypes);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const itemTypePushed = function (name) {
+        const itemTypePushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_type_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_type_pushed_2', item));
         };
         emitter.on("pushed", itemTypePushed);
 
@@ -784,9 +784,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingContentItems);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const contentPushed = function (name) {
+        const contentPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_content_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_content_pushed_2', item));
         };
         emitter.on("pushed", contentPushed);
 
@@ -844,9 +844,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingPages);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const artifactPushed = function (name) {
+        const artifactPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_page_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_page_pushed_2', item));
         };
         emitter.on("pushed", artifactPushed);
 
@@ -904,9 +904,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingSites);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const artifactPushed = function (name) {
+        const artifactPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_site_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_site_pushed_2', item));
         };
         emitter.on("pushed", artifactPushed);
 

@@ -1074,6 +1074,11 @@ class BaseRestUnitTest extends UnitTest {
                 const body = null;
                 stubDelete.yields(err, res, body);
 
+                // Provide a filterRetryDelete method that returns true.
+                context.filterRetryDelete = function () {
+                    return true;
+                };
+
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubDelete);
 
@@ -1092,11 +1097,15 @@ class BaseRestUnitTest extends UnitTest {
                         // Verify that the expected error is returned.
                         expect(err.name).to.equal("Error");
                         expect(err.message).to.contain(_ERROR);
+                        expect(err.retry).to.equal(true);
                     })
                     .catch(function (err) {
                         error = err;
                     })
                     .finally(function () {
+                        // Remove the filterRetryDelete method we added.
+                        delete context.filterRetryDelete;
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });

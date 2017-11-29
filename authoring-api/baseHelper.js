@@ -24,7 +24,6 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const SearchREST = require("./lib/authoringSearchREST.js");
 const searchREST = SearchREST.instance;
 
-
 /**
  * Base class for API helper objects.
  *
@@ -181,16 +180,43 @@ class BaseHelper {
     }
 
     /**
+     * Delete the specified local item.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} item The item to be deleted.
+     * @param {Object} opts The options to be used for the delete operation.
+     *
+     * @returns {Q.Promise} A promise for the deleted item.
+     */
+    deleteLocalItem (context, item, opts) {
+        const helper = this;
+
+        // Delete the specified item from the local file system.
+        return helper._fsApi.deleteItem(context, item, opts)
+            .then(function (filepath) {
+                if (filepath) {
+                    // The delete was successful, so remove the hashes information for the item.
+                    const basePath = helper._fsApi.getPath(context, opts);
+                    hashes.removeHashes(context, basePath, [item.id], opts);
+
+                    // Remove any empty parent folders that were created for the item.
+                    utils.removeEmptyParentDirectories(basePath, filepath)
+                }
+
+                return item;
+            });
+    }
+
+    /**
      * Delete the specified remote item.
      *
      * @param {Object} context The API context to be used for this operation.
-     * @param {Object} item - The item to be deleted.
-     * @param {Object} opts - The options to be used for the delete operation.
+     * @param {Object} item The item to be deleted.
+     * @param {Object} opts The options to be used for the delete operation.
      *
      * @returns {Q.Promise} A promise for the deleted item.
      */
     deleteRemoteItem (context, item, opts) {
-        // This function exists mostly for testing purposes
         const helper = this;
         return helper._restApi.deleteItem(context, item, opts)
             .then(function () {
@@ -255,14 +281,14 @@ class BaseHelper {
                 // Start with an empty array that will accumulate deleted items.
                 return self._recurseDelete(context, listFn, [], deleteInfo, opts);
             })
-            .then(function (items) {
+            .then(function (deletedItems) {
                 // Recursive function for handling retries.
-                const retryDeleteItems = function (deletedItems) {
+                const retryDeleteItems = function (items) {
                     // Check to see if a retry is required.
                     const retryItems = self.getRetryDeleteProperty(context, BaseHelper.RETRY_DELETE_ITEMS);
                     if (retryItems && retryItems.length > 0) {
                         // There are items to retry, so check to see whether any delete operations were successful.
-                        if (deletedItems.length > 0) {
+                        if (items.length > 0) {
                             // There was at least one successful delete during the current cycle, so proceed with the retry.
                             const itemsToDelete = [];
                             retryItems.forEach(function (retryItem) {
@@ -282,18 +308,18 @@ class BaseHelper {
                             // List function for getting the items to be retried.
                             const limit = options.getRelevantOption(context, opts, "limit", self._artifactName);
                             const getRetryChunk = function (context, opts) {
-                                const deferred = Q.defer();
+                                const deferredChunk = Q.defer();
                                 const offset = options.getRelevantOption(context, opts, "offset", self._artifactName);
 
                                 if (offset >= itemsToDelete.length) {
                                     // Past the end of the array.
-                                    deferred.resolve([]);
+                                    deferredChunk.resolve([]);
                                 } else {
                                     // Before the end of the array
-                                    deferred.resolve(itemsToDelete.slice(offset, offset + limit));
+                                    deferredChunk.resolve(itemsToDelete.slice(offset, offset + limit));
                                 }
 
-                                return deferred.promise;
+                                return deferredChunk.promise;
                             };
 
                             // Retry the delete of the items in the list.
@@ -307,8 +333,14 @@ class BaseHelper {
                                     return self._recurseDelete(context, listFn, [], deleteInfo, opts);
                                 })
                                 .then(function (items) {
+                                    // Add the items that were deleted on retry to the list of deleted items.
+                                    deletedItems = deletedItems.concat(items);
+
                                     // Recursive call to continue retry handling.
                                     retryDeleteItems(items);
+                                })
+                                .catch(function (err) {
+                                    deferred.reject(err);
                                 });
                         } else {
                             // There were no successful deletes during the current cycle, so do not retry again.
@@ -327,16 +359,16 @@ class BaseHelper {
                             });
 
                             // Resolve the promise now that there are no more items to delete.
-                            deferred.resolve();
+                            deferred.resolve(deletedItems);
                         }
                     } else {
                         // There were no items to retry, so resolve the promise.
-                        deferred.resolve();
+                        deferred.resolve(deletedItems);
                     }
                 };
 
                 // Start the recursive retry handling.
-                retryDeleteItems(items);
+                retryDeleteItems(deletedItems);
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -371,7 +403,7 @@ class BaseHelper {
 
         listFn(opts)
             .then(function (items) {
-                // Keep trac of the original number of items in the chunk.
+                // Keep track of the original number of items in the chunk.
                 const chunkSize = items.length;
 
                 // Filter the list of remote items to remove any that should not be deleted.
@@ -388,6 +420,8 @@ class BaseHelper {
                                 if (emitter) {
                                     emitter.emit("deleted", item);
                                 }
+
+                                return item;
                             })
                             .catch(function (err) {
                                 if (emitter) {
@@ -407,9 +441,9 @@ class BaseHelper {
                     };
                 });
 
-                utils.throttledAll(context, functions, concurrentLimit)
+                return utils.throttledAll(context, functions, concurrentLimit)
                     .then(function (promises) {
-                        // Get the list of items thast were successfully deleted.
+                        // Get the list of items that were successfully deleted.
                         const items = [];
                         promises.forEach(function (promise) {
                             if (promise.state === "fulfilled") {
@@ -447,13 +481,7 @@ class BaseHelper {
         const deferred  = Q.defer();
 
         // Keep track of the deleted items passed in.
-        if (results) {
-            // A results array has been specified, so accumulate the deleted items.
-            results = results.concat(deleteInfo.items);
-        } else {
-            // No results array has been specified, so use the deleted items as the results array.
-            results = deleteInfo.items;
-        }
+        results = results.concat(deleteInfo.items);
 
         // Determine whether this is the last chunk to be deleted.
         const currentChunkSize = deleteInfo.chunkSize;
@@ -467,8 +495,7 @@ class BaseHelper {
 
             // Increase the offset so that the next chunk of items will be retrieved.
             const offset = options.getRelevantOption(context, opts, "offset", self._artifactName);
-            opts = utils.cloneOpts(opts);
-            opts.offset = offset +  maxChunkSize;
+            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // Adjust the offset by the number of items deleted, if necessary.
             const adjustOffset = deleteInfo.adjustOffset;
@@ -480,7 +507,7 @@ class BaseHelper {
             self._deleteItemsChunk(context, listFn, opts)
                 .then(function (deleteInfo) {
                     deleteInfo.adjustOffset = adjustOffset;
-                    self._recurseDelete(context, listFn, results, deleteInfo, opts)
+                    return self._recurseDelete(context, listFn, results, deleteInfo, opts)
                         .then(function (results) {
                             deferred.resolve(results);
                         });
@@ -756,9 +783,7 @@ class BaseHelper {
         const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
 
         // set the search service's offset/limit values on a clone of the opts
-        opts = utils.cloneOpts(opts);
-        opts.offset = offset;
-        opts.limit = limit;
+        opts = utils.cloneOpts(opts, {offset: offset, limit: limit});
 
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
         const helper = this;
@@ -767,7 +792,7 @@ class BaseHelper {
                 // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
                 // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
             })
             .catch(function (err) {
                 // If the list function's promise is rejected, propogate that to the deferred that was returned.

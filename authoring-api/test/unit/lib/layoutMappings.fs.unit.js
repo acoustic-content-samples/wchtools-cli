@@ -67,8 +67,8 @@ class LayoutMappingsFsUnitTest extends BaseFsUnit {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
-                expect(paths[0]).to.be.oneOf([itemName1, itemName2]);
-                expect(paths[1]).to.be.oneOf([itemName1, itemName2]);
+                expect(paths[0].path).to.be.oneOf([itemName1, itemName2]);
+                expect(paths[1].path).to.be.oneOf([itemName1, itemName2]);
             })
             .catch (function (err) {
                 // NOTE: A failed expectation from above will be handled here.

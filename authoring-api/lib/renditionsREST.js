@@ -53,9 +53,7 @@ class RenditionsREST extends JSONItemREST {
         const parentMethod = super.createItem.bind(this);
 
         // If getting the item fails, do not log the error. It is expected to fail if the item was not created yet.
-        const cOpts = utils.cloneOpts(opts);
-        cOpts.noErrorLog = "true";
-        return this.getItem(context, item.id, cOpts)
+        return this.getItem(context, item.id, utils.cloneOpts(opts, {noErrorLog: "true"}))
             .then(function (item) {
                 utils.logDebugInfo(context, 'This item already exists: ' + item.id + ' :renditionRest');
                 return item;

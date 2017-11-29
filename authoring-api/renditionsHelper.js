@@ -54,7 +54,7 @@ class RenditionsHelper extends JSONItemHelper {
      * Delete the specified remote item.
      *
      * @param {Object} context The current context to be used by the API.
-     * @param {String} item - The item to be deleted.
+     * @param {Object} item - The item to be deleted.
      * @param {Object} opts - The options to be used for the delete operation.
      *
      * @returns {Q.Promise} A rejected promise indicating that renditions cannot be deleted.
@@ -63,6 +63,21 @@ class RenditionsHelper extends JSONItemHelper {
      */
     deleteRemoteItem(context, item, opts) {
         const message = i18n.__("delete_rendition_error", {"id": item.id, "opts": JSON.stringify(opts ? opts : {})});
+        return Q.reject(new Error(message));
+    }
+
+    /**
+     * Delete the items on the remote content hub.
+     *
+     * @param {Object} context The API context to be used by the delete operation.
+     * @param {Object} opts The options to be used to delete the items.
+     *
+     * @returns {Q.Promise} A promise to delete the items on the remote content hub.
+     *
+     * @override
+     */
+    deleteRemoteItems(context, opts) {
+        const message = i18n.__("delete_renditions_error");
         return Q.reject(new Error(message));
     }
 

@@ -361,7 +361,7 @@ class LoginRestUnitTest extends UnitTest {
                 const LOGIN_RESPONSE_COOKIE = UnitTest.DUMMY_METADATA;
                 const err = null;
                 const res = {"statusCode": LOGIN_RESPONSE_CODE, "headers": {"set-cookie": LOGIN_RESPONSE_COOKIE, "x-ibm-dx-tenant-id":"00000000-0000-0000-000000000000"}};
-                const body = null;
+                const body = '[{"tier": "Trial"}]';
                 stub.onCall(0).yields(err, res, body);
 
                 // The stub and spy should be restored when the test is complete.
@@ -375,6 +375,7 @@ class LoginRestUnitTest extends UnitTest {
                         expect(retval).to.not.be.empty;
                         expect(retval.username).to.contain(loginOptions.username);
                         expect(retval["x-ibm-dx-tenant-id"]).to.equal("00000000-0000-0000-000000000000");
+                        expect(retval["tier"]).to.equal("Trial");
 
                         // Verify that the stub was called once with the expected values.
                         expect(stub).to.have.been.calledOnce;
@@ -396,7 +397,7 @@ class LoginRestUnitTest extends UnitTest {
                 const LOGIN_RESPONSE_COOKIE = UnitTest.DUMMY_METADATA;
                 const err = null;
                 const res = {"statusCode": 302, "headers": {"set-cookie": LOGIN_RESPONSE_COOKIE, "x-ibm-dx-tenant-id": UnitTest.DUMMY_ID, "x-ibm-dx-tenant-base-url": UnitTest.DUMMY_URI}};
-                const body = null;
+                const body = '{"username": "Foo", "x-ibm-dx-tenant-base-url": "Bar"}';
                 stub.onCall(0).yields(err, res, body);
 
                 // Create a stub for the options.getProperty method to return null for the base-url.

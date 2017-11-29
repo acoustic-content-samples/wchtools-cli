@@ -1079,11 +1079,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(5);
-                        expect(spyPull.args[0][0]).to.equal(assetMetadata1.path);
-                        expect(spyPull.args[1][0]).to.equal(assetMetadata2.path);
-                        expect(spyPull.args[2][0]).to.equal(assetMetadata3.path);
-                        expect(spyPull.args[3][0]).to.equal(assetMetadata4.path);
-                        expect(spyPull.args[4][0]).to.equal(assetMetadata6.path);
+                        expect(spyPull.args[0][0].path).to.equal(assetMetadata1.path);
+                        expect(spyPull.args[1][0].path).to.equal(assetMetadata2.path);
+                        expect(spyPull.args[2][0].path).to.equal(assetMetadata3.path);
+                        expect(spyPull.args[3][0].path).to.equal(assetMetadata4.path);
+                        expect(spyPull.args[4][0].path).to.equal(assetMetadata6.path);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].name).to.equal("Error");
                         expect(spyError.args[0][0].message).to.contain("Invalid path");
@@ -1232,10 +1232,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(4);
-                        expect(spyPull.args[0][0]).to.equal(assetMetadata1.path);
-                        expect(spyPull.args[1][0]).to.equal(assetMetadata3.path);
-                        expect(spyPull.args[2][0]).to.equal(assetMetadata4.path);
-                        expect(spyPull.args[3][0]).to.equal(assetMetadata6.path);
+                        expect(spyPull.args[0][0].path).to.equal(assetMetadata1.path);
+                        expect(spyPull.args[1][0].path).to.equal(assetMetadata3.path);
+                        expect(spyPull.args[2][0].path).to.equal(assetMetadata4.path);
+                        expect(spyPull.args[3][0].path).to.equal(assetMetadata6.path);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].name).to.equal("Error");
                         expect(spyError.args[0][0].message).to.contain("Invalid path");
@@ -1355,7 +1355,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.been.calledOnce;
-                        expect(spyPull.args[0][0]).to.equal(assetMetadata2.path);
+                        expect(spyPull.args[0][0].path).to.equal(assetMetadata2.path);
                         expect(spyError).to.not.have.been.called;
 
                         // Verify that the hashes were called as expected.
@@ -1553,11 +1553,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(5);
-                        expect(spyPull.args[0][0]).to.equal(assetMetadata1.path);
-                        expect(spyPull.args[1][0]).to.equal(assetMetadata2.path);
-                        expect(spyPull.args[2][0]).to.equal(assetMetadata3.path);
-                        expect(spyPull.args[3][0]).to.equal(assetMetadata4.path);
-                        expect(spyPull.args[4][0]).to.equal(assetMetadata6.path);
+                        expect(spyPull.args[0][0].path).to.equal(assetMetadata1.path);
+                        expect(spyPull.args[1][0].path).to.equal(assetMetadata2.path);
+                        expect(spyPull.args[2][0].path).to.equal(assetMetadata3.path);
+                        expect(spyPull.args[3][0].path).to.equal(assetMetadata4.path);
+                        expect(spyPull.args[4][0].path).to.equal(assetMetadata6.path);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].name).to.equal("Error");
                         expect(spyError.args[0][0].message).to.contain("Invalid path");
@@ -1715,11 +1715,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(5);
-                        expect(spyPull.args[0][0]).to.equal(assetMetadata1.path);
-                        expect(spyPull.args[1][0]).to.equal(assetMetadata2.path);
-                        expect(spyPull.args[2][0]).to.equal(assetMetadata3.path);
-                        expect(spyPull.args[3][0]).to.equal(assetMetadata4.path);
-                        expect(spyPull.args[4][0]).to.equal(assetMetadata5.path);
+                        expect(spyPull.args[0][0].path).to.equal(assetMetadata1.path);
+                        expect(spyPull.args[1][0].path).to.equal(assetMetadata2.path);
+                        expect(spyPull.args[2][0].path).to.equal(assetMetadata3.path);
+                        expect(spyPull.args[3][0].path).to.equal(assetMetadata4.path);
+                        expect(spyPull.args[4][0].path).to.equal(assetMetadata5.path);
                         expect(spyError).to.not.have.been.called;
 
                         // Verify that the hashes were called as expected.
@@ -2322,7 +2322,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should report errors when pushing assets fails.", function (done) {
                 // Create an assetsHelper.listLocalItemNames stub that returns a promise for the modified names.
                 const stubList = sinon.stub(assetsHelper, "listLocalItemNames");
-                stubList.resolves([AssetsUnitTest.ASSET_HTML_1]);
+                stubList.resolves([{id: undefined, path: AssetsUnitTest.ASSET_HTML_1}]);
 
                 // Create an assetsHelper.pushItem stub that returns an error.
                 const ASSET_ERROR = "There was an error pushing an asset. This error is expected by the test.";
@@ -2369,12 +2369,12 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should succeed when pushing all local assets.", function (done) {
                 // List of local asset names.
                 const assetNames = [
-                    AssetsUnitTest.ASSET_HTML_1,
-                    AssetsUnitTest.ASSET_CSS_1,
-                    AssetsUnitTest.ASSET_HBS_1,
-                    AssetsUnitTest.ASSET_GIF_1,
-                    AssetsUnitTest.ASSET_JAR_1,
-                    AssetsUnitTest.ASSET_CONTENT_JPG_1
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_GIF_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_JAR_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_1}
                 ];
 
                 // Read the contents of the test asset files.
@@ -2532,11 +2532,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the spies were called as expected.
                         expect(spyPushed).to.have.callCount(5);
-                        expect(spyPushed.getCall(0).args[0]).to.equal(AssetsUnitTest.ASSET_HTML_1);
-                        expect(spyPushed.getCall(1).args[0]).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                        expect(spyPushed.getCall(2).args[0]).to.equal(AssetsUnitTest.ASSET_GIF_1);
-                        expect(spyPushed.getCall(3).args[0]).to.equal(AssetsUnitTest.ASSET_JAR_1);
-                        expect(spyPushed.getCall(4).args[0]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(spyPushed.getCall(0).args[0].path).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                        expect(spyPushed.getCall(1).args[0].path).to.equal(AssetsUnitTest.ASSET_CSS_1);
+                        expect(spyPushed.getCall(2).args[0].path).to.equal(AssetsUnitTest.ASSET_GIF_1);
+                        expect(spyPushed.getCall(3).args[0].path).to.equal(AssetsUnitTest.ASSET_JAR_1);
+                        expect(spyPushed.getCall(4).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.firstCall.args[0].message).to.equal(ASSET_ERROR);
                         expect(spyError.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
@@ -2624,7 +2624,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should report errors when pushing a modified asset fails.", function (done) {
                 // Create an assetsHelper.listModifiedLocalItemNames stub that returns a promise for the modified names.
                 const stubList = sinon.stub(assetsHelper, "listModifiedLocalItemNames");
-                stubList.resolves([AssetsUnitTest.ASSET_HTML_1]);
+                stubList.resolves([{id: undefined, path: AssetsUnitTest.ASSET_HTML_1}]);
 
                 // Create an assetsHelper.pushItem stub that returns an error.
                 const ASSET_ERROR = "There was an error pushing an asset. This error is expected by the test.";
@@ -2666,9 +2666,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should succeed when pushing modified local assets.", function (done) {
                 // List of modified local asset names.
                 const modifiedAssetNames = [
-                    AssetsUnitTest.ASSET_HTML_1,
-                    AssetsUnitTest.ASSET_CSS_1,
-                    AssetsUnitTest.ASSET_HBS_1
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_1}
                 ];
 
                 // Read the contents of the test asset files.
@@ -2779,8 +2779,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the spies were called as expected.
                         expect(spySuccess).to.have.been.calledTwice;
-                        expect(spySuccess.firstCall.args[0]).to.equal(AssetsUnitTest.ASSET_HTML_1);
-                        expect(spySuccess.secondCall.args[0]).to.equal(AssetsUnitTest.ASSET_CSS_1);
+                        expect(spySuccess.firstCall.args[0].path).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                        expect(spySuccess.secondCall.args[0].path).to.equal(AssetsUnitTest.ASSET_CSS_1);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.firstCall.args[0].message).to.equal(ASSET_ERROR);
                         expect(spyError.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
@@ -2880,11 +2880,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected values.
                         expect(names).to.have.lengthOf(5);
-                        expect(names[0]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(names[1]).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(names[2]).to.contain(AssetsUnitTest.ASSET_PNG_1);
-                        expect(names[3]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(names[4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(names[2].path).to.contain(AssetsUnitTest.ASSET_PNG_1);
+                        expect(names[3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(names[4].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
 
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledOnce;
@@ -2927,11 +2927,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected values.
                         expect(names).to.have.lengthOf(5);
-                        expect(names[0]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(names[1]).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(names[2]).to.contain(AssetsUnitTest.ASSET_PNG_1);
-                        expect(names[3]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(names[4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(names[2].path).to.contain(AssetsUnitTest.ASSET_PNG_1);
+                        expect(names[3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(names[4].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
 
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledTwice;
@@ -2974,10 +2974,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected values.
                         expect(names).to.have.lengthOf(4);
-                        expect(names[0]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(names[1]).to.contain(AssetsUnitTest.ASSET_PNG_1);
-                        expect(names[2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(names[3]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_PNG_1);
+                        expect(names[2].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(names[3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
 
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledTwice;
@@ -3023,7 +3023,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the helper returned the expected values.
                         expect(names).to.have.lengthOf(1);
-                        expect(names[0]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -3092,7 +3092,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Create a non-default stub for hashes.listFiles that returns the local asset paths.
                 stubListFiles.restore();
                 stubListFiles = sinon.stub(hashes, "listFiles");
-                stubListFiles.returns([AssetsUnitTest.ASSET_HTML_1, AssetsUnitTest.ASSET_GIF_1, AssetsUnitTest.ASSET_PNG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_JAR_1]);
+                stubListFiles.returns([{id: undefined, path: AssetsUnitTest.ASSET_HTML_1}, {id: undefined, path: AssetsUnitTest.ASSET_GIF_1}, {id: undefined, path: AssetsUnitTest.ASSET_PNG_1}, {id: undefined, path: AssetsUnitTest.ASSET_CSS_1}, {id: undefined, path: AssetsUnitTest.ASSET_JAR_1}]);
 
                 // The remote stub should be restored when the test is complete. (The list files stub is restored by the afterEach function.)
                 self.addTestDouble(stubRemote);
@@ -3105,10 +3105,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(names).to.have.lengthOf(2);
 
                         // ASSET_GIF_1 should have been identified as having been deleted.
-                        expect(names[0]).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
 
                         // ASSET_CSS_1 should have been identified as having been deleted.
-                        expect(names[1]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
 
                         // Verify that the remote stub was called once.
                         expect(stubRemote).to.have.been.calledTwice;
@@ -3192,11 +3192,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected values.
                         expect(names).to.have.lengthOf(5);
-                        expect(names[0]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(names[1]).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(names[2]).to.contain(AssetsUnitTest.ASSET_PNG_1);
-                        expect(names[3]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(names[4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(names[2].path).to.contain(AssetsUnitTest.ASSET_PNG_1);
+                        expect(names[3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(names[4].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
 
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledOnce;
@@ -3227,7 +3227,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // Create an assetsHelper.listRemoteDeletedNames stub that returns a promise for the deleted remote asset names.
                 const stubDeleted = sinon.stub(assetsHelper, "listRemoteDeletedNames");
-                stubDeleted.resolves([AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_JAR_1]);
+                stubDeleted.resolves([{id: undefined, path: AssetsUnitTest.ASSET_CSS_1}, {id: undefined, path: AssetsUnitTest.ASSET_JAR_1}]);
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubModified);
@@ -3239,11 +3239,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected values.
                         expect(names).to.have.lengthOf(5);
-                        expect(names[0]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(names[1]).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(names[2]).to.contain(AssetsUnitTest.ASSET_PNG_1);
-                        expect(names[3]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(names[4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                        expect(names[2].path).to.contain(AssetsUnitTest.ASSET_PNG_1);
+                        expect(names[3].path).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(names[4].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
 
                         // Verify that the modified stub was called once.
                         expect(stubModified).to.have.been.calledOnce;
@@ -3391,13 +3391,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should succeed when getting a list of modified local asset names.", function (done) {
                 // List of multiple local asset names.
                 const assetNames = [
-                    AssetsUnitTest.ASSET_HTML_1,
-                    AssetsUnitTest.ASSET_HTML_2,
-                    AssetsUnitTest.ASSET_HTML_3,
-                    AssetsUnitTest.ASSET_CSS_1,
-                    AssetsUnitTest.ASSET_CSS_2,
-                    AssetsUnitTest.ASSET_HBS_1,
-                    AssetsUnitTest.ASSET_HBS_2
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_2},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_3},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_2},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_2}
                 ];
 
                 // Create an assetsFS.listNames stub that returns a promise for the local asset names.
@@ -3438,13 +3438,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should succeed when getting a list of modified and deleted local asset names.", function (done) {
                 // List of multiple local asset names.
                 const assetNames = [
-                    AssetsUnitTest.ASSET_HTML_1,
-                    AssetsUnitTest.ASSET_HTML_2,
-                    AssetsUnitTest.ASSET_HTML_3,
-                    AssetsUnitTest.ASSET_CSS_1,
-                    AssetsUnitTest.ASSET_CSS_2,
-                    AssetsUnitTest.ASSET_HBS_1,
-                    AssetsUnitTest.ASSET_HBS_2
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_2},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_3},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_2},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_2}
                 ];
 
                 // Create an assetsFS.listNames stub that returns a promise for the local asset names.
@@ -3500,13 +3500,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should succeed when getting a list of deleted local asset names.", function (done) {
                 // List of multiple local asset names.
                 const assetNames = [
-                    AssetsUnitTest.ASSET_HTML_1,
-                    AssetsUnitTest.ASSET_HTML_2,
-                    AssetsUnitTest.ASSET_HTML_3,
-                    AssetsUnitTest.ASSET_CSS_1,
-                    AssetsUnitTest.ASSET_CSS_2,
-                    AssetsUnitTest.ASSET_HBS_1,
-                    AssetsUnitTest.ASSET_HBS_2
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_2},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HTML_3},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CSS_2},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_HBS_2}
                 ];
 
                 // Create a non-default stub for hashes.listFiles that returns the local asset paths.
@@ -3534,10 +3534,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .then(function (names) {
                         // Verify that the helper returned the expected value.
                         expect(names).to.have.lengthOf(4);
-                        expect(names[0]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
-                        expect(names[1]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
-                        expect(names[2]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
-                        expect(names[3]).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[0].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[1].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[2].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[3].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
 
                         // Verify that the list files stub was called once.
                         expect(stubListFiles).to.have.been.calledOnce;

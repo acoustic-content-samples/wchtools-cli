@@ -33,6 +33,7 @@ const toolsCli = require("../../../wchToolsCli");
 const events = require("events");
 const mkdirp = require("mkdirp");
 const options = require("wchtools-api").getOptions();
+const prompt = require("prompt");
 
 class PullUnitTest extends UnitTest {
     constructor () {
@@ -73,8 +74,8 @@ class PullUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pulled", itemName1);
-                        emitter.emit("pulled", itemName2);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pulled", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         emitter.emit("pulled-warning", {message: "This warning was expected by the unit test"});
                         stubDeferred.resolve();
@@ -116,8 +117,8 @@ class PullUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("resource-pulled", itemName1);
-                        emitter.emit("resource-pulled", itemName2);
+                        emitter.emit("resource-pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("resource-pulled", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("resource-pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -158,8 +159,8 @@ class PullUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pulled", itemName1);
-                        emitter.emit("pulled", itemName2);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pulled", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -199,8 +200,8 @@ class PullUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pulled", itemName1);
-                        emitter.emit("pulled", itemName2);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pulled", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -236,8 +237,8 @@ class PullUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pulled", itemName1);
-                        emitter.emit("pulled", itemName2);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pulled", {name: itemName2, id: undefined, path: itemName2});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -260,6 +261,176 @@ class PullUnitTest extends UnitTest {
                         // Restore the helper's "getRemoteItems" method.
                         stub.restore();
 
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test pull deletions --quiet working", function (done) {
+                // Stub the helper.pullAllItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pullAllItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("local-only", {name: itemName2, id: undefined, path: itemName2});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+                const stubDelete = sinon.stub(helper, "deleteLocalItem");
+                stubDelete.resolves({name: itemName1, id: undefined,path: itemName2});
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubDelete).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "getRemoteItems" method.
+                        stub.restore();
+                        stubDelete.restore();
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test pull deletions w/prompt working", function (done) {
+                // Stub the helper.pullAllItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pullAllItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("local-only", {name: itemName2, id: itemName2, path: itemName2});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+                const stubPrompt = sinon.stub(prompt, "get");
+                const promptRes = {};
+                promptRes[itemName2] = "y";
+                stubPrompt.yields(null, promptRes );
+                const stubDelete = sinon.stub(helper, "deleteLocalItem");
+                stubDelete.resolves({name: itemName2, id: undefined, path: itemName2});
+
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubPrompt).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "getRemoteItems" method.
+                        stub.restore();
+                        stubPrompt.restore();
+                        stubDelete.restore();
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test pull deletions w/prompt w/1 delete failure working", function (done) {
+                // Stub the helper.pullAllItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pullAllItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("local-only", {name: itemName2, id: itemName2, path: itemName2});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+                const stubPrompt = sinon.stub(prompt, "get");
+                const promptRes = {};
+                promptRes[itemName2] = "y";
+                stubPrompt.yields(null, promptRes );
+                const stubDelete = sinon.stub(helper, "deleteLocalItem");
+                stubDelete.rejects("Error deleting local item");
+
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubPrompt).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "getRemoteItems" method.
+                        stub.restore();
+                        stubPrompt.restore();
+                        stubDelete.restore();
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test pull deletions with 1 delete error working", function (done) {
+                // Stub the helper.pullAllItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pullAllItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("local-only", {name: itemName2, id: undefined, path: itemName2});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+                const stubDelete = sinon.stub(helper, "deleteLocalItem");
+                stubDelete.rejects("Error deleting local item");
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubDelete).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "getRemoteItems" method.
+                        stub.restore();
+                        stubDelete.restore();
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });

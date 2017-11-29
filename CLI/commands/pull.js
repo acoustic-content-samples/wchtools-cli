@@ -23,6 +23,7 @@ const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
 const login = ToolsApi.getLogin();
 const events = require("events");
+const prompt = require("prompt");
 const Q = require("q");
 const ora = require("ora");
 
@@ -30,21 +31,30 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const PREFIX = "========== ";
 const SUFFIX = " ===========";
-const PullingTypes =                PREFIX + i18n.__('cli_pull_pulling_types') + SUFFIX;
-const PullingAssets =               PREFIX + i18n.__('cli_pull_pulling_assets') + SUFFIX;
-const PullingContentAssets =        PREFIX + i18n.__('cli_pull_pulling_content_assets') + SUFFIX;
-const PullingWebAssets =            PREFIX + i18n.__('cli_pull_pulling_web_assets') + SUFFIX;
-const PullingLayouts =              PREFIX + i18n.__('cli_pull_pulling_layouts') + SUFFIX;
-const PullingLayoutMappings =       PREFIX + i18n.__('cli_pull_pulling_layout_mappings') + SUFFIX;
-const PullingImageProfiles =        PREFIX + i18n.__('cli_pull_pulling_image_profiles') + SUFFIX;
-const PullingContents =             PREFIX + i18n.__('cli_pull_pulling_content') + SUFFIX;
-const PullingCategories =           PREFIX + i18n.__('cli_pull_pulling_categories') + SUFFIX;
-const PullingRenditions =           PREFIX + i18n.__('cli_pull_pulling_renditions') + SUFFIX;
-const PullingPublishingProfiles =   PREFIX + i18n.__('cli_pull_pulling_profiles') + SUFFIX;
-const PullingPublishingSources =    PREFIX + i18n.__('cli_pull_pulling_sources') + SUFFIX;
+const PullingTypes = PREFIX + i18n.__('cli_pull_pulling_types') + SUFFIX;
+const PullingAssets = PREFIX + i18n.__('cli_pull_pulling_assets') + SUFFIX;
+const PullingContentAssets = PREFIX + i18n.__('cli_pull_pulling_content_assets') + SUFFIX;
+const PullingWebAssets = PREFIX + i18n.__('cli_pull_pulling_web_assets') + SUFFIX;
+const PullingLayouts = PREFIX + i18n.__('cli_pull_pulling_layouts') + SUFFIX;
+const PullingLayoutMappings = PREFIX + i18n.__('cli_pull_pulling_layout_mappings') + SUFFIX;
+const PullingImageProfiles = PREFIX + i18n.__('cli_pull_pulling_image_profiles') + SUFFIX;
+const PullingContents = PREFIX + i18n.__('cli_pull_pulling_content') + SUFFIX;
+const PullingCategories = PREFIX + i18n.__('cli_pull_pulling_categories') + SUFFIX;
+const PullingRenditions = PREFIX + i18n.__('cli_pull_pulling_renditions') + SUFFIX;
+const PullingPublishingProfiles = PREFIX + i18n.__('cli_pull_pulling_profiles') + SUFFIX;
+const PullingPublishingSources = PREFIX + i18n.__('cli_pull_pulling_sources') + SUFFIX;
 const PullingPublishingSiteRevisions = PREFIX + i18n.__('cli_pull_pulling_site_revisions') + SUFFIX;
-const PullingSites =                   PREFIX + i18n.__('cli_pull_pulling_sites') + SUFFIX;
-const PullingPages =                   PREFIX + i18n.__('cli_pull_pulling_pages') + SUFFIX;
+const PullingSites = PREFIX + i18n.__('cli_pull_pulling_sites') + SUFFIX;
+const PullingPages = PREFIX + i18n.__('cli_pull_pulling_pages') + SUFFIX;
+
+// Define the names of the events emitted by the API during a pull operation.
+const EVENT_ITEM_PULLED = "pulled";
+const EVENT_ITEM_PULLED_WARNING = "pulled-warning";
+const EVENT_ITEM_PULLED_ERROR = "pulled-error";
+const EVENT_RESOURCE_PULLED = "resource-pulled";
+const EVENT_RESOURCE_PULLED_ERROR = "resource-pulled-error";
+const EVENT_ITEM_LOCAL_ONLY = "local-only";
+const EVENT_RESOURCE_LOCAL_ONLY = "resource-local-only";
 
 class PullCommand extends BaseCommand {
     /**
@@ -85,6 +95,7 @@ class PullCommand extends BaseCommand {
         }
 
         // Make sure the url has been specified.
+        let error;
         self.handleUrlOption(context)
             .then(function () {
                 // Make sure the user name and password have been specified.
@@ -100,15 +111,14 @@ class PullCommand extends BaseCommand {
 
                 return self.pullArtifacts(context);
             })
-            .then(function () {
-                // End the display of the pulled artifacts.
-                self.endDisplay();
-            })
             .catch(function (err) {
-                // End the display of the pulled artifacts.
-                self.endDisplay(err);
+                // Pass the error through to the endDisplay() method.
+                error = err;
             })
             .finally(function () {
+                // End the display of the pulled artifacts.
+                self.endDisplay(error);
+
                 // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
             });
@@ -285,6 +295,9 @@ class PullCommand extends BaseCommand {
     readyToPull () {
         const deferred = Q.defer();
 
+        // Set the API option to determine whether to delete local files that do not exist on the content hub.
+        this.setApiOption("deletions", this.getCommandLineOption("deletions"));
+
         // There is currently no condition to wait for.
         deferred.resolve();
 
@@ -321,6 +334,97 @@ class PullCommand extends BaseCommand {
     }
 
     /**
+     *
+     * @param {Object} context The API context associated with this pull command.
+     * @param {Function} deleteFn
+     * @param {Array} items
+     * @param {String} promptKey
+     * @param {String} successKey
+     * @param {String} errorKey
+     * @param {Object} opts
+     */
+    deleteLocalItems (context, deleteFn, items, promptKey, successKey, errorKey, opts) {
+        // Delete the local items that do not exist on the server.
+        const self = this;
+        const logger = self.getLogger();
+
+        if (self.getCommandLineOption("quiet")) {
+            // Do not prompt for deletions if the quiet option was specified.
+            const promises = [];
+            items.forEach(function (item) {
+                // Delete each specified item.
+                const promise = deleteFn(context, item, opts)
+                    .then(function () {
+                        const successEntry = i18n.__(item.id ? successKey: "cli_pull_invalid_file_deleted", item);
+                        logger.info(successEntry);
+                    })
+                    .catch(function () {
+                        const errorEntry = i18n.__(item.id ? errorKey: "cli_pull_invalid_file_delete_error", item);
+                        logger.error(errorEntry);
+                    });
+
+                // Add each delete promise to the list.
+                promises.push(promise);
+            });
+
+            // Return a promise that is resolved when all delete promises have been settled.
+            return Q.allSettled(promises);
+        } else {
+            // Prompt to delete each item that only exists locally.
+            const schemaInput = {};
+            items.forEach(function (item) {
+                // For each matching file, add a confirmation prompt (keyed by the artifact id).
+                schemaInput[item.id || item.path] =
+                    {
+                        description: i18n.__(item.id ? promptKey: "cli_pull_invalid_file_delete_confirm", item),
+                        required: true
+                    };
+            });
+            // After all the prompts have been displayed, execute each of the confirmed delete operations.
+            const deferred = Q.defer();
+            const schemaProps = {properties: schemaInput};
+            prompt.message = '';
+            prompt.delimiter = ' ';
+            prompt.start();
+            prompt.get(schemaProps, function (err, result) {
+                // Filter out the items that were not confirmed.
+                items = items.filter(function (item) {
+                    return (result[item.id || item.path] === "y");
+                });
+
+                if (items.length > 0) {
+                    const promises = [];
+                    items.forEach(function (item) {
+                        // Delete each specified item.
+                        const promise = deleteFn(context, item, opts)
+                            .then(function () {
+                                const successEntry = i18n.__(item.id ? successKey: "cli_pull_invalid_file_deleted", item);
+                                logger.info(successEntry);
+                            })
+                            .catch(function () {
+                                const errorEntry = i18n.__(item.id ? errorKey: "cli_pull_invalid_file_delete_error", item);
+                                logger.error(errorEntry);
+                            });
+
+                        // Add each delete promise to the list.
+                        promises.push(promise);
+                    });
+
+                    // Resolve the returned promise when all delete promises have been settled.
+                    Q.allSettled(promises)
+                        .then(function () {
+                            deferred.resolve();
+                        });
+                } else {
+                    deferred.resolve();
+                }
+            });
+
+            return deferred.promise;
+        }
+    }
+
+    /**
      * Pull the asset artifacts.
      *
      * @param {Object} context The API context to be used for the pull operation.
@@ -343,47 +447,100 @@ class PullCommand extends BaseCommand {
             this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
         }
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const assetPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const assetPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_asset_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_asset_pulled_2', item));
         };
-        emitter.on("pulled", assetPulled);
-        const resourcePulled = function (name) {
-            self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_resource_pulled', {name: name}));
-        };
-        emitter.on("resource-pulled", resourcePulled);
+        emitter.on(EVENT_ITEM_PULLED, assetPulled);
 
-        // The api can emit a warning event when an item is pulled, so we log it for the user.
+        // The API emits an event when a resource is pulled, so we log it for the user.
+        const resourcePulled = function (item) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_resource_pulled_2', item));
+        };
+        emitter.on(EVENT_RESOURCE_PULLED, resourcePulled);
+
+        // The API can emit a warning event when an item is pulled, so we log it for the user.
         const assetPulledWarning = function (name) {
             self.getLogger().warn(i18n.__('cli_pull_asset_digest_mismatch', {asset: name}));
             self.warningMessage(i18n.__('cli_pull_asset_digest_mismatch', {asset: name}));
         };
-        emitter.on("pulled-warning", assetPulledWarning);
+        emitter.on(EVENT_ITEM_PULLED_WARNING, assetPulledWarning);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const assetPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_asset_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", assetPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, assetPulledError);
+
+        // The API emits an event when there is an error pulling a resource, so we log it for the user.
         const resourcePulledError = function (error, id) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_resource_pull_error', {id: id, message: error.message}));
         };
-        emitter.on("resource-pulled-error", resourcePulledError);
+        emitter.on(EVENT_RESOURCE_PULLED_ERROR, resourcePulledError);
 
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push((typeof item === "object") ? item : {path: item});
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // The API emits an event when a local resource does not exist on the server, so add it to the list to delete.
+        const resourcesToDelete = [];
+        const resourceLocalOnly = function (resource) {
+            resourcesToDelete.push(resource);
+        };
+        emitter.on(EVENT_RESOURCE_LOCAL_ONLY, resourceLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let assetPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             assetPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             assetPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return assetPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_asset_delete_confirm";
+                    const successKey = "cli_pull_asset_deleted";
+                    const errorKey = "cli_pull_asset_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
+            .then(function (items) {
+                // Handle any local resources that need to be deleted.
+                if (resourcesToDelete.length > 0) {
+                    // Delete the local resources that do not exist on the server.
+                    const deleteFn = helper.deleteLocalResource.bind(helper);
+                    const promptKey = "cli_pull_resource_delete_confirm";
+                    const successKey = "cli_pull_resource_deleted";
+                    const errorKey = "cli_pull_resource_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, resourcesToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -391,11 +548,13 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", assetPulled);
-                emitter.removeListener("pulled-warning", assetPulledWarning);
-                emitter.removeListener("pulled-error", assetPulledError);
-                emitter.removeListener("resource-pulled", resourcePulled);
-                emitter.removeListener("resource-pulled-error", resourcePulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, assetPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_WARNING, assetPulledWarning);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, assetPulledError);
+                emitter.removeListener(EVENT_RESOURCE_PULLED, resourcePulled);
+                emitter.removeListener(EVENT_RESOURCE_PULLED_ERROR, resourcePulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+                emitter.removeListener(EVENT_RESOURCE_LOCAL_ONLY, resourceLocalOnly);
             });
     }
 
@@ -413,31 +572,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingImageProfiles);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const imageProfilePulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const imageProfilePulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_image_profile_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_image_profile_pulled_2', item));
         };
-        emitter.on("pulled", imageProfilePulled);
+        emitter.on(EVENT_ITEM_PULLED, imageProfilePulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const imageProfilePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_image_profile_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", imageProfilePulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, imageProfilePulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let imageProfilesPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             imageProfilesPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             imageProfilesPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return imageProfilesPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_image_profile_delete_confirm";
+                    const successKey = "cli_pull_image_profile_deleted";
+                    const errorKey = "cli_pull_image_profile_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -445,8 +629,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", imageProfilePulled);
-                emitter.removeListener("pulled-error", imageProfilePulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, imageProfilePulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, imageProfilePulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -464,31 +649,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingLayouts);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const artifactPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_layout_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_layout_pulled_2', item));
         };
-        emitter.on("pulled", artifactPulled);
+        emitter.on(EVENT_ITEM_PULLED, artifactPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const artifactPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_layout_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", artifactPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return artifactPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_layout_delete_confirm";
+                    const successKey = "cli_pull_layout_deleted";
+                    const errorKey = "cli_pull_layout_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -496,8 +706,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", artifactPulled);
-                emitter.removeListener("pulled-error", artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, artifactPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -515,31 +726,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingLayoutMappings);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const artifactPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_layout_mapping_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_layout_mapping_pulled_2', item));
         };
-        emitter.on("pulled", artifactPulled);
+        emitter.on(EVENT_ITEM_PULLED, artifactPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const artifactPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_layout_mapping_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", artifactPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return artifactPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_layout_mapping_delete_confirm";
+                    const successKey = "cli_pull_layout_mapping_deleted";
+                    const errorKey = "cli_pull_layout_mapping_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -547,8 +783,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", artifactPulled);
-                emitter.removeListener("pulled-error", artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, artifactPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -566,31 +803,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingRenditions);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const renditionPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const renditionPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_rendition_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_rendition_pulled_2', item));
         };
-        emitter.on("pulled", renditionPulled);
+        emitter.on(EVENT_ITEM_PULLED, renditionPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const renditionPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_rendition_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", renditionPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, renditionPulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let renditionPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             renditionPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             renditionPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return renditionPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_rendition_delete_confirm";
+                    const successKey = "cli_pull_rendition_deleted";
+                    const errorKey = "cli_pull_rendition_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -598,8 +860,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", renditionPulled);
-                emitter.removeListener("pulled-error", renditionPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, renditionPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, renditionPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -617,31 +880,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingCategories);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const categoryPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const categoryPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_cat_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_cat_pulled_2', item));
         };
-        emitter.on("pulled", categoryPulled);
+        emitter.on(EVENT_ITEM_PULLED, categoryPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const categoryPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_cat_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", categoryPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, categoryPulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let categoryPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             categoryPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             categoryPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return categoryPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_cat_delete_confirm";
+                    const successKey = "cli_pull_cat_deleted";
+                    const errorKey = "cli_pull_cat_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -649,8 +937,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", categoryPulled);
-                emitter.removeListener("pulled-error", categoryPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, categoryPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, categoryPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -668,31 +957,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingTypes);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const itemTypePulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const itemTypePulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_type_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_type_pulled_2', item));
         };
-        emitter.on("pulled", itemTypePulled);
+        emitter.on(EVENT_ITEM_PULLED, itemTypePulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const itemTypePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_type_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", itemTypePulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, itemTypePulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let typePromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             typePromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             typePromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return typePromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_type_delete_confirm";
+                    const successKey = "cli_pull_type_deleted";
+                    const errorKey = "cli_pull_type_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -700,8 +1014,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", itemTypePulled);
-                emitter.removeListener("pulled-error", itemTypePulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, itemTypePulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, itemTypePulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -719,31 +1034,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingContents);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const contentPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const contentPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_content_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_content_pulled_2', item));
         };
-        emitter.on("pulled", contentPulled);
+        emitter.on(EVENT_ITEM_PULLED, contentPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const contentPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_content_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", contentPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, contentPulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let contentPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             contentPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             contentPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return contentPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_content_delete_confirm";
+                    const successKey = "cli_pull_content_deleted";
+                    const errorKey = "cli_pull_content_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -751,8 +1091,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", contentPulled);
-                emitter.removeListener("pulled-error", contentPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, contentPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, contentPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -770,31 +1111,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingSites);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const artifactPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_site_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_site_pulled_2', item));
         };
-        emitter.on("pulled", artifactPulled);
+        emitter.on(EVENT_ITEM_PULLED, artifactPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const artifactPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_site_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", artifactPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
 
-        // If ignoring timestamps then pull all artifacts. Otherwise only pull modified artifacts (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return artifactPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_site_delete_confirm";
+                    const successKey = "cli_pull_site_deleted";
+                    const errorKey = "cli_pull_site_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -802,8 +1168,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", artifactPulled);
-                emitter.removeListener("pulled-error", artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, artifactPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -823,31 +1190,61 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingPages);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
-        const artifactPulled = function (name) {
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_page_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_page_pulled_2', item));
         };
-        emitter.on("pulled", artifactPulled);
+        emitter.on(EVENT_ITEM_PULLED, artifactPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const artifactPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_page_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", artifactPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
 
-        // If ignoring timestamps then pull all artifacts. Otherwise only pull modified artifacts (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            // Fix the path to remove the extension, so that the format matches that displayed for pulled pages.
+            const extension = helper._fsApi.getExtension();
+            if (item.path && item.path.endsWith(extension)) {
+                item.name = item.path.substring(0, item.path.length - extension.length);
+            }
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return artifactPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_page_delete_confirm";
+                    const successKey = "cli_pull_page_deleted";
+                    const errorKey = "cli_pull_page_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -855,8 +1252,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", artifactPulled);
-                emitter.removeListener("pulled-error", artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, artifactPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -874,31 +1272,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingPublishingSources);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
+        // The API emits an event when an item is pulled, so we log it for the user.
         const sourcePulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_source_pulled', {name: name}));
         };
-        emitter.on("pulled", sourcePulled);
+        emitter.on(EVENT_ITEM_PULLED, sourcePulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const sourcePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_source_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", sourcePulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, sourcePulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let sourcePromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             sourcePromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             sourcePromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return sourcePromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_source_delete_confirm";
+                    const successKey = "cli_pull_source_deleted";
+                    const errorKey = "cli_pull_source_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -906,8 +1329,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", sourcePulled);
-                emitter.removeListener("pulled-error", sourcePulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, sourcePulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, sourcePulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -925,31 +1349,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingPublishingProfiles);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
+        // The API emits an event when an item is pulled, so we log it for the user.
         const profilePulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_profile_pulled', {name: name}));
         };
-        emitter.on("pulled", profilePulled);
+        emitter.on(EVENT_ITEM_PULLED, profilePulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const profilePulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_profile_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", profilePulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, profilePulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let profilesPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             profilesPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             profilesPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return profilesPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_profile_delete_confirm";
+                    const successKey = "cli_pull_profile_deleted";
+                    const errorKey = "cli_pull_profile_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -957,8 +1406,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", profilePulled);
-                emitter.removeListener("pulled-error", profilePulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, profilePulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, profilePulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -976,31 +1426,56 @@ class PullCommand extends BaseCommand {
 
         self.getLogger().info(PullingPublishingSiteRevisions);
 
-        // The api emits an event when an item is pulled, so we log it for the user.
+        // The API emits an event when an item is pulled, so we log it for the user.
         const siteRevisionPulled = function (name) {
             self._artifactsCount++;
             self.getLogger().info(i18n.__('cli_pull_site_revision_pulled', {name: name}));
         };
-        emitter.on("pulled", siteRevisionPulled);
+        emitter.on(EVENT_ITEM_PULLED, siteRevisionPulled);
 
-        // The api emits an event when there is a pull error, so we log it for the user.
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
         const siteRevisionPulledError = function (error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_site_revision_pull_error', {name: name, message: error.message}));
         };
-        emitter.on("pulled-error", siteRevisionPulledError);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, siteRevisionPulledError);
 
-        // If ignoring timestamps then pull all sources. Otherwise only pull modified sources (the default behavior).
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
         let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps")) {
+        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
             artifactPromise = helper.pullAllItems(context, apiOptions);
         } else {
+            // The default behavior is to only pull modified items.
             artifactPromise = helper.pullModifiedItems(context, apiOptions);
         }
 
-        // Return the promise for the results of the action.
+        // Return the promise for the results of the pull operation.
         return artifactPromise
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_site_revision_delete_confirm";
+                    const successKey = "cli_pull_site_revision_deleted";
+                    const errorKey = "cli_pull_site_revision_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -1008,8 +1483,9 @@ class PullCommand extends BaseCommand {
                 throw err;
             })
             .finally(function () {
-                emitter.removeListener("pulled", siteRevisionPulled);
-                emitter.removeListener("pulled-error", siteRevisionPulledError);
+                emitter.removeListener(EVENT_ITEM_PULLED, siteRevisionPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, siteRevisionPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
             });
     }
 
@@ -1035,7 +1511,8 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("sites", undefined);
         this.setCommandLineOption("pages", undefined);
-
+        this.setCommandLineOption("deletions", undefined);
+        this.setCommandLineOption("quiet", undefined);
         super.resetCommandLineOptions();
     }
 }
@@ -1055,12 +1532,14 @@ function pullCommand (program) {
         .option('-r --renditions',       i18n.__('cli_pull_opt_renditions'))
         .option('-s --sites',            i18n.__('cli_pull_opt_sites'))
         .option('-p --pages',            i18n.__('cli_pull_opt_pages'))
+        .option('-A --all-authoring',    i18n.__('cli_pull_opt_all'))
         .option('-P --publishing-profiles',i18n.__('cli_pull_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_pull_opt_site_revisions'))
         .option('-S --publishing-sources',i18n.__('cli_pull_opt_sources'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-I --ignore-timestamps',i18n.__('cli_pull_opt_ignore_timestamps'))
-        .option('-A --all-authoring',    i18n.__('cli_pull_opt_all'))
+        .option('--deletions',           i18n.__('cli_pull_opt_deletions'))
+        .option('-q --quiet',            i18n.__('cli_pull_opt_quiet'))
         .option('--dir <dir>',           i18n.__('cli_pull_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
@@ -1068,7 +1547,7 @@ function pullCommand (program) {
         .action(function (commandLineOptions) {
             const command = new PullCommand(program);
             if (command.setCommandLineOptions(commandLineOptions, this)) {
-                if (command.getCommandLineOption("ignoreTimestamps")) {
+                if (command.getCommandLineOption("ignoreTimestamps") || command.getCommandLineOption("deletions")) {
                     command._modified = false;
                 }
                 command.doPull();

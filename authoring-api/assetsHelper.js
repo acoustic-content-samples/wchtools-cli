@@ -206,7 +206,7 @@ class AssetsHelper extends BaseHelper {
                                 // Notify any listeners that the asset at the given path was pulled.
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
-                                    emitter.emit("pulled", assetPath);
+                                    emitter.emit("pulled", {id: asset.id, path: assetPath});
                                 }
 
                                 // Save the asset metadata for content resources.
@@ -334,8 +334,7 @@ class AssetsHelper extends BaseHelper {
 
             // Increase the offset so that the next chunk of assets will be retrieved.
             const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
-            opts = utils.cloneOpts(opts);
-            opts.offset = offset +  maxChunkSize;
+            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // Pull the next chunk of assets from the content hub.
             helper._pullItemsChunk(context, listFn, opts)
@@ -396,10 +395,8 @@ class AssetsHelper extends BaseHelper {
                     path: resourcePath
                 };
                 // Specify in the opts that we need the resource filename returned.
-                const newOpts = utils.cloneOpts(opts);
-                newOpts.returnDisposition = true;
                 // Download the specified resource contents and write them to the given stream.
-                return helper._restApi.pullItem(context, asset, stream, newOpts)
+                return helper._restApi.pullItem(context, asset, stream, utils.cloneOpts(opts, {returnDisposition: true}))
                     .then(function (asset) {
                         helper._fsApi.renameResource(context, resource.id, asset.disposition, opts);
                         const newname = helper._fsApi.getRawResourcePath(context, resource.id, asset.disposition, opts);
@@ -513,8 +510,7 @@ class AssetsHelper extends BaseHelper {
 
             // Increase the offset so that the next chunk of resources will be retrieved.
             const offset = options.getRelevantOption(context, opts, "offset", "resources");
-            opts = utils.cloneOpts(opts);
-            opts.offset = offset +  maxChunkSize;
+            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // Pull the next chunk of resources from the content hub.
             helper._pullResourcesChunk(context, listFn, opts)
@@ -527,13 +523,19 @@ class AssetsHelper extends BaseHelper {
     pullResources (context, opts) {
         const deferred = Q.defer();
 
+        const deletions = options.getRelevantOption(context, opts, "deletions");
+        let allFSResources;
+        if (deletions) {
+            allFSResources = this.listLocalResourceNames(context, opts);
+        }
+
+        const helper = this;
         // If we're only pulling (Fernando) web assets, don't bother pulling resources without asset references.
         // If the noVirtualFolder option has been specified, we can't pull resources without asset references.
         if (opts && (opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
             deferred.resolve();
         } else {
             const listFn = this._restApi.getResourceList.bind(this._restApi, context);
-            const helper = this;
             helper._pullResourcesChunk(context, listFn, opts)
                 .then(function (pullInfo) {
                     // There are no results initially, so just pass null for the results. The accumulated array of
@@ -545,7 +547,25 @@ class AssetsHelper extends BaseHelper {
                     deferred.reject(err);
                 });
         }
-        return deferred.promise;
+        return deferred.promise
+            .then(function (resources) {
+                const emitter = helper.getEventEmitter(context);
+                if (deletions && emitter) {
+                    return allFSResources.then(function (values) {
+                        const pulledPaths = resources.map(function (resource) {
+                            return resource.path;
+                        });
+                        values.forEach(function (resource) {
+                            if (pulledPaths.indexOf(resource.path) === -1) {
+                                emitter.emit("resource-local-only", resource);
+                            }
+                        });
+                        return resources;
+                    });
+                } else {
+                    return resources;
+                }
+            });
     }
 
     /**
@@ -558,6 +578,12 @@ class AssetsHelper extends BaseHelper {
      */
     pullAllItems (context, opts) {
         const deferred = Q.defer();
+
+        const deletions = options.getRelevantOption(context, opts, "deletions");
+        let allFSItems;
+        if (deletions) {
+            allFSItems = this.listLocalItemNames(context, opts);
+        }
 
         // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
         const listFn = this._restApi.getItems.bind(this._restApi, context);
@@ -594,7 +620,22 @@ class AssetsHelper extends BaseHelper {
                     // Only update the last pull timestamp if there were no pull errors.
                     helper._setLastPullTimestamps(context, opts);
                 }
-                return items;
+                const emitter = helper.getEventEmitter(context);
+                if (deletions && emitter) {
+                    return allFSItems.then(function (values) {
+                        const pulledPaths = items.map(function (item) {
+                            return helper._fsApi.getAssetPath(item);
+                        });
+                        values.forEach(function (item) {
+                            if (pulledPaths.indexOf(item.path) === -1) {
+                                emitter.emit("local-only", item);
+                            }
+                        });
+                        return items;
+                    });
+                } else {
+                    return items;
+                }
             })
             .finally(function () {
                 delete context.pullErrorCount;
@@ -842,8 +883,7 @@ class AssetsHelper extends BaseHelper {
                             resourceMd5 = resourceMd5 || diskResourceMd5;
 
                             // Keep track of the asset metadata.
-                            opts = utils.cloneOpts(opts);
-                            opts.asset = asset;
+                            opts = utils.cloneOpts(opts, {asset: asset});
 
                             // Open a read stream for the actual asset file (not the metadata file).
                             return helper._fsApi.getItemReadStream(context, path, opts);
@@ -909,7 +949,7 @@ class AssetsHelper extends BaseHelper {
                                 // The push succeeded so emit a "pushed" event.
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
-                                    emitter.emit("pushed", path);
+                                    emitter.emit("pushed", {id: asset.id, path: path});
                                 }
                             })
                             .catch(function (err) {
@@ -1177,9 +1217,11 @@ class AssetsHelper extends BaseHelper {
         // Get the list of local assets, based on the specified options.
         const helper = this;
         return helper.listLocalItemNames(context, opts)
-            .then(function (names){
+            .then(function (names) {
                 // Push the assets in the list.
-                return helper._pushNameList(context, names, opts);
+                return helper._pushNameList(context, names.map(function (item) {
+                    return item.path;
+                }), opts);
             })
             .then(function (results) {
                 if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
@@ -1207,7 +1249,9 @@ class AssetsHelper extends BaseHelper {
         return helper.listModifiedLocalItemNames(context, [this.NEW, this.MODIFIED], opts)
             .then(function (names){
                 // Push the assets in the list.
-                return helper._pushNameList(context, names, opts);
+                return helper._pushNameList(context, names.map(function (item) {
+                    return item.path;
+                }), opts);
             })
             .then(function (results) {
                 if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
@@ -1405,8 +1449,7 @@ class AssetsHelper extends BaseHelper {
 
             // Increase the offset so that the next chunk of assets will be retrieved.
             const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
-            opts = utils.cloneOpts(opts);
-            opts.offset = offset +  maxChunkSize;
+            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // List the next chunk of assets from the content hub.
             helper._listItemChunk(context, listFn, opts)
@@ -1502,18 +1545,16 @@ class AssetsHelper extends BaseHelper {
         const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
 
         // set the search service's offset/limit values on a clone of the opts
-        opts = utils.cloneOpts(opts);
-        opts.offset = offset;
-        opts.limit = limit;
+        opts = utils.cloneOpts(opts, {offset: offset, limit: limit});
 
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
         const helper = this;
         helper._listItemChunk(context, listFn, opts)
             .then(function (listInfo) {
-                // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
+                // Pass an empty array for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
                 // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
             })
             .catch(function (err) {
                 // If the list function's promise is rejected, propogate that to the deferred that was returned.
@@ -1583,10 +1624,10 @@ class AssetsHelper extends BaseHelper {
         const helper = this;
         helper._listItemChunk(context, listFn, opts)
             .then(function (listInfo) {
-                // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
+                // Pass an empty array for results to indicate that we retrieved the first chunk. The deferred will be
                 // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
                 // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
+                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
             })
             .catch(function (err) {
                 // If the list function's promise is rejected, propogate that to the deferred that was returned.
@@ -1598,7 +1639,10 @@ class AssetsHelper extends BaseHelper {
             .then(function (assets) {
                 // Turn the retrieved list of assets (metadata) into a list of asset path values.
                 return assets.map(function (asset) {
-                    return helper._fsApi.getAssetPath(asset);
+                    return {
+                        path: helper._fsApi.getAssetPath(asset),
+                        id: asset.id
+                    };
                 });
             });
     }
@@ -1654,9 +1698,9 @@ class AssetsHelper extends BaseHelper {
         const listFn = helper.getModifiedRemoteItems.bind(this, context, flags);
         helper._listItemChunk(context, listFn, opts)
             .then(function (listInfo) {
-                // There are no results initially, so just pass null for the results. The accumulated array of asset
-                // metadata for all listed items will be available when "deferred" has been resolved.
-                helper._recurseList(context, listFn, deferred, null, listInfo, opts);
+                // There are no results initially, so just pass an empty array for the results. The accumulated array of
+                // asset metadata for all listed items will be available when "deferred" has been resolved.
+                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
             })
             .catch(function (err) {
                 // There was an error listing the assets.
@@ -1667,15 +1711,18 @@ class AssetsHelper extends BaseHelper {
             .then(function (items) {
                 // The list results contain the path of each modified asset.
                 const results = items.map(function (item) {
-                    return helper._fsApi.getAssetPath(item);
+                    return {
+                        path: helper._fsApi.getAssetPath(item),
+                        id: item.id
+                    };
                 });
 
                 // Add the deleted assets if the flag was specified.
                 if (flags.indexOf(helper.DELETED) !== -1) {
                     return helper.listRemoteDeletedNames(context, opts)
-                        .then(function (itemNames) {
-                            itemNames.forEach(function (itemName) {
-                                results.push(itemName);
+                        .then(function (items) {
+                            items.forEach(function (item) {
+                                results.push(item);
                             });
                             return results;
                         });
@@ -1699,15 +1746,18 @@ class AssetsHelper extends BaseHelper {
         // Get the list of all remote assets.
         const helper = this;
         helper.listRemoteItemNames(context, opts)
-            .then(function (remoteItemPaths) {
+            .then(function (remoteItems) {
                 // Get the list of local assets that are known to have existed on the server.
                 const dir = helper._fsApi.getAssetsPath(context, opts);
-                const localItemPaths = hashes.listFiles(context, dir, opts);
+                const localItems = hashes.listFiles(context, dir, opts);
 
+                const remotePaths = remoteItems.map(function (item) {
+                    return item.path;
+                });
                 // The deleted assets are the ones that exist in the local list but not in the remote list.
-                const deletedNames = localItemPaths
-                    .filter(function (path) {
-                        return (remoteItemPaths.indexOf(path) === -1);
+                const deletedNames = localItems
+                    .filter(function (item) {
+                        return (remotePaths.indexOf(item.path) === -1);
                     });
 
                 // Resolve with the list of deleted assets.
@@ -1749,21 +1799,21 @@ class AssetsHelper extends BaseHelper {
 
         const helper = this;
         return helper._fsApi.listNames(context, null, opts)
-            .then(function (assetPaths) {
+            .then(function (assets) {
                 // Filter the list so that it only contains modified asset paths.
-                const results = assetPaths
-                    .filter(function (assetPath) {
-                        const metadataPath = helper._fsApi.getMetadataPath(context, assetPath, opts);
-                        const path = helper._fsApi.getPath(context, opts) + assetPath;
+                const results = assets
+                    .filter(function (asset) {
+                        const metadataPath = helper._fsApi.getMetadataPath(context, asset.path, opts);
+                        const path = helper._fsApi.getPath(context, opts) + asset.path;
                         return hashes.isLocalModified(context, flags, dir, metadataPath, path, opts);
                     });
 
                 // Add the deleted asset paths if the flag was specified.
                 if (flags.indexOf(helper.DELETED) !== -1) {
                     return helper.listLocalDeletedNames(context, opts)
-                        .then(function (assetPaths) {
-                            assetPaths.forEach(function (assetPath) {
-                                results.push(assetPath);
+                        .then(function (assets) {
+                            assets.forEach(function (asset) {
+                                results.push(asset);
                             });
                             return results;
                         });
@@ -1801,11 +1851,11 @@ class AssetsHelper extends BaseHelper {
 
         const helper = this;
         return helper._fsApi.listResourceNames(context, opts)
-            .then(function (resourcePaths) {
+            .then(function (resources) {
                 // Filter the list so that it only contains modified resource paths.
-                const results = resourcePaths
-                    .filter(function (resourcePath) {
-                        const path = helper._fsApi.getResourcePath(context, resourcePath, opts);
+                const results = resources
+                    .filter(function (resource) {
+                        const path = helper._fsApi.getResourcePath(context, resource.path, opts);
                         return hashes.isLocalModified(context, flags, dir, undefined, path, opts);
                     });
 
@@ -1826,15 +1876,15 @@ class AssetsHelper extends BaseHelper {
 
         // Get the list of local asset paths.
         const dir = this._fsApi.getAssetsPath(context, opts);
-        const localAssetPaths = hashes.listFiles(context, dir, opts);
+        const localAssets = hashes.listFiles(context, dir, opts);
 
         // Get the list of deleted local assets.
-        const deletedAssetPaths = localAssetPaths
-            .filter(function (path) {
+        const deletedAssetPaths = localAssets
+            .filter(function (item) {
                 // An asset is considered to be deleted if it's stat cannot be retrieved.
                 let stat;
                 try {
-                    stat = fs.statSync(dir + path);
+                    stat = fs.statSync(dir + item.path);
                 } catch (ignore) {
                     // Ignore this error and assume the asset is deleted.
                 }
@@ -1845,6 +1895,68 @@ class AssetsHelper extends BaseHelper {
         deferred.resolve(deletedAssetPaths);
 
         return deferred.promise;
+    }
+
+    /**
+     * Delete the specified local item.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} item The asset to be deleted.
+     * @param {Object} opts The options to be used for the delete operation.
+     *
+     * @returns {Q.Promise} A promise to delete the item.
+     */
+    deleteLocalItem (context, item, opts) {
+        const helper = this;
+
+        // Delete the specified item from the local file system.
+        return helper._fsApi.deleteAsset(context, item.path, opts)
+            .then(function (filepath) {
+                if (filepath) {
+                    // The delete was successful, so remove the hashes information for the item.
+                    const basePath = helper._fsApi.getPath(context, opts);
+                    hashes.removeHashesByPath(context, basePath, item.path, opts);
+
+                    // Delete the metadata if this is a managed asset.
+                    if (helper._fsApi.isContentResource(item.path)) {
+                        // Delete the metadata file.
+                        return helper._fsApi.deleteMetadata(context, item.path, opts)
+                            .then(function () {
+                                // Remove any empty parent folders that were created for the managed asset.
+                                utils.removeEmptyParentDirectories(basePath, filepath)
+                            });
+                    } else {
+                        // Remove any empty parent folders for the deleted web asset.
+                        utils.removeEmptyParentDirectories(basePath, filepath)
+                    }
+                }
+            });
+    }
+
+    /**
+     * Delete the specified local resource.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} resource The resource to be deleted.
+     * @param {Object} opts - The options to be used for the delete operation.
+     *
+     * @returns {Q.Promise} A promise for the deleted resource.
+     */
+    deleteLocalResource (context, resource, opts) {
+        const helper = this;
+
+        // Delete the specified resource from the local file system.
+        return helper._fsApi.deleteResource(context, resource.path, opts)
+            .then(function (filepath) {
+                if (filepath) {
+                    // The delete was successful, so remove the hashes information for the item.
+                    const basePath = helper._fsApi.getResourcesPath(context, opts);
+                    hashes.removeHashesByPath(context, basePath, resource.path, opts);
+
+                    // Remove any empty parent folders.
+                    utils.removeEmptyParentDirectories(basePath, filepath)
+                }
+            });
     }
 
     /**
@@ -1870,7 +1982,7 @@ class AssetsHelper extends BaseHelper {
             }
         }
 
-        return true;
+        return super.canDeleteItem(item, isDeleteAll, opts);
     }
 
     /**
@@ -1913,8 +2025,7 @@ class AssetsHelper extends BaseHelper {
 
                 // Increase the offset so that the next chunk of assets will be retrieved.
                 const offset = options.getRelevantOption(context, opts, "offset", this._artifactName);
-                opts = utils.cloneOpts(opts);
-                opts.offset = offset + maxChunkSize;
+                opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
                 // Retrieve the next chunk of assets from the REST service.
                 helper._restApi.getItems(context, opts)

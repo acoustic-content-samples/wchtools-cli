@@ -32,11 +32,50 @@ const path2 = PagesUnitTest.VALID_PAGES_DIRECTORY + PagesUnitTest.VALID_PAGE_2;
 const badPath = PagesUnitTest.INVALID_PAGES_DIRECTORY + PagesUnitTest.INVALID_PAGE_BAD_NAME;
 
 class PagesHelperUnitTest extends BaseHelperUnit {
-    constructor() {
+    constructor () {
         super();
     }
-    run(){
-        super.run(restApi, fsApi,helper,  path1, path2, badPath );
+
+    run () {
+        super.run(restApi, fsApi, helper,  path1, path2, badPath );
+    }
+
+    runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
+        this.testCanDeleteItem(helper);
+    }
+
+    testCanDeleteItem (helper) {
+        describe("canDeleteItem", function () {
+            it("should return false if deleting all and the page has a parent.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    expect(helper.canDeleteItem({"parentId": "foobar"}, true)).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true if deleting all and the page does not have a parent.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    expect(helper.canDeleteItem({}, true)).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
     }
 }
 

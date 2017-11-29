@@ -77,8 +77,8 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
-                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -121,8 +121,8 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("resource-pushed", itemName1);
-                        emitter.emit("resource-pushed", itemName2);
+                        emitter.emit("resource-pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("resource-pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("resource-pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -161,8 +161,8 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
-                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -312,7 +312,7 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         stubDeferred.resolve({id: "foo", name: itemName1});
                     }, 0);
                     return stubDeferred.promise;
@@ -350,7 +350,7 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -388,7 +388,7 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -464,8 +464,8 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
-                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -479,6 +479,45 @@ class PushUnitTest extends UnitTest {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "getRemoteItems" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test push create-only working", function (done) {
+                // Stub the helper.pushAllItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--create-only", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api','-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts');
+
+                        // Verify that the createOnly option was passed through.
+                        expect(stub.firstCall.args[1].createOnly).to.equal(true);
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -625,8 +664,8 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
-                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -688,8 +727,8 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
-                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -847,8 +886,8 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", itemName1);
-                        emitter.emit("pushed", itemName2);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
