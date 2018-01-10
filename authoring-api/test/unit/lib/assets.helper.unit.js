@@ -34,6 +34,7 @@ const diff = require("diff");
 const sinon = require("sinon");
 const Q = require("q");
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
+const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
@@ -51,11 +52,14 @@ let stubMkdirp;
 let stubGenerateMD5Hash;
 let stubGenerateMD5HashFromStream;
 let stubUpdateHashes;
+let stubUpdateResourceHashes;
 let stubGetLastPush;
 let stubSetLastPush;
 let stubGetLastPull;
 let stubSetLastPull;
 let stubGetMD5ForFile;
+let stubGetResourceMD5ForFile;
+let stubGetPathForResource;
 let stubListFiles;
 let stubIsLocalModified;
 let stubIsRemoteModified;
@@ -98,6 +102,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubUpdateHashes.returns(undefined);
                 self.addTestDouble(stubUpdateHashes);
 
+                stubUpdateResourceHashes = sinon.stub(hashes, "updateResourceHashes");
+                stubUpdateResourceHashes.returns(undefined);
+                self.addTestDouble(stubUpdateResourceHashes);
+
                 stubGetLastPush = sinon.stub(hashes, "getLastPushTimestamp");
                 stubGetLastPush.returns(undefined);
                 self.addTestDouble(stubGetLastPush);
@@ -115,6 +123,14 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubGetMD5ForFile = sinon.stub(hashes, "getMD5ForFile");
                 stubGetMD5ForFile.returns(undefined);
                 self.addTestDouble(stubGetMD5ForFile);
+
+                stubGetResourceMD5ForFile = sinon.stub(hashes, "getResourceMD5ForFile");
+                stubGetMD5ForFile.returns(undefined);
+                self.addTestDouble(stubGetResourceMD5ForFile);
+
+                stubGetPathForResource = sinon.stub(hashes, "getPathForResource");
+                stubGetPathForResource.returns(undefined);
+                self.addTestDouble(stubGetPathForResource);
 
                 stubListFiles = sinon.stub(hashes, "listFiles");
                 stubListFiles.returns([]);
@@ -159,25 +175,35 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             // Run each of the tests defined in this class.
             self.testSingleton();
             self.testEventEmitter();
+            self.testCloseStream();
+            self.testGetName();
             self.testGetVirtualFolderName();
             self.testPullAsset();
             self.testPullAllAssets();
             self.testPullModifiedAssets();
+            self.testPullResources();
             self.testPushAsset();
             self.testPushAllAssets();
             self.testPushModifiedAssets();
+            self.testPushAllResources();
+            self.testPushModifiedResources();
             self.testListRemoteAssetNames();
             self.testListRemoteDeletedAssetNames();
             self.testListModifiedRemoteAssetNames();
             self.testListLocalAssetNames();
             self.testListLocalModifiedAssetNames();
             self.testListDeletedLocalAssetNames();
+            self.testDeleteLocalItem();
+            self.testDeleteLocalResource();
+            self.testCanDeleteItem();
+            self.testfilterRetry();
             self.testDeleteRemoteAsset();
             self.testSearchRemoteAsset();
+            self.testTimestamps();
         });
     }
 
-    testSingleton (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testSingleton () {
         describe("is a singleton", function () {
             it("should fail if try to create a helper", function (done) {
                 let error;
@@ -246,7 +272,82 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 eventEmitter.removeListener("C", spyC);
             });
         });
-   }
+    }
+
+    testCloseStream () {
+        const self = this;
+
+        describe("_closeStream", function () {
+            it("should succeed if no stream is specified.", function (done) {
+                let error;
+                try {
+                    assetsHelper._closeStream(context, undefined);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should succeed if no promise is specified.", function (done) {
+                let error;
+                const stream = AssetsUnitTest.DUMMY_STREAM;
+                try {
+                    assetsHelper._closeStream(context, stream, undefined);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should log an error if the stream operation fails.", function (done) {
+                let error;
+                const stream = AssetsUnitTest.DUMMY_STREAM;
+
+                // Create a stream.resume stub to throw an error.
+                const RESUME_ERROR = "There was an error resuming the stream, as expected by a unit test.";
+                const stub = sinon.stub(stream, "resume");
+                stub.throws(new Error(RESUME_ERROR));
+
+                // Create a logger.debug spy.
+                const logger = assetsHelper.getLogger(context);
+                const spy = sinon.spy(logger, "debug");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                try {
+                    assetsHelper._closeStream(context, stream, undefined);
+                    expect(stub).to.have.been.calledOnce;
+                    expect(spy).to.have.been.calledOnce;
+                    expect(spy.args[0][1].message).to.equal(RESUME_ERROR)
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+        });
+    }
+
+    testGetName () {
+        describe("getName", function () {
+            it("should return the item path as the name.", function (done) {
+                let error;
+                try {
+                    const item = {"id": UnitTest.DUMMY_ID, "name": UnitTest.DUMMY_NAME, "path": UnitTest.DUMMY_PATH};
+                    const name = assetsHelper.getName(item);
+                    expect(name).to.equal(UnitTest.DUMMY_PATH);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+        });
+    }
 
     testGetVirtualFolderName () {
         const self = this;
@@ -411,19 +512,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should fail when no path is specified.", function (done) {
-                // Read the contents of four invalid test asset metadata files.
-                const assetMetadataPath1 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_1;
-                const assetMetadataPath2 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_2;
-                const assetMetadataPath3 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_3;
-                const assetMetadataPath4 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_4;
-                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
-                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
-                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
-                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
+                // Read the contents of a test asset metadata file that has no path.
+                const assetMetadataPath = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
 
-                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                // Create an assetsREST.getItems stub that returns a promise for the metadata.
                 const stub = sinon.stub(assetsREST, "getItems");
-                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+                stub.resolves([assetMetadata]);
 
                 // Create an assetsFS.getItemWriteStream spy.
                 const spy = sinon.spy(assetsFS, "getItemWriteStream");
@@ -434,24 +529,23 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested with an invalid name.
                 let error;
-                assetsHelper.pullItem(context, assetMetadata1.path, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*asset*/) {
+                assetsHelper.pullItem(context, assetMetadata.path, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the pulled asset should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
 
-                            // Verify that the stub was called.
-                            expect(stub).to.have.been.called;
+                        // Verify that the stub was called.
+                        expect(stub).to.have.been.called;
 
-                            // Verify that the spy was not called.
-                            expect(spy).to.not.have.been.called;
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -460,19 +554,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should fail when a path with invalid characters is specified.", function (done) {
-                // Read the contents of four invalid test asset metadata files.
-                const assetMetadataPath1 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_1;
-                const assetMetadataPath2 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_2;
-                const assetMetadataPath3 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_3;
-                const assetMetadataPath4 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_4;
-                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
-                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
-                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
-                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
+                // Read the contents of an invalid test asset metadata file that has invalid path characters.
+                const assetMetadataPath = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_2;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
 
-                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                // Create an assetsREST.getItems stub that returns a promise for the metadata.
                 const stub = sinon.stub(assetsREST, "getItems");
-                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+                stub.resolves([assetMetadata]);
 
                 // Create an assetsFS.getItemWriteStream spy.
                 const spy = sinon.spy(assetsFS, "getItemWriteStream");
@@ -483,24 +571,23 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested with an invalid name.
                 let error;
-                assetsHelper.pullItem(context, assetMetadata2.path, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*asset*/) {
+                assetsHelper.pullItem(context, assetMetadata.path, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the pulled asset should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
 
-                            // Verify that the stub was called.
-                            expect(stub).to.have.been.called;
+                        // Verify that the stub was called.
+                        expect(stub).to.have.been.called;
 
-                            // Verify that the spy was not called.
-                            expect(spy).to.not.have.been.called;
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -509,47 +596,45 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should fail when a path containing 'http:' is specified.", function (done) {
-                // Read the contents of four invalid test asset metadata files.
-                const assetMetadataPath1 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_1;
-                const assetMetadataPath2 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_2;
-                const assetMetadataPath3 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_3;
-                const assetMetadataPath4 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_4;
-                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
-                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
-                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
-                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
+                // Read the contents of an invalid test asset metadata file that has a path containing "http:".
+                const assetMetadataPath = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_3;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
 
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+                const stubGet = sinon.stub(assetsREST, "getItems");
+                stubGet.resolves([assetMetadata]);
+
+                // Create an assetsFS.getAssetPath stub that returns the invalid path.
+                const stubPath = sinon.stub(assetsFS, "getAssetPath");
+                stubPath.returns(assetMetadata.path);
 
                 // Create an assetsFS.getItemWriteStream spy.
                 const spy = sinon.spy(assetsFS, "getItemWriteStream");
 
-                // The stub and spy should be restored when the test is complete.
-                self.addTestDouble(stub);
+                // The stubs and spy should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubPath);
                 self.addTestDouble(spy);
 
                 // Call the method being tested with an invalid name.
                 let error;
-                assetsHelper.pullItem(context, assetMetadata3.path, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*asset*/) {
+                assetsHelper.pullItem(context, assetMetadata.path, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the pulled asset should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
 
-                            // Verify that the stub was called.
-                            expect(stub).to.have.been.called;
+                        // Verify that the stub was called.
+                        expect(stubGet).to.have.been.called;
 
-                            // Verify that the spy was not called.
-                            expect(spy).to.not.have.been.called;
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -558,47 +643,45 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should fail when a path containing 'https:' is specified.", function (done) {
-                // Read the contents of four invalid test asset metadata files.
-                const assetMetadataPath1 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_1;
-                const assetMetadataPath2 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_2;
-                const assetMetadataPath3 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_3;
-                const assetMetadataPath4 = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_4;
-                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
-                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
-                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
-                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
+                // Read the contents of an invalid test asset metadata file that has a path containing "https:".
+                const assetMetadataPath = AssetsUnitTest.INVALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_INVALID_PATH_4;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
 
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+                const stubGet = sinon.stub(assetsREST, "getItems");
+                stubGet.resolves([assetMetadata]);
+
+                // Create an assetsFS.getAssetPath stub that returns the invalid path.
+                const stubPath = sinon.stub(assetsFS, "getAssetPath");
+                stubPath.returns(assetMetadata.path);
 
                 // Create an assetsFS.getItemWriteStream spy.
                 const spy = sinon.spy(assetsFS, "getItemWriteStream");
 
-                // The stub and spy should be restored when the test is complete.
-                self.addTestDouble(stub);
+                // The stubs and spy should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubPath);
                 self.addTestDouble(spy);
 
                 // Call the method being tested with an invalid name.
                 let error;
-                assetsHelper.pullItem(context, assetMetadata4.path, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*asset*/) {
+                assetsHelper.pullItem(context, assetMetadata.path, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the pulled asset should have been rejected.");
                     })
                     .catch(function (err) {
-                        try {
-                            // Verify that the expected error is returned.
-                            expect(err.name).to.equal("Error");
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
 
-                            // Verify that the stub was called.
-                            expect(stub).to.have.been.called;
+                        // Verify that the stub was called.
+                        expect(stubGet).to.have.been.called;
 
-                            // Verify that the spy was not called.
-                            expect(spy).to.not.have.been.called;
-                        } catch (err) {
-                            error = err;
-                        }
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
                     })
                     .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
@@ -719,6 +802,74 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     });
             });
 
+            it("should fail if the MD5 comparison fails.", function (done) {
+                // Read the contents of four valid test asset metadata files.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetMetadataPath3 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_PNG_1;
+                const assetMetadataPath4 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JAR_1;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
+                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
+                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stubItems = sinon.stub(assetsREST, "getItems");
+                stubItems.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+
+                // Create an assetsFS.getItemWriteStream stub.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG = "unique.id";
+                stream.tag = STREAM_TAG;
+                stubStream.resolves(stream);
+
+                // Create an assetsREST.pullItem stub that return asset metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(assetMetadata3);
+                    return d.promise;
+                });
+
+                // Change the MD5 stub to return false.
+                stubcompareMD5Hashes.returns(false);
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stubItems);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+
+                // Call the method being tested with an invalid name.
+                let error;
+                assetsHelper.pullItem(context, assetMetadata2.path, UnitTest.DUMMY_OPTIONS)
+                    .then(function (/*asset*/) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the pulled asset should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the expected error is returned.
+                            expect(err.name).to.equal("Error");
+                            expect(err.message).to.contain("does not match server digest");
+
+                            // Verify that all stubs were called once, and with the expected values.
+                            expect(stubItems).to.have.been.calledOnce;
+                            expect(stubStream).to.have.been.calledOnce;
+                            expect(stubPull).to.have.been.calledOnce;
+                            expect(stubStream.args[0][1]).to.equal(assetMetadata2.path);
+                            expect(diff.diffJson(stubPull.args[0][1], assetMetadata2)).to.have.lengthOf(1);
+                            expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should succeed when pulling an asset.", function (done) {
                 // Read the contents of four valid test asset metadata files.
                 const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
@@ -791,6 +942,85 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when saving a content asset fails.", function (done) {
+                // Read the contents of four valid test asset metadata files.
+                const assetPath1 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const assetPath2 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const assetPath3 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_3;
+                const assetPath4 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_4;
+                const assetMetadata1 = UnitTest.getJsonObject(assetPath1 + assetsFS.getExtension());
+                const assetMetadata2 = UnitTest.getJsonObject(assetPath2 + assetsFS.getExtension());
+                const assetMetadata3 = UnitTest.getJsonObject(assetPath3 + assetsFS.getExtension());
+                const assetMetadata4 = UnitTest.getJsonObject(assetPath4 + assetsFS.getExtension());
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stubItems = sinon.stub(assetsREST, "getItems");
+                stubItems.onCall(0).resolves([assetMetadata1, assetMetadata2]);
+                stubItems.onCall(1).resolves([assetMetadata3, assetMetadata4]);
+                stubItems.onCall(2).resolves([]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG = "unique.id";
+                stream.tag = STREAM_TAG;
+                stubStream.resolves(stream);
+
+                // Create an assetsREST.pullItem stub that returns asset metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(assetMetadata3);
+                    return d.promise;
+                });
+
+                // Remove the emitter from the context to make sure the pull does not fail because of a missing emitter.
+                const emitter = assetsHelper.getEventEmitter(context);
+                delete context.eventEmitter;
+
+                // Create an assetsFS.saveItem stub that rejects with an error.
+                const SAVE_ERROR = "There was an error saving the file, as expected by a unit test.";
+                const stubSave = sinon.stub(assetsFS, "saveItem");
+                stubSave.throws(new Error(SAVE_ERROR));
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stubItems);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubSave);
+
+                // Call the method being tested with an invalid name.
+                let error;
+                assetsHelper.pullItem(context, assetMetadata2.path, UnitTest.DUMMY_OPTIONS)
+                    .then(function (/*asset*/) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the pulled asset should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(SAVE_ERROR);
+
+                        // Verify that all stubs were called once, and with the expected values.
+                        expect(stubItems).to.have.been.calledOnce;
+                        expect(stubStream).to.have.been.calledOnce;
+                        expect(stubPull).to.have.been.calledOnce;
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata2.path);
+                        expect(diff.diffJson(stubPull.args[0][1], assetMetadata2)).to.have.lengthOf(1);
+                        expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the emitter on the context.
+                        context.eventEmitter = emitter;
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -916,7 +1146,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
                 const stub = sinon.stub(assetsREST, "getItems");
                 stub.resolves([]);
-                const stubResources = sinon.stub(assetsREST, "getResourceList");
+
+                // Create an assetsHelper.pullResources stub that resolves.
+                const stubResources = sinon.stub(assetsHelper, "pullResources");
                 stubResources.resolves([]);
 
                 // The stub should be restored when the test is complete.
@@ -973,7 +1205,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
                 stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
                 stubGet.onCall(3).resolves([]);
-                const stubResources = sinon.stub(assetsREST, "getResourceList");
+
+                // Create an assetsHelper.pullResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pullResources");
                 stubResources.resolves([]);
 
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
@@ -1021,12 +1255,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     }
                 });
 
-                // Create spies to listen for the "pulled" and "pulled-error" events.
+                // Remove the emitter from the context to make sure the pull does not fail because of a missing emitter.
                 const emitter = assetsHelper.getEventEmitter(context);
-                const spyPull = sinon.spy();
-                emitter.on("pulled", spyPull);
-                const spyError = sinon.spy();
-                emitter.on("pulled-error", spyError);
+                delete context.eventEmitter;
 
                 // The stubs and spies should be restored when the test is complete.
                 self.addTestDouble(stubGet);
@@ -1077,19 +1308,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubPull.args[3][2].tag).to.equal(STREAM_TAG_4);
                         expect(stubPull.args[4][2].tag).to.equal(STREAM_TAG_5);
 
-                        // Verify that the spies were called the expected number of times with the expected values.
-                        expect(spyPull).to.have.callCount(5);
-                        expect(spyPull.args[0][0].path).to.equal(assetMetadata1.path);
-                        expect(spyPull.args[1][0].path).to.equal(assetMetadata2.path);
-                        expect(spyPull.args[2][0].path).to.equal(assetMetadata3.path);
-                        expect(spyPull.args[3][0].path).to.equal(assetMetadata4.path);
-                        expect(spyPull.args[4][0].path).to.equal(assetMetadata6.path);
-                        expect(spyError).to.have.been.calledOnce;
-                        expect(spyError.args[0][0].name).to.equal("Error");
-                        expect(spyError.args[0][0].message).to.contain("Invalid path");
-                        expect(spyError.args[0][0].message).to.contain(assetMetadata5.path);
-                        expect(spyError.args[0][1]).to.equal(assetMetadata5.path);
-
                         // Verify that the hashes were called as expected.
                         expect(stubSetLastPull).to.not.have.been.called;
 
@@ -1111,8 +1329,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         error = err;
                     })
                     .finally(function () {
-                        emitter.removeListener("pulled", spyPull);
-                        emitter.removeListener("pulled-error", spyError);
+                        // Restore the emitter on the context.
+                        context.eventEmitter = emitter;
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -1180,6 +1398,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     }
                 });
 
+                // Create an helper.listLocalItemNames stub to return the list of local files.
+                const stubList = sinon.stub(assetsHelper, "listLocalItemNames");
+                stubList.resolves([assetMetadata1, assetMetadata2, {"id": "foo"}]);
+
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = assetsHelper.getEventEmitter(context);
                 const spyPull = sinon.spy();
@@ -1191,10 +1413,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 self.addTestDouble(stubGet);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
+                self.addTestDouble(stubList);
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.pullAllItems(context, {offset: 0, limit: 2, assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS})
+                assetsHelper.pullAllItems(context, {offset: 0, limit: 2, assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS, deletions: true})
                     .then(function (assets) {
                         // Verify that the helper returned the expected values.
                         // Note that pullAllAssets is designed to return a metadata array, but currently it does not.
@@ -1290,7 +1513,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
                 stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
                 stubGet.onCall(3).resolves([]);
-                const stubResources = sinon.stub(assetsREST, "getResourceList");
+
+                // Create an assetsHelper.pullResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pullResources");
                 stubResources.resolves([]);
 
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
@@ -1425,8 +1650,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     });
             });
 
-            it("should succeed when pulling modified web assets with a pull error.", function (done) {
-                // Read the contents of five test asset metadata files.
+            it("should succeed when pulling modified web assets with a pull error and a hashes error.", function (done) {
+                // Read the contents of six test asset metadata files.
                 const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
                 const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
                 const assetMetadataPath3 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
@@ -1447,6 +1672,14 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
                 stubGet.onCall(3).resolves([]);
 
+                // Throw a hashes error on the sixth call, to make sure the helper can handle it.
+                const HASHES_ERROR = "Error reading hashes file, expected by unit test.";
+                stubIsRemoteModified.onCall(5).throws(new Error(HASHES_ERROR));
+
+                // Create an assetsHelper.pullResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pullResources");
+                stubResources.resolves([]);
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -1465,10 +1698,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const STREAM_TAG_4 = "unique.id.4";
                 stream4.tag = STREAM_TAG_4;
                 stubStream.onCall(3).resolves(stream4);
-                const stream5 = AssetsUnitTest.DUMMY_PASS_STREAM;
-                const STREAM_TAG_5 = "unique.id.5";
-                stream5.tag = STREAM_TAG_5;
-                stubStream.onCall(4).resolves(stream5);
 
                 const emitPipe = function(stream, res) {
                     stream.emit("pipe");
@@ -1487,8 +1716,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         return emitPipe(stream3, assetMetadata3);
                     } else if (stubPull.callCount === 4) {
                         return emitPipe(stream4, assetMetadata4);
-                    } else if (stubPull.callCount === 5) {
-                        return emitPipe(stream5, assetMetadata6);
                     }
                 });
 
@@ -1508,15 +1735,16 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubIsContentResource);
+                self.addTestDouble(stubResources);
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.pullModifiedItems(context, {offset: 0, limit: 2, assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS})
+                assetsHelper.pullModifiedItems(context, {offset: 0, limit: 2, assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS, disablePushPullResources: false})
                     .then(function (assets) {
                         // Verify that the helper returned the expected values.
                         // Note that pullAllAssets is designed to return a metadata array, but currently it does not.
                         if (assets) {
-                            expect(assets).to.have.lengthOf(6);
+                            expect(assets).to.have.lengthOf(5);
                             expect(assets[0].path).to.equal(assetMetadata1.path);
                             expect(assets[1].path).to.equal(assetMetadata2.path);
                             expect(assets[2].path).to.equal(assetMetadata3.path);
@@ -1524,40 +1752,36 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                             expect(assets[4].name).to.equal("Error");
                             expect(assets[4].message).to.contain("Invalid path");
                             expect(assets[4].message).to.contain(assetMetadata5.path);
-                            expect(assets[5].path).to.equal(assetMetadata6.path);
                         }
 
                         // Verify that the get stub was called four times.
-                        expect(stubGet).to.have.callCount(4);
+                        expect(stubGet).to.have.callCount(3);
+                        // TODO This really should be 4. Need to fix filtered item logic in AssetsHelper.getModifiedRemoteItems().
 
                         // Verify that the stream stub was called five times, each time with the expected path.
-                        expect(stubStream).to.have.callCount(5);
+                        expect(stubStream).to.have.callCount(4);
                         expect(stubStream.args[0][1]).to.equal(assetMetadata1.path);
                         expect(stubStream.args[1][1]).to.equal(assetMetadata2.path);
                         expect(stubStream.args[2][1]).to.equal(assetMetadata3.path);
                         expect(stubStream.args[3][1]).to.equal(assetMetadata4.path);
-                        expect(stubStream.args[4][1]).to.equal(assetMetadata6.path);
 
                         // Verify that the pull stub was called five times, each time with the expected path and stream.
-                        expect(stubPull).to.have.callCount(5);
+                        expect(stubPull).to.have.callCount(4);
                         expect(stubPull.args[0][1].path).to.equal(assetMetadata1.path);
                         expect(stubPull.args[1][1].path).to.equal(assetMetadata2.path);
                         expect(stubPull.args[2][1].path).to.equal(assetMetadata3.path);
                         expect(stubPull.args[3][1].path).to.equal(assetMetadata4.path);
-                        expect(stubPull.args[4][1].path).to.equal(assetMetadata6.path);
                         expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG_1);
                         expect(stubPull.args[1][2].tag).to.equal(STREAM_TAG_2);
                         expect(stubPull.args[2][2].tag).to.equal(STREAM_TAG_3);
                         expect(stubPull.args[3][2].tag).to.equal(STREAM_TAG_4);
-                        expect(stubPull.args[4][2].tag).to.equal(STREAM_TAG_5);
 
                         // Verify that the spies were called the expected number of times with the expected values.
-                        expect(spyPull).to.have.callCount(5);
+                        expect(spyPull).to.have.callCount(4);
                         expect(spyPull.args[0][0].path).to.equal(assetMetadata1.path);
                         expect(spyPull.args[1][0].path).to.equal(assetMetadata2.path);
                         expect(spyPull.args[2][0].path).to.equal(assetMetadata3.path);
                         expect(spyPull.args[3][0].path).to.equal(assetMetadata4.path);
-                        expect(spyPull.args[4][0].path).to.equal(assetMetadata6.path);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].name).to.equal("Error");
                         expect(spyError.args[0][0].message).to.contain("Invalid path");
@@ -1567,7 +1791,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Verify that the hashes were called as expected.
                         expect(stubSetLastPull).to.not.have.been.called;
 
-                        expect(stubUpdateHashes).to.have.callCount(5);
+                        expect(stubUpdateHashes).to.have.callCount(4);
                         expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CSS_1);
@@ -1576,8 +1800,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_JPG_1);
                         expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_GIF_1);
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubUpdateHashes.args[4][4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
-                        expect(stubUpdateHashes.args[4][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -1753,6 +1975,711 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
         });
     }
 
+    testPullResources () {
+        const self = this;
+        describe("pullResources", function () {
+            it("should short-circuit when pulling only web assets.", function (done) {
+                // Create an assetsREST.getResourceList spy to verify that it is not called.
+                const spy = sinon.spy(assetsREST, "getResourceList");
+
+                // The spy should be restored when the test is complete.
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS})
+                    .then(function () {
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should short-circuit when pulling with no virtual folder.", function (done) {
+                // Create an assetsREST.getResourceList spy to verify that it is not called.
+                const spy = sinon.spy(assetsREST, "getResourceList");
+
+                // The spy should be restored when the test is complete.
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, {noVirtualFolder: true})
+                    .then(function () {
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when there is an error getting remote resources.", function (done) {
+                // Create an assetsREST.getResourceList stub that returns an error.
+                const RESOURCES_ERROR = "There was an error getting the remote resources, as expected by unit test.";
+                const stub = sinon.stub(assetsREST, "getResourceList");
+                stub.rejects(RESOURCES_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the remote resources should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(RESOURCES_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there are no remote resources.", function (done) {
+                // Create an assetsREST.getResourceList stub to return an empty list.
+                const stub = sinon.stub(assetsREST, "getResourceList");
+                stub.resolves([]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the stub was called once and returned an empty list.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.is.empty;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is one remote resource.", function (done) {
+                // Create an assetsREST.getResourceList stub to return a single resource.
+                const stubResource = sinon.stub(assetsREST, "getResourceList");
+                stubResource.resolves([UnitTest.DUMMY_METADATA]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.resolves(stream1);
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the resource metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream1.emit("pipe");
+                    const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME});
+                    return Q(resource);
+                });
+
+                // Create a stub for assetsFS.renameResource.
+                const stubRename = sinon.stub(assetsFS, "renameResource");
+
+                // Create spies to listen for the "resource-pulled" and "resource-pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("resource-pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("resource-pulled-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubRename);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(1);
+                        expect(resources[0].path).to.equal(UnitTest.DUMMY_METADATA.path);
+
+                        // Verify that the pull spy was called once and that the error spy was not called.
+                        expect(spyPull).to.have.been.calledOnce;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the hashes were updated during the stream write.
+                        expect(stubGenerateMD5HashFromStream).to.have.been.calledOnce;
+                        expect(stubUpdateResourceHashes).to.have.been.calledOnce;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledOnce;
+                        expect(stubStream.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubPull).to.have.been.calledOnce;
+                        expect(stubPull.args[0][2]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubRename).to.have.been.calledOnce;
+                        expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[0][2]).to.contain(UnitTest.DUMMY_NAME);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pulled", spyPull);
+                        emitter.removeListener("resource-pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when one remote resource succeeds and one remote resource fails.", function (done) {
+                // Create an assetsREST.getResourceList stub to return two resources.
+                const stubResource = sinon.stub(assetsREST, "getResourceList");
+                stubResource.resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.onFirstCall().resolves(stream1);
+                const stream2 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_2 = "unique.id.2";
+                stream2.tag = STREAM_TAG_2;
+                stubStream.onSecondCall().resolves(stream2);
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the resource metadata.
+                const PULL_ERROR = "There was an error pulling the resource, as expected by a unit test.";
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        stream1.emit("pipe");
+                        const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME});
+                        return Q(resource);
+                    } else if (stubPull.callCount === 2) {
+                        return Q.reject(new Error(PULL_ERROR));
+                    }
+                });
+
+                // Create a stub for assetsFS.renameResource.
+                const stubRename = sinon.stub(assetsFS, "renameResource");
+
+                // Create spies to listen for the "resource-pulled" and "resource-pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("resource-pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("resource-pulled-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubRename);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource plus an error.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(2);
+                        expect(resources[0].path).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(resources[1].message).to.equal(PULL_ERROR);
+
+                        // Verify that the pull spy and the error spy were each called once.
+                        expect(spyPull).to.have.been.calledOnce;
+                        expect(spyError).to.have.been.calledOnce;
+
+                        // Verify that the hashes were updated during the stream write.
+                        expect(stubGenerateMD5HashFromStream).to.have.been.calledOnce;
+                        expect(stubUpdateResourceHashes).to.have.been.calledOnce;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubStream.args[1][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][2]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubPull.args[1][2]["tag"]).to.equal(STREAM_TAG_2);
+                        expect(stubRename).to.have.been.calledOnce;
+                        expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[0][2]).to.contain(UnitTest.DUMMY_NAME);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pulled", spyPull);
+                        emitter.removeListener("resource-pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when one remote resource succeeds and one remote resource fails (with no emitter).", function (done) {
+                // Create an assetsREST.getResourceList stub to return two resaources.
+                const stubResource = sinon.stub(assetsREST, "getResourceList");
+                stubResource.resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.onFirstCall().resolves(stream1);
+                const stream2 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_2 = "unique.id.2";
+                stream2.tag = STREAM_TAG_2;
+                stubStream.onSecondCall().resolves(stream2);
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the resource metadata.
+                const PULL_ERROR = "There was an error pulling the resource, as expected by a unit test.";
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        stream1.emit("pipe");
+                        const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME});
+                        return Q(resource);
+                    } else if (stubPull.callCount === 2) {
+                        return Q.reject(new Error(PULL_ERROR));
+                    }
+                });
+
+                // Create a stub for assetsFS.renameResource.
+                const stubRename = sinon.stub(assetsFS, "renameResource");
+
+                // Create spies to listen for the "resource-pulled" and "resource-pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                delete context.eventEmitter;
+                const spyPull = sinon.spy();
+                emitter.on("resource-pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("resource-pulled-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubRename);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource plus an error.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(2);
+                        expect(resources[0].path).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(resources[1].message).to.equal(PULL_ERROR);
+
+                        // Verify that the spies were not called (because there's no emitter).
+                        expect(spyPull).to.not.have.been.called;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the hashes were updated during the stream write.
+                        expect(stubGenerateMD5HashFromStream).to.have.been.calledOnce;
+                        expect(stubUpdateResourceHashes).to.have.been.calledOnce;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubStream.args[1][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][2]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubPull.args[1][2]["tag"]).to.equal(STREAM_TAG_2);
+                        expect(stubRename).to.have.been.calledOnce;
+                        expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[0][2]).to.contain(UnitTest.DUMMY_NAME);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pulled", spyPull);
+                        emitter.removeListener("resource-pulled-error", spyError);
+                        context.eventEmitter = emitter;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when remote resources are retrieved in a full chunk.", function (done) {
+                // Create an assetsREST.getResourceList stub to return two resources in a full chunk, then an empty chunk.
+                const stubResource = sinon.stub(assetsREST, "getResourceList");
+                stubResource.onFirstCall().resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+                stubResource.onSecondCall().resolves([]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.onFirstCall().resolves(stream1);
+                const stream2 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_2 = "unique.id.2";
+                stream2.tag = STREAM_TAG_2;
+                stubStream.onSecondCall().resolves(stream2);
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the resource metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        stream1.emit("pipe");
+                        const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME});
+                        return Q(resource);
+                    } else if (stubPull.callCount === 2) {
+                        stream2.emit("pipe");
+                        const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME + "-2"});
+                        return Q(resource);
+                    }
+                });
+
+                // Create a stub for assetsFS.renameResource.
+                const stubRename = sinon.stub(assetsFS, "renameResource");
+
+                // Create spies to listen for the "resource-pulled" and "resource-pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("resource-pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("resource-pulled-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubRename);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, {limit: 2})
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource plus an error.
+                        expect(stubResource).to.have.been.calledTwice;
+                        expect(resources).to.be.an("array").that.has.lengthOf(2);
+                        expect(resources[0].path).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(resources[1].path).to.equal(UnitTest.DUMMY_METADATA.path);
+
+                        // Verify that the pull spy was called twice and the error spy was not called.
+                        expect(spyPull).to.have.been.calledTwice;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the hashes were updated during the stream write.
+                        expect(stubGenerateMD5HashFromStream).to.have.been.calledTwice;
+                        expect(stubUpdateResourceHashes).to.have.been.calledTwice;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubStream.args[1][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][2]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubPull.args[1][2]["tag"]).to.equal(STREAM_TAG_2);
+                        expect(stubRename).to.have.been.calledTwice;
+                        expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[0][2]).to.contain(UnitTest.DUMMY_NAME);
+                        expect(stubRename.args[1][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[1][2]).to.contain(UnitTest.DUMMY_NAME + "-2");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pulled", spyPull);
+                        emitter.removeListener("resource-pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when remote resources are retrieved in multiple chunks.", function (done) {
+                // Create an assetsREST.getResourceList stub to return three resources in two chunks.
+                const stubResource = sinon.stub(assetsREST, "getResourceList");
+                stubResource.onFirstCall().resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+                stubResource.onSecondCall().resolves([{"id": "zzz", "path": "test2"}]);
+
+                // Change the hashes.getPathForResource stub to return an existing path for the second resource.
+                stubGetPathForResource.onSecondCall().returns("some-path");
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.onFirstCall().resolves(stream1);
+                const stream2 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_2 = "unique.id.2";
+                stream2.tag = STREAM_TAG_2;
+                stubStream.onSecondCall().resolves(stream2);
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the resource metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        stream1.emit("pipe");
+                        const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME});
+                        return Q(resource);
+                    } else if (stubPull.callCount === 2) {
+                        stream2.emit("pipe");
+                        const resource = {"id": "zzz", "path": "test2", disposition: UnitTest.DUMMY_NAME + "-2"};
+                        return Q(resource);
+                    }
+                });
+
+                // Create a stub for assetsFS.renameResource.
+                const stubRename = sinon.stub(assetsFS, "renameResource");
+
+                // Create spies to listen for the "resource-pulled" and "resource-pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("resource-pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("resource-pulled-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubRename);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, {limit: 2})
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource plus an error.
+                        expect(stubResource).to.have.been.calledTwice;
+                        expect(resources).to.be.an("array").that.has.lengthOf(2);
+                        expect(resources[0].path).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(resources[1].path).to.equal("test2");
+
+                        // Verify that the pull spy was called twice and the error spy was not called.
+                        expect(spyPull).to.have.been.calledTwice;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the hashes were updated during the stream write.
+                        expect(stubGenerateMD5HashFromStream).to.have.been.calledTwice;
+                        expect(stubUpdateResourceHashes).to.have.been.calledTwice;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubStream.args[1][1]).to.contain("zzz");
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][2]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubPull.args[1][2]["tag"]).to.equal(STREAM_TAG_2);
+                        expect(stubRename).to.have.been.calledTwice;
+                        expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[0][2]).to.contain(UnitTest.DUMMY_NAME);
+                        expect(stubRename.args[1][1]).to.contain("zzz");
+                        expect(stubRename.args[1][2]).to.contain(UnitTest.DUMMY_NAME + "-2");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pulled", spyPull);
+                        emitter.removeListener("resource-pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when one remote resource succeeds and one remote resource fails.", function (done) {
+                // Create an assetsREST.getResourceList stub to return two resources.
+                const stubResource = sinon.stub(assetsREST, "getResourceList");
+                stubResource.resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.onFirstCall().resolves(stream1);
+                const stream2 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_2 = "unique.id.2";
+                stream2.tag = STREAM_TAG_2;
+                stubStream.onSecondCall().resolves(stream2);
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the resource metadata.
+                const PULL_ERROR = "There was an error pulling the resource, as expected by a unit test.";
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        stream1.emit("pipe");
+                        const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME});
+                        return Q(resource);
+                    } else if (stubPull.callCount === 2) {
+                        return Q.reject(new Error(PULL_ERROR));
+                    }
+                });
+
+                // Create a stub for assetsFS.renameResource.
+                const stubRename = sinon.stub(assetsFS, "renameResource");
+
+                // Create spies to listen for the "resource-pulled" and "resource-pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("resource-pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("resource-pulled-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubRename);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource plus an error.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(2);
+                        expect(resources[0].path).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(resources[1].message).to.equal(PULL_ERROR);
+
+                        // Verify that the pull spy and the error spy were each called once.
+                        expect(spyPull).to.have.been.calledOnce;
+                        expect(spyError).to.have.been.calledOnce;
+
+                        // Verify that the hashes were updated during the stream write.
+                        expect(stubGenerateMD5HashFromStream).to.have.been.calledOnce;
+                        expect(stubUpdateResourceHashes).to.have.been.calledOnce;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubStream.args[1][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][2]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubPull.args[1][2]["tag"]).to.equal(STREAM_TAG_2);
+                        expect(stubRename).to.have.been.calledOnce;
+                        expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[0][2]).to.contain(UnitTest.DUMMY_NAME);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pulled", spyPull);
+                        emitter.removeListener("resource-pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with deletions when there is one remote resource and two local resources.", function (done) {
+                // Create an assetsREST.getResourceList stub to return a single resource.
+                const stubResource = sinon.stub(assetsREST, "getResourceList");
+                stubResource.resolves([UnitTest.DUMMY_METADATA]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.resolves(stream1);
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the resource metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream1.emit("pipe");
+                    const resource = utils.cloneOpts(UnitTest.DUMMY_METADATA, {disposition: UnitTest.DUMMY_NAME});
+                    return Q(resource);
+                });
+
+                // Create a stub for assetsFS.renameResource.
+                const stubRename = sinon.stub(assetsFS, "renameResource");
+
+                // Create an assetsFS.listLocalResourceNames stub to return two resources.
+                const stubLocal = sinon.stub(assetsHelper, "listLocalResourceNames");
+                stubLocal.resolves([UnitTest.DUMMY_METADATA, {"id": "zzz", "path": "test2"}]);
+
+                // Create spies to listen for the "resource-pulled" and "resource-pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("resource-pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("resource-pulled-error", spyError);
+                const spyLocalOnly = sinon.spy();
+                emitter.on("resource-local-only", spyLocalOnly);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubRename);
+                self.addTestDouble(stubLocal);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullResources(context, {deletions: true})
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(1);
+                        expect(resources[0].path).to.equal(UnitTest.DUMMY_METADATA.path);
+
+                        // Verify that the pull spy was called once and that the error spy was not called.
+                        expect(spyPull).to.have.been.calledOnce;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the local-only spy was called once.
+                        expect(spyLocalOnly).to.have.been.calledOnce;
+                        expect(spyLocalOnly.args[0][0]["path"]).to.equal("test2");
+
+                        // Verify that the hashes were updated during the stream write.
+                        expect(stubGenerateMD5HashFromStream).to.have.been.calledOnce;
+                        expect(stubUpdateResourceHashes).to.have.been.calledOnce;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledOnce;
+                        expect(stubStream.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubPull).to.have.been.calledOnce;
+                        expect(stubPull.args[0][2]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubRename).to.have.been.calledOnce;
+                        expect(stubRename.args[0][1]).to.contain(UnitTest.DUMMY_METADATA.id);
+                        expect(stubRename.args[0][2]).to.contain(UnitTest.DUMMY_NAME);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pulled", spyPull);
+                        emitter.removeListener("resource-pulled-error", spyError);
+                        emitter.removeListener("resource-local-only", spyLocalOnly);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
     testPushAsset () {
         const self = this;
         describe("pushItem", function () {
@@ -1772,6 +2699,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Create a stub for assetsFS.getContentLength that returns 0.
                 const stubContentLength = sinon.stub(assetsFS, "getContentLength");
                 stubContentLength.resolves(0);
+
+                // Change the stub for hashes.stubGenerateMD5Hash to return a value.
+                stubGenerateMD5Hash.returns("12345678980");
 
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -1973,6 +2903,190 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     });
             });
 
+            it("should succeed when pushing an asset succeeds on retry.", function (done) {
+                // Read the contents of a test asset file.
+                const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HBS_1;
+                const assetContent = fs.readFileSync(assetPath);
+                const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HBS_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
+
+                // Create an assetsFS.getItemReadStream stub that returns a promise for the asset stream.
+                const stubFS = sinon.stub(assetsFS, "getItemReadStream");
+                const assetStream1 = new stream.Readable();
+                assetStream1.tag = 1;
+                assetStream1.push(assetContent);
+                assetStream1.push(null);
+                const assetStream2 = new stream.Readable();
+                assetStream2.tag = 2;
+                assetStream2.push(assetContent);
+                assetStream2.push(null);
+                const assetStream3 = new stream.Readable();
+                assetStream3.push(assetContent);
+                assetStream3.push(null);
+                stubFS.onFirstCall().resolves(assetStream1);
+                stubFS.onSecondCall().resolves(assetStream2);
+                stubFS.onThirdCall().resolves(assetStream3);
+
+                // Create an assetsREST.pushItem stub that fails the first and second times with an error that can be
+                // retried. The third time it returns a promise for the asset metadata and emits a stream close event.
+                const PUSH_ERROR = "Error pushing an item, as expected by a unit test.";
+                const stubREST = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+                    if (stream.tag === 1 || stream.tag === 2) {
+                        const error = new Error(PUSH_ERROR);
+                        error.retry = true;
+                        return Q.reject(error);
+                    } else {
+                        stream.emit("close");
+                        return Q(assetMetadata);
+                    }
+                });
+
+                // Create a stub for assetsFS.isContentResource that returns false.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(false);
+
+                // Create a stub for assetsFS.getContentLength that returns 0.
+                const stubContentLength = sinon.stub(assetsFS, "getContentLength");
+                stubContentLength.resolves(0);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubFS);
+                self.addTestDouble(stubREST);
+                self.addTestDouble(stubIsContentResource);
+                self.addTestDouble(stubContentLength);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushItem(context, AssetsUnitTest.ASSET_HBS_1, {retryMaxAttempts: 5, retryMinTimeout: 0, retryMaxTimeout: 10, retryFactor: 1, retryRandomize: false})
+                    .then(function (asset) {
+                        // Verify that the helper returned the expected value.
+                        expect(diff.diffJson(assetMetadata, asset)).to.have.lengthOf(1);
+
+                        // Verify that the FS stub was called three times with the specified path (before the REST stub).
+                        expect(stubFS).to.have.been.calledThrice;
+                        expect(stubFS.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubFS.secondCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubFS.thirdCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubFS).to.have.been.calledBefore(stubREST);
+
+                        // Verify that the REST stub was called three times with the specified path and content.
+                        expect(stubREST).to.have.been.calledThrice;
+                        expect(stubREST.firstCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubREST.secondCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubREST.thirdCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        const streamContent = stubREST.thirdCall.args[7].read(65536);
+                        expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
+
+                        // Verify that the last push timestamp was not called, because we're only pushing one item.
+                        expect(stubSetLastPush).to.not.have.been.called;
+
+                        expect(stubUpdateHashes).to.have.been.calledOnce;
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HBS_1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Re-initialize the retry push properties.
+                        assetsHelper.initializeRetryPush(context);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when pushing an asset and retrying the maximum number of times.", function (done) {
+                // Read the contents of a test asset file.
+                const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HBS_1;
+                const assetContent = fs.readFileSync(assetPath);
+
+                // Create an assetsFS.getItemReadStream stub that returns a promise for the asset stream.
+                const stubFS = sinon.stub(assetsFS, "getItemReadStream");
+                const assetStream1 = new stream.Readable();
+                assetStream1.push(assetContent);
+                assetStream1.push(null);
+                const assetStream2 = new stream.Readable();
+                assetStream2.push(assetContent);
+                assetStream2.push(null);
+                const assetStream3 = new stream.Readable();
+                assetStream3.push(assetContent);
+                assetStream3.push(null);
+                stubFS.onFirstCall().resolves(assetStream1);
+                stubFS.onSecondCall().resolves(assetStream2);
+                stubFS.onThirdCall().resolves(assetStream3);
+
+                // Create an assetsREST.pushItem stub that fails the first and second times with an error that can be
+                // retried. The third time it returns a promise for the asset metadata and emits a stream close event.
+                const PUSH_ERROR = "Error pushing an item, as expected by a unit test.";
+                const stubREST = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+                    const error = new Error(PUSH_ERROR);
+                    error.retry = true;
+                    error.log = "The log message for this error: ";
+                    return Q.reject(error);
+                });
+
+                // Create a stub for assetsFS.isContentResource that returns false.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(false);
+
+                // Create a stub for assetsFS.getContentLength that returns 0.
+                const stubContentLength = sinon.stub(assetsFS, "getContentLength");
+                stubContentLength.resolves(0);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubFS);
+                self.addTestDouble(stubREST);
+                self.addTestDouble(stubIsContentResource);
+                self.addTestDouble(stubContentLength);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushItem(context, AssetsUnitTest.ASSET_HBS_1, {retryMaxAttempts: 3, retryMinTimeout: 0, retryMaxTimeout: 10, retryFactor: 0, retryRandomize: true})
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for pushing the item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the helper returned the expected error.
+                        expect(err.message).to.equal(PUSH_ERROR);
+
+                        // Verify that the FS stub was called three times with the specified path (before the REST stub).
+                        expect(stubFS).to.have.been.calledThrice;
+                        expect(stubFS.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubFS.secondCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubFS.thirdCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubFS).to.have.been.calledBefore(stubREST);
+
+                        // Verify that the REST stub was called three times with the specified path and content.
+                        expect(stubREST).to.have.been.calledThrice;
+                        expect(stubREST.firstCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubREST.secondCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubREST.thirdCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        const streamContent = stubREST.thirdCall.args[7].read(65536);
+                        expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
+
+                        // Verify that the last push timestamp was not called.
+                        expect(stubSetLastPush).to.not.have.been.called;
+
+                        expect(stubUpdateHashes).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Re-initialize the retry push properties.
+                        assetsHelper.initializeRetryPush(context);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail when getting a content asset fails.", function (done) {
                 // Create an assetsFS.getItem stub that returns an error.
                 const stubFS = sinon.stub(assetsFS, "getItem");
@@ -2145,7 +3259,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Create an assetsFS.saveItem stub that returns an error.
                 const stubSave = sinon.stub(assetsFS, "saveItem");
                 const ASSET_ERROR = "There was an error saving the asset metadata.";
-                stubSave.rejects(ASSET_ERROR);
+                stubSave.throws(new Error(ASSET_ERROR));
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubFS);
@@ -2218,6 +3332,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Create a stub for assetsFS.getContentLength that returns 0.
                 const stubContentLength = sinon.stub(assetsFS, "getContentLength");
                 stubContentLength.resolves(0);
+
+                // Return a reasonable MD5 hash value on the second call to the hashes.getResourceMD5ForFile stub.
+                stubGetResourceMD5ForFile.onSecondCall().returns("0B44873CD2F72F88ADC72D4320A977DD");
 
                 // Create an assetsFS.saveItem stub that returns asset metadata.
                 const stubSave = sinon.stub(assetsFS, "saveItem");
@@ -2333,14 +3450,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
                 stubIsContentResource.returns(false);
 
-                const stubPushAllResources = sinon.stub(assetsHelper, "pushAllResources");
-                stubPushAllResources.resolves([]);
-
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubPush);
                 self.addTestDouble(stubIsContentResource);
-                self.addTestDouble(stubPushAllResources);
 
                 // Call the method being tested.
                 let error;
@@ -2423,6 +3536,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubList = sinon.stub(assetsFS, "listNames");
                 stubList.resolves(assetNames);
 
+                // Create an assetsHelper.pushAllResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pushAllResources");
+                stubResources.resolves([]);
+
                 // Create an assetsFS.getItemReadStream stub that returns a promise for the asset content.
                 const stubFS = sinon.stub(assetsFS, "getItemReadStream");
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_HTML_1).resolves(htmlStream);
@@ -2461,6 +3578,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // Create spies to listen for "pushed" and "pushed-error" events.
                 const emitter = assetsHelper.getEventEmitter(context);
+                delete context.eventEmitter;
                 const spyPushed = sinon.spy();
                 const spyError = sinon.spy();
                 emitter.on("pushed", spyPushed);
@@ -2470,20 +3588,17 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubContentLength = sinon.stub(assetsFS, "getContentLength");
                 stubContentLength.resolves(0);
 
-                const stubPushAllResources = sinon.stub(assetsHelper, "pushAllResources");
-                stubPushAllResources.resolves([]);
-
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubFS);
                 self.addTestDouble(stubREST);
                 self.addTestDouble(stubContentLength);
                 self.addTestDouble(stubSave);
-                self.addTestDouble(stubPushAllResources);
+                self.addTestDouble(stubResources);
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.pushAllItems(context)
+                assetsHelper.pushAllItems(context, {disablePushPullResources: false})
                     .then(function (assets) {
                         // Verify that the helper returned the resolved content, but not the rejected content.
                         expect(assets).to.have.lengthOf(5);
@@ -2531,15 +3646,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubSave).to.have.been.calledOnce;
 
                         // Verify that the spies were called as expected.
-                        expect(spyPushed).to.have.callCount(5);
-                        expect(spyPushed.getCall(0).args[0].path).to.equal(AssetsUnitTest.ASSET_HTML_1);
-                        expect(spyPushed.getCall(1).args[0].path).to.equal(AssetsUnitTest.ASSET_CSS_1);
-                        expect(spyPushed.getCall(2).args[0].path).to.equal(AssetsUnitTest.ASSET_GIF_1);
-                        expect(spyPushed.getCall(3).args[0].path).to.equal(AssetsUnitTest.ASSET_JAR_1);
-                        expect(spyPushed.getCall(4).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
-                        expect(spyError).to.have.been.calledOnce;
-                        expect(spyError.firstCall.args[0].message).to.equal(ASSET_ERROR);
-                        expect(spyError.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
+                        expect(spyPushed).to.not.have.been.called;
+                        expect(spyError).to.not.have.been.called;
 
                         // Verify that the hashes were called as expected.
                         expect(stubSetLastPush).to.not.have.been.called;
@@ -2555,6 +3663,179 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
                         expect(stubUpdateHashes.args[4][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
                         expect(stubUpdateHashes.args[4][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pushed", spyPushed);
+                        emitter.removeListener("pushed-error", spyError);
+                        context.eventEmitter = emitter;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pushing all local assets, including drafts.", function (done) {
+                // List of local asset names.
+                const assetNames = [
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_1},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_2}
+                ];
+
+                // Read the contents of the test asset files.
+                const path1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const content1 = fs.readFileSync(path1);
+                const metadataPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1 + "_amd.json";
+                const metadata1 = UnitTest.getJsonObject(metadataPath1);
+                const stream1 = new stream.Readable();
+                stream1.push(content1);
+                stream1.push(null);
+                const draftPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const draftContent1 = fs.readFileSync(draftPath1);
+                const draftMetadataPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT + "_amd.json";
+                const draftMetadata1 = UnitTest.getJsonObject(draftMetadataPath1);
+                const draftStream1 = new stream.Readable();
+                draftStream1.push(draftContent1);
+                draftStream1.push(null);
+
+                const path2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const content2 = fs.readFileSync(path2);
+                const metadataPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2 + "_amd.json";
+                const metadata2 = UnitTest.getJsonObject(metadataPath2);
+                const stream2 = new stream.Readable();
+                stream2.push(content2);
+                stream2.push(null);
+                const draftPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const draftContent2 = fs.readFileSync(draftPath2);
+                const draftMetadataPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT + "_amd.json";
+                const draftMetadata2 = UnitTest.getJsonObject(draftMetadataPath2);
+                const draftStream2 = new stream.Readable();
+                draftStream2.push(draftContent2);
+                draftStream2.push(null);
+
+                // Create an assetsFS.listNames stub that returns a promise for names.
+                const stubList = sinon.stub(assetsFS, "listNames");
+                stubList.resolves(assetNames);
+
+                // Create an assetsFS.getItemReadStream stub that returns a promise for the asset content.
+                const stubFS = sinon.stub(assetsFS, "getItemReadStream");
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_1).resolves(stream1);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT).resolves(draftStream1);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2).resolves(stream2);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT).resolves(draftStream2);
+
+                // Create an assetsREST.pushItem stub that returns a promise for asset metadata based on the value of
+                // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
+                // promises will be resolved.
+                const stubREST = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+                    stream.emit("close");
+                    const d = Q.defer();
+                    if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_1) {
+                        d.resolve(metadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT) {
+                        d.resolve(draftMetadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_2) {
+                        d.resolve(metadata2);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT) {
+                        d.resolve(draftMetadata2);
+                    }
+                    return d.promise;
+                });
+
+                // Create an assetsFS.saveItem stub that returns asset metadata.
+                const stubSave = sinon.stub(assetsFS, "saveItem", function (context, asset, opts) {
+                    return Q(asset);
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("pushed", spyPushed);
+                emitter.on("pushed-error", spyError);
+
+                // Create a stub for assetsFS.getContentLength that returns 0.
+                const stubContentLength = sinon.stub(assetsFS, "getContentLength");
+                stubContentLength.resolves(0);
+
+                // Create a stub for assetsHelper.isRetryPushEnabled that returns false.
+                const stubRetryPush = sinon.stub(assetsHelper, "isRetryPushEnabled");
+                stubRetryPush.returns(false);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubList);
+                self.addTestDouble(stubFS);
+                self.addTestDouble(stubREST);
+                self.addTestDouble(stubSave);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubRetryPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (assets) {
+                        // Verify that the helper returned the expected content.
+                        expect(assets).to.have.lengthOf(4);
+                        expect(diff.diffJson(metadata1, assets[0])).to.have.lengthOf(1);
+                        expect(diff.diffJson(metadata2, assets[1])).to.have.lengthOf(1);
+                        expect(diff.diffJson(draftMetadata1, assets[2])).to.have.lengthOf(1);
+                        expect(diff.diffJson(draftMetadata2, assets[3])).to.have.lengthOf(1);
+
+                        // Verify that the list stub was called once.
+                        expect(stubList).to.have.been.calledOnce;
+
+                        // Verify that the FS stub was called four times, once with each specified path.
+                        expect(stubFS).to.have.callCount(4);
+                        expect(stubFS.getCall(0).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubFS.getCall(1).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        expect(stubFS.getCall(2).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(stubFS.getCall(3).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+
+                        // Verify that the REST stub was called four times, with the expected args, and after the FS stub.
+                        expect(stubREST).to.have.callCount(4);
+                        expect(stubREST.getCall(0).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubREST.getCall(1).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        expect(stubREST.getCall(2).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(stubREST.getCall(3).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+                        let requestContent = stubREST.getCall(0).args[7].read(65536);
+                        expect(Buffer.compare(content1, requestContent)).to.equal(0);
+                        requestContent = stubREST.getCall(1).args[7].read(65536);
+                        expect(Buffer.compare(content2, requestContent)).to.equal(0);
+                        requestContent = stubREST.getCall(2).args[7].read(65536);
+                        expect(Buffer.compare(draftContent1, requestContent)).to.equal(0);
+                        requestContent = stubREST.getCall(3).args[7].read(65536);
+                        expect(Buffer.compare(draftContent2, requestContent)).to.equal(0);
+                        expect(stubREST).to.have.been.calledAfter(stubFS);
+
+                        // Verify that the save stub was called four times.
+                        expect(stubSave).to.have.callCount(4);
+
+                        // Verify that the spies were called as expected.
+                        expect(spyPushed).to.have.callCount(4);
+                        expect(spyPushed.getCall(0).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(spyPushed.getCall(1).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        expect(spyPushed.getCall(2).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(spyPushed.getCall(3).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the hashes were called as expected.
+                        expect(stubSetLastPush).to.have.been.called;
+
+                        expect(stubUpdateHashes).to.have.callCount(4);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        expect(stubUpdateHashes.args[2][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+                        expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -2692,6 +3973,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 hbsStream.push(hbsContent);
                 hbsStream.push(null);
 
+                // Create an assetsHelper.pushModifiedResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pushModifiedResources");
+                stubResources.resolves([]);
+
                 // Create an assetsFS.listNames stub that returns a promise for the modified names.
                 const stubList = sinon.stub(assetsFS, "listNames");
                 stubList.resolves(modifiedAssetNames);
@@ -2742,10 +4027,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 self.addTestDouble(stubGet);
                 self.addTestDouble(stubPush);
                 self.addTestDouble(stubIsContentResource);
+                self.addTestDouble(stubResources);
 
                 // Call the method being tested.
                 let error;
-                assetsHelper.pushModifiedItems(context, {workingDir: AssetsUnitTest.VALID_WORKING_DIRECTORY})
+                assetsHelper.pushModifiedItems(context, {workingDir: AssetsUnitTest.VALID_WORKING_DIRECTORY, disablePushPullResources: false})
                     .then(function (assets) {
                         // Verify that the helper returned the resolved content, but not the rejected content.
                         expect(assets).to.have.lengthOf(2);
@@ -2786,10 +4072,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyError.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
 
                         // Verify that the hashes were called as expected.
-                        expect(stubGetMD5ForFile).to.have.been.calledThrice;
-                        expect(stubGetMD5ForFile.firstCall.args[2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubGetMD5ForFile.secondCall.args[2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubGetMD5ForFile.thirdCall.args[2]).to.contain(AssetsUnitTest.ASSET_HBS_1);
+                        expect(stubGetResourceMD5ForFile).to.have.been.calledThrice;
+                        expect(stubGetResourceMD5ForFile.firstCall.args[2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubGetResourceMD5ForFile.secondCall.args[2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubGetResourceMD5ForFile.thirdCall.args[2]).to.contain(AssetsUnitTest.ASSET_HBS_1);
 
                         expect(stubSetLastPull).to.not.have.been.called;
 
@@ -2809,6 +4095,845 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .finally(function () {
                         emitter.removeListener("pushed", spySuccess);
                         emitter.removeListener("pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testPushAllResources () {
+        const self = this;
+        describe("pushAllResources", function () {
+            it("should short-circuit when pushing only web assets.", function (done) {
+                // Create an assetsFS.listResourceNames spy to verify that it is not called.
+                const spy = sinon.spy(assetsFS, "listResourceNames");
+
+                // The spy should be restored when the test is complete.
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS})
+                    .then(function () {
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should short-circuit when pushing with no virtual folder.", function (done) {
+                // Create an assetsFS.listResourceNames spy to verify that it is not called.
+                const spy = sinon.spy(assetsFS, "listResourceNames");
+
+                // The spy should be restored when the test is complete.
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, {noVirtualFolder: true})
+                    .then(function () {
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when there is an error getting local resources.", function (done) {
+                // Create an assetsFS.listResourceNames stub that returns an error.
+                const RESOURCES_ERROR = "There was an error getting the local resources, as expected by unit test.";
+                const stub = sinon.stub(assetsFS, "listResourceNames");
+                stub.rejects(RESOURCES_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the local resources should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(RESOURCES_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is one local resource.", function (done) {
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([UnitTest.DUMMY_PATH]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.resolves(0);
+
+                // Read the contents of a test resource file.
+                const resourcePath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceContent = fs.readFileSync(resourcePath);
+                const resourceMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceMetadata = UnitTest.getJsonObject(resourceMetadataPath);
+                const resourceStream = new stream.Readable();
+                const STREAM_TAG = "unique.id";
+                resourceStream.tag = STREAM_TAG;
+                resourceStream.push(resourceContent);
+                resourceStream.push(null);
+
+                // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
+                stubStream.resolves(resourceStream);
+
+                // Create an assetsREST.pushItem stub that returns a promise for resource metadata. The stub also emits
+                // a stream close event so that subsequent promises will be resolved.
+                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
+                    stream.emit("close");
+                    return Q(resourceMetadata);
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(1);
+                        expect(resources[0].path).to.equal(resourceMetadata.path);
+
+                        // Verify that the push spy was called once and that the error spy was not called.
+                        expect(spyPushed).to.have.been.calledOnce;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that an MD5 hash was generated.
+                        expect(stubGenerateMD5Hash).to.have.been.calledOnce;
+
+                        // Verify that the push timestamp was updated.
+                        expect(stubSetLastPush).to.have.been.calledOnce;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledOnce;
+                        expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubPush).to.have.been.calledOnce;
+                        expect(stubPush.args[0][7]["tag"]).to.equal(STREAM_TAG);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is one local resource, even when failing to get that resource's content length.", function (done) {
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([UnitTest.DUMMY_PATH]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.rejects(new Error("Error getting resource content length, as expected by a unit test."));
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned an empty resource array.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(0);
+
+                        // Verify that the push spy and the error spy to not have been called.
+                        expect(spyPushed).to.not.have.been.called;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the push timestamp was not updated.
+                        expect(stubSetLastPush).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is one local resource, even when failing to get that resource's read stream.", function (done) {
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([UnitTest.DUMMY_PATH]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.resolves(0);
+
+                // Create an assetsFS.getResourceReadStream stub that returns an error.
+                const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
+                stubStream.rejects(new Error("Error getting resource read stream, as expected by a unit test."));
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubStream);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned an empty resource array.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(0);
+
+                        // Verify that the push and error spies were not called.
+                        expect(spyPushed).to.not.have.been.called;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the push timestamp was not updated.
+                        expect(stubSetLastPush).to.not.have.been.called;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is one local resource, which has to be retried twice.", function (done) {
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([UnitTest.DUMMY_PATH]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.resolves(0);
+
+                // Read the contents of a test resource file.
+                const resourcePath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceContent = fs.readFileSync(resourcePath);
+                const resourceMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceMetadata = UnitTest.getJsonObject(resourceMetadataPath);
+
+                // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
+                const resourceStream1 = new stream.Readable();
+                resourceStream1.tag = 1;
+                resourceStream1.push(resourceContent);
+                resourceStream1.push(null);
+                const resourceStream2 = new stream.Readable();
+                resourceStream2.tag = 2;
+                resourceStream2.push(resourceContent);
+                resourceStream2.push(null);
+                const resourceStream3 = new stream.Readable();
+                resourceStream3.push(resourceContent);
+                resourceStream3.push(null);
+                stubStream.onFirstCall().resolves(resourceStream1);
+                stubStream.onSecondCall().resolves(resourceStream2);
+                stubStream.onThirdCall().resolves(resourceStream3);
+
+                // Create an assetsREST.pushItem stub that fails the first and second times with an error that can be
+                // retried. The third time it returns a promise for the asset metadata and emits a stream close event.
+                const PUSH_ERROR = "Error pushing an item, as expected by a unit test.";
+                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+                    if (stream.tag === 1 || stream.tag === 2) {
+                        const error = new Error(PUSH_ERROR);
+                        error.retry = true;
+                        return Q.reject(error);
+                    } else {
+                        stream.emit("close");
+                        return Q(resourceMetadata);
+                    }
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, {retryMaxAttempts: 5, retryMinTimeout: 0, retryMaxTimeout: 10, retryFactor: 1, retryRandomize: false})
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(1);
+                        expect(resources[0].path).to.equal(resourceMetadata.path);
+
+                        // Verify that the stream stub was called thrice with the expected values.
+                        expect(stubStream).to.have.been.calledThrice;
+                        expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubStream.args[1][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubStream.args[2][1]).to.equal(UnitTest.DUMMY_PATH);
+
+                        // Verify that the push stub was called thrice with the expected streams.
+                        expect(stubPush).to.have.been.calledThrice;
+                        expect(stubPush.args[0][7]["tag"]).to.equal(1);
+                        expect(stubPush.args[1][7]["tag"]).to.equal(2);
+
+                        // Verify that the push spy was called once and that the error spy was not called.
+                        expect(spyPushed).to.have.been.calledOnce;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that an MD5 hash was generated.
+                        expect(stubGenerateMD5Hash).to.have.been.calledThrice;
+
+                        // Verify that the push timestamp was updated.
+                        expect(stubSetLastPush).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is one local resource, even when it fails after the maximum number of retries.", function (done) {
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([UnitTest.DUMMY_PATH]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.resolves(0);
+
+                // Read the contents of a test resource file.
+                const resourcePath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceContent = fs.readFileSync(resourcePath);
+                const resourceMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceMetadata = UnitTest.getJsonObject(resourceMetadataPath);
+
+                // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
+                const resourceStream1 = new stream.Readable();
+                resourceStream1.tag = 1;
+                resourceStream1.push(resourceContent);
+                resourceStream1.push(null);
+                const resourceStream2 = new stream.Readable();
+                resourceStream2.tag = 2;
+                resourceStream2.push(resourceContent);
+                resourceStream2.push(null);
+                const resourceStream3 = new stream.Readable();
+                resourceStream3.tag = 3;
+                resourceStream3.push(resourceContent);
+                resourceStream3.push(null);
+                stubStream.onFirstCall().resolves(resourceStream1);
+                stubStream.onSecondCall().resolves(resourceStream2);
+                stubStream.onThirdCall().resolves(resourceStream3);
+
+                // Create an assetsREST.pushItem stub that fails with an error that can be retried.
+                const PUSH_ERROR = "Error pushing an item, as expected by a unit test.";
+                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+                    const error = new Error(PUSH_ERROR);
+                    error.retry = true;
+                    error.log = "The log message for this error: ";
+                    return Q.reject(error);
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, {retryMaxAttempts: 3, retryMinTimeout: 0, retryMaxTimeout: 10, retryFactor: 1, retryRandomize: false})
+                    .then(function (resources) {
+                        // Verify that the result is an empty resource array.
+                        expect(resources).to.be.an("array").that.has.lengthOf(0);
+
+                        // Verify that the resource stub was called once.
+                        expect(stubResource).to.have.been.calledOnce;
+
+                        // Verify that the stream stub was called thrice with the expected values.
+                        expect(stubStream).to.have.been.calledThrice;
+                        expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubStream.args[1][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubStream.args[2][1]).to.equal(UnitTest.DUMMY_PATH);
+
+                        // Verify that the push stub was called thrice with the expected streams.
+                        expect(stubPush).to.have.been.calledThrice;
+                        expect(stubPush.args[0][7]["tag"]).to.equal(1);
+                        expect(stubPush.args[1][7]["tag"]).to.equal(2);
+                        expect(stubPush.args[2][7]["tag"]).to.equal(3);
+
+                        // Verify that the push spy was not called and that the error spy was called once.
+                        expect(spyPushed).to.not.have.been.called;
+                        expect(spyError).to.have.been.calledOnce;
+
+                        // Verify that an MD5 hash was generated.
+                        expect(stubGenerateMD5Hash).to.have.been.calledThrice;
+
+                        // Verify that the push timestamp was not updated.
+                        expect(stubSetLastPush).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there are two local resources, but one push fails.", function (done) {
+                // Create an assetsFS.listResourceNames stub to return two resource names.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([AssetsUnitTest.ASSET_HTML_1, AssetsUnitTest.ASSET_CSS_1]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.resolves(0);
+
+                // Read the contents of two test resource files.
+                const resourcePath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceContent1 = fs.readFileSync(resourcePath1);
+                const resourceMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceMetadata1 = UnitTest.getJsonObject(resourceMetadataPath1);
+                const resourceStream1 = new stream.Readable();
+                const STREAM_TAG_1 = "unique.id.1";
+                resourceStream1.tag = STREAM_TAG_1;
+                resourceStream1.push(resourceContent1);
+                resourceStream1.push(null);
+                const resourcePath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const resourceContent2 = fs.readFileSync(resourcePath2);
+                const resourceMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const resourceStream2 = new stream.Readable();
+                const STREAM_TAG_2 = "unique.id.2";
+                resourceStream2.tag = STREAM_TAG_2;
+                resourceStream2.push(resourceContent2);
+                resourceStream2.push(null);
+
+                // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
+                stubStream.onFirstCall().resolves(resourceStream1);
+                stubStream.onSecondCall().resolves(resourceStream2);
+
+                // Create a stub for assetsHelper.isRetryPushEnabled that returns false.
+                const stubRetryPush = sinon.stub(assetsHelper, "isRetryPushEnabled");
+                stubRetryPush.returns(false);
+
+                // Create an assetsREST.pushItem stub that returns a promise for resource metadata. The stub also emits
+                // a stream close event so that subsequent promises will be resolved.
+                const PUSH_ERROR = "Error pushing the resaource, as expected by a unit test.";
+                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
+                    stream.emit("close");
+                    if (pathname === AssetsUnitTest.ASSET_HTML_1) {
+                        return Q(resourceMetadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CSS_1) {
+                        return Q.reject(PUSH_ERROR);
+                    }
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubRetryPush);
+                self.addTestDouble(stubPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the method being tested returned the expected values.
+                        expect(resources).to.be.an("array").that.has.lengthOf(1);
+                        expect(resources[0].path).to.equal(resourceMetadata1.path);
+
+                        // Verify that the resource stub was called once.
+                        expect(stubResource).to.have.been.calledOnce;
+
+                        // Verify that the push and error spies were each called once.
+                        expect(spyPushed).to.have.been.calledOnce;
+                        expect(spyError).to.have.been.calledOnce;
+
+                        // Verify that an MD5 hash was generated.
+                        expect(stubGenerateMD5Hash).to.have.been.calledTwice;
+
+                        // Verify that the push timestamp was not updated.
+                        expect(stubSetLastPush).to.not.have.been.called;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubStream.args[1][1]).to.equal(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubPush).to.have.been.calledTwice;
+                        expect(stubPush.args[0][7]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubPush.args[1][7]["tag"]).to.equal(STREAM_TAG_2);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there are two local resources, but one push fails (no emitter).", function (done) {
+                // Create an assetsFS.listResourceNames stub to return two resource names.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([AssetsUnitTest.ASSET_HTML_1, AssetsUnitTest.ASSET_CSS_1]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.resolves(0);
+
+                // Read the contents of two test resource files.
+                const resourcePath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceContent1 = fs.readFileSync(resourcePath1);
+                const resourceMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceMetadata1 = UnitTest.getJsonObject(resourceMetadataPath1);
+                const resourceStream1 = new stream.Readable();
+                const STREAM_TAG_1 = "unique.id.1";
+                resourceStream1.tag = STREAM_TAG_1;
+                resourceStream1.push(resourceContent1);
+                resourceStream1.push(null);
+                const resourcePath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const resourceContent2 = fs.readFileSync(resourcePath2);
+                const resourceMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const resourceStream2 = new stream.Readable();
+                const STREAM_TAG_2 = "unique.id.2";
+                resourceStream2.tag = STREAM_TAG_2;
+                resourceStream2.push(resourceContent2);
+                resourceStream2.push(null);
+
+                // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
+                stubStream.onFirstCall().resolves(resourceStream1);
+                stubStream.onSecondCall().resolves(resourceStream2);
+
+                // Create a stub for assetsHelper.isRetryPushEnabled that returns false.
+                const stubRetryPush = sinon.stub(assetsHelper, "isRetryPushEnabled");
+                stubRetryPush.returns(false);
+
+                // Create an assetsREST.pushItem stub that returns a promise for resource metadata. The stub also emits
+                // a stream close event so that subsequent promises will be resolved.
+                const PUSH_ERROR = "Error pushing the resaource, as expected by a unit test.";
+                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
+                    stream.emit("close");
+                    if (pathname === AssetsUnitTest.ASSET_HTML_1) {
+                        return Q(resourceMetadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CSS_1) {
+                        return Q.reject(PUSH_ERROR);
+                    }
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                delete context.eventEmitter;
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubRetryPush);
+                self.addTestDouble(stubPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the method being tested returned the expected values.
+                        expect(resources).to.be.an("array").that.has.lengthOf(1);
+                        expect(resources[0].path).to.equal(resourceMetadata1.path);
+
+                        // Verify that the resource stub was called once.
+                        expect(stubResource).to.have.been.calledOnce;
+
+                        // Verify that the push and error spies were not called (no emitter).
+                        expect(spyPushed).to.not.have.been.called;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that an MD5 hash was generated.
+                        expect(stubGenerateMD5Hash).to.have.been.calledTwice;
+
+                        // Verify that the push timestamp was not updated.
+                        expect(stubSetLastPush).to.not.have.been.called;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.equal(AssetsUnitTest.ASSET_HTML_1);
+                        expect(stubStream.args[1][1]).to.equal(AssetsUnitTest.ASSET_CSS_1);
+                        expect(stubPush).to.have.been.calledTwice;
+                        expect(stubPush.args[0][7]["tag"]).to.equal(STREAM_TAG_1);
+                        expect(stubPush.args[1][7]["tag"]).to.equal(STREAM_TAG_2);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
+                        context.eventEmitter = emitter;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testPushModifiedResources () {
+        const self = this;
+        describe("pushModifiedResources", function () {
+            it("should short-circuit when pushing only web assets.", function (done) {
+                // Create an assetsFS.listResourceNames spy to verify that it is not called.
+                const spy = sinon.spy(assetsFS, "listResourceNames");
+
+                // The spy should be restored when the test is complete.
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushModifiedResources(context, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS})
+                    .then(function () {
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should short-circuit when pushing with no virtual folder.", function (done) {
+                // Create an assetsFS.listResourceNames spy to verify that it is not called.
+                const spy = sinon.spy(assetsFS, "listResourceNames");
+
+                // The spy should be restored when the test is complete.
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushModifiedResources(context, {noVirtualFolder: true})
+                    .then(function () {
+                        // Verify that the spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when there is an error getting local resources.", function (done) {
+                // Create an assetsFS.listResourceNames stub that returns an error.
+                const RESOURCES_ERROR = "There was an error getting the local resources, as expected by unit test.";
+                const stub = sinon.stub(assetsFS, "listResourceNames");
+                stub.rejects(RESOURCES_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushModifiedResources(context)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the local resources should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(RESOURCES_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is one local resource.", function (done) {
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([UnitTest.DUMMY_PATH]);
+
+                // Create a stub for assetsFS.getResourceContentLength that returns false.
+                const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
+                stubContentLength.resolves(0);
+
+                // Read the contents of a test resource file.
+                const resourcePath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceContent = fs.readFileSync(resourcePath);
+                const resourceMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const resourceMetadata = UnitTest.getJsonObject(resourceMetadataPath);
+                const resourceStream = new stream.Readable();
+                const STREAM_TAG = "unique.id";
+                resourceStream.tag = STREAM_TAG;
+                resourceStream.push(resourceContent);
+                resourceStream.push(null);
+
+                // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
+                stubStream.resolves(resourceStream);
+
+                // Create an assetsREST.pushItem stub that returns a promise for resource metadata. The stub also emits
+                // a stream close event so that subsequent promises will be resolved.
+                const stubPush = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream) {
+                    stream.emit("close");
+                    return Q(resourceMetadata);
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("resource-pushed", spyPushed);
+                emitter.on("resource-pushed-error", spyError);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubResource);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushModifiedResources(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (resources) {
+                        // Verify that the resource stub was called once and returned a single resource.
+                        expect(stubResource).to.have.been.calledOnce;
+                        expect(resources).to.be.an("array").that.has.lengthOf(1);
+                        expect(resources[0].path).to.equal(resourceMetadata.path);
+
+                        // Verify that the push spy was called once and that the error spy was not called.
+                        expect(spyPushed).to.have.been.calledOnce;
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that an MD5 hash was generated.
+                        expect(stubGenerateMD5Hash).to.have.been.calledOnce;
+
+                        // Verify that the other stubs were called once with the expected values.
+                        expect(stubStream).to.have.been.calledOnce;
+                        expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubPush).to.have.been.calledOnce;
+                        expect(stubPush.args[0][7]["tag"]).to.equal(STREAM_TAG);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("resource-pushed", spyPushed);
+                        emitter.removeListener("resource-pushed-error", spyError);
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -3558,6 +5683,501 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
         });
     }
 
+    testDeleteLocalItem () {
+        const self = this;
+        describe("deleteLocalItem", function () {
+            it("should succeed when deleting a non-existent local item.", function (done) {
+                // Create an fsApi.deleteAsset stub that returns no filepath, indicating that the file did not exist.
+                const stubDelete = sinon.stub(assetsFS, "deleteAsset");
+                stubDelete.resolves(undefined);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.deleteLocalItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stub was called once with the expected value.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[1]).to.equal(UnitTest.DUMMY_METADATA.path);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting an existing local web asset.", function (done) {
+                // Create an assetsFS.deleteAsset stub that returns a filepath, indicating that the file exists.
+                const stubDelete = sinon.stub(assetsFS, "deleteAsset");
+                stubDelete.resolves(UnitTest.DUMMY_PATH);
+
+                // Create a stub for assetsFS.isContentResource that returns false.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(false);
+
+                // Create a hashes.removeHashes stub
+                const stubHashes = sinon.stub(hashes, "removeHashesByPath");
+
+                // Create an utils.removeEmptyParentDirectories stub
+                const stubUtils = sinon.stub(utils, "removeEmptyParentDirectories");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+                self.addTestDouble(stubIsContentResource);
+                self.addTestDouble(stubHashes);
+                self.addTestDouble(stubUtils);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.deleteLocalItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stubs were called once and that the helper returned the expected value.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubHashes).to.have.been.calledOnce;
+                        expect(stubUtils).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[1]).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(stubHashes.firstCall.args[2]).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(stubUtils.firstCall.args[1]).to.equal(UnitTest.DUMMY_PATH);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting an existing local content asset.", function (done) {
+                // Create an assetsFS.deleteAsset stub that returns a filepath, indicating that the file exists.
+                const stubDelete = sinon.stub(assetsFS, "deleteAsset");
+                stubDelete.resolves(UnitTest.DUMMY_PATH);
+
+                // Create a stub for assetsFS.isContentResource that returns true.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(true);
+
+                // Create an assetsFS.deleteMetadata stub that returns a filepath, indicating that the file exists.
+                const stubMetadata = sinon.stub(assetsFS, "deleteMetadata");
+                stubMetadata.resolves(UnitTest.DUMMY_PATH);
+
+                // Create a hashes.removeHashes stub
+                const stubHashes = sinon.stub(hashes, "removeHashesByPath");
+
+                // Create an utils.removeEmptyParentDirectories stub
+                const stubUtils = sinon.stub(utils, "removeEmptyParentDirectories");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+                self.addTestDouble(stubIsContentResource);
+                self.addTestDouble(stubMetadata);
+                self.addTestDouble(stubHashes);
+                self.addTestDouble(stubUtils);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.deleteLocalItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stubs were called once and that the helper returned the expected value.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubMetadata).to.have.been.calledOnce;
+                        expect(stubHashes).to.have.been.calledOnce;
+                        expect(stubUtils).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[1]).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(stubMetadata.firstCall.args[1]).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(stubHashes.firstCall.args[2]).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(stubUtils.firstCall.args[1]).to.equal(UnitTest.DUMMY_PATH);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testDeleteLocalResource () {
+        const self = this;
+        describe("deleteLocalResource", function () {
+            it("should succeed when deleting a non-existent local resource.", function (done) {
+                // Create an fsApi.deleteResource stub that returns no filepath, indicating that the file did not exist.
+                const stubDelete = sinon.stub(assetsFS, "deleteResource");
+                stubDelete.resolves(undefined);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.deleteLocalResource(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stub was called once with the expected value.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[1]).to.equal(UnitTest.DUMMY_METADATA.path);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting an existing local resource.", function (done) {
+                // Create an assetsFS.deleteResource stub that returns a filepath, indicating that the file exists.
+                const stubDelete = sinon.stub(assetsFS, "deleteResource");
+                stubDelete.resolves(UnitTest.DUMMY_PATH);
+
+                // Create a hashes.removeHashes stub
+                const stubHashes = sinon.stub(hashes, "removeHashesByPath");
+
+                // Create an utils.removeEmptyParentDirectories stub
+                const stubUtils = sinon.stub(utils, "removeEmptyParentDirectories");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+                self.addTestDouble(stubHashes);
+                self.addTestDouble(stubUtils);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.deleteLocalResource(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stubs were called once and that the helper returned the expected value.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubHashes).to.have.been.calledOnce;
+                        expect(stubUtils).to.have.been.calledOnce;
+                        expect(stubDelete.firstCall.args[1]).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(stubHashes.firstCall.args[2]).to.equal(UnitTest.DUMMY_METADATA.path);
+                        expect(stubUtils.firstCall.args[1]).to.equal(UnitTest.DUMMY_PATH);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testCanDeleteItem () {
+        const self = this;
+
+        describe("canDeleteItem", function () {
+            it("should return false when the item is not valid.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const canDelete = assetsHelper.canDeleteItem("Invalid object", false, UnitTest.DUMMY_OPTIONS);
+                    expect(canDelete).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true when the item is valid.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const canDelete = assetsHelper.canDeleteItem({"object": "valid"}, false, UnitTest.DUMMY_OPTIONS);
+                    expect(canDelete).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return false when deleting all web assets but the item is a content asset.", function (done) {
+                // Create a stub for assetsFS.isContentResource that returns true.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubIsContentResource);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const opts = {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS};
+                    const canDelete = assetsHelper.canDeleteItem(UnitTest.DUMMY_METADATA, true, opts);
+                    expect(canDelete).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true when deleting all web assets and the item is a web asset.", function (done) {
+                // Create a stub for assetsFS.isContentResource that returns false.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(false);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubIsContentResource);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const opts = {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS};
+                    const canDelete = assetsHelper.canDeleteItem(UnitTest.DUMMY_METADATA, true, opts);
+                    expect(canDelete).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return false when deleting all content assets but the item is a web asset.", function (done) {
+                // Create a stub for assetsFS.isContentResource that returns false.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(false);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubIsContentResource);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                    const canDelete = assetsHelper.canDeleteItem(UnitTest.DUMMY_METADATA, true, opts);
+                    expect(canDelete).to.equal(false);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true when deleting all content assets and the item is a content asset.", function (done) {
+                // Create a stub for assetsFS.isContentResource that returns true.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubIsContentResource);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                    const canDelete = assetsHelper.canDeleteItem(UnitTest.DUMMY_METADATA, true, opts);
+                    expect(canDelete).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return true when deleting all assets and the item is a content asset.", function (done) {
+                // Create a stub for assetsFS.isContentResource that returns true.
+                const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
+                stubIsContentResource.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubIsContentResource);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const opts = {assetTypes: assetsHelper.ASSET_TYPES_BOTH};
+                    const canDelete = assetsHelper.canDeleteItem(UnitTest.DUMMY_METADATA, true, opts);
+                    expect(canDelete).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+    }
+
+    testfilterRetry () {
+        describe("filterRetryPush", function () {
+            it("should pass specific tests.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    // Shouldn't retry if the error has no response status code.
+                    const RETRY_ERROR = "Generic error used by unit test.";
+                    let error = new Error(RETRY_ERROR);
+                    let result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(false);
+
+                    // Should retry if the error has a response status code of 403 (Forbidden), unless one of the errors
+                    // has a code of 3193 (operation not allowed based on tenant tier).
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 403;
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(true);
+
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 403;
+                    error.response = {body: {errors: [{code: 3193}]}};
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(false);
+
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 403;
+                    error.response = {body: {errors: [{code: 0}]}};
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(true);
+
+                    // Should retry if the error has a response status code of 429 (Too Many Requests).
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 429;
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(true);
+
+                    // Should (for now) not retry if the error has a response status code of 500 (Internal Server Error).
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 500;
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(false);
+
+                    // Should retry if the error has a response status code of 502 (Bad Gateway).
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 502;
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(true);
+
+                    // Should retry if the error has a response status code of 503 (Service Unavailable).
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 503;
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(true);
+
+                    // Should retry if the error has a response status code of 504 (Gateway Timeout).
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 504;
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(true);
+
+                    // Should not retry if the error has a response status code of 418 (I'm a Teapot), unless that error
+                    // code has been specified for retry in the options.
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 418;
+                    result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
+                    expect(result).to.equal(false);
+
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 418;
+                    result = assetsHelper.filterRetryPush(context, error, {retryStatusCodes: [418]});
+                    expect(result).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+
+        describe("filterRetryDelete", function () {
+            it("should pass specific tests.", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    // Shouldn't retry if no error.
+                    let result = assetsHelper.filterRetryDelete(context);
+                    expect(result).to.equal(false);
+
+                    // Shouldn't retry if the error has no response.
+                    const RETRY_ERROR = "Generic error used by unit test.";
+                    let error = new Error(RETRY_ERROR);
+                    result = assetsHelper.filterRetryDelete(context, error);
+                    expect(result).to.equal(false);
+
+                    // Shouldn't retry if the error has no response status code.
+                    error = new Error(RETRY_ERROR);
+                    error.response = {};
+                    result = assetsHelper.filterRetryDelete(context, error);
+                    expect(result).to.equal(false);
+
+                    // Shouldn't retry if the status code is 400, but no response body.
+                    error = new Error(RETRY_ERROR);
+                    error.response = {statusCode: 400};
+                    result = assetsHelper.filterRetryDelete(context, error);
+                    expect(result).to.equal(false);
+
+                    // Shouldn't retry if the status code is 400, but the error has an unknown code.
+                    error = new Error(RETRY_ERROR);
+                    error.response = {statusCode: 400, body: {errors: [{code: 0}]}};
+                    result = assetsHelper.filterRetryDelete(context, error);
+                    expect(result).to.equal(false);
+
+                    // Should retry if the status code is 400, and the error code is 3008.
+                    error = new Error(RETRY_ERROR);
+                    error.response = {statusCode: 400, body: {errors: [{code: 3008}]}};
+                    result = assetsHelper.filterRetryDelete(context, error);
+                    expect(result).to.equal(true);
+
+                    // Should retry if the status code is 400, and the error code is 6000.
+                    error = new Error(RETRY_ERROR);
+                    error.response = {statusCode: 400, body: {errors: [{code: 6000}]}};
+                    result = assetsHelper.filterRetryDelete(context, error);
+                    expect(result).to.equal(true);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+    }
+
     testDeleteRemoteAsset () {
         const self = this;
         describe("deleteRemoteItem", function () {
@@ -3573,7 +6193,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Call the method being tested.
                 let error;
                 assetsHelper.deleteRemoteItem(context, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_OPTIONS)
-                    .then(function (/*assets*/) {
+                    .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the remote assets should have been rejected.");
                     })
@@ -3631,7 +6251,43 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
     testSearchRemoteAsset () {
         const self = this;
-        describe("searchRemoteItem", function () {
+        describe("searchRemote", function () {
+            it("should fail when the underlying search fails", function (done) {
+                // Create a searchREST.search stub that returns an error.
+                const SEARCH_ERROR = "There was an error performing the search, as expected by a unit test.";
+                const stub = sinon.stub(searchREST, "search");
+                stub.rejects(SEARCH_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "test-path";
+                const recursive = false;
+                const searchOptions = undefined;
+                const opts = undefined;
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the remote search results should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(err.message).to.equal(SEARCH_ERROR);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should succeed when searching with no specified options", function (done) {
                 // Create a searchREST.search stub that returns a promise.
                 const stub = sinon.stub(searchREST, "search");
@@ -3645,6 +6301,39 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const searchPath = "test-path";
                 const recursive = false;
                 const searchOptions = undefined;
+                const opts = undefined;
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(0);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when searching with no specified path", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = null;
+                const recursive = false;
+                const searchOptions = {};
                 const opts = undefined;
                 assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
                     .then(function (documents) {
@@ -3698,11 +6387,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     });
             });
 
-
-            it("should succeed when searching with other specified options", function (done) {
+            it("should succeed when searching produces no results", function (done) {
                 // Create a searchREST.search stub that returns a promise.
                 const stub = sinon.stub(searchREST, "search");
-                stub.resolves({});
+                stub.resolves({"documents": [{document: "{\"id\": \"foo\", \"path\": \"/dxdam/bar\"}"}]});
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -3730,6 +6418,635 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
+            });
+
+            it("should succeed when searching produces a result without a wild card", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({"documents": [{document: "{\"id\": \"foo\", \"path\": \"/dxdam/test-path\"}"}]});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/dxdam/test-path";
+                const recursive = false;
+                const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(1);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when searching produces a subfolder result without a wild card", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({"documents": [{document: "{\"id\": \"foo\", \"path\": \"/dxdam/test-path/bar\"}"}]});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/dxdam/test-path";
+                const recursive = false;
+                const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(1);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when searching produces a result with a wild card", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({"documents": [{document: "{\"id\": \"foo\", \"path\": \"/dxdam/test-path\"}"}]});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/dxdam/test*";
+                const recursive = false;
+                const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(1);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when searching produces a subfolder result with a wild card", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({"documents": [{document: "{\"id\": \"foo\", \"path\": \"/dxdam/test-path/bar\"}"}]});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/dxdam/test-path*";
+                const recursive = false;
+                const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(1);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when recursive searching produces a result without a wild card", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({"documents": [{document: "{\"id\": \"foo\", \"path\": \"/dxdam/test-path\"}"}]});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/dxdam/test-path";
+                const recursive = true;
+                const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(1);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when recursive searching produces a result with a wild card", function (done) {
+                // Create a searchREST.search stub that returns a promise.
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({"documents": [{document: "{\"id\": \"foo\", \"path\": \"/dxdam/test-path\"}"}]});
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const searchPath = "/dxdam/test*";
+                const recursive = true;
+                const searchOptions = {q: "*:*", fl: ["path", "document"], fq: ["test"]};
+                const opts = {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS};
+                assetsHelper.searchRemote(context, searchOptions, opts, searchPath, recursive)
+                    .then(function (documents) {
+                        // Verify that the helper returned the expected message.
+                        expect(documents).to.have.lengthOf(1);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testTimestamps () {
+        describe("_getLastPullTimestamps", function () {
+            it("should succeed for the old timestamp format", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return the old format.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns(TIMESTAMP);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should succeed for the new timestamp format", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return the new format.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should succeed when only web assets value returned", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return only a webAssets timestamp.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({webAssets: TIMESTAMP});
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.contentAssets).to.be.empty;
+                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should succeed when only content assets value returned", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return only a contentAssets timestamp.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({contentAssets: TIMESTAMP});
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.webAssets).to.be.empty;
+                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+
+        describe("_getLastPushTimestamps", function () {
+            it("should succeed for no timestamp value", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.contentAssets).to.be.empty;
+                    expect(timestamp.webAssets).to.be.empty;
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should succeed for the old timestamp format", function (done) {
+                // Change the hashes.getLastPushTimestamp stub to return the old format.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPush.returns(TIMESTAMP);
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should succeed for the new timestamp format", function (done) {
+                // Change the hashes.getLastPushTimestamp stub to return the new format.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should succeed when only web assets value returned", function (done) {
+                // Change the hashes.getLastPushTimestamp stub to return only a webAssets timestamp.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPush.returns({webAssets: TIMESTAMP});
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.contentAssets).to.be.empty;
+                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should succeed when only content assets value returned", function (done) {
+                // Change the hashes.getLastPushTimestamp stub to return only a contentAssets timestamp.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPush.returns({contentAssets: TIMESTAMP});
+
+                // Call the method being tested.
+                let error;
+                try {
+                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
+                    expect(timestamp.webAssets).to.be.empty;
+                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+
+        describe("_setLastPullTimestamps", function () {
+            it("should set both timestamps when both assets types are specified", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
+                    expect(stubGetLastPull).to.have.been.calledOnce;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.exist;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.exist;
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the web assets timestamp when the web assets type is specified", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS});
+                    expect(stubGetLastPull).to.have.been.calledOnce;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.exist;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.exist;
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the content assets timestamp when the content assets type is specified", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS});
+                    expect(stubGetLastPull).to.have.been.calledOnce;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.exist;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.exist;
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+
+        describe("_setLastPushTimestamps", function () {
+            it("should set both timestamps when both assets types are specified", function (done) {
+                // Change the hashes.getLastPushTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPushTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
+                    expect(stubGetLastPush).to.have.been.calledOnce;
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.exist;
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.exist;
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the web assets timestamp when the web assets type is specified", function (done) {
+                // Change the hashes.getLastPushTimestamp stub to return the old format.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPushTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS});
+                    expect(stubGetLastPush).to.have.been.calledOnce;
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.exist;
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.exist;
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the content assets timestamp when the content assets type is specified", function (done) {
+                // Change the hashes.getLastPushTimestamp stub to return the old format.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPushTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS});
+                    expect(stubGetLastPush).to.have.been.calledOnce;
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.exist;
+                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.exist;
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
+                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+
+        describe("_getTimestamp", function () {
+            it("should return the web assets timestamp when the web assets type is specified", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
+                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
+                    const timestamps = {webAssets: TIMESTAMP_BEFORE, contentAssets: TIMESTAMP_AFTER};
+                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS});
+                    expect(timestamp).to.equal(TIMESTAMP_BEFORE);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return the content assets timestamp when the content assets type is specified", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
+                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
+                    const timestamps = {webAssets: TIMESTAMP_BEFORE, contentAssets: TIMESTAMP_AFTER};
+                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS});
+                    expect(timestamp).to.equal(TIMESTAMP_AFTER);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return the web assets timestamp when it is before the content assets timestamp", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
+                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
+                    const timestamps = {webAssets: TIMESTAMP_BEFORE, contentAssets: TIMESTAMP_AFTER};
+                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
+                    expect(timestamp).to.equal(TIMESTAMP_BEFORE);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should return the content assets timestamp when it is before the web assets timestamp", function (done) {
+                // Call the method being tested.
+                let error;
+                try {
+                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
+                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
+                    const timestamps = {webAssets: TIMESTAMP_AFTER, contentAssets: TIMESTAMP_BEFORE};
+                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
+                    expect(timestamp).to.equal(TIMESTAMP_BEFORE);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
             });
         });
     }

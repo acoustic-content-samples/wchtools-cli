@@ -19,6 +19,7 @@ limitations under the License.
 "use strict";
 
 // Require the node modules used in this test file.
+const diff = require("diff");
 const sinon = require("sinon");
 
 // Require the super classes for this class.
@@ -50,6 +51,50 @@ class PagesRestUnitTest extends BaseRestUnit {
     run () {
         super.run(restApi, lookupUri, "pages", path1, path2);
         this.testDeleteItemWithContent(restApi, lookupUri, "pages", path1, path2);
+    }
+
+    testGetItemByPath (restApi, lookupUri, restName, itemPath1, itemPath2) {
+        const self = this;
+
+        super.testGetItemByPath(restApi, lookupUri, restName, itemPath1, itemPath2);
+
+        describe("getItemByPath", function () {
+            it("should succeed with the expected path value", function (done) {
+                // Read the contents of a test file.
+                const item =  UnitTest.getJsonObject(itemPath1);
+
+                // Create a request.get stub that returns the item content in the body.
+                const stub = sinon.stub(request, "get");
+                const err = null;
+                const res = {statusCode: 200};
+                const body = item;
+                stub.onCall(0).yields(err, res, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                const itemPath = itemPath1.replace(".json", "");
+                restApi.getItemByPath(context, itemPath, UnitTest.DUMMY_OPTIONS)
+                    .then(function (content) {
+                        // Verify that the item stub was called once with the expected value.
+                        expect(stub).to.have.been.calledOnce;
+
+                        // Verify that the REST API returned the expected value.
+                        expect(diff.diffJson(item, content)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
     }
 
     testUpdateItem (restApi, lookupUri, restName, itemPath1, itemPath2) {

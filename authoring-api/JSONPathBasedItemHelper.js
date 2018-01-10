@@ -40,7 +40,7 @@ class JSONPathBasedItemHelper extends JSONItemHelper {
     }
 
     makeEmittedObject(context, item, opts) {
-        return {id: item.id, name: this.getPathName(item), path: item.path, displayName: this.getPathName(item)};
+        return {id: item.id, name: this.getPathName(item), path: item.path};
     }
 
     _makeListItemResult (context, item, opts) {

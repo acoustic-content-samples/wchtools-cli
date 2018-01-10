@@ -237,7 +237,7 @@ class JSONItemHelper extends BaseHelper {
     }
 
     makeEmittedObject(context, item, opts) {
-        return {id: item.id, name: item.name, path: item.path, displayName: this.getName(item)};
+        return {id: item.id, name: item.name, path: item.path};
     }
 
     /**
@@ -310,6 +310,9 @@ class JSONItemHelper extends BaseHelper {
             allFSItems = this.listLocalItemNames(context, opts);
         }
 
+        // Get the timestamp to set before we call the REST API.
+        const timestamp = new Date();
+
         // Pull a "chunk" of remote items and and then recursively pull any remaining chunks.
         const helper = this;
         const listFn = helper.getRemoteItems.bind(helper, context);
@@ -326,7 +329,7 @@ class JSONItemHelper extends BaseHelper {
         return deferred.promise
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
-                    hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), new Date(), opts);
+                    hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 const emitter = helper.getEventEmitter(context);
                 if (deletions && emitter) {
@@ -367,6 +370,9 @@ class JSONItemHelper extends BaseHelper {
         // Keep track of the error count.
         context.pullErrorCount = 0;
 
+        // Get the timestamp to set before we call the REST API.
+        const timestamp = new Date();
+
         // Pull a "chunk" of modified remote items and and then recursively pull any remaining chunks.
         const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(helper, context, [helper.NEW, helper.MODIFIED]);
@@ -383,7 +389,7 @@ class JSONItemHelper extends BaseHelper {
         return deferred.promise
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
-                    hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), new Date(), opts);
+                    hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 return items;
             })

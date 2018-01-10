@@ -113,6 +113,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             self.testRenameResource();
             self.testGetItem();
             self.testSaveItem();
+            self.testDeleteAsset();
+            self.testDeleteMetadata();
+            self.testDeleteResource();
             self.testGetItemReadStream();
             self.testGetResourceReadStream();
             self.testGetItemWriteStream();
@@ -645,7 +648,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                         try {
                             // Verify that the stubs were called once with the specified asset path.
                             expect(stubDir).to.have.been.calledOnce;
-                            expect(stub.args[0][0]).to.contain(assetsFS.getFolderName());
+                            expect(stubDir.args[0][0]).to.contain(assetsFS.getFolderName());
                             expect(stub).to.have.been.calledOnce;
                             expect(stub.args[0][0]).to.contain(UnitTest.DUMMY_METADATA.path);
 
@@ -685,6 +688,343 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                         // Verify that the expected item was returned.
                         expect(item.id).to.equal(UnitTest.DUMMY_METADATA.id);
                         expect(item.path).to.equal(UnitTest.DUMMY_METADATA.path);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testDeleteAsset () {
+        const self = this;
+
+        describe("deleteAsset", function () {
+            it("should succeed if the path does not exist", function (done) {
+                // Create a stub for fs.existsSync to return false.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(false);
+
+                // Create a spy for fs.unlink to verify that it was not called.
+                const spy = sinon.spy(fs, "unlink");
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteAsset(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stub was called once with the specified asset path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the unlink spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if deleting the file fails", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return an error.
+                const DELETE_ERROR = "There was an error deleting the file, as expected by a unit test."
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(new Error(DELETE_ERROR));
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteAsset(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stubs were called once with the specified asset path.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubExists.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(DELETE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if deleting the file succeeds", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return success.
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(undefined);
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteAsset(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function (filepath) {
+                        // The stubs should have been called once.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledOnce;
+
+                        // Verify that the expected file path was returned.
+                        expect(filepath).to.contain(assetsFS.getAssetsPath(context, UnitTest.DUMMY_OPTIONS));
+                        expect(filepath).to.contain(UnitTest.DUMMY_PATH);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testDeleteMetadata () {
+        const self = this;
+
+        describe("deleteMetadata", function () {
+            it("should succeed if the path does not exist", function (done) {
+                // Create a stub for fs.existsSync to return false.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(false);
+
+                // Create a spy for fs.unlink to verify that it was not called.
+                const spy = sinon.spy(fs, "unlink");
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteMetadata(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stub was called once with the specified asset path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the unlink spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if deleting the file fails", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return an error.
+                const DELETE_ERROR = "There was an error deleting the file, as expected by a unit test."
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(new Error(DELETE_ERROR));
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteMetadata(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stubs were called once with the specified asset path.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubExists.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(DELETE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if deleting the file succeeds", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return success.
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(undefined);
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteMetadata(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function (filepath) {
+                        // The stubs should have been called once.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledOnce;
+
+                        // Verify that the expected file path was returned.
+                        expect(filepath).to.contain(assetsFS.getMetadataPath(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS));
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testDeleteResource () {
+        const self = this;
+
+        describe("deleteResource", function () {
+            it("should succeed if the path does not exist", function (done) {
+                // Create a stub for fs.existsSync to return false.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(false);
+
+                // Create a spy for fs.unlink to verify that it was not called.
+                const spy = sinon.spy(fs, "unlink");
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteResource(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stub was called once with the specified asset path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the unlink spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if deleting the file fails", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return an error.
+                const DELETE_ERROR = "There was an error deleting the file, as expected by a unit test."
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(new Error(DELETE_ERROR));
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteResource(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stubs were called once with the specified asset path.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubExists.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(DELETE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if deleting the file succeeds", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return success.
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(undefined);
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                assetsFS.deleteResource(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function (filepath) {
+                        // The stubs should have been called once.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledOnce;
+
+                        // Verify that the expected file path was returned.
+                        expect(filepath).to.contain(assetsFS.getResourcePath(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS));
                     })
                     .catch(function (err) {
                         error = err;
@@ -986,6 +1326,10 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     testListNames () {
         const self = this;
         describe("listNames", function () {
+            it("should succeed when the assets folder doesn't exist", function (done) {
+                self.listNamesNoFolder(done);
+            });
+
             it("should fail when getting the asset names fails", function (done) {
                 self.listNamesError(done);
             });
@@ -1030,6 +1374,39 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 self.listNamesAssetsFilterAdditiveDefaultSuccess(done);
             });
         });
+    }
+
+    listNamesNoFolder (done) {
+        // Create a stub for fs.existsSync that will return false.
+        const stubExists = sinon.stub(fs, "existsSync");
+        stubExists.returns(false);
+
+        this.addTestDouble(stubExists);
+
+        // Call the method being tested.
+        let error;
+        assetsFS.listNames(context, null, UnitTest.DUMMY_OPTIONS)
+            .then(function (paths) {
+                // Verify that the stub was called once.
+                expect(stubExists).to.have.been.calledOnce;
+
+                // Verify that the expected values are returned.
+                expect(paths).to.have.lengthOf(0);
+            })
+            .catch(function (err) {
+                error = err;
+            })
+            .finally(function () {
+                // Restore the subverted functions.
+                // noinspection JSUnresolvedFunction
+                requireSubvert.cleanUp();
+
+                // Reload assetsFS, so that it gets the original version of recursive.
+                assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
     }
 
     listNamesError (done) {
@@ -1243,17 +1620,25 @@ class AssetsFsUnitTest extends AssetsUnitTest {
         stub.yields(err, assetPaths);
 
         // Subvert the "recursive-readdir" module with the specified stub.
-        // noinspection JSUnresolvedFunction
         requireSubvert.subvert("recursive-readdir", stub);
 
         // Reload assetsFS, so that it gets the subverted version of the recursive function.
-        // noinspection JSUnresolvedFunction
         assetsFS = requireSubvert.require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 
+        // Create a stub for fs.readFileSync that will return metadata for the filtered file.
+        const originalReadFileSync = fs.readFileSync;
+        const stubRead = sinon.stub(fs, "readFileSync", function (filename, readOptions) {
+            if (filename.endsWith(assetsFS.getExtension())) {
+                return "{\"id\": \"foo\"}";
+            } else {
+                // Return the contents of the specified file.
+                return originalReadFileSync.call(fs, filename, readOptions);
+            }
+        });
+        this.addTestDouble(stubRead);
+
         // Create a filter for *.remove and *.exclude files.
-        //noinspection JSUnresolvedFunction
         const ig = ignore().add("*.remove\n*.exclude");
-        //noinspection JSUnresolvedFunction
         const filter = ig.createFilter();
 
         // Call the method being tested.

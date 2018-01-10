@@ -43,9 +43,13 @@ class AssetsUnitTest extends UnitTest {
 
     // Path values for test content assets.
     static get ASSET_CONTENT_JPG_1() { return "/dxdam/87/87268612-232e-4554-922d-d49e9b2deee7/MB1FishingHoleSunset.jpg"; };
+    static get ASSET_CONTENT_JPG_1_DRAFT() { return "/dxdam/87/87268612-232e-4554-922d-d49e9b2deee7/MB1FishingHoleSunset_wchdraft.jpg"; };
     static get ASSET_CONTENT_JPG_2() { return "/dxdam/94/94a5f59a-e52e-44a7-a0b3-fe6470bf7dae/MB1OceanClouds.jpg"; };
+    static get ASSET_CONTENT_JPG_2_DRAFT() { return "/dxdam/94/94a5f59a-e52e-44a7-a0b3-fe6470bf7dae/MB1OceanClouds_wchdraft.jpg"; };
     static get ASSET_CONTENT_JPG_3() { return "/dxdam/db/db31d977-ed0e-4995-92b9-6d8c7c104f43/MBImpossibleCompositeSunset.jpg"; };
+    static get ASSET_CONTENT_JPG_3_DRAFT() { return "/dxdam/db/db31d977-ed0e-4995-92b9-6d8c7c104f43/MBImpossibleCompositeSunset_wchdraft.jpg"; };
     static get ASSET_CONTENT_JPG_4() { return "/dxdam/f1/f18b7033-108f-47d3-869b-b3d98ed18f83/MB1SmallsFallsME.jpg"; };
+    static get ASSET_CONTENT_JPG_4_DRAFT() { return "/dxdam/f1/f18b7033-108f-47d3-869b-b3d98ed18f83/MB1SmallsFallsME_wchdraft.jpg"; };
 
     // Path values for test assets.
     static get ASSET_HTML_1() { return "/test_1/contact.html"; };

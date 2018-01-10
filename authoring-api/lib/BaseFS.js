@@ -41,6 +41,22 @@ class BaseFS {
     }
 
     /**
+     * Get a file name that is valid on all platforms.
+     *
+     * @param {String} value The property value to be used as a relative file name. This value could be an id, a name,
+     *                       a path, etc.
+     *
+     * @returns {String} A file name that is valid on all platforms.
+     */
+    static getValidFileName (value) {
+        // For now, only replace colon characters with an identifier. This is necessary because WCH ids can contain a
+        // colon character to denote a change set. If we want to get more aggressive in the future, we could use the
+        // regular expression /[<>"|?*]/g to replace ALL other characters that are invalid in Windows -or- Linux file
+        // paths.
+        return value && value.replace(/[:]/g, "_sep_");
+    }
+
+    /**
      * Returns the path to the working directory based on the given options.
      *
      * @param {Object} context The API context to be used by the file operation.

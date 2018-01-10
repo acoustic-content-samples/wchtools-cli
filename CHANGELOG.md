@@ -1,5 +1,11 @@
 # Changelog
 
+### v2.2.8 changes since 2.2.1
+
+ - Add latent support for colons appearing in content ids going forward in WCH Content API, when storing content by id.
+ - Fix issue with updating an image resource on an existing managed asset.
+ - Additional translated strings.
+
 ### v2.2 changes since 2.1.3
 
  - Add ability to delete --pages by --path and optionally also delete --page-content when deleting a page.

@@ -246,10 +246,11 @@ class AssetsFS extends BaseFS {
     }
 
     getResourcePath (context, name, opts) {
-        return this.getResourcesPath(context, opts) + name;
+        return this.getResourcesPath(context, opts) + BaseFS.getValidFileName(name);
     }
 
     getMetadataPath (context, name, opts) {
+        name = BaseFS.getValidFileName(name);
         if (this.isContentResource(name)) {
             // make sure teh resource directory is created and append the name that includes the path including dxdam */
             return this.getContentResourcePath(context, opts) + name + this.getExtension();
@@ -263,19 +264,24 @@ class AssetsFS extends BaseFS {
      * If the asset provided is in draft status, then the _wchdraft suffix is appended.
      *
      * @param {Object} asset the asset
+     *
      * @return {String} the path for the provided asset
      */
     getAssetPath(asset) {
-        let path = asset.path;
-        if (asset.status === "draft") {
-            const index = path.lastIndexOf(".");
+        let filepath;
+        if (asset.path) {
+            filepath = BaseFS.getValidFileName(asset.path);
+        }
+
+        if (filepath && asset.status === "draft") {
+            const index = filepath.lastIndexOf(".");
             if (index > 0) {
-                path = path.substring(0, index) + DRAFT_SUFFIX + path.substring(index);
+                filepath = filepath.substring(0, index) + DRAFT_SUFFIX + filepath.substring(index);
             } else {
-                path += DRAFT_SUFFIX;
+                filepath += DRAFT_SUFFIX;
             }
         }
-        return path;
+        return filepath;
     }
 
     /**
@@ -352,7 +358,7 @@ class AssetsFS extends BaseFS {
      */
     deleteAsset (context, itemPath, opts) {
         const deferred = Q.defer();
-        const filepath = this.getAssetsPath(context, opts) + itemPath;
+        const filepath = this.getAssetsPath(context, opts) + BaseFS.getValidFileName(itemPath);
 
         if (fs.existsSync(filepath)) {
             // Delete the file with the specified path.
@@ -431,6 +437,7 @@ class AssetsFS extends BaseFS {
     }
 
     getRawResourcePath (context, id, filename, opts) {
+        id = BaseFS.getValidFileName(id);
         return this.getResourcesPath(context, opts) + id.substring(0, 2) + "/" + id + "/" + filename;
     }
 
@@ -518,11 +525,11 @@ class AssetsFS extends BaseFS {
         const deferred = Q.defer();
         const assetDir = this.getAssetsPath(context, opts);
 
-        if (!filter) {
-            filter = this.getDefaultIgnoreFilter(context, opts);
-        }
-
         if (fs.existsSync(assetDir)) {
+            if (!filter) {
+                filter = this.getDefaultIgnoreFilter(context, opts);
+            }
+
             recursive(assetDir, function (err, files) {
                 if (err) {
                     deferred.reject(err);

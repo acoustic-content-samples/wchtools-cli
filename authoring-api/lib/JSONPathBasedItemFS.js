@@ -15,6 +15,7 @@ limitations under the License.
 */
 "use strict";
 
+const BaseFS = require("./BaseFS.js");
 const JSONItemFS = require("./JSONItemFS.js");
 
 const fs = require("fs");
@@ -93,27 +94,24 @@ class JSONPathBasedItemFS extends JSONItemFS {
      }
 
     /**
-     * Returns the file system path to the provided item named by arg.
-     * Unlike id based items, if item.path exists use it, otherwise build path from name.
+     * Returns the file name to use for the provided item.
      *
-     * @param {Object} context The current API context.
-     * @param {String | Object} item can be a string with the name of the item or an item object
-     * @param {Object} opts Any override options to be used for this operation.
+     * @param {Object} item the item to get the filename for
      *
-     * @returns {string} the file system path to the provided item named by arg
+     * @returns {String} the file name to use for the provided item
+     *
+     * @override
      */
-    getItemPath(context, item, opts) {
-        let relpath;
-        if (typeof item === "string") {
-            relpath = item;
-        } else {
-            relpath = item.path || item.hierarchicalPath || ("/" + item.name + this.getExtension());
+    getFileName (item) {
+        if (item) {
+            if (item.path) {
+                return BaseFS.getValidFileName(item.path);
+            } else if (item.hierarchicalPath) {
+                return BaseFS.getValidFileName(item.hierarchicalPath);
+            } else if (item.name) {
+                return BaseFS.getValidFileName(item.name);
+            }
         }
-        if (!relpath.endsWith(this.getExtension())) {
-            relpath += this.getExtension();
-        }
-        const abspath = this.getPath(context, opts) + relpath;
-        return abspath;
     }
 
     /**

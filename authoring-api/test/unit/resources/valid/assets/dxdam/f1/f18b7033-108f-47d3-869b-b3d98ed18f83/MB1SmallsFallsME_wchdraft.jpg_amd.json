@@ -1,0 +1,46 @@
+{
+  "mediaType": "image/jpeg",
+  "name": "MB1SmallsFallsME.jpg",
+  "path": "/dxdam/f1/f18b7033-108f-47d3-869b-b3d98ed18f83/MB1SmallsFallsME.jpg",
+  "digest": "hjhAg9B8+8+TTUJL+68oww==",
+  "assetType": "image",
+  "status": "draft",
+  "lastModified": "2016-11-04T22:37:44.458Z",
+  "description": "",
+  "tags": {
+    "values": [
+      "classification:man"
+    ],
+    "declined": []
+  },
+  "categoryIds": [],
+  "fileName": "MB1SmallsFallsME.jpg",
+  "creatorId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "rev": "1-bfac047655bef6d61ad0afdc3dfea424",
+  "id": "f15e5dd6-f835-462b-b882-313e802999f9",
+  "resource": "a1a78efce451284fbbbee09a57783d42",
+  "fileSize": 51062,
+  "lastModifierId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "renditions": {
+    "default": {
+      "id": "7e4a8a6e-0382-46e4-bbc9-c8ceb5abab2f",
+      "source": "/authoring/v1/resources/a1a78efce451284fbbbee09a57783d42"
+    }
+  },
+  "classification": "asset",
+  "created": "2016-11-04T22:37:44.458Z",
+  "creator": "Watson ContentHubTools",
+  "lastModifier": "Watson ContentHubTools",
+  "categories": [],
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/f15e5dd6-f835-462b-b882-313e802999f9"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/a1a78efce451284fbbbee09a57783d42.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/bcd21fa8-a5af-4a3f-afec-f744f7962538/19/19dc291e-fd6e-4fff-a737-98ffcad69801.jpg?fit=around%7C220:145&crop=220:145;*,*"
+    }
+  }
+}

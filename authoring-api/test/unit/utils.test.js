@@ -18,10 +18,10 @@ limitations under the License.
 const expect = require("chai").expect;
 const sinon = require("sinon");
 const path = require('path');
+const fs = require('fs');
 const oslocale = require("os-locale");
 const Q = require("q");
 const utils = require("../../lib/utils/utils.js");
-const i18n = utils.getI18N(__dirname, ".json", "en");
 const BaseUnit = require("./lib/base.unit.js");
 
 describe("utils", function () {
@@ -804,6 +804,98 @@ describe("utils", function () {
         });
     });
 
+    describe("removeEmptyParentDirectories", function () {
+        const basePath = "/one/two/three/four";
+        const filePath = "/one/two/three/four/five/six/seven/eight/foo.bar";
+
+        it("should work if no basePath specified", function (done) {
+            // Create a stub for fs.readdirSync that returns an empty list at each level.
+            const stubRead = sinon.stub(fs, "readdirSync");
+            stubRead.returns([]);
+
+            // Create a stub for fs.rmdirSync that does nothing.
+            const stubRm = sinon.stub(fs, "rmdirSync");
+
+            let error;
+            try {
+                utils.removeEmptyParentDirectories("", filePath);
+                expect(stubRead).to.have.callCount(9);
+                expect(stubRm).to.have.callCount(9);
+            } catch (e) {
+                error = e;
+            } finally {
+                stubRead.restore();
+                stubRm.restore();
+                done(error);
+            }
+        });
+
+        it("should do nothing if the specified file is in basePath", function (done) {
+            // Create a spy for fs.readdirSync to verify that it is not called.
+            const spyRead = sinon.spy(fs, "readdirSync");
+
+            // Create a spy for fs.rmdirSync to verify that it is not called.
+            const spyRm = sinon.spy(fs, "rmdirSync");
+
+            let error;
+            try {
+                utils.removeEmptyParentDirectories(basePath, basePath + "/foo.bar");
+                expect(spyRead).to.not.have.been.called;
+                expect(spyRm).to.not.have.been.called;
+            } catch (e) {
+                error = e;
+            } finally {
+                spyRead.restore();
+                spyRm.restore();
+                done(error);
+            }
+        });
+
+        it("should work as expected if there is a sibling file", function (done) {
+            // Create a stub for fs.readdirSync that returns a sibling file in the specified directory.
+            const stubRead = sinon.stub(fs, "readdirSync");
+            stubRead.returns(["ack.txt"]);
+
+            // Create a spy for fs.rmdirSync to verify that it is not called.
+            const spyRm = sinon.spy(fs, "rmdirSync");
+
+            let error;
+            try {
+                utils.removeEmptyParentDirectories(basePath, filePath);
+                expect(stubRead).to.have.been.calledOnce;
+                expect(spyRm).to.not.have.been.called;
+            } catch (e) {
+                error = e;
+            } finally {
+                stubRead.restore();
+                spyRm.restore();
+                done(error);
+            }
+        });
+
+        it("should work as expected if there is no sibling file", function (done) {
+            // Create a stub for fs.readdirSync that returns a sibling file in the specified directory.
+            const stubRead = sinon.stub(fs, "readdirSync");
+            stubRead.returns(null);
+
+            // Create a stub for fs.rmdirSync that does nothing.
+            const stubRm = sinon.stub(fs, "rmdirSync");
+
+            let error;
+            try {
+                utils.removeEmptyParentDirectories(basePath, filePath);
+                expect(stubRead).to.have.callCount(4);
+                expect(stubRm).to.have.callCount(4);
+            } catch (e) {
+                error = e;
+            } finally {
+                stubRead.restore();
+                stubRm.restore();
+                done(error);
+            }
+        });
+    });
+
     describe("clone", function () {
         it("should return a matching object", function (done) {
             try {
@@ -822,6 +914,48 @@ describe("utils", function () {
             try {
                 const obj = utils.clone('foo');
                 expect(obj).to.be.a("string");
+                done();
+            } catch (e) {
+                done(e);
+            }
+        });
+    });
+
+    describe("cloneOpts", function () {
+        it("should succeed if no values specified", function (done) {
+            try {
+                const orig = {a: 'foo', b: 'bar'};
+                const clone = utils.cloneOpts(orig);
+                expect(clone).to.be.an("object");
+                expect(clone.a).to.equal('foo');
+                expect(clone.b).to.equal('bar');
+                done();
+            } catch (e) {
+                done(e);
+            }
+        });
+
+        it("should succeed if original undefined", function (done) {
+            try {
+                const orig = undefined;
+                const clone = utils.cloneOpts(orig, {a: 'foo'});
+                expect(clone).to.be.an("object");
+                expect(clone.a).to.equal('foo');
+                done();
+            } catch (e) {
+                done(e);
+            }
+        });
+
+        it("should override properties", function (done) {
+            try {
+                const orig = {a: 'foo', b: 'bar'};
+                const clone = utils.cloneOpts(orig, {b: 'ack'});
+                expect(clone).to.be.an("object");
+                expect(orig.a).to.equal('foo');
+                expect(orig.b).to.equal('bar');
+                expect(clone.a).to.equal('foo');
+                expect(clone.b).to.equal('ack');
                 done();
             } catch (e) {
                 done(e);

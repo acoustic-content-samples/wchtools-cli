@@ -1,0 +1,46 @@
+{
+  "mediaType": "image/jpeg",
+  "name": "MB1OceanClouds.jpg",
+  "path": "/dxdam/94/94a5f59a-e52e-44a7-a0b3-fe6470bf7dae/MB1OceanClouds.jpg",
+  "digest": "hjhAg9B8+8+TTUJL+68oww==",
+  "status": "draft",
+  "assetType": "image",
+  "lastModified": "2016-11-04T22:37:44.402Z",
+  "description": "",
+  "tags": {
+    "values": [
+      "classification:man"
+    ],
+    "declined": []
+  },
+  "categoryIds": [],
+  "fileName": "MB1OceanClouds.jpg",
+  "creatorId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "rev": "1-928b703274b61631f88637e3d87d28a8",
+  "id": "2dadffe1-6009-41bc-9e3f-daf66c128479",
+  "resource": "b8928a6c9b7c960a7ac503e69de23f73",
+  "fileSize": 56256,
+  "lastModifierId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "renditions": {
+    "default": {
+      "id": "2c7fb862-79f2-460d-b399-1e7dc11760bd",
+      "source": "/authoring/v1/resources/b8928a6c9b7c960a7ac503e69de23f73"
+    }
+  },
+  "classification": "asset",
+  "created": "2016-11-04T22:37:44.402Z",
+  "creator": "Watson ContentHubTools",
+  "lastModifier": "Watson ContentHubTools",
+  "categories": [],
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/2dadffe1-6009-41bc-9e3f-daf66c128479"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/b8928a6c9b7c960a7ac503e69de23f73.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/bcd21fa8-a5af-4a3f-afec-f744f7962538/b9/b9944006-e3f4-42f4-a67d-db9a8783315e.jpg?fit=around%7C220:145&crop=220:145;*,*"
+    }
+  }
+}

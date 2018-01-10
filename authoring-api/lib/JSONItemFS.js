@@ -27,7 +27,15 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const CONFLICT_EXTENSION = '.conflict';
 
 class JSONItemFS extends BaseFS {
-
+    /**
+     * The constructor for a JSONItemFS object.
+     *
+     * @param {String} serviceName
+     * @param {String} folderName
+     * @param {String} extension
+     *
+     * @constructs JSONItemFS
+     */
     constructor (serviceName, folderName, extension) {
         super(serviceName, folderName, extension);
     }
@@ -35,15 +43,18 @@ class JSONItemFS extends BaseFS {
     /**
      * Returns the file name to use for the provided item.
      *
-     * @param item the item to get the filename for
+     * @param {Object} item the item to get the filename for
      *
      * @returns {String} the file name to use for the provided item
      */
     getFileName (item) {
-        if (item && item.id) {
-            return item.id;
+        if (item) {
+            if (item.id) {
+                return BaseFS.getValidFileName(item.id);
+            } else if (item.name) {
+                return BaseFS.getValidFileName(item.name);
+            }
         }
-        return item && item.name;
     }
 
     /**
@@ -51,25 +62,33 @@ class JSONItemFS extends BaseFS {
      *
      * @param {Object} context The API context to be used for this operation.
      * @param {Object | String} item The name of the item or the item object.
-     * @param {Object} opts Any override options to be used for this operation.
+     * @param {Object} [opts] Any override options to be used for this operation.
      *
      * @returns {String} The file system path to the specified item.
      */
     getItemPath (context, item, opts) {
-        let name;
+        let relativePath;
         if (typeof item === "string") {
-            name = item;
+            relativePath = item;
         } else {
-            name = this.getFileName(item);
+            relativePath = this.getFileName(item);
         }
-        return this.getPath(context, opts) + name + this.getExtension();
+
+        const extension = this.getExtension();
+        if (relativePath && !relativePath.endsWith(extension)) {
+            relativePath += extension;
+        }
+
+        if (relativePath) {
+            return this.getPath(context, opts) + relativePath;
+        }
     }
 
     /**
      * Get the hashes value of the local file path for the given id.
      *
      * @param {Object} context The API context to be used for this operation.
-     * @param {Object} id The item id.
+     * @param {String} id The item id.
      * @param {Object} opts Any override options to be used for this operation.
      *
      * @returns {String} The hashes value of the local file path for the given id, or null if the path is not found.
@@ -139,19 +158,13 @@ class JSONItemFS extends BaseFS {
     handleRename (context, id, filePath, opts) {
         // Only handle the case of a push where the original file name exists and the new file name does not exist.
         if (!fs.existsSync(filePath) && opts && opts.originalPushFileName) {
-            const oldName = this.getPath(context, opts) + opts.originalPushFileName + this.getExtension();
+            const oldName = this.getItemPath(context, opts.originalPushFileName, opts);
             if (fs.existsSync(oldName)) {
                 // Delete the file with the old name. A file with the new name with be subsequently saved.
                 fs.unlinkSync(oldName);
                 utils.logWarnings(context, i18n.__("deleted_original_file", {old_name: oldName, new_name: filePath}));
             }
         }
-    }
-
-    // TEMPORARY workaround for bug #71 in mkdirp which goes into infinite loop on bad windows pathname
-    // Find a better mkdirp and a better path checker to use first, and then remove this workaround
-    static isBadWindowsPathname (path){
-        return (!path || utils.isInvalidPath(path) || path.includes("http:") || path.includes("https:"));
     }
 
     /**
@@ -176,7 +189,7 @@ class JSONItemFS extends BaseFS {
         const fsObject = this;
         const hasConflict = opts && opts.conflict;
         let filepath = this.getItemPath(context, item, opts);
-        if (JSONItemFS.isBadWindowsPathname(filepath)) {
+        if (!utils.isValidWindowsPathname(filepath)) {
             const deferred = Q.defer();
             deferred.reject(new Error(i18n.__("invalid_path", {path: filepath})));
             return deferred.promise;
@@ -290,11 +303,15 @@ class JSONItemFS extends BaseFS {
                             }
 
                             // Return an object that has the metadata necessary for display.
-                            return {
+                            const result = {
                                 id: id,
-                                name: name,
-                                path: path
+                                name: name
                             };
+                            // only include a path member if it is different than the id
+                            if (path !== id) {
+                                result.path = path;
+                            }
+                            return result;
                         });
                         resolve(names);
                     }

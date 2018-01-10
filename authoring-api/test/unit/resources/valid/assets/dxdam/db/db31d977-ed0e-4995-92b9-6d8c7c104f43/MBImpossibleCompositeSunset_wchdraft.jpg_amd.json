@@ -1,0 +1,47 @@
+{
+  "mediaType": "image/jpeg",
+  "name": "MBImpossibleCompositeSunset.jpg",
+  "path": "/dxdam/db/db31d977-ed0e-4995-92b9-6d8c7c104f43/MBImpossibleCompositeSunset.jpg",
+  "digest": "zryZOrIIi7kWvmXsj+h4rw==",
+  "assetType": "image",
+  "status": "draft",
+  "lastModified": "2016-11-04T22:37:44.148Z",
+  "description": "",
+  "tags": {
+    "values": [
+      "classification:poster",
+      "classification:movie"
+    ],
+    "declined": []
+  },
+  "categoryIds": [],
+  "fileName": "MBImpossibleCompositeSunset.jpg",
+  "creatorId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "rev": "1-a6d6736418f806344b43e2cdfe453d7d",
+  "id": "ec79c2de-2766-48a2-8e1b-268d6d5dbbcf",
+  "resource": "f605e3e8b358a90e9b0808888a633515",
+  "fileSize": 22352,
+  "lastModifierId": "e8f95cca-d05d-4aff-ba4b-063cb2bc5346",
+  "renditions": {
+    "default": {
+      "id": "a5c2d85c-657f-4795-924a-e7973cfbfc75",
+      "source": "/authoring/v1/resources/f605e3e8b358a90e9b0808888a633515"
+    }
+  },
+  "classification": "asset",
+  "created": "2016-11-04T22:37:44.148Z",
+  "creator": "Watson ContentHubTools",
+  "lastModifier": "Watson ContentHubTools",
+  "categories": [],
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/ec79c2de-2766-48a2-8e1b-268d6d5dbbcf"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/f605e3e8b358a90e9b0808888a633515.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/bcd21fa8-a5af-4a3f-afec-f744f7962538/fa/fa2ebaf5-1e95-413a-b175-585c36c9bb3d.jpg?fit=around%7C220:145&crop=220:145;*,*"
+    }
+  }
+}

@@ -34,6 +34,9 @@ const FILENAME = ".wchtoolshashes";
 const HASH_ALGORITHM = "md5";
 const HASH_ENCODING = "base64";
 
+const HASH_FILE_SPACING = "";
+const HASHES_VERSION = "2";
+
 /**
  * Returns true if the supplied pathname is a hashes metadata file.
  *
@@ -299,7 +302,8 @@ function exitHandler(context) {
 function writeHashes (basePath, tenantMap) {
     // If the directory doesn't exist, there is nothing to push or pull so don't bother to save the hashes.
     if (fs.existsSync(basePath)) {
-        const contents = JSON.stringify(tenantMap, null, "");
+        tenantMap.version = HASHES_VERSION;
+        const contents = JSON.stringify(tenantMap, null, HASH_FILE_SPACING);
 
         // Write the modified tenant map to the hashes file.
         const hashesFilename = getHashesFilename(basePath);
@@ -852,7 +856,7 @@ function getHashesForFile (context, basePath, filePath, opts) {
         // Find the key of the hash map entry containing the metadata for the specified file.
         const fileKey = Object.keys(hashMap)
             .filter(function (key) {
-                return (hashMap[key].path === relative);
+                return (hashMap[key].path === relative) || (hashMap[key].resourcePath === relative);
             })[0];
 
         // Return the hash map entry containing the metadata for the specified file.
@@ -880,6 +884,24 @@ function getHashesForFile (context, basePath, filePath, opts) {
 function getMD5ForFile (context, basePath, filePath, opts) {
     const metadata = getHashesForFile(context, basePath, filePath, opts);
     return metadata ? metadata.md5 : undefined;
+}
+
+/**
+ * Get the MD5 hash for the given resource file from the hashes file at the specified location for the specified tenant.
+ *
+ * @param {Object} context The current API context.
+ * @param {String} basePath The path where the hashes file is located.
+ * @param {String} filePath The local path for the file.
+ * @param {Object} opts The options object that specifies which tenant is being used.
+ *
+ * @returns {Object} The MD5 hash for the given resource file from the hashes file at the specified location for the specified
+ *          tenant, or null if the metadata is not found.
+ *
+ * @public
+ */
+function getResourceMD5ForFile (context, basePath, filePath, opts) {
+    const metadata = getHashesForFile(context, basePath, filePath, opts);
+    return metadata ? metadata.resourceMD5 : undefined;
 }
 
 /**
@@ -1134,6 +1156,7 @@ const hashes = {
     getLastPushTimestamp: getLastPushTimestamp,
     setLastPushTimestamp: setLastPushTimestamp,
     getMD5ForFile: getMD5ForFile,
+    getResourceMD5ForFile: getResourceMD5ForFile,
     getPathForResource: getPathForResource,
     listFiles: listFiles,
     isLocalModified: isLocalModified,
