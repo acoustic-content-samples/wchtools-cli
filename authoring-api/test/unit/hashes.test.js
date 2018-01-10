@@ -609,6 +609,62 @@ describe("hashes", function () {
         });
     });
 
+    describe("getResourceMD5ForFile", function () {
+        it("should get the exisitng metadata for the resource from the hashes file", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.getResourceMD5ForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+                expect(result).to.exist;
+                expect(result).to.equal(TEXT_FILE_MD5);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should not get a result for a file that has no metadata", function (done) {
+            let error = undefined;
+            try {
+                const result = hashes.getResourceMD5ForFile(context, TEST_DIRECTORY_PATH, IMAGE_FILE_PATH, TEST_OPTS);
+                expect(result).to.not.exist;
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should log an error and leave the hashes file unchanged if the retrieval fails", function (done) {
+            // At this point the hashes file should only contain information for the text file.
+            const RETRIEVE_ERROR = "Hashes file retrieval error expected by unit test.";
+            const stub = sinon.stub(options, "getRelevantOption");
+            stub.onFirstCall().returns(true);
+            stub.onSecondCall().throws(new Error(RETRIEVE_ERROR));
+
+            // Stub the logger so that the error is not written.
+            const stubLog = sinon.stub(context.logger, "error");
+
+            let error = undefined;
+            try {
+                const result = hashes.getResourceMD5ForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
+
+                expect(stubLog).to.have.been.calledOnce;
+                expect(stubLog.firstCall.args[0]).to.contain("Error in getHashesForFile");
+                expect(stubLog.firstCall.args[0]).to.contain(RETRIEVE_ERROR);
+
+                // Because the hashes for the file could not be retrieved, the result should be undefined.
+                expect(result).to.not.exist;
+            } catch (err) {
+                error = err;
+            } finally {
+                stub.restore();
+                stubLog.restore();
+                done(error);
+            }
+        });
+    });
+
     describe("listFiles", function () {
         it("should list the files with existing metadata", function (done) {
             let error = undefined;

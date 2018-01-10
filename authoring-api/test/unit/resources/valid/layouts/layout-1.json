@@ -2,5 +2,6 @@
   "id": "70013c5b91c539a6312947cad823049a",
   "rev": "218-27e396fd4e508b74ca2e9435a517a1fd",
   "name": "layout-1",
+  "path": "/layout-1",
   "template": "/abc/def.hbs"
 }

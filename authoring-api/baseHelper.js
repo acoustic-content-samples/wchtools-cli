@@ -538,7 +538,7 @@ class BaseHelper {
      * Initialize any values used to retry items that failed to push.
      *
      * @param {Object} context The current context to be used by the API.
-     * @param {Array} names A list of item names being pushed.
+     * @param {Array} [names] A list of item names being pushed.
      */
     initializeRetryPush (context, names) {
         this.setRetryPushProperty(context, BaseHelper.RETRY_PUSH_ITEM_COUNT, names ? names.length : 0);

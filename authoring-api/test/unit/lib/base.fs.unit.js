@@ -96,8 +96,10 @@ class BaseFsApiUnitTest extends UnitTest {
             self.testGetItem(fsApi, itemName1, itemName2);
             self.testGetFileStats(fsApi, itemName1, itemName2);
             self.testGetPath(fsApi, itemName1, itemName2);
+            self.testGetItemPath(fsApi, itemName1, itemName2);
             self.testHandleRename(fsApi, itemName1, itemName2);
             self.testSaveItem(fsApi, itemName1, itemName2);
+            self.testDeleteItem(fsApi);
             self.testListNames(fsApi, itemName1, itemName2);
             self.testGetItems(fsApi, itemName1, itemName2);
         });
@@ -245,7 +247,7 @@ class BaseFsApiUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                fsApi.getItem(context, itemName1, UnitTest.DUMMY_OPTIONS)
+                fsApi.getItem(context, {name: itemName1, id: itemName1, path: itemName1}, UnitTest.DUMMY_OPTIONS)
                     .then(function (item) {
                         // The stub should have been called once.
                         expect(stub).to.have.been.calledOnce;
@@ -400,7 +402,6 @@ class BaseFsApiUnitTest extends UnitTest {
     };
 
     testGetPath (fsApi, itemName1, itemName2) {
-        const self = this;
         describe("getPath", function () {
             // Restore options before running the unit tests.
             before(function (done) {
@@ -419,19 +420,51 @@ class BaseFsApiUnitTest extends UnitTest {
             });
 
             it("should succeed when setting a new working directory", function (done) {
-                self.getPathSuccess(fsApi, itemName1, itemName2 , done);
+                // Before setting the new working directory, the item path should not contain that directory.
+                expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
+
+                // If the working dir is set in the opts object, then the item path should contain that directory.
+                expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR})).to.contain(UnitTest.DUMMY_DIR);
+
+                done();
             });
         });
     }
 
-    getPathSuccess (fsApi, itemName1, itemName2, done) {
-        // Before setting the new working directory, the item path should not contain that directory.
-        expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME)).to.not.contain(UnitTest.DUMMY_DIR);
+    testGetItemPath (fsApi, itemName1, itemName2) {
+        describe("getItemPath", function () {
+            it("should succeed with various inputs", function (done) {
+                // Should return undefined for an undefined input item.
+                expect(fsApi.getItemPath(context, undefined)).to.not.exist;
 
-        // If the working dir is set in the opts object, then the item path should contain that directory.
-        expect(fsApi.getItemPath(context, UnitTest.DUMMY_NAME, {"workingDir": UnitTest.DUMMY_DIR})).to.contain(UnitTest.DUMMY_DIR);
+                // Should return undefined for an empty input item.
+                expect(fsApi.getItemPath(context, {})).to.not.exist;
 
-        done();
+                // If id is the only input property and a path is returned, that path should contain the id property.
+                const extension = fsApi.getExtension();
+                let itemPath = fsApi.getItemPath(context, {"id": UnitTest.DUMMY_ID});
+                if (itemPath) {
+                    expect(itemPath).to.contain(UnitTest.DUMMY_ID);
+                    expect(itemPath).to.contain(extension);
+                }
+
+                // If name is the only input property and a path is returned, that path should contain the name property.
+                itemPath = fsApi.getItemPath(context, {"name": UnitTest.DUMMY_NAME});
+                if (itemPath) {
+                    expect(itemPath).to.contain(UnitTest.DUMMY_NAME);
+                    expect(itemPath).to.contain(extension);
+                }
+
+                // If path is the only input property and a path is returned, that path should contain the path property.
+                itemPath = fsApi.getItemPath(context, {"path": UnitTest.DUMMY_PATH});
+                if (itemPath) {
+                    expect(itemPath).to.contain(UnitTest.DUMMY_PATH);
+                    expect(itemPath).to.contain(extension);
+                }
+
+                done();
+            });
+        });
     }
 
     testHandleRename (fsApi, itemName1, itemName2) {
@@ -772,6 +805,118 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
+    testDeleteItem (fsApi) {
+        const self = this;
+
+        describe("deleteItem", function () {
+            it("should succeed if the path does not exist", function (done) {
+                // Create a stub for fs.existsSync to return false.
+                const stub = sinon.stub(fs, "existsSync");
+                stub.returns(false);
+
+                // Create a spy for fs.unlink to verify that it was not called.
+                const spy = sinon.spy(fs, "unlink");
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(spy);
+
+                // Call the method being tested.
+                let error;
+                fsApi.deleteItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // Verify that the stub was called once with the specified asset path.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(stub.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the unlink spy was not called.
+                        expect(spy).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if deleting the file fails", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return an error.
+                const DELETE_ERROR = "There was an error deleting the file, as expected by a unit test."
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(new Error(DELETE_ERROR));
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                fsApi.deleteItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset item should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stubs were called once with the specified asset path.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubExists.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubDelete.args[0][0]).to.contain(UnitTest.DUMMY_PATH);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(DELETE_ERROR);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed if deleting the file succeeds", function (done) {
+                // Create a stub for fs.existsSync to return true.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(true);
+
+                // Create a stub for fs.unlink to return success.
+                const stubDelete = sinon.stub(fs, "unlink");
+                stubDelete.yields(undefined);
+
+                // The stub and spy  should be restored when the test is complete.
+                self.addTestDouble(stubExists);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                fsApi.deleteItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function (filepath) {
+                        // The stubs should have been called once.
+                        expect(stubExists).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledOnce;
+
+                        // Verify that the expected file path was returned.
+                        expect(filepath).to.contain(fsApi.getItemPath(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS));
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
     testListNames (fsApi, itemName1, itemName2) {
         const self = this;
         describe("listNames", function () {
@@ -886,8 +1031,16 @@ class BaseFsApiUnitTest extends UnitTest {
 
                 // Verify that the expected values are returned.
                 expect(paths).to.have.lengthOf(2);
-                expect(itemName1).to.contains(paths[0].path);
-                expect(itemName2).to.contains(paths[1].path);
+                if (paths[0].path) {
+                    expect(itemName1).to.contains(paths[0].path);
+                } else {
+                    expect(itemName1).to.contains(paths[0].id);
+                }
+                if (paths[1].path) {
+                    expect(itemName2).to.contains(paths[1].path);
+                } else {
+                    expect(itemName2).to.contains(paths[1].id);
+                }
             })
             .catch (function (err) {
                 // NOTE: A failed expectation from above will be handled here.

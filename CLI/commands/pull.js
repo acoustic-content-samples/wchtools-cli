@@ -355,11 +355,11 @@ class PullCommand extends BaseCommand {
                 // Delete each specified item.
                 const promise = deleteFn(context, item, opts)
                     .then(function () {
-                        const successEntry = i18n.__(item.id ? successKey: "cli_pull_invalid_file_deleted", item);
+                        const successEntry = i18n.__(item.id ? successKey : "cli_pull_invalid_file_deleted", item);
                         logger.info(successEntry);
                     })
-                    .catch(function () {
-                        const errorEntry = i18n.__(item.id ? errorKey: "cli_pull_invalid_file_delete_error", item);
+                    .catch(function (err) {
+                        const errorEntry = i18n.__(item.id ? errorKey : "cli_pull_invalid_file_delete_error", {path: item.path, message: err.message});
                         logger.error(errorEntry);
                     });
 
@@ -376,7 +376,7 @@ class PullCommand extends BaseCommand {
                 // For each matching file, add a confirmation prompt (keyed by the artifact id).
                 schemaInput[item.id || item.path] =
                     {
-                        description: i18n.__(item.id ? promptKey: "cli_pull_invalid_file_delete_confirm", item),
+                        description: i18n.__(item.id ? promptKey : "cli_pull_invalid_file_delete_confirm", item),
                         required: true
                     };
             });
@@ -398,11 +398,11 @@ class PullCommand extends BaseCommand {
                         // Delete each specified item.
                         const promise = deleteFn(context, item, opts)
                             .then(function () {
-                                const successEntry = i18n.__(item.id ? successKey: "cli_pull_invalid_file_deleted", item);
+                                const successEntry = i18n.__(item.id ? successKey : "cli_pull_invalid_file_deleted", item);
                                 logger.info(successEntry);
                             })
-                            .catch(function () {
-                                const errorEntry = i18n.__(item.id ? errorKey: "cli_pull_invalid_file_delete_error", item);
+                            .catch(function (err) {
+                                const errorEntry = i18n.__(item.id ? errorKey : "cli_pull_invalid_file_delete_error", {path: item.path, message: err.message});
                                 logger.error(errorEntry);
                             });
 
@@ -485,7 +485,7 @@ class PullCommand extends BaseCommand {
         // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
         const itemsToDelete = [];
         const itemLocalOnly = function (item) {
-            itemsToDelete.push((typeof item === "object") ? item : {path: item});
+            itemsToDelete.push(item);
         };
         emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
 

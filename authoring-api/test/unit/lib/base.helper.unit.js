@@ -106,6 +106,7 @@ class BaseHelperUnitTest extends UnitTest {
             self.testListRemoteDeletedNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testListModifiedLocalItemNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testListModifiedRemoteItemNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testDeleteLocalItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteRemoteItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteRemoteItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
 
@@ -1030,8 +1031,9 @@ class BaseHelperUnitTest extends UnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(2);
-                        expect(spyPull.args[0][0].displayName).to.equal(helper.getName(itemMetadata1));
-                        expect(spyPull.args[1][0].displayName).to.equal(helper.getName(itemMetadata2));
+                        // some object types use the id and some use the name for the getName function
+                        expect(helper.getName(itemMetadata1)).to.be.oneOf([spyPull.args[0][0].id, spyPull.args[0][0].name]);
+                        expect(helper.getName(itemMetadata2)).to.be.oneOf([spyPull.args[1][0].id, spyPull.args[1][0].name]);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
@@ -1051,7 +1053,7 @@ class BaseHelperUnitTest extends UnitTest {
             });
 
             it("should succeed when pulling all items partial last getitem.", function (done) {
-                // Create an restApi.getItems stub that returns a promise for the metadata of the items.
+                // Create a restApi.getItems stub that returns a promise for the metadata of the items.
                 const stubGet = sinon.stub(restApi, "getItems");
                 stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2]);
                 stubGet.onCall(1).resolves([UnitTest.DUMMY_METADATA]);
@@ -1063,9 +1065,14 @@ class BaseHelperUnitTest extends UnitTest {
                 stubSave.onCall(1).resolves(itemMetadata2);
                 stubSave.onCall(2).rejects(SAVE_ERROR);
 
+                // Create an helper.listLocalItemNames stub to return the list of local files.
+                const stubList = sinon.stub(helper, "listLocalItemNames");
+                stubList.resolves([itemMetadata1, itemMetadata2, {"id": "foo"}]);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubGet);
                 self.addTestDouble(stubSave);
+                self.addTestDouble(stubList);
 
                 // Create spies to listen for the "pulled" and "pulled-error" events.
                 const emitter = helper.getEventEmitter(context);
@@ -1076,7 +1083,7 @@ class BaseHelperUnitTest extends UnitTest {
 
                 // Call the method being tested.
                 let error;
-                helper.pullAllItems(context, {offset: 0, limit: 2, validateName: true})
+                helper.pullAllItems(context, {offset: 0, limit: 2, validateName: true, deletions: true})
                     .then(function (items) {
                         // Verify that the results have the expected values.
                         expect(items).to.have.lengthOf(3);
@@ -1090,8 +1097,9 @@ class BaseHelperUnitTest extends UnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(2);
-                        expect(spyPull.args[0][0].displayName).to.equal(helper.getName(itemMetadata1));
-                        expect(spyPull.args[1][0].displayName).to.equal(helper.getName(itemMetadata2));
+                        // some object types use the id and some use the name for the getName function
+                        expect(helper.getName(itemMetadata1)).to.be.oneOf([spyPull.args[0][0].id, spyPull.args[0][0].name]);
+                        expect(helper.getName(itemMetadata2)).to.be.oneOf([spyPull.args[1][0].id, spyPull.args[1][0].name]);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
@@ -1291,8 +1299,9 @@ class BaseHelperUnitTest extends UnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(2);
-                        expect(spyPull.args[0][0].displayName).to.equal(helper.getName(itemMetadata1));
-                        expect(spyPull.args[1][0].displayName).to.equal(helper.getName(itemMetadata2));
+                        // some object types use the id and some use the name for the getName function
+                        expect(helper.getName(itemMetadata1)).to.be.oneOf([spyPull.args[0][0].id, spyPull.args[0][0].name]);
+                        expect(helper.getName(itemMetadata2)).to.be.oneOf([spyPull.args[1][0].id, spyPull.args[1][0].name]);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
@@ -1351,8 +1360,9 @@ class BaseHelperUnitTest extends UnitTest {
 
                         // Verify that the spies were called the expected number of times with the expected values.
                         expect(spyPull).to.have.callCount(2);
-                        expect(spyPull.args[0][0].displayName).to.equal(helper.getName(itemMetadata1));
-                        expect(spyPull.args[1][0].displayName).to.equal(helper.getName(itemMetadata2));
+                        // some object types use the id and some use the name for the getName function
+                        expect(helper.getName(itemMetadata1)).to.be.oneOf([spyPull.args[0][0].id, spyPull.args[0][0].name]);
+                        expect(helper.getName(itemMetadata2)).to.be.oneOf([spyPull.args[1][0].id, spyPull.args[1][0].name]);
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.args[0][0].message).to.contain(SAVE_ERROR);
                         expect(spyError.args[0][1]).to.equal(UnitTest.DUMMY_METADATA.id);
@@ -2941,7 +2951,76 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testDeleteRemoteItem (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testDeleteLocalItem (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        const self = this;
+        describe("deleteLocalItem", function () {
+            it("should succeed when deleting a non-existent local item.", function (done) {
+                // Create an fsApi.deleteItem stub that returns no filepath, indicating that the file did not exist.
+                const stubDelete = sinon.stub(fsApi, "deleteItem");
+                stubDelete.resolves(undefined);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteLocalItem(context, UnitTest.DUMMY_METADATA)
+                    .then(function (item) {
+                        // Verify that the stubs were called once and that the helper returned the expected value.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(diff.diffJson(UnitTest.DUMMY_METADATA, item)).to.have.lengthOf(1);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting an existing local item.", function (done) {
+                // Create an fsApi.deleteItem stub that returns no filepath, indicating that the file did not exist.
+                const stubDelete = sinon.stub(fsApi, "deleteItem");
+                stubDelete.resolves(UnitTest.DUMMY_PATH);
+
+                // Create a hashes.removeHashes stub
+                const stubHashes = sinon.stub(hashes, "removeHashes");
+
+                // Create an utils.removeEmptyParentDirectories stub
+                const stubUtils = sinon.stub(utils, "removeEmptyParentDirectories");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubDelete);
+                self.addTestDouble(stubHashes);
+                self.addTestDouble(stubUtils);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteLocalItem(context, UnitTest.DUMMY_METADATA)
+                    .then(function (item) {
+                        // Verify that the stubs were called once and that the helper returned the expected value.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(stubHashes).to.have.been.calledOnce;
+                        expect(stubUtils).to.have.been.calledOnce;
+                        expect(diff.diffJson(UnitTest.DUMMY_METADATA, item)).to.have.lengthOf(1);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testDeleteRemoteItem (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("deleteRemoteItem", function () {
             it("should fail when deleting the item fails.", function (done) {
@@ -3441,7 +3520,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
 
         describe("canDeleteItem", function () {
-            it("should return false when the item is not vzlid.", function (done) {
+            it("should return false when the item is not valid.", function (done) {
                 // Call the method being tested.
                 let error;
                 try {
@@ -3456,7 +3535,7 @@ class BaseHelperUnitTest extends UnitTest {
                 }
             });
 
-            it("should return true when the item is vzlid.", function (done) {
+            it("should return true when the item is valid.", function (done) {
                 // Call the method being tested.
                 let error;
                 try {

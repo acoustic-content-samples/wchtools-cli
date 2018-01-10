@@ -23,14 +23,10 @@ const UnitTest = require("./base.cli.unit.js");
 
 // Require the node modules used in this test file.
 const fs = require("fs");
-const path = require("path");
-const rimraf = require("rimraf");
-const diff = require("diff");
 const sinon = require("sinon");
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const toolsCli = require("../../../wchToolsCli");
-const mkdirp = require("mkdirp");
 const prompt = require("prompt");
 const options = ToolsApi.getOptions();
 
@@ -148,6 +144,36 @@ class DeleteUnitTest extends UnitTest {
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
+            });
+
+            it("should succeed if deleting pages and page content", function (done) {
+                if (switches.includes("-p")) {
+                    const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                    stubDelete.resolves({id: itemName1});
+
+                    // Execute the command to delete the items to the download directory.
+                    let error;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--page-content', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--id', itemName1])
+                        .then(function (msg) {
+                            // The stub should only have been called once, and the expected message should have been returned.
+                            expect(stubDelete).to.have.been.calledOnce;
+                            expect(msg).to.contain('Deleted');
+                            expect(msg).to.contain(itemName1);
+                        })
+                        .catch(function (err) {
+                            // Pass the error to the "done" function to indicate a failed test.
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's stubbed methods.
+                            stubDelete.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                } else {
+                    done();
+                }
             });
         });
     }

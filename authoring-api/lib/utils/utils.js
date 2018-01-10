@@ -181,6 +181,21 @@ function isInvalidPath (path) {
 }
 
 /**
+ * Validate the specified file path to avoid bug #71 in mkdirp, which can result in an infinite loop on Windows.
+ *
+ * Note: This validation could be removed once the mkdirp issue has been addressed.
+ *
+ * @param {String} filePath - The file path to be validated.
+ *
+ * @return {Boolean} A return value of true indicates the specified file path is valid.
+ *
+ * @private
+ */
+function isValidWindowsPathname (filePath){
+    return (filePath && !isInvalidPath(filePath) && !filePath.includes("http:") && !filePath.includes("https:"));
+}
+
+/**
  * Get the path of the API log file.
  *
  * @returns {String} The path of the API log file.
@@ -463,7 +478,7 @@ function logDebugInfo (context, info, response, requestOptions) {
  * Clone the opts object so you can add an option without affecting the shared object.
  *
  * @param {Object} opts The opts object to be cloned.
- * @param {Object} values optional key/value pairs to be added to the cloned options.
+ * @param {Object} [values] optional key/value pairs to be added to the cloned options.
  *
  * @returns {Object} The cloned opts object.
  */
@@ -506,14 +521,19 @@ function pathNormalize (filePath) {
  */
 function removeEmptyParentDirectories (basePath, filePath) {
     // Start with the parent folder of the specified file.
-    let folderPath = path.dirname(filePath);
+    let folderPath = path.normalize(path.dirname(filePath));
+    let previousFolderPath;
 
-    while (folderPath !== basePath) {
+    // Normalize the base path to make sure comparisons work correctly.
+    basePath = path.normalize(basePath);
+
+    while ((folderPath !== basePath) && (folderPath !== previousFolderPath)) {
         // The parent folder is not the base path, so delete it if it is empty.
         const files = fs.readdirSync(folderPath);
         if (!files || files.length === 0) {
             // The folder is now empty, so delete it and move to the parent folder.
             fs.rmdirSync(folderPath);
+            previousFolderPath = folderPath;
             folderPath = path.dirname(folderPath);
         } else {
             // The folder is not empty, so we're done.
@@ -706,6 +726,7 @@ const utils = {
     apisLogConfig: apisLogConfig,
     isValidApiUrl: isValidApiUrl,
     isInvalidPath: isInvalidPath,
+    isValidWindowsPathname: isValidWindowsPathname,
     getError: getError,
     getApiLogPath: getApiLogPath,
     cloneOpts: cloneOpts,

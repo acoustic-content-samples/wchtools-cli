@@ -65,7 +65,6 @@ class DeleteCommand extends BaseCommand {
         const byTypeName = this.getCommandLineOption("byTypeName");
         const recursive = this.getCommandLineOption("recursive");
         const all = this.getCommandLineOption("all");
-        const allAuthoring = this.getCommandLineOption("allAuthoring");
         const pageContent = this.getCommandLineOption("pageContent");
         let helper;
 
@@ -157,9 +156,9 @@ class DeleteCommand extends BaseCommand {
             }
         }
 
-        // If --page-content specified with -p --pages then set flag to delete
-        // page content too.  Note needed with -A --all which deletes content anyway.
-        if (pages && pageContent && !(allAuthoring && all)) {
+        // If --page-content specified when deleting pages then set flag to delete page content too. Not needed when
+        // also deleting content, since pages and content can only be specified together when deleting all artifacts.
+        if (pages && pageContent && !content) {
             this.setApiOption("delete-content", true);
         }
 

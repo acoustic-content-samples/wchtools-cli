@@ -39,21 +39,6 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
  */
 const WAIT_FOR_CLOSE = process.env.WCHTOOLS_WAIT_FOR_CLOSE || false;
 
-/**
- * Validate the specified file path to avoid bug #71 in mkdirp, which can result in an infinite loop on Windows.
- *
- * Note: This validation could be removed once the mkdirp issue has been addressed.
- *
- * @param {String} filePath - The file path to be validated.
- *
- * @return {Boolean} A return value of true indicates the specified file path is valid.
- *
- * @private
- */
-const isValidWindowsPathname = function (filePath) {
-    return (filePath && !utils.isInvalidPath(filePath) && !filePath.includes("http:") && !filePath.includes("https:"));
-};
-
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
@@ -175,7 +160,7 @@ class AssetsHelper extends BaseHelper {
         const helper = this;
         const assetPath = helper._fsApi.getAssetPath(asset);
         // Verify the pathname.
-        if (!isValidWindowsPathname(assetPath) || hashes.isHashesFile(assetPath)) {
+        if (!utils.isValidWindowsPathname(assetPath) || hashes.isHashesFile(assetPath)) {
             const deferred = Q.defer();
             deferred.reject(new Error(i18n.__("invalid_path", {path: assetPath})));
             return deferred.promise;
@@ -183,7 +168,6 @@ class AssetsHelper extends BaseHelper {
             // Get the local file stream to be written.
             return helper._fsApi.getItemWriteStream(context, assetPath, opts)
                 .then(function (stream) {
-
                     let md5Promise;
                     stream.on("pipe", function (src) {
                         md5Promise = hashes.generateMD5HashFromStream(src);
@@ -316,11 +300,7 @@ class AssetsHelper extends BaseHelper {
      */
     _recursePull (context, listFn, deferred, results, pullInfo, opts) {
         // If a results array is specified, accumulate the assets pulled.
-        if (results) {
-            results = results.concat(pullInfo.assets);
-        } else {
-            results = pullInfo.assets;
-        }
+        results = results.concat(pullInfo.assets);
 
         const currentChunkSize = pullInfo.length;
         const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
@@ -492,11 +472,7 @@ class AssetsHelper extends BaseHelper {
      */
     _recurseResourcesPull (context, listFn, deferred, results, pullInfo, opts) {
         // If a results array is specified, accumulate the resources pulled.
-        if (results) {
-            results = results.concat(pullInfo.resources);
-        } else {
-            results = pullInfo.resources;
-        }
+        results = results.concat(pullInfo.resources);
 
         const currentChunkSize = pullInfo.length;
         const maxChunkSize = options.getRelevantOption(context, opts, "limit", "resources");
@@ -522,46 +498,49 @@ class AssetsHelper extends BaseHelper {
 
     pullResources (context, opts) {
         const deferred = Q.defer();
-
-        const deletions = options.getRelevantOption(context, opts, "deletions");
-        let allFSResources;
-        if (deletions) {
-            allFSResources = this.listLocalResourceNames(context, opts);
-        }
-
         const helper = this;
+        const emitter = helper.getEventEmitter(context);
+        let allFSResources;
+
         // If we're only pulling (Fernando) web assets, don't bother pulling resources without asset references.
         // If the noVirtualFolder option has been specified, we can't pull resources without asset references.
-        if (opts && (opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
+        if (opts && (opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
             deferred.resolve();
         } else {
+            // The mechanism for handling deletions is to emit a "resource-local-only" event for each local item to be
+            // deleted. Because of this, deletions should only be calculated if there is an emitter to use for the event.
+            if (emitter && options.getRelevantOption(context, opts, "deletions")) {
+                allFSResources = this.listLocalResourceNames(context, opts);
+            }
+
             const listFn = this._restApi.getResourceList.bind(this._restApi, context);
             helper._pullResourcesChunk(context, listFn, opts)
                 .then(function (pullInfo) {
-                    // There are no results initially, so just pass null for the results. The accumulated array of
+                    // There are no results initially, so just pass an empty array. The accumulated array of
                     // resources for all pulled items will be available when "deferred" has been resolved.
-                    helper._recurseResourcesPull(context, listFn, deferred, null, pullInfo, opts);
+                    helper._recurseResourcesPull(context, listFn, deferred, [], pullInfo, opts);
                 })
                 .catch(function (err) {
                     // There was a fatal issue, beyond a failure to pull one or more items.
                     deferred.reject(err);
                 });
         }
+
         return deferred.promise
             .then(function (resources) {
-                const emitter = helper.getEventEmitter(context);
-                if (deletions && emitter) {
-                    return allFSResources.then(function (values) {
-                        const pulledPaths = resources.map(function (resource) {
-                            return resource.path;
+                if (allFSResources) {
+                    return allFSResources
+                        .then(function (values) {
+                            const pulledPaths = resources.map(function (resource) {
+                                return resource.path;
+                            });
+                            values.forEach(function (resource) {
+                                if (pulledPaths.indexOf(resource.path) === -1) {
+                                    emitter.emit("resource-local-only", resource);
+                                }
+                            });
+                            return resources;
                         });
-                        values.forEach(function (resource) {
-                            if (pulledPaths.indexOf(resource.path) === -1) {
-                                emitter.emit("resource-local-only", resource);
-                            }
-                        });
-                        return resources;
-                    });
                 } else {
                     return resources;
                 }
@@ -578,25 +557,30 @@ class AssetsHelper extends BaseHelper {
      */
     pullAllItems (context, opts) {
         const deferred = Q.defer();
+        const helper = this;
 
-        const deletions = options.getRelevantOption(context, opts, "deletions");
+        // The mechanism for handling deletions is to emit a "local-only" event for each local item to be deleted.
+        // Because of this, deletions should only be calculated if there is an emitter to use for the event.
         let allFSItems;
-        if (deletions) {
+        const emitter = helper.getEventEmitter(context);
+        if (emitter && options.getRelevantOption(context, opts, "deletions")) {
             allFSItems = this.listLocalItemNames(context, opts);
         }
 
         // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
-        const listFn = this._restApi.getItems.bind(this._restApi, context);
-        const helper = this;
+        const listFn = helper._restApi.getItems.bind(helper._restApi, context);
 
         // Keep track of the error count.
         context.pullErrorCount = 0;
 
+        // Get the timestamp to set before we call the REST API.
+        const timestamp = new Date();
+
         helper._pullItemsChunk(context, listFn, opts)
             .then(function (pullInfo) {
-                // There are no results initially, so just pass null for the results. The accumulated array of asset
+                // There are no results initially, so just pass an empty array. The accumulated array of asset
                 // metadata for all pulled items will be available when "deferred" has been resolved.
-                helper._recursePull(context, listFn, deferred, null, pullInfo, opts);
+                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
             })
             .catch(function (err) {
                 // There was a fatal issue, beyond a failure to pull one or more items.
@@ -618,10 +602,9 @@ class AssetsHelper extends BaseHelper {
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
-                    helper._setLastPullTimestamps(context, opts);
+                    helper._setLastPullTimestamps(context, timestamp, opts);
                 }
-                const emitter = helper.getEventEmitter(context);
-                if (deletions && emitter) {
+                if (allFSItems) {
                     return allFSItems.then(function (values) {
                         const pulledPaths = items.map(function (item) {
                             return helper._fsApi.getAssetPath(item);
@@ -660,11 +643,14 @@ class AssetsHelper extends BaseHelper {
         // Keep track of the error count.
         context.pullErrorCount = 0;
 
+        // Get the timestamp to set before we call the REST API.
+        const timestamp = new Date();
+
         helper._pullItemsChunk(context, listFn, opts)
             .then(function (pullInfo) {
-                // There are no results initially, so just pass null for the results. The accumulated array of asset
+                // There are no results initially, so just pass an empty array. The accumulated array of asset
                 // metadata for all pulled items will be available when "deferred" has been resolved.
-                helper._recursePull(context, listFn, deferred, null, pullInfo, opts);
+                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
             })
             .catch(function (err) {
                 // There was a fatal issue, beyond a failure to pull one or more items.
@@ -686,7 +672,7 @@ class AssetsHelper extends BaseHelper {
             .then(function (items) {
                 if (context.pullErrorCount === 0) {
                     // Only update the last pull timestamp if there were no pull errors.
-                    helper._setLastPullTimestamps(context, opts);
+                    helper._setLastPullTimestamps(context, timestamp, opts);
                 }
                 return items;
             })
@@ -728,6 +714,9 @@ class AssetsHelper extends BaseHelper {
                 return path;
             }
         });
+
+        // Get the timestamp to set before we call the REST API.
+        const timestamp = new Date();
 
         // Throttle the number of assets to be pushed concurrently, using the currently configured limit.
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
@@ -774,7 +763,7 @@ class AssetsHelper extends BaseHelper {
             .then(function (assets) {
                 // Keep track of the timestamp of this operation, but only if there were no errors.
                 if (errorCount === 0) {
-                    helper._setLastPushTimestamps(context, opts);
+                    helper._setLastPushTimestamps(context, timestamp, opts);
                 }
                 return assets;
             })
@@ -866,10 +855,15 @@ class AssetsHelper extends BaseHelper {
             .then(function (length) {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
                 const assetFile = helper._fsApi.getPath(context, opts) + path;
-                const assetHashesMD5 = hashes.getMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
+                let assetHashesResourceMD5 = hashes.getResourceMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
                 const isContentResource = helper._fsApi.isContentResource(path);
+                if (!assetHashesResourceMD5 && isContentResource) {
+                    // the asset is a content resource, try the lookup in hashes using the metadata path
+                    const mdFile = helper._fsApi.getMetadataPath(context, path, opts);
+                    assetHashesResourceMD5 = hashes.getResourceMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), mdFile, opts);
+                }
                 let resourceId;
-                let resourceMd5 = isContentResource ? assetHashesMD5 : undefined;
+                let resourceMd5 = isContentResource ? assetHashesResourceMD5 : undefined;
                 const diskResourceMd5 = hashes.generateMD5Hash(assetFile);
 
                 // In order to push the asset to the content hub, open a read stream for the asset file.
@@ -935,6 +929,7 @@ class AssetsHelper extends BaseHelper {
                                     hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), metadataPath, asset, assetPath, diskResourceMd5, opts);
 
                                     // Once the metadata file has been saved, resolve the top-level promise.
+                                    /* istanbul ignore next */
                                     if (WAIT_FOR_CLOSE) {
                                         // Also wait for the stream to close before resolving the top-level promise.
                                         streamClosed.promise
@@ -976,6 +971,7 @@ class AssetsHelper extends BaseHelper {
                                         }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
                                 } else {
                                     // The push will not be retried, reject the promise and emit a "pushed-error" event.
+                                    /* istanbul ignore next */
                                     if (WAIT_FOR_CLOSE) {
                                         // Also wait for the stream to close before rejecting the top-level promise.
                                         streamClosed.promise
@@ -1040,6 +1036,7 @@ class AssetsHelper extends BaseHelper {
                         helper._restApi.pushItem(context, true, true, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
                             .then(function (resource) {
                                 // Once the resource file has been saved, resolve the top-level promise.
+                                /* istanbul ignore next */
                                 if (WAIT_FOR_CLOSE) {
                                     // Also wait for the stream to close before resolving the top-level promise.
                                     streamClosed.promise
@@ -1080,6 +1077,7 @@ class AssetsHelper extends BaseHelper {
                                     }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
                                 } else {
                                     // Reject the top-level promise.
+                                    /* istanbul ignore next */
                                     if (WAIT_FOR_CLOSE) {
                                         // Also wait for the stream to close before rejecting the top-level promise.
                                         streamClosed.promise
@@ -1115,14 +1113,17 @@ class AssetsHelper extends BaseHelper {
         const helper = this;
 
         // If retry is enabled for this helper, handle any necessary setup.
-        if (this.isRetryPushEnabled()) {
+        if (helper.isRetryPushEnabled()) {
             // Initialize the retry state on the context.
             context.retryPush = {};
             helper.initializeRetryPush(context, paths);
 
             // Add the filter for determining whether a failed push should be retried.
-            context.filterRetryPush = this.filterRetryPush.bind(this);
+            context.filterRetryPush = helper.filterRetryPush.bind(this);
         }
+
+        // Get the timestamp to set before we call the REST API.
+        const timestamp = new Date();
 
         // Throttle the number of resources to be pushed concurrently, using the currently configured limit.
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
@@ -1152,7 +1153,7 @@ class AssetsHelper extends BaseHelper {
             .then(function (resources) {
                 // Keep track of the timestamp of this operation, but only if there were no errors.
                 if (errorCount === 0) {
-                    hashes.setLastPushTimestamp(context, this._fsApi.getResourcesPath(context, opts), new Date(), opts);
+                    hashes.setLastPushTimestamp(context, helper._fsApi.getResourcesPath(context, opts), timestamp, opts);
                 }
                 return resources;
             })
@@ -1164,45 +1165,33 @@ class AssetsHelper extends BaseHelper {
     }
 
     pushAllResources (context, opts) {
-        const deferred = Q.defer();
-
-        const helper = this;
         // If we're only pushing (Fernando) web assets, don't bother pushing resources without asset references.
         // If the noVirtualFolder option has been specified, we can't push resources without asset references.
         if (opts && (opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
-            deferred.resolve();
+            // Just return a resolved promise.
+            return Q();
         } else {
+            const helper = this;
             return helper.listLocalResourceNames(context, opts)
                 .then(function (resources) {
                     return helper._pushResourceList(context, resources, opts);
-                })
-                .catch(function (err) {
-                    // There was an error.
-                    deferred.reject(err);
                 });
         }
-        return deferred.promise;
     }
 
     pushModifiedResources (context, opts) {
-        const deferred = Q.defer();
-
-        const helper = this;
         // If we're only pushing (Fernando) web assets, don't bother pushing resources without asset references.
         // If the noVirtualFolder option has been specified, we can't push resources without asset references.
         if (opts && (opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
-            deferred.resolve();
+            // Just return a resolved promise.
+            return Q();
         } else {
+            const helper = this;
             return helper.listModifiedLocalResourceNames(context, [this.NEW, this.MODIFIED], opts)
                 .then(function (resources) {
                     return helper._pushResourceList(context, resources, opts);
-                })
-                .catch(function (err) {
-                    // There was an error.
-                    deferred.reject(err);
                 });
         }
-        return deferred.promise;
     }
 
     /**
@@ -1430,12 +1419,8 @@ class AssetsHelper extends BaseHelper {
      * @private
      */
     _recurseList (context, listFn, deferred, results, listInfo, opts) {
-        // If a results array is specified, accumulate the assets listed.
-        if (results) {
-            results = results.concat(listInfo.assets);
-        } else {
-            results = listInfo.assets;
-        }
+        // Add the assets listed in the most recent chunk to the existing results.
+        results = results.concat(listInfo.assets);
 
         const currentChunkSize = listInfo.length;
         const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
@@ -2093,14 +2078,14 @@ class AssetsHelper extends BaseHelper {
      * @param {Object} context The API context to be used for this operation.
      * @param opts
      */
-    _setLastPullTimestamps (context, opts) {
+    _setLastPullTimestamps (context, timestamp, opts) {
         const timestamps = this._getLastPullTimestamps(context, opts);
         if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
-            timestamps.webAssets = new Date();
+            timestamps.webAssets = timestamp;
         } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
-            timestamps.contentAssets = new Date();
+            timestamps.contentAssets = timestamp;
         } else {
-            timestamps.webAssets = timestamps.contentAssets = new Date();
+            timestamps.webAssets = timestamps.contentAssets = timestamp;
         }
         hashes.setLastPullTimestamp(context, this._fsApi.getAssetsPath(context, opts), timestamps, opts);
     }
@@ -2111,14 +2096,14 @@ class AssetsHelper extends BaseHelper {
      * @param {Object} context The API context to be used for this operation.
      * @param opts
      */
-    _setLastPushTimestamps (context, opts) {
+    _setLastPushTimestamps (context, timestamp, opts) {
         const timestamps = this._getLastPushTimestamps(context, opts);
         if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
-            timestamps.webAssets = new Date();
+            timestamps.webAssets = timestamp;
         } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
-            timestamps.contentAssets = new Date();
+            timestamps.contentAssets = timestamp;
         } else {
-            timestamps.webAssets = timestamps.contentAssets = new Date();
+            timestamps.webAssets = timestamps.contentAssets = timestamp;
         }
         hashes.setLastPushTimestamp(context, this._fsApi.getAssetsPath(context, opts), timestamps, opts);
     }

@@ -15,6 +15,7 @@ limitations under the License.
 */
 "use strict";
 
+const BaseFS = require("./BaseFS.js");
 const JSONItemFS = require("./JSONItemFS.js");
 const fs = require("fs");
 const utils = require("./utils/utils.js");
@@ -40,7 +41,9 @@ class PublishingProfilesFS extends JSONItemFS {
     }
 
     getFileName(item) {
-        return item.id;
+        if (item && item.id) {
+            return BaseFS.getValidFileName(item.id);
+        }
     }
 }
 

@@ -653,7 +653,7 @@ class PagesFsUnitTest extends BaseFsUnit {
             });
 
             // Verify the number of files found and spot check the results.
-            expect(paths).to.have.lengthOf(23);
+            expect(paths).to.have.lengthOf(31);
             expect(paths).to.contain("/dxdam/87/87268612-232e-4554-922d-d49e9b2deee7/MB1FishingHoleSunset.jpg");
             expect(paths).to.contain("/dxdam/87/87268612-232e-4554-922d-d49e9b2deee7/MB1FishingHoleSunset.jpg_amd.json");
             expect(paths).to.contain("/test.hbs");
@@ -688,7 +688,7 @@ class PagesFsUnitTest extends BaseFsUnit {
             });
 
             // Verify the number of files found and spot check the results.
-            expect(paths).to.have.lengthOf(4);
+            expect(paths).to.have.lengthOf(8);
             expect(paths).to.contain("/dxdam/87/87268612-232e-4554-922d-d49e9b2deee7/MB1FishingHoleSunset.jpg_amd.json");
             expect(paths).to.contain("/dxdam/94/94a5f59a-e52e-44a7-a0b3-fe6470bf7dae/MB1OceanClouds.jpg_amd.json");
             expect(paths).to.contain("/dxdam/db/db31d977-ed0e-4995-92b9-6d8c7c104f43/MBImpossibleCompositeSunset.jpg_amd.json");

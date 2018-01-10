@@ -72,6 +72,10 @@ class ListUnitTest extends UnitTest {
             it("test list no options working", function (done) {
                 let error;
 
+                // Create an fs.existsSync stub to return false, in case any spurious virtual folders still exist.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(false);
+
                 // Create a stub to return prompt values.
                 const stubPrompt = sinon.stub(prompt, "get");
                 stubPrompt.yields(null, {"url": "http://www.ibm.com/foo/api"});
@@ -88,6 +92,7 @@ class ListUnitTest extends UnitTest {
                     })
                     .finally(function () {
                         // Restore the original methods.
+                        stubExists.restore();
                         stubPrompt.restore();
 
                         // Call mocha's done function to indicate that the test is over.
@@ -97,6 +102,10 @@ class ListUnitTest extends UnitTest {
 
             it("test list debug option working", function (done) {
                 let error;
+
+                // Create an fs.existsSync stub to return false, in case any spurious virtual folders still exist.
+                const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.returns(false);
 
                 // Create a stub to return prompt values.
                 const stubPrompt = sinon.stub(prompt, "get");
@@ -117,6 +126,7 @@ class ListUnitTest extends UnitTest {
                         toolsCli.program.debug = false;
 
                         // Restore the original methods.
+                        stubExists.restore();
                         stubPrompt.restore();
 
                         // Call mocha's done function to indicate that the test is over.
@@ -126,7 +136,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list no mod param working", function (done) {
                 const stub = sinon.stub(helper, "listModifiedLocalItemNames");
-                stub.resolves([itemName1, itemName2, badItem]);
+                stub.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
 
                 // Execute the command to list the items to the download directory.
                 let error;
@@ -151,7 +161,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list when base URL not defined", function (done) {
                 const stubList = sinon.stub(helper, "listModifiedLocalItemNames");
-                stubList.resolves([itemName1, itemName2, badItem]);
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: undefined, id: badItem, path: badItem}]);
 
                 // Create a stub to return a value for the "x-ibm-dx-tenant-base-url" key.
                 const originalGetRelevantOption = options.getRelevantOption;
@@ -191,7 +201,7 @@ class ListUnitTest extends UnitTest {
                 }
 
                 const stub = sinon.stub(helper, "listModifiedLocalItemNames");
-                stub.resolves([itemName1, itemName2, badItem]);
+                stub.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: badItem, path: undefined}]);
 
                 // Execute the command to list the local assets.
                 let error;

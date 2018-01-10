@@ -15,6 +15,7 @@ limitations under the License.
 */
 "use strict";
 
+const BaseFS = require("./BaseFS.js");
 const JSONItemFS = require("./JSONItemFS.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
@@ -39,7 +40,9 @@ class PublishingSourcesFS extends JSONItemFS {
     }
 
     getFileName(item) {
-        return item.id;
+        if (item && item.id) {
+            return BaseFS.getValidFileName(item.id);
+        }
     }
 }
 
