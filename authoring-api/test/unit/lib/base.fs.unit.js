@@ -470,12 +470,12 @@ class BaseFsApiUnitTest extends UnitTest {
     testHandleRename (fsApi, itemName1, itemName2) {
         const self = this;
         describe("handleRename", function() {
-            it("should not delete old file if new file exists", function (done) {
-                self.handleRenameNewFileExists(fsApi, itemName1, itemName2 , done);
-            });
-
             it("should not delete old file if no original push file name", function (done) {
                 self.handleRenameNoPushFileName(fsApi, itemName1, itemName2 , done);
+            });
+
+            it("should not delete old file if new file exists", function (done) {
+                self.handleRenameNewFileExists(fsApi, itemName1, itemName2 , done);
             });
 
             it("should not delete old file if old file does not exist", function (done) {
@@ -486,6 +486,28 @@ class BaseFsApiUnitTest extends UnitTest {
                 self.handleRenameDeleteOldFile(fsApi, itemName1, itemName2 , done);
             });
         });
+    }
+
+    handleRenameNoPushFileName (fsApi, itemName1, itemName2, done) {
+        // Create a spy for fs.existsSync to verify that it was not called.
+        const spy = sinon.spy(fs, "existsSync");
+
+        // The spy should be restored when the test is complete.
+        this.addTestDouble(spy);
+
+        // Call the method being tested.
+        let error;
+        try {
+            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {originalPushFileName: ""});
+
+            expect(spy).to.not.have.been.called;
+        } catch (err) {
+            // This is not expected. Pass the error to the "done" function to indicate a failed test.
+            error = err;
+        } finally {
+            // Call mocha's done function to indicate that the test is over.
+            done(error);
+        }
     }
 
     handleRenameNewFileExists (fsApi, itemName1, itemName2, done) {
@@ -503,35 +525,7 @@ class BaseFsApiUnitTest extends UnitTest {
         // Call the method being tested.
         let error;
         try {
-            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, UnitTest.DUMMY_OPTIONS);
-
-            expect(stub).to.have.been.calledOnce;
-            expect(spy).to.not.have.been.called;
-        } catch (err) {
-            // This is not expected. Pass the error to the "done" function to indicate a failed test.
-            error = err;
-        } finally {
-            // Call mocha's done function to indicate that the test is over.
-            done(error);
-        }
-    }
-
-    handleRenameNoPushFileName (fsApi, itemName1, itemName2, done) {
-        // Create a stub for fs.existsSync that will return false.
-        const stub = sinon.stub(fs, "existsSync");
-        stub.returns(false);
-
-        // Create a spy for fs.unlinkSync to verify that it was not called.
-        const spy = sinon.spy(fs, "unlinkSync");
-
-        // The stub and spy should be restored when the test is complete.
-        this.addTestDouble(stub);
-        this.addTestDouble(spy);
-
-        // Call the method being tested.
-        let error;
-        try {
-            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {originalPushFileName: ""});
+            fsApi.handleRename(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_NAME, {originalPushFileName: "foo"});
 
             expect(stub).to.have.been.calledOnce;
             expect(spy).to.not.have.been.called;

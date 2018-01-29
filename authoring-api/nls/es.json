@@ -36,7 +36,7 @@
   "update_item_error": "Error al actualizar el elemento %(service_name)s: ",
   "delete_item_error": "Error al suprimir el elemento %(service_name)s: ",
   "delete_rendition_error": "La supresión de representaciones no está soportada. ID: %(id)s, opciones: %(opts)s",
-  "delete_renditions_error": "La supresión de representaciones no está soportada. ",
+  "delete_renditions_error": "La supresión de representaciones no está soportada.",
   "error_tenant_map": "Error en loadTenantMap: ",
   "error_save_hashes": "Error en saveHashes: ",
   "error_update_hashes": "Error en updateHashes: ",

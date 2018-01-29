@@ -15,14 +15,14 @@ limitations under the License.
 */
 "use strict";
 
-const JSONItemREST = require("./JSONItemREST.js");
+const JSONPathBasedItemREST = require("./JSONPathBasedItemREST.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class PagesREST extends JSONItemREST {
+class PagesREST extends JSONPathBasedItemREST {
 
     constructor(enforcer) {
         if (enforcer !== singletonEnforcer)
@@ -47,13 +47,6 @@ class PagesREST extends JSONItemREST {
      * Does this WCH REST API currently support the forceOverride query param?
      */
     supportsForceOverride() {
-        return true;
-    }
-
-    /*
-     * Does this WCH REST API currently support the by-path end point?
-     */
-    supportsItemByPath() {
         return true;
     }
 
@@ -100,7 +93,6 @@ class PagesREST extends JSONItemREST {
             return uri;
         }
     }
-
 
     /*
      * Override createItem so we can add the hierarchical path.

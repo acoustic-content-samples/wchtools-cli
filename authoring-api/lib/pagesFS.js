@@ -15,6 +15,7 @@ limitations under the License.
 */
 "use strict";
 
+const BaseFS = require("./BaseFS.js");
 const JSONPathBasedItemFS = require("./JSONPathBasedItemFS.js");
 const fs = require("fs");
 const path = require("path");
@@ -42,6 +43,23 @@ class PagesFS extends JSONPathBasedItemFS {
             this[singleton] = new PagesFS(singletonEnforcer);
         }
         return this[singleton];
+    }
+
+    /**
+     * Returns the file name to use for the provided item.
+     *
+     * @param {Object} item the item to get the filename for
+     *
+     * @returns {String} the file name to use for the provided item
+     *
+     * @override
+     */
+    getFileName (item) {
+        if (item && item.hierarchicalPath) {
+            return BaseFS.getValidFileName(item.hierarchicalPath);
+        } else {
+            return super.getFileName(item);
+        }
     }
 
     /**

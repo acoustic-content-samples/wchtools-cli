@@ -32,11 +32,11 @@ Execute the following npm command, to install the wchtools CLI module and its de
 
   -For Windows:
 
-       npm install -g wchtools-cli
+       npm install -g --production --no-optional wchtools-cli
 
   -For Mac or Linux:
 
-       sudo npm install -g wchtools-cli
+       sudo npm install -g --production --no-optional wchtools-cli
 
 Then follow the Getting Started instructions below, to configure and start using the wchtools command.
 
@@ -195,7 +195,7 @@ wchtools pull -A (or specified artifact type)  with --deletions
   - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the WCH authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.   
   - It asks whether you want to delete these local-only files, rather than deleting by default, in case they were local files just created by the developer, that you just haven't pushed yet.
   -If you know the local working directory shouldn't have any locally created files that you haven't pushed yet (eg, it's used for backup only, not for creating new artifacts) you may run wchtools pull -A --deletions --quiet to tell it to quietly (no-prompt) delete artifacts that exist locally but were not pulled during this pull --deletions (ignoring timestamps) session.
-  
+
 #### Pulling all artifact types, ignoring timestamps, prompting to delete stale local files
 
     wchtools pull -A -v --deletions
@@ -203,7 +203,7 @@ wchtools pull -A (or specified artifact type)  with --deletions
 #### Pulling all artifact types, ignoring timestamps, quietly deleting stale local files (files not found on the server)
 
     wchtools pull -A -v --deletions --quiet
-    
+
 #### Pulling only assets, ignoring timestamps, prompting to delete stale local files (files not found on the server)
 
     wchtools pull -a -v --deletions
@@ -258,9 +258,9 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 #### Deleting pages by hierarchical path or by id
 
   You can delete pages by hierarchical path, or by id.  The hierarchical path is the tree based path shown in the Watson Content Hub site manager user interface, which is not necessarily the same as the URL path to the page.  The hierarchical path is made up of the page names, separated by / characters (eg, /Home/Products/Outdoors) and is case sensitive.   The "path" field when creating a page or editing a page settings is for the URL path, which by default is the same as the hierarchical name based path, but may differ, if a sites developer decides to set alternate URL path fields for some pages.   To see a list of "hierarchical" page paths for your site, try the following command:
-  
+
     wchtools list --pages --server
-  
+
   Note, Watson Content Hub will delete all child pages of a specified page, when that page is deleted, whether deleted from the Sites UI, wchtools, or via API, so be sure you want to delete that entire page hierarchy before deleting a page that has child pages below it.
 
     wchtools delete -p -v --path /Home/Products/Details    (delete the page named Details, and any child pages below that)

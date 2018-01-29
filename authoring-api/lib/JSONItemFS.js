@@ -146,6 +146,65 @@ class JSONItemFS extends BaseFS {
     }
 
     /**
+     * Create a map of the local artifact files. The map will contain an array of file paths for each item id.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @return {Object} A map of the local artifact files.
+     *
+     * @protected
+     */
+    createLocalFilePathMap (context, opts) {
+        const map = {};
+
+        // Only need to create the map if the virtual directory exists.
+        const virtualDirectory = this.getPath(context, opts);
+        if (fs.existsSync(virtualDirectory)) {
+            // Get the extension for artifact files.
+            const extension = this.getExtension();
+
+            // Local function to recursively walk a directory and add file paths to a map.
+            const addFilesToMap = function (directory, map) {
+                // Get the names of the files in the specified directory.
+                const files = fs.readdirSync(directory);
+                if (files && files.length > 0) {
+                    // Process the files in the specified directory.
+                    files.forEach(function (fileName) {
+                        // Generate the path name for the file.
+                        const filePath = path.join(directory, fileName);
+
+                        // Determine whether the file path is a directory or a file.
+                        if (fs.statSync(filePath).isDirectory()) {
+                            // Make a recursive call for the directory.
+                            addFilesToMap(filePath, map);
+                        } else if (filePath.endsWith(extension)) {
+                            // Add the file to the map.
+                            try {
+                                // Parse the file to get the id property.
+                                const item = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                                if (item && item.id) {
+                                    // Add the file path to the array of file paths for this id
+                                    const list = map[item.id] || [];
+                                    list.push(path.normalize(filePath));
+                                    map[item.id] = list;
+                                }
+                            } catch (err) {
+                                // Couldn't read the file, so just ignore it and don't add it to the map.
+                            }
+                        }
+                    });
+                }
+            };
+
+            // Add the files in the virtual directory to the map.
+            addFilesToMap(virtualDirectory, map);
+        }
+
+        return map;
+    }
+
+    /**
      * Handle any necessary cleanup of the local file system when an artifact has been renamed.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -156,9 +215,49 @@ class JSONItemFS extends BaseFS {
      * @protected
      */
     handleRename (context, id, filePath, opts) {
-        // Only handle the case of a push where the original file name exists and the new file name does not exist.
-        if (!fs.existsSync(filePath) && opts && opts.originalPushFileName) {
-            const oldName = this.getItemPath(context, opts.originalPushFileName, opts);
+        // Get the local file path map created for the current operation.
+        const localFilePathMap = options.getRelevantOption(context, opts, "localFilePathMap", this.getServiceName());
+
+        // Normalize the file path for comparison and display.
+        filePath = path.normalize(filePath);
+
+        const fsObject = this;
+        if (localFilePathMap) {
+            // Use the local file path map to find and delete other artifact files with the given id.
+            const localFilePaths = localFilePathMap[id];
+            if (localFilePaths) {
+                const virtualDirectory = this.getPath(context, opts);
+
+                // Look at the files contained in the map, and decide which ones to delete.
+                localFilePaths.forEach(function (localFilePath) {
+                    // Do not delete the specified file, and make sure the file to be deleted still exists.
+                    if ((localFilePath !== filePath) && fs.existsSync(localFilePath)) {
+                        // Before deleting the local file, verify that it still contains the specified "id" property.
+                        // This guards against deleting an artifact that was just saved. For example, if artifact "A"
+                        // was renamed to "B", and a new artifact "A" was added. On the next pull, new artifact "A" will
+                        // overwrite existing artifact "A". When artifact "B" is pulled, the map will contain artifact
+                        // "A" in the map, because the old "A" had the same "id" property as the new "B". But we don't
+                        // want to delete "A" now, because the new "A" no longer contains the same id as the new "B".
+                        try {
+                            // Parse the file to get the id property.
+                            const item = JSON.parse(fs.readFileSync(localFilePath, 'utf8'));
+                            if (item && (item.id === id)) {
+                                // Delete the local file, because it has the same id as the specified file.
+                                fs.unlinkSync(localFilePath);
+                                utils.logWarnings(context, i18n.__("deleted_original_file", {old_name: localFilePath, new_name: filePath}));
+
+                                // Also delete the parent folder if it is now empty.
+                                utils.removeEmptyParentDirectories(virtualDirectory, localFilePath);
+                            }
+                        } catch (err) {
+                            // Couldn't read the file, so just ignore it.
+                        }
+                    }
+                });
+            }
+        } else if (opts && opts.originalPushFileName && !fs.existsSync(filePath)) {
+            // Handle the case of a push where the original file name exists and the new file name does not exist.
+            const oldName = fsObject.getItemPath(context, opts.originalPushFileName, opts);
             if (fs.existsSync(oldName)) {
                 // Delete the file with the old name. A file with the new name with be subsequently saved.
                 fs.unlinkSync(oldName);
@@ -195,7 +294,7 @@ class JSONItemFS extends BaseFS {
             return deferred.promise;
         }
         else {
-            this.handleRename(context, item.id, filepath, opts);
+            const baseFilepath = filepath;
             if (hasConflict) {
                 filepath += CONFLICT_EXTENSION;
             }
@@ -209,6 +308,11 @@ class JSONItemFS extends BaseFS {
                         reject(err);
                     } else {
                         try {
+                            // Use the base file path for the rename logic. For example, if the item has been renamed,
+                            // we want to delete the outdated artifact file(s) before saving the new artifact file (or
+                            // the new conflict file.) But, if the item has not been renamed, we do not want to delete
+                            // the existing artifact file when we save a conflict file.
+                            fsObject.handleRename(context, item.id, baseFilepath, opts);
                             fsObject.pruneItem(item, opts);
                             fs.writeFileSync(filepath, JSON.stringify(item, null, "  "));
                             if (!hasConflict) {
@@ -283,7 +387,7 @@ class JSONItemFS extends BaseFS {
                             let path;
                             try {
                                 // Parse the file and get the id and name properties.
-                                const item = JSON.parse(fs.readFileSync(virtualFolderPath + file));
+                                const item = JSON.parse(fs.readFileSync(virtualFolderPath + file, 'utf8'));
                                 id = item.id;
                                 name = item.name;
                             } catch (err) {

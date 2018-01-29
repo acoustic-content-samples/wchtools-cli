@@ -50,6 +50,7 @@ let stubMkdirp;
 
 // Stubs for the hashes methods.
 let stubGenerateMD5Hash;
+let stubGenerateMD5HashAndID;
 let stubGenerateMD5HashFromStream;
 let stubUpdateHashes;
 let stubUpdateResourceHashes;
@@ -91,8 +92,12 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Stub all public hashes methods so that the unit tests do not create any files or directories. These
                 // stubs are created before each test (and restored after each test) to allow for hashes expectations.
                 stubGenerateMD5Hash = sinon.stub(hashes, "generateMD5Hash");
-                stubGenerateMD5Hash.returns(undefined);
+                stubGenerateMD5Hash.resolves(undefined);
                 self.addTestDouble(stubGenerateMD5Hash);
+
+                stubGenerateMD5HashAndID = sinon.stub(hashes, "generateMD5HashAndID");
+                stubGenerateMD5HashAndID.resolves({ md5: undefined, id: undefined });
+                self.addTestDouble(stubGenerateMD5HashAndID);
 
                 stubGenerateMD5HashFromStream = sinon.stub(hashes, "generateMD5HashFromStream");
                 stubGenerateMD5HashFromStream.resolves(undefined);
@@ -6076,11 +6081,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
                     expect(result).to.equal(true);
 
-                    // Should (for now) not retry if the error has a response status code of 500 (Internal Server Error).
+                    // Should retry if the error has a response status code of 500 (Internal Server Error).
                     error = new Error(RETRY_ERROR);
                     error.statusCode = 500;
                     result = assetsHelper.filterRetryPush(context, error, UnitTest.DUMMY_OPTIONS);
-                    expect(result).to.equal(false);
+                    expect(result).to.equal(true);
 
                     // Should retry if the error has a response status code of 502 (Bad Gateway).
                     error = new Error(RETRY_ERROR);

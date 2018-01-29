@@ -1,5 +1,13 @@
 # Changelog
 
+### v2.3 changes since 2.2.8
+
+ - PLEASE NOTE:  This version and newer will save content types by path (readable filename) rather than by id, like assets, layouts, pages and mappings, under workingdir/types.  Rather than workingdir/types/{ugly-uuid}_tmd.json types will now be stored as workingdir/types/{type-name}.json  on disk.   This more closely aligns with other files (assets, layouts and mappings) that the web developer typically browses and/or manages on disk.   Content, lacking a path field, is still stored by unique id value, when pulled to disk.
+
+ - It is strongly suggested that all developers working on the same external copy of WCH artifacts with wchtools for a given project or WCH tenant, upgrade to this (or newer) version of wchtools at the same time, so that the external filename representation of content types is consistent across developers pulling those content types to disk (where older versions store types by id and this and newer versions store them by readable path and name).
+
+ - Avoid pushing asset resources (eg, images, videos) that already exist in the tenant, by doing a HEAD request on the calculated resource id (md5 of hash and filename) to avoid unnecessary network traffic where the resource service will ignore a re-push of an existing resource and return HTTP 200 anyway.
+
 ### v2.2.8 changes since 2.2.1
 
  - Add latent support for colons appearing in content ids going forward in WCH Content API, when storing content by id.

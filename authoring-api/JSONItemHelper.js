@@ -171,8 +171,10 @@ class JSONItemHelper extends BaseHelper {
     pushItem (context, name, opts) {
         // Return the promise to to get the local item and upload it to the content hub.
         const helper = this;
+        let errorInfo = name;
         return helper._fsApi.getItem(context, name, opts)
             .then(function (item) {
+                errorInfo = item;
                 // Check whether the item should be uploaded.
                 if (helper.canPushItem(item)) {
                     // Save the original file name, in case the result of the push is saved to a file with a different name.
@@ -187,7 +189,7 @@ class JSONItemHelper extends BaseHelper {
                 if (!err.emitted && !err.retry) {
                     const emitter = helper.getEventEmitter(context);
                     if (emitter) {
-                        emitter.emit("pushed-error", err, name);
+                        emitter.emit("pushed-error", err, errorInfo);
                     }
                 }
                 throw err;
@@ -698,7 +700,7 @@ class JSONItemHelper extends BaseHelper {
                 }
             })
             .catch(function (err) {
-                const name = helper.getName(item);
+                const name = opts.originalPushFileName || helper.getName(item);
                 const heading = logError + name;
 
                 // Determine whether the push of this item should be retried.
@@ -715,7 +717,7 @@ class JSONItemHelper extends BaseHelper {
                 } else {
                     const emitter = helper.getEventEmitter(context);
                     if (emitter) {
-                        emitter.emit("pushed-error", err, name);
+                        emitter.emit("pushed-error", err, {id: item.id, name: item.name, path: (item.path || name.path || name)});
                     }
                     err.emitted = true;
                     utils.logErrors(context, heading, err);

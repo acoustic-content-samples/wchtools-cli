@@ -60,12 +60,56 @@ function isHashesFile (filename) {
  *
  * @private
  */
-function generateMD5Hash (filename) {
-    const hash = crypto.createHash(HASH_ALGORITHM);
+function generateMD5HashSync (filename) {
     const content = fs.readFileSync(filename); // returns a Buffer
+    const hash = crypto.createHash(HASH_ALGORITHM);
     hash.update(content);
     const md5 = hash.digest(HASH_ENCODING); // returns a base-64 encoded string
     return md5;
+}
+
+/**
+ * Generates the MD5 hash for the contents of the given file.
+ *
+ * @param {String} filename The name of the file for which an MD5 hash is to be generated.
+ *
+ * @returns {Promise} A promise for the MD5 hash for the contents of the given file.
+ *
+ * @private
+ */
+function generateMD5Hash (filename) {
+    const stream = fs.createReadStream(filename);
+    const md5Promise = generateMD5HashFromStream(stream);
+    return md5Promise;
+}
+
+/**
+ * Generates both an MD5 hash and a unique ID for the contents of the given file.
+ *
+ * @param {String} filename The name of the file for which an MD5 hash and unique ID is to be generated.
+ *
+ * @returns {Object} The MD5 hash and unique ID for the contents of the given file.
+ *
+ * @private
+ */
+function generateMD5HashAndID (basePath, filename) {
+    const deferred = Q.defer();
+    // Get the MD5 hash of the binary content.
+    generateMD5Hash(filename).then(function (md5) {
+        // Calculate a MD5 hash of the relative filename.
+        const hashID = crypto.createHash(HASH_ALGORITHM);
+        const relative = path.relative(basePath, filename);
+        hashID.update(relative);
+        // Concat the MD5 hash of the binary content with the relative filename.
+        const id = new Buffer(md5, HASH_ENCODING).toString("hex") + "_" + hashID.digest("hex");
+        deferred.resolve({
+            md5: md5,
+            id: id
+        });
+    }).catch(function (err) {
+        deferred.reject(err);
+    });
+    return deferred.promise;
 }
 
 /**
@@ -402,7 +446,7 @@ function updateResourceHashes (context, basePath, filePath, resource, md5, opts)
         try {
             // Get the MD5 hash value and the (local) last modified date for the specified file.
             if (fs.existsSync(filePath)) {
-                md5 = md5 || generateMD5Hash(filePath);
+                md5 = md5 || generateMD5HashSync(filePath);
                 mtime = fs.statSync(filePath).mtime;
             }
         } catch (ignore) {
@@ -462,7 +506,7 @@ function updateHashes (context, basePath, filePath, item, resourcePath, resource
         try {
             // Get the MD5 hash value and the (local) last modified date for the specified file.
             if (fs.existsSync(filePath)) {
-                md5 = generateMD5Hash(filePath);
+                md5 = generateMD5HashSync(filePath);
                 mtime = fs.statSync(filePath).mtime;
             }
         } catch (ignore) {
@@ -472,7 +516,7 @@ function updateHashes (context, basePath, filePath, item, resourcePath, resource
             try {
                 // Get the MD5 hash value and the (local) last modified date for the specified file.
                 if (fs.existsSync(resourcePath)) {
-                    resourceMD5 = resourceMD5 || generateMD5Hash(resourcePath);
+                    resourceMD5 = resourceMD5 || generateMD5HashSync(resourcePath);
                     mtimeResource = fs.statSync(resourcePath).mtime;
                 }
             } catch (ignore) {
@@ -1030,7 +1074,7 @@ function isLocalModified (context, flags, basePath, metadataPath, resourcePath, 
             ((fileHashes.localLastModified && stat && stat.mtime.getTime() !== Date.parse(fileHashes.localLastModified)) ||
              (fileHashes.resourceLocalLastModified && statResource && statResource.mtime.getTime() !== Date.parse(fileHashes.resourceLocalLastModified)))) {
             // The timestamps don't match so check the md5 hashes.
-            const md5 = generateMD5Hash(filePath);
+            const md5 = generateMD5HashSync(filePath);
             context.logger.debug("hashes.isLocalModified MODIFIED fileHashes md5", fileHashes.md5);
             context.logger.debug("hashes.isLocalModified MODIFIED md5", md5);
 
@@ -1039,7 +1083,7 @@ function isLocalModified (context, flags, basePath, metadataPath, resourcePath, 
                 context.logger.debug("hashes.isLocalModified MODIFIED file is modified");
                 modified = true;
             } else if (resourcePath && metadataPath) {
-                const resourceMD5 = generateMD5Hash(resourcePath);
+                const resourceMD5 = generateMD5HashSync(resourcePath);
                 if (fileHashes.resourceMD5 && resourceMD5 !== fileHashes.resourceMD5) {
                     context.logger.debug("hashes.isLocalModified MODIFIED file is modified due to resource MD5");
                     modified = true;
@@ -1142,6 +1186,7 @@ function isRemoteModified (context, flags, item, basePath, metadataPath, resourc
 const hashes = {
     isHashesFile: isHashesFile,
     generateMD5Hash: generateMD5Hash,
+    generateMD5HashAndID: generateMD5HashAndID,
     generateMD5HashFromStream: generateMD5HashFromStream,
     compareMD5Hashes: compareMD5Hashes,
     updateResourceHashes: updateResourceHashes,

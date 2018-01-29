@@ -80,6 +80,7 @@ class PushUnitTest extends UnitTest {
                         emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -95,7 +96,7 @@ class PushUnitTest extends UnitTest {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts successfully');
-                        expect(msg).to.contain('1 error');
+                        expect(msg).to.contain('2 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -124,6 +125,7 @@ class PushUnitTest extends UnitTest {
                         emitter.emit("resource-pushed", {name: itemName1, id: undefined, path: itemName1});
                         emitter.emit("resource-pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("resource-pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("resource-pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -139,7 +141,7 @@ class PushUnitTest extends UnitTest {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts successfully');
-                        expect(msg).to.contain('1 error');
+                        expect(msg).to.contain('2 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -164,6 +166,7 @@ class PushUnitTest extends UnitTest {
                         emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -176,7 +179,7 @@ class PushUnitTest extends UnitTest {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts');
-                        expect(msg).to.contain('1 error');
+                        expect(msg).to.contain('2 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -427,6 +430,7 @@ class PushUnitTest extends UnitTest {
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -442,7 +446,7 @@ class PushUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
-                        expect(err.message).to.contain('1 error');
+                        expect(err.message).to.contain('2 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -667,6 +671,7 @@ class PushUnitTest extends UnitTest {
                         emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -685,7 +690,7 @@ class PushUnitTest extends UnitTest {
                         // Verify that the push stub was called once, and that the expected message was returned.
                         expect(stubPush).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts successfully');
-                        expect(msg).to.contain('1 error');
+                        expect(msg).to.contain('2 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -730,6 +735,7 @@ class PushUnitTest extends UnitTest {
                         emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -749,7 +755,7 @@ class PushUnitTest extends UnitTest {
                         // Verify that the push stub was called once, and that the expected message was returned.
                         expect(stubPush).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts successfully');
-                        expect(msg).to.contain('1 error');
+                        expect(msg).to.contain('2 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -889,6 +895,7 @@ class PushUnitTest extends UnitTest {
                         emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
                         emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
                     }, 0);
                     return stubDeferred.promise;
@@ -908,7 +915,7 @@ class PushUnitTest extends UnitTest {
                         // Verify that the push stub was called once, and that the expected message was returned.
                         expect(stubPush).to.have.been.calledOnce;
                         expect(msg).to.contain('2 artifacts successfully');
-                        expect(msg).to.contain('1 error');
+                        expect(msg).to.contain('2 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

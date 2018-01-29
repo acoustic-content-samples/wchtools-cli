@@ -1318,8 +1318,12 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const body = null;
                 stubPost.yields(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Add a retry filter (that always returns true) to the context.
                 context.filterRetryPush = function () {return true;};
@@ -1332,6 +1336,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset should have been rejected.");
                     })
                     .catch(function (err) {
+                        expect(stubHead).to.have.callCount(0);
+
                         // Verify that the post stub was called with a resource URI.
                         expect(stubPost).to.have.been.calledOnce;
                         expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
@@ -1364,8 +1370,12 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const body = null;
                 stubPost.yields(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Add a retry filter (that always returns false) to the context.
                 context.filterRetryPush = function () {return false;};
@@ -1378,6 +1388,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset should have been rejected.");
                     })
                     .catch(function (err) {
+                        expect(stubHead).to.have.callCount(0);
+
                         // Verify that the post stub was called with a resource URI.
                         expect(stubPost).to.have.been.calledOnce;
                         expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
@@ -1421,8 +1433,12 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = null;
                 stubPost.onCall(1).yields(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
@@ -1432,6 +1448,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset should have been rejected.");
                     })
                     .catch(function (err) {
+                        expect(stubHead).to.have.callCount(0);
+
                         // Verify that the post stub was called twice.
                         expect(stubPost).to.have.been.calledTwice;
 
@@ -1510,15 +1528,21 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = assetMetadata;
                 stubPost.onCall(0).yields(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPut);
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
                 const opts = {"asset": {"id": "test", "rev": "test"}, createOnly: true};
                 assetsREST.pushItem(context, false, false, false, assetMetadata.resource, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
                     .then(function (asset) {
+                        expect(stubHead).to.have.callCount(1);
+
                         // Verify that the put and post stubs were called once.
                         expect(stubPut).to.have.been.calledOnce;
                         expect(stubPost).to.have.been.calledOnce;
@@ -1574,13 +1598,19 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = null;
                 stubPost.onCall(1).yields(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested, passing the createOnly option.
                 let error;
                 assetsREST.pushItem(context, false, false, false, undefined, undefined, "\\" + AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.DUMMY_STREAM, 0, {createOnly: true})
                     .then(function () {
+                        expect(stubHead).to.have.callCount(0);
+
                         // Verify that the post stub was called twice.
                         expect(stubPost).to.have.been.calledTwice;
 
@@ -1653,13 +1683,19 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = assetMetadata;
                 stubPost.onCall(1).yields(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
                 assetsREST.pushItem(context, false, false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
+                        expect(stubHead).to.have.callCount(0);
+
                         // Verify that the post stub was called twice.
                         expect(stubPost).to.have.been.calledTwice;
 
@@ -1737,13 +1773,19 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 stubPut.onCall(0).returns(requestStream);
                 stubPut.onCall(0).yieldsAsync(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPut);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
                 assetsREST.pushItem(context, true, true, false, UnitTest.DUMMY_ID, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
+                        expect(stubHead).to.have.callCount(1);
+
                         // Verify that the put stub was called twice.
                         expect(stubPut).to.have.been.calledOnce;
 
@@ -1822,14 +1864,20 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = assetMetadata;
                 stubPost.yields(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPut);
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
                 assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
+                        expect(stubHead).to.have.callCount(1);
+
                         // Verify that the put stub was called once and the post stub was called once.
                         expect(stubPut).to.have.been.calledOnce;
                         expect(stubPost).to.have.been.calledOnce;
@@ -1915,15 +1963,21 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = assetMetadata;
                 stubPost.yieldsAsync(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPut);
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
                 const opts = {"asset": {"id": "test"}, "force-override": true};
                 assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
                     .then(function (asset) {
+                        expect(stubHead).to.have.callCount(1);
+
                         // Verify that the stubs were each called once.
                         expect(stubPut).to.have.been.calledOnce;
                         expect(stubPost).to.have.been.calledOnce;
@@ -2008,14 +2062,20 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = assetMetadata;
                 stubPut.onCall(1).yieldsAsync(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPut);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
                 const opts = {"asset": {"id": "test", "rev": "test"}, "force-override": true};
                 assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
                     .then(function (asset) {
+                        expect(stubHead).to.have.callCount(1);
+
                         // Verify that the put stub was called twice.
                         expect(stubPut).to.have.been.calledTwice;
 
@@ -2106,15 +2166,21 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = assetMetadata;
                 stubPost.yieldsAsync(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPut);
                 self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
                 const opts = {"asset": {"id": "test", "rev": "test"}, "force-override": true};
                 assetsREST.pushItem(context, false, true, false, UnitTest.DUMMY_ID, DUMMY_MD5_HASH, AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
                     .then(function (asset) {
+                        expect(stubHead).to.have.callCount(1);
+
                         // Verify that the put stub was called twice.
                         expect(stubPut).to.have.been.calledTwice;
 
@@ -2199,8 +2265,12 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 body = null;
                 stubPut.onCall(1).yieldsAsync(err, res, body);
 
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubPut);
+                self.addTestDouble(stubHead);
 
                 // Call the method being tested.
                 let error;
@@ -2211,6 +2281,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         error = new Error("The promise for the asset should have been rejected.");
                     })
                     .catch(function (err) {
+                        expect(stubHead).to.have.callCount(1);
+
                         // Verify that the put stub was called twice.
                         expect(stubPut).to.have.been.calledTwice;
 
