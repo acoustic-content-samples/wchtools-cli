@@ -151,8 +151,12 @@ describe("hashes", function () {
         it("should work for a text file", function (done) {
             let error = undefined;
             try {
-                const md5 = hashes.generateMD5Hash(TEXT_FILE_PATH);
-                expect(md5).to.equal(TEXT_FILE_MD5);
+                hashes.generateMD5Hash(TEXT_FILE_PATH).then(function (md5) {
+                    expect(md5).to.equal(TEXT_FILE_MD5);
+                })
+                .catch(function (err) {
+                    error = err;
+                });
             } catch (err) {
                 error = err;
             } finally {
@@ -163,8 +167,12 @@ describe("hashes", function () {
         it("should work for an image file", function (done) {
             let error = undefined;
             try {
-                const md5 = hashes.generateMD5Hash(IMAGE_FILE_PATH);
-                expect(md5).to.equal(IMAGE_FILE_MD5);
+                hashes.generateMD5Hash(IMAGE_FILE_PATH).then(function (md5) {
+                    expect(md5).to.equal(IMAGE_FILE_MD5);
+                })
+                .catch(function (err) {
+                    error = err;
+                });
             } catch (err) {
                 error = err;
             } finally {
@@ -554,7 +562,7 @@ describe("hashes", function () {
     });
 
     describe("getMD5ForFile", function () {
-        it("should get the exisitng metadata from the hashes file", function (done) {
+        it("should get the exisiting metadata from the hashes file", function (done) {
             let error = undefined;
             try {
                 const result = hashes.getMD5ForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);
@@ -610,7 +618,7 @@ describe("hashes", function () {
     });
 
     describe("getResourceMD5ForFile", function () {
-        it("should get the exisitng metadata for the resource from the hashes file", function (done) {
+        it("should get the exisiting metadata for the resource from the hashes file", function (done) {
             let error = undefined;
             try {
                 const result = hashes.getResourceMD5ForFile(context, TEST_DIRECTORY_PATH, TEXT_FILE_PATH, TEST_OPTS);

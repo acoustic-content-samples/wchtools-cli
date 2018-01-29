@@ -19,6 +19,7 @@ const BaseREST = require("./BaseREST.js");
 const Q = require("q");
 const utils = require("./utils/utils.js");
 const options = require("./utils/options.js");
+const hashes = require("./utils/hashes.js");
 const request = utils.getRequestWrapper();
 const mime = require('mime-types');
 const path = require('path');
@@ -476,9 +477,39 @@ class AssetsREST extends BaseREST {
                     }
                 };
 
-                // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
-                //noinspection JSUnresolvedFunction
-                stream.pipe(updateContentResource ? request.put(reqOptions, resourceRequestCallback) : request.post(reqOptions, resourceRequestCallback));
+                const headDeferred = Q.defer();
+                const headResponsePromise = headDeferred.promise;
+                if (updateContentResource) {
+                    // Before a PUT, do HEAD request to see if the resource already exists with the same MD5 hash.
+                    restObject.getDownloadRequestOptions(context, opts).then(function (headReqOptions) {
+                        headReqOptions.uri = headReqOptions.uri + "/" + resourceId;
+                        request.head(headReqOptions, function(headErr, headRes, headBody) {
+                            let sendResource = true;
+                            if (headErr) {
+                                // Ignore an error from the HEAD request and continue assuming we need to push.
+                            } else if (headRes && headRes.statusCode && headRes.statusCode === 200 && headRes.headers && headRes.headers.etag) {
+                                const etag = headRes.headers.etag.substring(1, headRes.headers.etag.length-1);
+                                if (hashes.compareMD5Hashes(resourceMd5, etag)) {
+                                    // The hashes are equal, the resource already exists with a matching MD5.
+                                    sendResource = false;
+                                }
+                            }
+                            headDeferred.resolve(sendResource);
+                        });
+                    });
+                } else {
+                    headDeferred.resolve(true);
+                }
+                headResponsePromise.then(function (sendResource) {
+                    if (sendResource) {
+                        // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
+                        //noinspection JSUnresolvedFunction
+                        stream.pipe(updateContentResource ? request.put(reqOptions, resourceRequestCallback) : request.post(reqOptions, resourceRequestCallback));
+                    } else {
+                        // Directly call the callback and send a simple HTTP 200 reply.
+                        resourceRequestCallback(undefined, { statusCode: 200 }, {});
+                    }
+                });
             })
             .catch (function (err) {
                 deferred.reject(err);

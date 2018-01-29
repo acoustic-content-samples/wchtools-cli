@@ -960,7 +960,13 @@ class PullCommand extends BaseCommand {
         // The API emits an event when an item is pulled, so we log it for the user.
         const itemTypePulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_type_pulled_2', item));
+            if (item.path) {
+                // Handle the normal case of a Type that has a defined path.
+                self.getLogger().info(i18n.__('cli_pull_type_pulled_path_2', item));
+            } else {
+                // Handle the case of an "old" Type artifact that does not have a path.
+                self.getLogger().info(i18n.__('cli_pull_type_pulled_2', item));
+            }
         };
         emitter.on(EVENT_ITEM_PULLED, itemTypePulled);
 

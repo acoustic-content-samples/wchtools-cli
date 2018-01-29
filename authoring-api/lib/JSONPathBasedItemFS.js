@@ -106,8 +106,6 @@ class JSONPathBasedItemFS extends JSONItemFS {
         if (item) {
             if (item.path) {
                 return BaseFS.getValidFileName(item.path);
-            } else if (item.hierarchicalPath) {
-                return BaseFS.getValidFileName(item.hierarchicalPath);
             } else if (item.name) {
                 return BaseFS.getValidFileName(item.name);
             }

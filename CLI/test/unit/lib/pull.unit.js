@@ -75,7 +75,7 @@ class PullUnitTest extends UnitTest {
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
                         emitter.emit("pulled", {name: itemName1, id: undefined, path: itemName1});
-                        emitter.emit("pulled", {name: itemName2, id: undefined, path: itemName2});
+                        emitter.emit("pulled", {name: itemName2, id: undefined, path: undefined});
                         emitter.emit("pulled-error", {message: "This failure was expected by the unit test"}, badItem);
                         emitter.emit("pulled-warning", {message: "This warning was expected by the unit test"});
                         stubDeferred.resolve();

@@ -851,6 +851,7 @@ class AssetsHelper extends BaseHelper {
 
         // Begin the push process by determining the content length of the specified local file.
         const helper = this;
+        let errorInfo = path;
         helper._fsApi.getContentLength(context, path, opts)
             .then(function (length) {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
@@ -864,50 +865,51 @@ class AssetsHelper extends BaseHelper {
                 }
                 let resourceId;
                 let resourceMd5 = isContentResource ? assetHashesResourceMD5 : undefined;
-                const diskResourceMd5 = hashes.generateMD5Hash(assetFile);
+                hashes.generateMD5HashAndID(helper._fsApi.getAssetsPath(context, opts), assetFile).then(function (hashAndID) {
+                    // In order to push the asset to the content hub, open a read stream for the asset file.
+                    let streamOpened;
+                    if (isContentResource && fs.existsSync(helper._fsApi.getMetadataPath(context, path, opts))) {
+                        // There is a metadata file for the content asset, so start by reading the metadata file.
+                        streamOpened = helper._fsApi.getItem(context, path, opts)
+                            .then(function (asset) {
+                                // Get the resource ID and the MD5 hash if they aren't already defined.
+                                resourceId = asset.resource;
+                                resourceMd5 = resourceMd5 || hashAndID.md5;
 
-                // In order to push the asset to the content hub, open a read stream for the asset file.
-                let streamOpened;
-                if (isContentResource && fs.existsSync(helper._fsApi.getMetadataPath(context, path, opts))) {
-                    // There is a metadata file for the content asset, so start by reading the metadata file.
-                    streamOpened = helper._fsApi.getItem(context, path, opts)
-                        .then(function (asset) {
-                            // Get the resource ID and the MD5 hash if they aren't already defined.
-                            resourceId = asset.resource;
-                            resourceMd5 = resourceMd5 || diskResourceMd5;
+                                // Keep track of the asset metadata.
+                                opts = utils.cloneOpts(opts, {asset: asset});
 
-                            // Keep track of the asset metadata.
-                            opts = utils.cloneOpts(opts, {asset: asset});
+                                // Open a read stream for the actual asset file (not the metadata file).
+                                return helper._fsApi.getItemReadStream(context, path, opts);
+                            })
+                            .catch(function (err) {
+                                // Reject the top-level promise.
+                                deferred.reject(err);
+                            });
+                    } else {
+                        // There is no metadata file, so open a read stream for the asset file.
+                        streamOpened = helper._fsApi.getItemReadStream(context, path, opts);
+                        resourceMd5 = resourceMd5 || hashAndID.md5;
+                        // Use the resources's MD5 hash (with path name) as the resourceId.
+                        resourceId = resourceMd5 ? hashAndID.id : undefined;
+                    }
 
-                            // Open a read stream for the actual asset file (not the metadata file).
-                            return helper._fsApi.getItemReadStream(context, path, opts);
-                        })
-                        .catch(function (err) {
-                            // Reject the top-level promise.
-                            deferred.reject(err);
-                        });
-                } else {
-                    // There is no metadata file, so open a read stream for the asset file.
-                    streamOpened = helper._fsApi.getItemReadStream(context, path, opts);
-                    resourceMd5 = resourceMd5 || diskResourceMd5;
-                    // Use the resources's MD5 hash as the resourceId.
-                    resourceId = resourceMd5 ? new Buffer(resourceMd5, "base64").toString("hex") : undefined;
-                }
+                    streamOpened
+                        .then(function (readStream) {
+                            // Create a promise that will be resolved when the read stream is closed.
+                            const streamClosed = Q.defer();
+                            readStream.on("close", function () {
+                                streamClosed.resolve(path);
+                            });
 
-                streamOpened
-                    .then(function (readStream) {
-                        // Create a promise that will be resolved when the read stream is closed.
-                        const streamClosed = Q.defer();
-                        readStream.on("close", function () {
-                            streamClosed.resolve(path);
-                        });
-
-                        // Determine how to set replaceContentReource - if the saved md5 doesn't match the md5 of the resource
-                        const replaceContentResource = isContentResource && (resourceMd5 !== diskResourceMd5);
+                            // Determine how to set replaceContentReource - if the saved md5 doesn't match the md5 of the resource
+                            const replaceContentResource = isContentResource && (resourceMd5 !== hashAndID.md5);
 
                         // Push the asset to the content hub.
                         helper._restApi.pushItem(context, false, isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
                             .then(function (asset) {
+                                errorInfo = {id: asset.id, path: path};
+
                                 // Save the asset metadata to a local file.
                                 const done = Q.defer();
                                 const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
@@ -922,77 +924,82 @@ class AssetsHelper extends BaseHelper {
                                     done.resolve(asset);
                                 }
 
-                                // Update the hashes for the pushed asset.
-                                const assetPath = helper._fsApi.getPath(context, opts) + helper._fsApi.getAssetPath(asset);
-                                const metadataPath = isContentResource ? helper._fsApi.getMetadataPath(context, helper._fsApi.getAssetPath(asset), opts) : undefined;
-                                done.promise.finally(function () {
-                                    hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), metadataPath, asset, assetPath, diskResourceMd5, opts);
+                                    // Update the hashes for the pushed asset.
+                                    const assetPath = helper._fsApi.getPath(context, opts) + helper._fsApi.getAssetPath(asset);
+                                    const metadataPath = isContentResource ? helper._fsApi.getMetadataPath(context, helper._fsApi.getAssetPath(asset), opts) : undefined;
+                                    done.promise.finally(function () {
+                                        hashes.updateHashes(context, helper._fsApi.getAssetsPath(context, opts), metadataPath, asset, assetPath, hashAndID.md5, opts);
 
-                                    // Once the metadata file has been saved, resolve the top-level promise.
-                                    /* istanbul ignore next */
-                                    if (WAIT_FOR_CLOSE) {
-                                        // Also wait for the stream to close before resolving the top-level promise.
-                                        streamClosed.promise
-                                            .then(function () {
-                                                deferred.resolve(asset);
-                                            });
-                                    } else {
-                                        deferred.resolve(asset);
-                                    }
-                                });
+                                        // Once the metadata file has been saved, resolve the top-level promise.
+                                        /* istanbul ignore next */
+                                        if (WAIT_FOR_CLOSE) {
+                                            // Also wait for the stream to close before resolving the top-level promise.
+                                            streamClosed.promise
+                                                .then(function () {
+                                                    deferred.resolve(asset);
+                                                });
+                                        } else {
+                                            deferred.resolve(asset);
+                                        }
+                                    });
 
-                                // The push succeeded so emit a "pushed" event.
-                                const emitter = helper.getEventEmitter(context);
-                                if (emitter) {
-                                    emitter.emit("pushed", {id: asset.id, path: path});
-                                }
-                            })
-                            .catch(function (err) {
-                                // Failed to push the asset file, so explicitly close the read stream.
-                                helper._closeStream(context, readStream, streamClosed);
-
-                                // Get the retry item for this asset, if one exists.
-                                const retryItem = err.retry && helper._getRetryItem(context, path, opts);
-
-                                // Retry the push of this asset if we have a retry item.
-                                if (retryItem) {
-                                    // Log a warning that the push of this item will be retried.
-                                    utils.logWarnings(context, i18n.__("pushed_item_retry", {name: path, message: err.log ? err.log : err.message}));
-
-                                    // Retry the push after the calculated delay.
-                                    setTimeout(function () {
-                                        helper.pushItem(context, path, opts)
-                                            .then(function (asset) {
-                                                deferred.resolve(asset);
-                                            })
-                                            .catch(function (err) {
-                                                deferred.reject(err);
-                                            });
-                                        }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
-                                } else {
-                                    // The push will not be retried, reject the promise and emit a "pushed-error" event.
-                                    /* istanbul ignore next */
-                                    if (WAIT_FOR_CLOSE) {
-                                        // Also wait for the stream to close before rejecting the top-level promise.
-                                        streamClosed.promise
-                                            .then(function () {
-                                                deferred.reject(err);
-                                            });
-                                    } else {
-                                        deferred.reject(err);
-                                    }
-
+                                    // The push succeeded so emit a "pushed" event.
                                     const emitter = helper.getEventEmitter(context);
                                     if (emitter) {
-                                        emitter.emit("pushed-error", err, path);
+                                        emitter.emit("pushed", {id: asset.id, path: path});
                                     }
-                                }
-                            });
-                    })
-                    .catch(function (err) {
-                        // Failed getting the read stream, so just reject the top-level promise.
-                        deferred.reject(err);
-                    });
+                                })
+                                .catch(function (err) {
+                                    // Failed to push the asset file, so explicitly close the read stream.
+                                    helper._closeStream(context, readStream, streamClosed);
+
+                                    // Get the retry item for this asset, if one exists.
+                                    const retryItem = err.retry && helper._getRetryItem(context, path, opts);
+
+                                    // Retry the push of this asset if we have a retry item.
+                                    if (retryItem) {
+                                        // Log a warning that the push of this item will be retried.
+                                        utils.logWarnings(context, i18n.__("pushed_item_retry", {name: path, message: err.log ? err.log : err.message}));
+
+                                        // Retry the push after the calculated delay.
+                                        setTimeout(function () {
+                                            helper.pushItem(context, path, opts)
+                                                .then(function (asset) {
+                                                    deferred.resolve(asset);
+                                                })
+                                                .catch(function (err) {
+                                                    deferred.reject(err);
+                                                });
+                                        }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
+                                    } else {
+                                        // The push will not be retried, reject the promise and emit a "pushed-error" event.
+                                        /* istanbul ignore next */
+                                        if (WAIT_FOR_CLOSE) {
+                                            // Also wait for the stream to close before rejecting the top-level promise.
+                                            streamClosed.promise
+                                                .then(function () {
+                                                    deferred.reject(err);
+                                                });
+                                        } else {
+                                            deferred.reject(err);
+                                        }
+
+                                        const emitter = helper.getEventEmitter(context);
+                                        if (emitter) {
+                                            emitter.emit("pushed-error", err, errorInfo);
+                                        }
+                                    }
+                                });
+                        })
+                        .catch(function (err) {
+                            // Failed getting the read stream, so just reject the top-level promise.
+                            deferred.reject(err);
+                        });
+                })
+                .catch(function (err) {
+                    // Failed getting MD5 hash and ID for the resource.
+                    deferred.reject(err);
+                });
             })
             .catch(function (err) {
                 // Reject the top-level promise.
@@ -1016,6 +1023,7 @@ class AssetsHelper extends BaseHelper {
 
         // Begin the push process by determining the content length of the specified local file.
         const helper = this;
+        let errorInfo = resourcePath;
         helper._fsApi.getResourceContentLength(context, resourcePath, opts)
             .then(function (length) {
 
@@ -1028,13 +1036,15 @@ class AssetsHelper extends BaseHelper {
                             streamClosed.resolve(resourcePath);
                         });
 
-                        const resourceMd5 = hashes.generateMD5Hash(helper._fsApi.getResourcePath(context, resourcePath, opts));
-                        // For the resourceId, use the directory name (original ID) that was pulled.
-                        const resourceId = path.basename(path.dirname(resourcePath));
+                        hashes.generateMD5Hash(helper._fsApi.getResourcePath(context, resourcePath, opts)).then(function (resourceMd5) {
+                            // For the resourceId, use the directory name (original ID) that was pulled.
+                            const resourceId = path.basename(path.dirname(resourcePath));
 
                         // Push the resource to the content hub.
                         helper._restApi.pushItem(context, true, true, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
                             .then(function (resource) {
+                                errorInfo = {id: resource.id, path: resourcePath};
+
                                 // Once the resource file has been saved, resolve the top-level promise.
                                 /* istanbul ignore next */
                                 if (WAIT_FOR_CLOSE) {
@@ -1050,51 +1060,56 @@ class AssetsHelper extends BaseHelper {
                                 // The push succeeded so emit a "resource-pushed" event.
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
-                                    emitter.emit("resource-pushed", resourcePath);
+                                    emitter.emit("resource-pushed", {id: resource.id, path: resourcePath});
                                 }
                             })
                             .catch(function (err) {
                                 // Failed to push the resource file, so explicitly close the read stream.
                                 helper._closeStream(context, readStream, streamClosed);
 
-                                // Get the retry item for this asset, if one exists.
-                                const retryItem = err.retry && helper._getRetryItem(context, resourcePath, opts);
+                                    // Get the retry item for this asset, if one exists.
+                                    const retryItem = err.retry && helper._getRetryItem(context, resourcePath, opts);
 
-                                // Retry the push of this asset if we have a retry item.
-                                if (retryItem) {
-                                    // Log a warning that the push of this item will be retried.
-                                    utils.logWarnings(context, i18n.__("pushed_item_retry", {name: resourcePath, message: err.log ? err.log : err.message}));
+                                    // Retry the push of this asset if we have a retry item.
+                                    if (retryItem) {
+                                        // Log a warning that the push of this item will be retried.
+                                        utils.logWarnings(context, i18n.__("pushed_item_retry", {name: resourcePath, message: err.log ? err.log : err.message}));
 
-                                    // Retry the push after the calculated delay.
-                                    setTimeout(function () {
-                                        helper._pushResource(context, resourcePath, opts)
-                                            .then(function (asset) {
-                                                deferred.resolve(asset);
-                                            })
-                                            .catch(function (err) {
-                                                deferred.reject(err);
-                                            });
-                                    }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
-                                } else {
-                                    // Reject the top-level promise.
-                                    /* istanbul ignore next */
-                                    if (WAIT_FOR_CLOSE) {
-                                        // Also wait for the stream to close before rejecting the top-level promise.
-                                        streamClosed.promise
-                                            .then(function () {
-                                                deferred.reject(err);
-                                            });
+                                        // Retry the push after the calculated delay.
+                                        setTimeout(function () {
+                                            helper._pushResource(context, resourcePath, opts)
+                                                .then(function (asset) {
+                                                    deferred.resolve(asset);
+                                                })
+                                                .catch(function (err) {
+                                                    deferred.reject(err);
+                                                });
+                                        }, retryItem[BaseHelper.RETRY_PUSH_ITEM_DELAY]);
                                     } else {
-                                        deferred.reject(err);
-                                    }
+                                        // Reject the top-level promise.
+                                        /* istanbul ignore next */
+                                        if (WAIT_FOR_CLOSE) {
+                                            // Also wait for the stream to close before rejecting the top-level promise.
+                                            streamClosed.promise
+                                                .then(function () {
+                                                    deferred.reject(err);
+                                                });
+                                        } else {
+                                            deferred.reject(err);
+                                        }
 
-                                    // The push failed so emit a "resource-pushed-error" event.
-                                    const emitter = helper.getEventEmitter(context);
-                                    if (emitter) {
-                                        emitter.emit("resource-pushed-error", err, resourcePath);
+                                        // The push failed so emit a "resource-pushed-error" event.
+                                        const emitter = helper.getEventEmitter(context);
+                                        if (emitter) {
+                                            emitter.emit("resource-pushed-error", err, errorInfo);
+                                        }
                                     }
-                                }
-                            });
+                                });
+                        })
+                        .catch(function (err) {
+                            // Failed getting the MD5 for the resource.
+                            deferred.reject(err);
+                        });
                     })
                     .catch(function (err) {
                         // Failed getting the read stream, so just reject the top-level promise.
@@ -1300,9 +1315,7 @@ class AssetsHelper extends BaseHelper {
                 // 429 Too Many Requests - The user has sent too many requests in a given amount of time ("rate limiting").
                 case 429:
                 // 500 Internal Server Error - The server has encountered a situation it doesn't know how to handle.
-                // case 500:
-                // TODO 500 is temporarily disabled because large resources sometimes fail with an Akamai 500 error, and we
-                // TODO don't want to retry in that case. Enable retry on 500 errors once that Akamai issue has been fixed.
+                case 500:
                 // 502 Bad Gateway - The server is working as a gateway and got an invalid response needed to handle the request.
                 case 502:
                 // 503 Service Unavailable - The server is not ready to handle the request. It could be down for maintenance or just overloaded.

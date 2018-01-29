@@ -15,14 +15,14 @@ limitations under the License.
 */
 "use strict";
 
-const JSONItemREST = require("./JSONItemREST.js");
+const JSONPathBasedItemREST = require("./JSONPathBasedItemREST.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class ItemTypesREST extends JSONItemREST {
+class ItemTypesREST extends JSONPathBasedItemREST {
 
     constructor(enforcer) {
         if (enforcer !== singletonEnforcer) {

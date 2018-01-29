@@ -23,6 +23,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 
 // The name used for an options file.
 const optionsFileName = ".wchtoolsoptions";
+const JSON_SUFFIX = ".json";
 
 /**
  * Get the specified nested property from the given options object.
@@ -240,7 +241,12 @@ const options = {
      * @private
      */
     extendOptionsFromFile: function (context, filename) {
-        if (fs.existsSync(filename)) {
+        let exists = fs.existsSync(filename);
+        if (!exists) {
+            filename += JSON_SUFFIX;
+            exists = fs.existsSync(filename);
+        }
+        if (exists) {
             // Read the contents of the options file and extend the dynamic options.
             const newOptions = this.readOptionsFile(context, filename);
             deepExtend(context, newOptions);

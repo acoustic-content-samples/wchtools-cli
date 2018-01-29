@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,9 +13,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-var child_process = require('child_process');
-var cwd = process.cwd();
-child_process.execSync('npm install --no-optional', { cwd: cwd + '/authoring-api',  encoding: 'utf8'});
-child_process.execSync('npm install --no-optional', { cwd: cwd + '/CLI',  encoding: 'utf8'});
+"use strict";
 
-process.exit();
+const JSONItemREST = require("./JSONItemREST.js");
+
+class JSONPathBasedItemREST extends JSONItemREST {
+
+    constructor(serviceName, uriPath, allUriSuffix, modifiedUriSuffix) {
+        super(serviceName, uriPath, allUriSuffix, modifiedUriSuffix);
+    }
+
+    /*
+     * Does this WCH REST API currently support the by-path end point?
+     */
+    supportsItemByPath() {
+        return true;
+    }
+}
+
+module.exports = JSONPathBasedItemREST;

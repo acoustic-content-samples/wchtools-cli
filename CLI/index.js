@@ -88,7 +88,7 @@ const getLocalizedCommandHelp = function (helpText) {
 
 const checkUpdateNotifier = function() {
     // Checks for available update and returns an instance
-    const UPDATE_COMMAND = 'npm install -g wchtools-cli';
+    const UPDATE_COMMAND = 'npm install -g --production --no-optional wchtools-cli';
     const update_command = (process.platform === 'win32') ? UPDATE_COMMAND : 'sudo ' + UPDATE_COMMAND;
     const notifier = updateNotifier({pkg});
     if (notifier.update) {
@@ -96,7 +96,9 @@ const checkUpdateNotifier = function() {
                               {update_command: update_command,
                                current_version: notifier.update.current,
                                new_version: notifier.update.latest});
-        notifier.notify({message: upmsg });
+        const changelogmsg = i18n.__('cli_update_notifier_changelog',
+                                     {changelog_url: "https://github.com/ibm-wch/wchtools-cli/blob/master/CHANGELOG.md" });
+        notifier.notify({message: changelogmsg + '\n' + upmsg });
     }
 };
 

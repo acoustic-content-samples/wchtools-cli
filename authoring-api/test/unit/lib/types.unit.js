@@ -27,9 +27,9 @@ class TypesUnitTest extends UnitTest {
     static get INVALID_TYPES_DIRECTORY() { return UnitTest.API_PATH + UnitTest.INVALID_RESOURCES_DIRECTORY + TypesUnitTest.TYPES_DIRECTORY; };
 
     // Path values for test assets.
-    static get VALID_TYPE_1() { return "type-1.json"; };
-    static get VALID_TYPE_2() { return "type-2.json"; };
-    static get INVALID_TYPE_BAD_NAME() { return "type-bad-name.json"; };
+    static get VALID_TYPE_1() { return "/type-1.json"; };
+    static get VALID_TYPE_2() { return "/type-2.json"; };
+    static get INVALID_TYPE_BAD_NAME() { return "/type-bad-name.json"; };
 
     constructor () {
         super();

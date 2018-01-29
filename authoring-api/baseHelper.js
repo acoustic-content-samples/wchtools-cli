@@ -401,6 +401,8 @@ class BaseHelper {
         const emitter = self.getEventEmitter(context);
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", self._artifactName);
 
+        this.getLogger(context).debug("Retrieving delete chunk from offset " + options.getRelevantOption(context, opts, "offset", self._artifactName) + ".");
+
         listFn(opts)
             .then(function (items) {
                 // Keep track of the original number of items in the chunk.
@@ -487,9 +489,13 @@ class BaseHelper {
         const currentChunkSize = deleteInfo.chunkSize;
         const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
+            this.getLogger(context).debug("Partial delete chunk - Received " + currentChunkSize + ", maximum chunk size is " + maxChunkSize + ".");
+
             // The current chunk is a partial chunk, so there are no more items to be retrieved. Resolve the promise.
             deferred.resolve(results);
         } else {
+            this.getLogger(context).debug("Full delete chunk - Received " + currentChunkSize + ", maximum chunk size is " + maxChunkSize + ".");
+
             // The current chunk is a full chunk, so there may be more items to retrieve.
             const self = this;
 

@@ -364,14 +364,22 @@ class PushCommand extends BaseCommand {
         emitter.on("resource-pushed", resourcePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const assetPushedError = function (error, path) {
+        const assetPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_asset_push_error', {name: path, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_asset_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_asset_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", assetPushedError);
-        const resourcePushedError = function (error, path) {
+        const resourcePushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_resource_push_error', {name: path, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_resource_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_resource_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("resource-pushed-error", resourcePushedError);
 
@@ -431,9 +439,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", imageProfilePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const imageProfilePushedError = function (error, name) {
+        const imageProfilePushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_image_profile_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_image_profile_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_image_profile_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", imageProfilePushedError);
 
@@ -491,9 +503,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", layoutPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const layoutPushedError = function (error, name) {
+        const layoutPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_layout_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_layout_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_layout_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", layoutPushedError);
 
@@ -551,9 +567,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", artifactPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const artifactPushedError = function (error, name) {
+        const artifactPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_layout_mapping_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_layout_mapping_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_layout_mapping_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", artifactPushedError);
 
@@ -611,9 +631,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", renditionPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const renditionPushedError = function (error, name) {
+        const renditionPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_rendition_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_rendition_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_rendition_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", renditionPushedError);
 
@@ -671,9 +695,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", categoryPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const categoryPushedError = function (error, name) {
+        const categoryPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_cat_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_cat_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_cat_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", categoryPushedError);
 
@@ -731,9 +759,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", itemTypePushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const itemTypePushedError = function (error, name) {
+        const itemTypePushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_type_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_type_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_type_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", itemTypePushedError);
 
@@ -791,9 +823,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", contentPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const contentPushedError = function (error, name) {
+        const contentPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_content_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_content_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_content_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", contentPushedError);
 
@@ -851,9 +887,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", artifactPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const artifactPushedError = function (error, name) {
+        const artifactPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_page_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_page_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_page_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", artifactPushedError);
 
@@ -911,9 +951,13 @@ class PushCommand extends BaseCommand {
         emitter.on("pushed", artifactPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
-        const artifactPushedError = function (error, name) {
+        const artifactPushedError = function (error, info) {
             self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_site_push_error', {name: name, message: error.message}));
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_site_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_site_push_error', {name: info, message: error.message}));
+            }
         };
         emitter.on("pushed-error", artifactPushedError);
 

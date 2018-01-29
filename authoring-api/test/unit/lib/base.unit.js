@@ -68,7 +68,7 @@ class UnitTest {
     static get DUMMY_NAME () { return "test-name"; };
     static get DUMMY_PATH () { return "test-path"; };
     static get DUMMY_URI () { return "/test-uri"; };
-    static get DUMMY_METADATA () { return {"id": "xxx", "path": "test1"}; };
+    static get DUMMY_METADATA () { return {"id": "xxx", "path": "test1", "hierarchicalPath": "test1"}; };
     static get DUMMY_OPTIONS () { return {}; };
 
     constructor () {
