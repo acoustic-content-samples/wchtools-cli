@@ -88,13 +88,13 @@ Then follow the Getting Started instructions below, to configure and start using
 
 #### Using a Federated Identity (user) with Watson Content Hub tooling and APIs
 
-  Some user IBM ids are "Federated" accounts as described here: https://console.bluemix.net/docs/admin/adminpublic.html#federatedid
+  Some user IBM ids are "Federated" accounts as described here: https://www.ibm.com/support/knowledgecenter/SS3UMF/dch/admin/fed_authentication_admin.html
 
   Federated user accounts may use the WCH Authoring UI with the user's username and password, but cannot use that same username and password for either WCH REST API access, or for use with wchtools, which uses those same WCH REST APIs.
 
   If your IBM id account is federated, you may receive an error when wchtools tries to authenticate that user to the WCH login API, indicating that you are trying to use a federated account.   If this happens, you may instead create an API key as described in the following IBM Bluemix documentation, and then use "apikey" as the username and the value of that API key as the password, for both WCH REST APIs and for wchtools.
 
-    https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
+https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use.   Then use "apikey" as the value for "Username" on the init command or as passed to the --user argument of wchtools, and use the value of the API key as the password to authenticate with, associated with that API key.
 
