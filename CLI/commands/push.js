@@ -152,7 +152,7 @@ class PushCommand extends BaseCommand {
             process.exitCode = this.CLI_ERROR_EXIT_CODE;
 
             if (this._artifactsCount === 0) {
-                // No artifacts were pulled and there were errors, so report the results as failure.
+                // No artifacts were pushed and there were errors, so report the results as failure.
                 isError = true;
             }
         }

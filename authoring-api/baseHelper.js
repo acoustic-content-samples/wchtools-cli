@@ -413,6 +413,9 @@ class BaseHelper {
                     return self.canDeleteItem(item, true, opts);
                 });
 
+                // Keep track of the list of items that were successfully deleted.
+                const deletedItems = [];
+
                 // Delete the items remaining in the list.
                 const functions = items.map(function (item) {
                     return function () {
@@ -423,39 +426,38 @@ class BaseHelper {
                                     emitter.emit("deleted", item);
                                 }
 
-                                return item;
+                                // Add the deleted item to the list.
+                                deletedItems.push(item);
                             })
                             .catch(function (err) {
-                                if (emitter) {
-                                    // If the item no longer exists, assume it was deleted automatically.
-                                    if (err.statusCode === 404) {
+                                if (err.statusCode === 404) {
+                                    // The item no longer exists, so assume it was deleted automatically.
+                                    if (emitter) {
                                         // Emit a "deleted" event so that listeners know the item was deleted.
                                         emitter.emit("deleted", item);
                                     }
-                                    else if (!err.retry) {
+
+                                    // Add the deleted item to the list, but do not propagate the error.
+                                    deletedItems.push(item);
+                                }
+                                else {
+                                    // Only notify the listeners that the item was not deleted if it won't be retried.
+                                    if (emitter && !err.retry) {
                                         // Emit a "deleted-error" event so that listeners know the item was not deleted.
                                         emitter.emit("deleted-error", err, item);
                                     }
-                                }
 
-                                throw err;
+                                    // Do not add the item to the list, but do propagate the error.
+                                    throw err;
+                                }
                             });
                     };
                 });
 
                 return utils.throttledAll(context, functions, concurrentLimit)
-                    .then(function (promises) {
-                        // Get the list of items that were successfully deleted.
-                        const items = [];
-                        promises.forEach(function (promise) {
-                            if (promise.state === "fulfilled") {
-                                const item = promise.value;
-                                items.push(item);
-                            }
-                        });
-
+                    .then(function () {
                         // Resolve with the number of items in the chunk and an array of deleted items.
-                        deferred.resolve({chunkSize: chunkSize, items: items});
+                        deferred.resolve({chunkSize: chunkSize, items: deletedItems});
                     });
             })
             .catch(function (err) {

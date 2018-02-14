@@ -892,8 +892,9 @@ function getHashesForFile (context, basePath, filePath, opts) {
         return null;
     }
 
-    const relative = utils.getRelativePath(basePath, filePath);
     try {
+        const relative = utils.getRelativePath(basePath, filePath);
+
         // Get the tenant metadata from the hashes file at the specified location.
         const hashMap = loadHashes(context, basePath, opts);
 

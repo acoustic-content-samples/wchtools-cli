@@ -2732,9 +2732,9 @@ class BaseHelperUnitTest extends UnitTest {
                 // Create an fsApi.listItemNames stub that returns an a list.
                 const stub = sinon.stub(fsApi, "listNames");
                 const rVal = [
-                    "file1",
-                    "file2",
-                    "file3"
+                    {id: "file1id", name: "file1"},
+                    {id: "file2id", name: "file2"},
+                    {id: "file3id", name: "file3"}
                 ];
                 stub.resolves(rVal);
 
@@ -3179,7 +3179,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(stubCan).to.be.calledTwice;
                         expect(stubDelete).to.be.calledTwice;
 
-                        expect(items).to.have.lengthOf(1);
+                        expect(items).to.have.lengthOf(2);
                     })
                     .catch(function (err) {
                         error = err;

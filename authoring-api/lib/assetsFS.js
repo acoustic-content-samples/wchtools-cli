@@ -588,7 +588,8 @@ class AssetsFS extends BaseFS {
                                 const item = JSON.parse(fs.readFileSync(path));
                                 id = item.id;
                             } catch (err) {
-                                // ignore: we couldn't read the metadata file to get the id
+                                // we couldn't read the metadata file to get the id, log a warning and continue
+                                utils.logWarnings(context, i18n.__("file_parse_error", {path: path}));
                             }
                         }
                         return {

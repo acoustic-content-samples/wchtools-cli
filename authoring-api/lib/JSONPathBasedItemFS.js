@@ -142,7 +142,8 @@ class JSONPathBasedItemFS extends JSONItemFS {
                                 id = item.id;
                                 name = item.name;
                             } catch (err) {
-                                // ignore: we couldn't open the file to read the id/name
+                                // we couldn't open the file to read the id/name metadata, log a warning and continue
+                                utils.logWarnings(context, i18n.__("file_parse_error", {path: file}));
                             }
                             return {
                                 id: id,

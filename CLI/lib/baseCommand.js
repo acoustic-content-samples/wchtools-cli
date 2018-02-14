@@ -635,12 +635,27 @@ class BaseCommand {
             category: cliLog
         };
 
-        const appenders = [fileAppender];
+        // Configure the logging, we need an appenders object and a categories object.
+        const appenders = {};
+        const categories = {};
+        // Add the fileAppender using the name 'cliLog'.
+        appenders.cliLog = fileAppender;
+        // Set the categories to use the cliLog appender.
+        categories.default = { appenders: ['cliLog'] };
+        categories[cliLog] = { appenders: ['cliLog'] };
         if (this.getCommandLineOption("verbose")) {
-            appenders.push(consoleAppender);
+            // The user has requested verbose output, add the consoleAppender using the name 'cliOut'.
+            appenders.cliOut = consoleAppender;
+            // Add the cliOut appender to the categories.
+            categories.default.appenders.push('cliOut');
+            categories[cliLog].appenders.push('cliOut');
+            // Set the level for the categories to 'INFO' to generate verbose output.
+            categories.default.level = 'INFO';
+            categories[cliLog].level = 'INFO';
         }
         return {
-            appenders: appenders
+            appenders: appenders,
+            categories: categories
         };
     }
     /**
@@ -652,7 +667,6 @@ class BaseCommand {
         if (!this._logger) {
             const logConfig = this.getLogConfig();
             this._logger = utils.getLogger(cliLog, logConfig);
-            this._logger.setLevel('INFO');
         }
         return this._logger;
     }

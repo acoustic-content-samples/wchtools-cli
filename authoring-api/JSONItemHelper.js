@@ -428,8 +428,13 @@ class JSONItemHelper extends BaseHelper {
         return fsObject.listNames(context, opts)
             .then(function (itemNames) {
                 const results = itemNames.filter(function (itemName) {
-                    const itemPath = fsObject.getItemPath(context, itemName, opts);
-                    return hashes.isLocalModified(context, flags, dir, itemPath, undefined, opts);
+                    if (itemName.id) {
+                        const itemPath = fsObject.getItemPath(context, itemName, opts);
+                        return hashes.isLocalModified(context, flags, dir, itemPath, undefined, opts);
+                    } else {
+                        helper.getLogger(context).info(i18n.__("file_skipped" , {path: itemName.path}));
+                        return false;
+                    }
                 });
                 if (flags.indexOf(helper.DELETED) !== -1) {
                     return helper.listLocalDeletedNames(context, opts)

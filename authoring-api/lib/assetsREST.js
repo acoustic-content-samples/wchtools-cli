@@ -160,7 +160,7 @@ class AssetsREST extends BaseREST {
     getAssetUpdateRequestOptions (context, id, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        const headers = BaseREST.getHeaders(context, opts);
+        const headers = BaseREST.getUpdateHeaders(context, opts);
         const forceParam = (options.getRelevantOption(context, opts, "force-override")) ? "?forceOverride=true" : "";
 
         this.getRequestURI(context, opts)
@@ -466,7 +466,7 @@ class AssetsREST extends BaseREST {
                                 });
                         } else if (!isRaw) {
                             // Creating new asset metadata. Fernando web asset or create-only.
-                            restObject.getRequestOptions(context, opts)
+                            restObject.getUpdateRequestOptions(context, opts)
                                 .then(function (reqOptions) {
                                     reqOptions.body = requestBody;
                                     postAssetMetadata(context, reqOptions, deferred, createOnly);

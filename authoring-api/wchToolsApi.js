@@ -78,7 +78,7 @@ class WchToolsApi {
         contextOptions.logger = contextOptions.logger || utils.getLogger(utils.apisLog);
 
         // Assert that all required APIs on the logger are available
-        const loggerFunctions = ["error", "warn", "info", "trace", "debug", "setLevel", "isDebugEnabled"];
+        const loggerFunctions = ["error", "warn", "info", "trace", "debug", "isDebugEnabled"];
         loggerFunctions.forEach(function (name) {
             if (typeof contextOptions.logger[name] !== "function") {
                 throw "logger does not implement required function " + name;
@@ -212,11 +212,11 @@ class WchToolsApi {
         let errors = undefined;
 
         const pushedListener = function (name) {
-            self.getLogger().info("PUSHED: " + name);
+            self.getLogger().info("PUSHED: ", name);
             pushedItems.push(name);
         };
         const pushedErrorListener = function (error, name) {
-            self.getLogger().info("PUSHED ERROR: " + name + ": "+ error);
+            self.getLogger().info("PUSHED ERROR: ", name, error);
             if (!errors) {
                 errors = [];
             }
@@ -392,6 +392,128 @@ class WchToolsApi {
         const helper = WchToolsApi.getPublishingSiteRevisionsHelper();
         const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushSiteRevisions complete");
+        return promise;
+    }
+
+    deleteAllItems (opts) {
+        this.getLogger().info("deleteAllItems started");
+
+        const deferred = Q.defer();
+        const self = this;
+
+        const deletedItems = [];
+        let errors = undefined;
+
+        const deletedListener = function (name) {
+            self.getLogger().info("DELETED: ", name);
+            deletedItems.push(name);
+        };
+        const deleteErrorListener = function (error, name) {
+            self.getLogger().info("DELETE ERROR: ", name, error);
+            if (!errors) {
+                errors = [];
+            }
+            errors.push(error);
+        };
+        if (!this.context.eventEmitter) {
+            this.context.eventEmitter = new events.EventEmitter();
+        }
+        this.context.eventEmitter.on("deleted", deletedListener);
+        this.context.eventEmitter.on("deleted-error", deleteErrorListener);
+
+        self.handlePromise(self.deleteAllPages(opts)).then(function () {
+            return self.handlePromise(self.deleteAllContent(opts));
+        }).then(function () {
+            return self.handlePromise(self.deleteAllLayoutMappings(opts));
+        }).then(function () {
+            return self.handlePromise(self.deleteAllTypes(opts));
+        }).then(function () {
+            return self.handlePromise(self.deleteAllLayouts(opts));
+        }).then(function () {
+            return self.handlePromise(self.deleteAllCategories(opts));
+        }).then(function () {
+            return self.handlePromise(self.deleteAllAssets(opts));
+        }).then(function () {
+            return self.handlePromise(self.deleteAllImageProfiles(opts));
+        }).then(function () {
+            self.getLogger().info("deleteAllItems complete");
+            if (!errors) {
+                deferred.resolve(deletedItems);
+            } else {
+                deferred.reject(errors);
+            }
+        }).catch(function (err) {
+            self.getLogger().error("deleteAllItems complete with error", err);
+            deferred.reject(err);
+        }).finally(function () {
+            self.context.eventEmitter.removeListener("deleted", deletedListener);
+            self.context.eventEmitter.removeListener("deleted-error", deleteErrorListener);
+        });
+
+        return deferred.promise;
+    }
+
+    deleteAllPages (opts) {
+        this.getLogger().info("deleteAllPages started");
+        const helper = WchToolsApi.getPagesHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllPages complete");
+        return promise;
+    }
+
+    deleteAllContent (opts) {
+        this.getLogger().info("deleteAllContent started");
+        const helper = WchToolsApi.getContentHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllContent complete");
+        return promise;
+    }
+
+    deleteAllLayoutMappings (opts) {
+        this.getLogger().info("deleteAllLayoutMappings started");
+        const helper = WchToolsApi.getLayoutMappingsHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllLayoutMappings complete");
+        return promise;
+    }
+
+    deleteAllTypes (opts) {
+        this.getLogger().info("deleteAllTypes started");
+        const helper = WchToolsApi.getItemTypeHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllTypes complete");
+        return promise;
+    }
+
+    deleteAllLayouts (opts) {
+        this.getLogger().info("deleteAllLayouts started");
+        const helper = WchToolsApi.getLayoutsHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllLayouts complete");
+        return promise;
+    }
+
+    deleteAllCategories (opts) {
+        this.getLogger().info("deleteAllCategories started");
+        const helper = WchToolsApi.getCategoriesHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllCategories complete");
+        return promise;
+    }
+
+    deleteAllAssets (opts) {
+        this.getLogger().info("deleteAllAssets started");
+        const helper = WchToolsApi.getAssetsHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllAssets complete");
+        return promise;
+    }
+
+    deleteAllImageProfiles (opts) {
+        this.getLogger().info("deleteAllImageProfiles started");
+        const helper = WchToolsApi.getImageProfilesHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllImageProfiles complete");
         return promise;
     }
 }

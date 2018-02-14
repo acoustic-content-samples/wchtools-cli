@@ -41,12 +41,17 @@ class BaseREST {
         const hdrs = {
             "Accept": "application/json",
             "Accept-Language": utils.getHTTPLanguage(),
-            "Content-Type": "application/json",
             "Connection": "keep-alive",
             "User-Agent": utils.getUserAgent()
         };
 
         return this.addHeaderOverrides(context, hdrs, opts);
+    }
+
+    static getUpdateHeaders (context, opts) {
+        const hdrs = BaseREST.getHeaders(context, opts);
+        hdrs["Content-Type"] = "application/json";
+        return hdrs;
     }
 
     static addHeaderOverrides(context, hdrs, opts) {
@@ -241,10 +246,9 @@ class BaseREST {
         }
     }
 
-    getRequestOptions (context, opts) {
+    _getRequestOptions (context, headers, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const headers = BaseREST.getHeaders(context, opts);
 
         this.getRequestURI(context, opts)
             .then(function (uri) {
@@ -260,6 +264,16 @@ class BaseREST {
                 deferred.reject(err);
             });
         return deferred.promise;
+    }
+
+    getRequestOptions (context, opts) {
+        const headers = BaseREST.getHeaders(context, opts);
+        return this._getRequestOptions(context, headers, opts);
+    }
+
+    getUpdateRequestOptions (context, opts) {
+        const headers = BaseREST.getUpdateHeaders(context, opts);
+        return this._getRequestOptions(context, headers, opts);
     }
 
     supportsByModified () {

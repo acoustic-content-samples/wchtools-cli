@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "2.3.1",
+  "version": "2.3.4",
   "keywords": [
     "api",
     "tools"
@@ -23,7 +23,7 @@
     "deep-extend": "^0.4.1",
     "i18n-2": "^0.6.3",
     "ignore": "^3.3.0",
-    "log4js": "^1.1.1",
+    "log4js": "^2.5.2",
     "mime-types": "^2.1.15",
     "mkdirp": "^0.5.1",
     "q": "^1.5.0",

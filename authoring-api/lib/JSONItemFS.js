@@ -391,7 +391,8 @@ class JSONItemFS extends BaseFS {
                                 id = item.id;
                                 name = item.name;
                             } catch (err) {
-                                // ignore: couldn't read the file to obtain the id/name metadata
+                                // couldn't read the file to obtain the id/name metadata, log a warning and continue
+                                utils.logWarnings(context, i18n.__("file_parse_error", {path: virtualFolderPath + file}));
                             }
 
                             if (id) {
