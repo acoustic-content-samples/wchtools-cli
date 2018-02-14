@@ -13,6 +13,8 @@
   "cannot_pull_item": "Item '%(name)s' could not be pulled.",
 
   "deleted_original_file": "Deleted original file: %(old_name)s new file: %(new_name)s",
+  "file_parse_error": "Unable to parse file: %(path)s",
+  "file_skipped": "No id found in file: %(path)s, skipping",
   "error_cancelling_job": "Error cancelling job: id %(id)s",
   "error_fs_get_item": "Error in file system getItem",
   "error_fs_get_filestats": "Error in file system getFileStats for %(name)s.",
@@ -32,6 +34,7 @@
   "deleted_item": "Deleted item with id: %(id)s",
   "deleted_item_retry": "Retry deleting item '%(name)s'. Error: %(message)s",
   "get_item_error": "Error getting item %(service_name)s: ",
+  "authoring_search_error": "An error occurred while searching the %(service_name)s service: ",
   "create_item_error": "Error creating item %(service_name)s: ",
   "update_item_error": "Error updating item %(service_name)s: ",
   "delete_item_error": "Error deleting item %(service_name)s: ",

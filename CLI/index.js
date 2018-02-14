@@ -90,7 +90,7 @@ const checkUpdateNotifier = function() {
     // Checks for available update and returns an instance
     const UPDATE_COMMAND = 'npm install -g --production --no-optional wchtools-cli';
     const update_command = (process.platform === 'win32') ? UPDATE_COMMAND : 'sudo ' + UPDATE_COMMAND;
-    const notifier = updateNotifier({pkg});
+    const notifier = updateNotifier({pkg, updateCheckInterval: 1000 * 60 * 10 });
     if (notifier.update) {
         const upmsg = i18n.__('cli_update_notifier',
                               {update_command: update_command,

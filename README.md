@@ -71,7 +71,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
   By default, the wchtools CLI uses the update-notifier node module to check the npm registry for a newer version of wchtools-cli module than the one you have currently installed on your system.   The check runs as an asynchronous background task, to avoid slowing down your wchtools commands, and will notify you on the next successful execution of wchtools after it detects that there is a newer version.
 
-   - To avoid nagging you, when you know there's a newer version but aren't ready to update yet,  it only checks once per day, and will only notify you once within that one day interval.
+   - To avoid nagging you, when you know there's a newer version but aren't ready to update yet,  it only checks once every 10 minutes that wchtools is invoked, and will only notify you once within that time interval.
 
    - To disable checking the npm registry for a newer version and notification of updates, set the environment variable NO_UPDATE_NOTIFIER to any value, prior to executing wchtools CLI.   You may set this as a persistent environment variable manually for your OS or unix shell profile script,  or in a build script, if wchtools is run as part of a build process.
 
@@ -89,7 +89,7 @@ Then follow the Getting Started instructions below, to configure and start using
 #### Using a Federated Identity (user) with Watson Content Hub tooling and APIs
 
   Some user IBM ids are "Federated" accounts as described here: https://www.ibm.com/support/knowledgecenter/SS3UMF/dch/admin/fed_authentication_admin.html
-
+  
   Federated user accounts may use the WCH Authoring UI with the user's username and password, but cannot use that same username and password for either WCH REST API access, or for use with wchtools, which uses those same WCH REST APIs.
 
   If your IBM id account is federated, you may receive an error when wchtools tries to authenticate that user to the WCH login API, indicating that you are trying to use a federated account.   If this happens, you may instead create an API key as described in the following IBM Bluemix documentation, and then use "apikey" as the username and the value of that API key as the password, for both WCH REST APIs and for wchtools.

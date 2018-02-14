@@ -356,40 +356,42 @@ const buildTag = process.env.BUILD_TAG;
 /* istanbul ignore next */
 if (buildTag && buildTag.indexOf('jenkins') !== -1) {
     apisLogConfig = {
-        appenders: [
-            {
+        appenders: {
+            apisOut: {
                 type: 'console',
                 category: apisLog
             },
-            {
+            apisLog: {
                 type: 'file',
                 filename: getApiLogPath(),
                 category: apisLog,
                 maxLogSize: 500480,
                 backups: 5
             }
-        ],
-        replaceConsole: false,
-        levels: {
-            "[all]": logLevel
-        }
+        },
+        categories: {
+        },
+        replaceConsole: false
     };
+    apisLogConfig.categories.default = { appenders: ['apisOut', 'apisLog'], level: logLevel };
+    apisLogConfig.categories[apisLog] = { appenders: ['apisOut', 'apisLog'], level: logLevel };
 } else {
     apisLogConfig = {
-        appenders: [
-            {
+        appenders: {
+            apisLog: {
                 type: 'file',
                 filename: getApiLogPath(),
                 category: apisLog,
                 maxLogSize: 500480,
                 backups: 5
             }
-        ],
-        replaceConsole: false,
-        levels: {
-            "[all]": logLevel
-        }
+        },
+        categories: {
+        },
+        replaceConsole: false
     };
+    apisLogConfig.categories.default = { appenders: ['apisLog'], level: logLevel };
+    apisLogConfig.categories[apisLog] = { appenders: ['apisLog'], level: logLevel };
 }
 
 /**
@@ -585,11 +587,28 @@ function setLoggerLevel (name, level) {
     getLogger(name).setLevel(level);
 }
 
-const log4jsConfig = {appenders: [], replaceConsole: false, levels: {"[all]": logLevel}};
+const log4jsConfig = {appenders: {}, categories: {}, replaceConsole: false};
 
 function configLogger (config) {
-    config.appenders.forEach(function (appenderConfig) {
-        log4jsConfig.appenders.push(appenderConfig);
+    // Loop through each appender and add it to the config.
+    Object.keys(config.appenders).forEach(function (key) {
+        log4jsConfig.appenders[key] = config.appenders[key];
+    });
+    // Loop through each category and modify the config.
+    Object.keys(config.categories).forEach(function (key) {
+        if (key !== 'default' || !log4jsConfig.categories.default) {
+            // The category is not default or there is no default category, just assign.
+            log4jsConfig.categories[key] = config.categories[key];
+        } else {
+            // Otherwise, merge each of the specified appenders into the default category.
+            config.categories.default.appenders.forEach(function (appender) {
+                log4jsConfig.categories.default.appenders.push(appender);
+            });
+        }
+        // If a level has not been specified for the category, use the default logLevel.
+        if (!log4jsConfig.categories[key].level) {
+            log4jsConfig.categories[key].level = logLevel;
+        }
     });
     log4js.configure(log4jsConfig);
 }

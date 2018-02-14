@@ -997,17 +997,6 @@ describe("utils", function () {
         });
     });
 
-    describe("setLoggerLevel", function () {
-        it("should succeed", function (done) {
-            try {
-                utils.setLoggerLevel(utils.apisLog, "WARN");
-                done();
-            } catch (e) {
-                done(e);
-            }
-        });
-    });
-
     describe("reset", function () {
         it("should succeed", function (done) {
             try {

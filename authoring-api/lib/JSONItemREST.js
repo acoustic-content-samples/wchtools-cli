@@ -30,7 +30,7 @@ class JSONItemREST extends BaseREST {
     createItem (context, item, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        this.getRequestOptions(context, opts)
+        this.getUpdateRequestOptions(context, opts)
             .then(function (requestOptions) {
                 const saveRev = item.rev;
                 delete item.rev;
@@ -77,7 +77,7 @@ class JSONItemREST extends BaseREST {
     updateItem (context, item, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        this.getRequestOptions(context, opts)
+        this.getUpdateRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + item.id;
                 if (restObject.supportsForceOverride() && options.getRelevantOption(context, opts, "force-override")) {

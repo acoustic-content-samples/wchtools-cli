@@ -1186,7 +1186,7 @@ class BaseRestUnitTest extends UnitTest {
         describe("updateItem", function() {
             it("should fail when getting the request options fails", function (done) {
                 const OPTIONS_ERROR = "cannot get the request options";
-                const stub = sinon.stub(restApi, "getRequestOptions");
+                const stub = sinon.stub(restApi, "getUpdateRequestOptions");
                 stub.onCall(0).rejects(OPTIONS_ERROR);
 
                 // The stub should be restored when the test is complete.
@@ -1661,7 +1661,7 @@ class BaseRestUnitTest extends UnitTest {
         describe("createItem", function() {
             it("should fail when getting the request options fails", function (done) {
                 const OPTIONS_ERROR = "cannot get the request options";
-                const stub = sinon.stub(restApi, "getRequestOptions");
+                const stub = sinon.stub(restApi, "getUpdateRequestOptions");
                 stub.rejects(OPTIONS_ERROR);
 
                 // The stub should be restored when the test is complete.

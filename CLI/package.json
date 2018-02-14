@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "2.3.1",
+  "version": "2.3.4",
   "keywords": [
     "cli"
   ],
@@ -26,7 +26,7 @@
     "colors": "^1.1.2",
     "commander": "^2.9.0",
     "wchtools-api": "../authoring-api",
-    "log4js": "^1.1.1",
+    "log4js": "^2.5.2",
     "ora": "^1.2.0",
     "prompt": "^1.0.0",
     "q": "^1.5.0",
