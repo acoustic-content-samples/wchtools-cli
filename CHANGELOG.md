@@ -1,5 +1,12 @@
 # Changelog
 
+### v2.3.4 changes since 2.3.1
+
+ - Improve error reporting when encountering corrupt and unparseable JSON (e.g. accidentally edited content json with syntax error).
+ - More frequent notification of newer versions of wchtools (once every 10 mins since last checked vs once per day)
+ - Allow multiple artifact types (content, types, assets) to be specified at once, for delete by tag. Previously only one artifact type could be specified at a time, for delete by tag.
+ - Update log4js dependency from 1.1.x to 2.5.x.
+
 ### v2.3 changes since 2.2.8
 
  - PLEASE NOTE:  This version and newer will save content types by path (readable filename) rather than by id, like assets, layouts, pages and mappings, under workingdir/types.  Rather than workingdir/types/{ugly-uuid}_tmd.json types will now be stored as workingdir/types/{type-name}.json  on disk.   This more closely aligns with other files (assets, layouts and mappings) that the web developer typically browses and/or manages on disk.   Content, lacking a path field, is still stored by unique id value, when pulled to disk.
