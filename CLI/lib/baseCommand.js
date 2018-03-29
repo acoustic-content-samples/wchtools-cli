@@ -18,6 +18,7 @@ limitations under the License.
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
+const manifests = ToolsApi.getManifests();
 const fs  = require('fs');
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
@@ -260,11 +261,167 @@ class BaseCommand {
     }
 
     /**
+     * Initialize manifest handling for the command.
+     *
+     * @param {Object} context The API context associated with this command.
+     *
+     * @returns {Array} An array of the site ids to use for this command, or undefined.
+     */
+    getSiteIds (context) {
+        // TODO This will need to be updated when om#998 functionality is merged.
+        if (this.getCommandLineOption("manifest")) {
+            const opts = this.getApiOptions();
+            const sitesSection = manifests.getManifestSection(context, "sites", opts);
+            if (sitesSection) {
+                // The sites section has a property for each site, named by the site id.
+                return Object.keys(sitesSection);
+            }
+        }
+    }
+
+    /**
+     * Initialize manifest handling for the command.
+     *
+     * @param {Object} context The API context associated with this command.
+     *
+     * @returns {boolean} A value of true if the manifests are properly initialized, otherwise false to indicate that
+     *          command execution should not continue.
+     */
+    handleManifestOptions (context) {
+        const opts = this.getApiOptions();
+
+        // Clear out any existing manifest settings.
+        manifests.resetManifests(context, opts);
+
+        const manifest = this.getCommandLineOption("manifest");
+        const writeManifest = this.getCommandLineOption("writeManifest");
+
+        if (manifest || writeManifest) {
+            // A manifest option was specified for this operation, so initialize the manifest settings.
+            if (!manifests.initializeManifests(context, manifest, writeManifest, opts)) {
+                // Display an error message to indicate that the specified manifest is not valid.
+                this.errorMessage(i18n.__('cli_manifest_not_valid', {name: manifest}));
+
+                // Reset the command line options.
+                this.resetCommandLineOptions();
+
+                return false;
+            }
+
+            // Make sure the manifest is compatible with the tenant tier.
+            if (options.getProperty(context, "tier") === "Base") {
+                // A manifest used with a base tier tenant cannot have sites, pages, layouts, or layout-mappings.
+                const incompatibleSections = ["sites", "pages", "layouts", "layout-mappings"];
+
+                // The manifest is incompatible if it contains a section for an incompatible artifact type.
+                const incompatible = incompatibleSections.some(function (section) {
+                    return manifests.getManifestSection(context, section, opts);
+                });
+
+                if (incompatible) {
+                    // Display an error message to indicate that the specified manifest is incompatible.
+                    this.errorMessage(i18n.__('cli_manifest_not_compatible', {name: manifest}));
+
+                    // Reset the command line options.
+                    this.resetCommandLineOptions();
+
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Determine how many artifact type options were specified. If none, then set the default artifact type option.
      *
+     * @param {Object} context The API context associated with this command.
      * @param {Array} [defaultArtifactTypes] The artifact types to use if no artifact types have been specified.
+     *
+     * @returns {boolean} A value of true if the artifact types were initialized, otherwise false to indicate that
+     *          command execution should not continue.
      */
-    handleArtifactTypes (defaultArtifactTypes) {
+    handleArtifactTypes (context, defaultArtifactTypes) {
+        const opts = this.getApiOptions();
+        const manifest = this.getCommandLineOption("manifest");
+
+        // If a manifest was specified, then the artifact types are defined by the manifest.
+        if (manifest) {
+            // Note that "sites" must be declared before "pages" in order for the subsequent logic to work correctly.
+            const artifactTypes = [
+                {option: "types", section: "types"},
+                {option: "assets", section: "assets"},
+                {option: "webassets", section: "assets"},
+                {option: "layouts", section: "layouts"},
+                {option: "layoutMappings", section: "layout-mappings"},
+                {option: "content", section: "content"},
+                {option: "categories", section: "categories"},
+                {option: "renditions", section: "renditions"},
+                {option: "imageProfiles", section: "image-profiles"},
+                {option: "sites", section: "sites"},
+                {option: "pages", section: "pages"},
+                {option: "publishingProfiles", section: "publishing-profiles"},
+                {option: "publishingSiteRevisions", section: "site-revisions"},
+                {option: "publishingSources", section: "publishing-sources"}
+            ];
+
+            const self = this;
+            // Determine if any artifact type args were explicitly specified.
+            let artifactTypeArg = false;
+            artifactTypes.forEach(function (artifactType) {
+                if (self.getCommandLineOption(artifactType.option)) {
+                    artifactTypeArg = true;
+                    self._optionArtifactCount++;
+                }
+            });
+
+            // Set any artifact types that exist in the manifest.
+            let siteIds;
+            artifactTypes.forEach(function (artifactType) {
+                let hasSection = false;
+
+                // Sites and pages are handled separately so that a page section can be found for each site.
+                if (artifactType.section === "sites") {
+                    siteIds = self.getSiteIds(context);
+                    if (siteIds) {
+                        hasSection = true;
+                    }
+                } else if (artifactType.section === "pages") {
+                    // Iterate over the site ids to see if any have a pages section.
+                    hasSection = siteIds && siteIds.some(function (siteId) {
+                        // Set the siteId property so the manifest logic knows which site to use.
+                        return manifests.getManifestSection(context, "pages", utils.cloneOpts(opts, {siteId: siteId}));
+                    });
+                } else if (manifests.getManifestSection(context, artifactType.section, opts)) {
+                    hasSection = true;
+                }
+
+                if (!artifactTypeArg && hasSection) {
+                    // Set the command line option for this type, and increment the counter.
+                    self.setCommandLineOption(artifactType.option, true);
+                    self._optionArtifactCount++;
+                } else if (artifactTypeArg && self.getCommandLineOption(artifactType.option) && !hasSection) {
+                    // Remove any explicitly specified argument if the manifest doesn't contain that artifact type.
+                    self.setCommandLineOption(artifactType.option, undefined);
+                    self._optionArtifactCount--;
+                }
+            });
+
+            // Make sure there were artifacts in the manifest.
+            if (self._optionArtifactCount === 0) {
+                // Display an error message to indicate that the specified manifest did not contain any artifacts.
+                self.errorMessage(i18n.__('cli_manifest_no_artifacts', {name: manifest}));
+
+                // Reset the command line options.
+                this.resetCommandLineOptions();
+
+                return false;
+            } else {
+                return true;
+            }
+        }
+
         // If all-Authoring was specified, set all authoring artifact types.
         if (this.getCommandLineOption("allAuthoring")) {
             this.setCommandLineOption("types", true);
@@ -339,6 +496,8 @@ class BaseCommand {
                 self._optionArtifactCount++;
             });
         }
+
+        return true;
     }
 
     /**
@@ -643,15 +802,15 @@ class BaseCommand {
         // Set the categories to use the cliLog appender.
         categories.default = { appenders: ['cliLog'] };
         categories[cliLog] = { appenders: ['cliLog'] };
+        // Set the level for the categories to 'INFO' to generate verbose output.
+        categories.default.level = 'INFO';
+        categories[cliLog].level = 'INFO';
         if (this.getCommandLineOption("verbose")) {
             // The user has requested verbose output, add the consoleAppender using the name 'cliOut'.
             appenders.cliOut = consoleAppender;
             // Add the cliOut appender to the categories.
             categories.default.appenders.push('cliOut');
             categories[cliLog].appenders.push('cliOut');
-            // Set the level for the categories to 'INFO' to generate verbose output.
-            categories.default.level = 'INFO';
-            categories[cliLog].level = 'INFO';
         }
         return {
             appenders: appenders,

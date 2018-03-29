@@ -78,14 +78,20 @@ describe("utils", function () {
             }
         });
 
-        it("should return true for an invalid path", function (done) {
+        it("should return true for an invalid Windows path, when on Windows", function (done) {
             let error;
+
+            // Test the code path for Windows, which is more restrictive on valid filename chars
+            const stubIsWindows = sinon.stub(utils, "isWindows");
+            stubIsWindows.returns(true);
+
             try {
                 const valid = utils.isInvalidPath('foo>bar|loren<ips*m?');
                 expect(valid).to.be.true;
             } catch (err) {
                 error = err;
             } finally {
+                stubIsWindows.restore();
                 done(error);
             }
         });

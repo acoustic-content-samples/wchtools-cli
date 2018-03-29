@@ -13,6 +13,8 @@
   "cannot_pull_item": "L'élément '%(name)s' n'a pas pu être extrait.",
 
   "deleted_original_file": "Fichier d'origine supprimé : %(old_name)s ; nouveau fichier : %(new_name)s",
+  "file_parse_error": "Impossible de faire une analyse syntaxique du fichier : %(path)s",
+  "file_skipped": "Aucun ID trouvé dans le fichier : %(path)s, ignoré",
   "error_cancelling_job": "Erreur lors de l'annulation du travail : id %(id)s",
   "error_fs_get_item": "Erreur dans le fichier système getItem",
   "error_fs_get_filestats": "Erreur dans la fonction getFileStats du système de fichiers pour %(name)s.",
@@ -32,6 +34,7 @@
   "deleted_item": "L'élément dont l'ID est %(id)s a été supprimé",
   "deleted_item_retry": "Nouvelle tentative de suppression de l'élément '%(name)s'. Erreur : %(message)s",
   "get_item_error": "Erreur lors de l'obtention de l'élément %(service_name)s : ",
+  "authoring_search_error": "Une erreur s'est produite lors de la recherche dans le service %(service_name)s : ",
   "create_item_error": "Erreur lors de la création de l'élément %(service_name)s : ",
   "update_item_error": "Erreur lors de la mise à jour de l'élément %(service_name)s : ",
   "delete_item_error": "Erreur lors de la suppression de l'élément %(service_name)s : ",

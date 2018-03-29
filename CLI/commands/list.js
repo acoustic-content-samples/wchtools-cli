@@ -61,6 +61,16 @@ class ListCommand extends BaseCommand {
         return tabs;
     }
 
+    handleManifestOptions (context) {
+        const result = super.handleManifestOptions(context);
+
+        // The manifest created from a list command should not be limited to modified items.
+        if (this.getCommandLineOption("writeManifest")) {
+            this.setCommandLineOption("ignoreTimestamps", true);
+        }
+        return result;
+    }
+
     /**
      * List the specified artifacts.
      */
@@ -68,13 +78,20 @@ class ListCommand extends BaseCommand {
         // Create the context for listing the artifacts of each specified type.
         const toolsApi = new ToolsApi();
         const context = toolsApi.getContext();
-
-        // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
         const self = this;
-        self.handleArtifactTypes(["webassets"]);
 
-        // Make sure the "path" and "dir" options can be handled successfully.
-        if (!self.handleDirOption(context) || !self.handlePathOption()) {
+        // Make sure the "dir" option can be handled successfully.
+        if (!self.handleDirOption(context)) {
+            return;
+        }
+
+        // Handle the manifest options and the artifact types.
+        if (!self.handleManifestOptions(context) || !self.handleArtifactTypes(context, ["webassets"])) {
+            return;
+        }
+
+        // Make sure the "path" option can be handled successfully.
+        if (!self.handlePathOption()) {
             return;
         }
 
@@ -103,40 +120,41 @@ class ListCommand extends BaseCommand {
                 // Start the display of the list.
                 self.startDisplay();
 
-                return Q.allSettled(self.listArtifacts(context));
+                return self.listArtifacts(context);
             })
             .then(function (results) {
-                let artifactsCount = 0;
+                // Save the results to a manifest, if one was specified.
+                try {
+                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
+                } catch (err) {
+                    // Log the error that occurred while saving the manifest, but do not fail the list operation.
+                    self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                }
 
                 // Display the list of artifacts for each of the specified types.
+                let artifactsCount = 0;
                 results.forEach(function (result) {
-                    if (result.state === 'rejected') {
-                        let msg;
-                        if (result.reason instanceof Error) {
-                            msg = result.reason.heading + ' ' + result.reason.message;
-                        }
-                        else {
-                           msg = result.reason.toString();
-                        }
+                    const isError = (result instanceof Error);
+                    const isString = (typeof result === "string");
+                    if (isError || isString) {
+                        const msg = isError ? result.heading + ' ' + result.message : result;
                         if (!self.getCommandLineOption("quiet")) {
                             BaseCommand.displayToConsole(msg);
                         } else {
-                            const logger = self.getLogger();
-                            logger.info(msg);
+                            self.getLogger().info(msg);
                         }
                     }
                     else {
                         // Display a message for the current type.
-                        const msg = result.value.type;
+                        const msg = result.type;
                         if (!self.getCommandLineOption("quiet")) {
                             BaseCommand.displayToConsole(msg);
                         } else {
-                            const logger = self.getLogger();
-                            logger.info(msg);
+                            self.getLogger().info(msg);
                         }
 
                         // Display (or log) the list of items for the current type.
-                        const items = result.value.value;
+                        const items = result.value;
                         let maxId = 0;
                         let maxName = 0;
                         let maxPath = 0;
@@ -356,80 +374,130 @@ class ListCommand extends BaseCommand {
     }
 
     /**
+     * Prepare to list the artifacts.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the command is ready to list artifacts.
+     */
+    readyToList () {
+        const deferred = Q.defer();
+
+        // There is currently no condition to wait for.
+        deferred.resolve();
+
+        return deferred.promise;
+    }
+
+    /**
+     * Handle the given list promise according to whether the results or an error should be added to the results.
+     *
+     * @param {Q.Promise} promise A promise to list some artifacts.
+     * @param {Array} results The accumulated list results.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the list has completed.
+     */
+    handleListPromise (promise, results) {
+        const deferredPush = Q.defer();
+        promise
+            .then(function (listResults) {
+                results.push(listResults);
+                deferredPush.resolve();
+            })
+            .catch(function (err) {
+                results.push(err);
+                deferredPush.resolve();
+            });
+        return deferredPush.promise;
+    }
+
+    /**
      * List the artifacts for the types specified on the command line.
      *
      * @param {Object} context The API context associated with this list command.
      *
-     * @return {Array} An array of promises, each resolving to the result of listing one type of artifact.
+     * @return {Q.Promise} A promise that resolves when all artifacts of the specified types have been listed.
      */
     listArtifacts (context) {
-        // Keep track of the different promises so we can finish the command after all promises are resolved.
-        const promises = [];
+        const deferred = Q.defer();
+        const self = this;
 
-        // Handle the assets option.
-        if (this.getCommandLineOption("assets") || this.getCommandLineOption("webassets")) {
-            promises.push(this.listAssets(context));
-        }
+        // Keep track of the results so we can finish the command after all promises are resolved.
+        const results = [];
 
-        // Handle the imageProfiles option.
-        if (this.getCommandLineOption("imageProfiles")) {
-            promises.push(this.listImageProfiles(context));
-        }
+        self.readyToList()
+            .then(function () {
+                if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
+                    return self.handleListPromise(self.listAssets(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("imageProfiles")) {
+                    return self.handleListPromise(self.listImageProfiles(context), results);
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layouts") && !self.isBaseTier(context)) {
+                    return self.handleListPromise(self.listLayouts(context), results);
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("layoutMappings") && !self.isBaseTier(context)) {
+                    return self.handleListPromise(self.listLayoutMappings(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("categories")) {
+                    return self.handleListPromise(self.listCategories(context), results);
+                }
+            })
+            .then(function() {
+                if (self.getCommandLineOption("renditions")) {
+                    return self.handleListPromise(self.listRenditions(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("sites") && !self.isBaseTier(context)) {
+                    return self.handleListPromise(self.listSites(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("pages") && !self.isBaseTier(context)) {
+                    return self.handleListPromise(self.listPages(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("types")) {
+                    return self.handleListPromise(self.listTypes(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("content")) {
+                    return self.handleListPromise(self.listContent(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("publishingSources")) {
+                    return self.handleListPromise(self.listSources(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("publishingProfiles")) {
+                    return self.handleListPromise(self.listProfiles(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("publishingSiteRevisions")) {
+                    return self.handleListPromise(self.listSiteRevisions(context), results);
+                }
+            })
+            .then(function () {
+                deferred.resolve(results);
+            })
+            .catch(function (err) {
+                self.getLogger().error(err.message);
+                deferred.reject(err);
+            });
 
-        // Handle the layouts option.
-        if (this.getCommandLineOption("layouts") && !this.isBaseTier(context)) {
-            promises.push(this.listLayouts(context));
-        }
-
-        // Handle the layout mappings option.
-        if (this.getCommandLineOption("layoutMappings") && !this.isBaseTier(context)) {
-            promises.push(this.listLayoutMappings(context));
-        }
-
-        // Handle the categories option.
-        if (this.getCommandLineOption("categories")) {
-            promises.push(this.listCategories(context));
-        }
-
-        // Handle the renditions option.
-        if (this.getCommandLineOption("renditions")) {
-            promises.push(this.listRenditions(context));
-        }
-
-        if (this.getCommandLineOption("sites") && !this.isBaseTier(context)) {
-            promises.push(this.listSites(context));
-        }
-
-        if (this.getCommandLineOption("pages") && !this.isBaseTier(context)) {
-            promises.push(this.listPages(context));
-        }
-
-        // Handle the types option.
-        if (this.getCommandLineOption("types")) {
-            promises.push(this.listTypes(context));
-        }
-
-        // Handle the content option.
-        if (this.getCommandLineOption("content")) {
-            promises.push(this.listContent(context));
-        }
-
-        // Handle the publishing sources option.
-        if (this.getCommandLineOption("publishingSources")) {
-            promises.push(this.listSources(context));
-        }
-
-        // Handle the publishing profiles option.
-        if (this.getCommandLineOption("publishingProfiles")) {
-            promises.push(this.listProfiles(context));
-        }
-
-        // Handle the publishing profiles option.
-        if (this.getCommandLineOption("publishingSiteRevisions")) {
-            promises.push(this.listSiteRevisions(context));
-        }
-
-        return promises;
+        return deferred.promise;
     }
 
     /**
@@ -844,6 +912,7 @@ class ListCommand extends BaseCommand {
         this.setCommandLineOption("del", undefined);
         this.setCommandLineOption("mod", undefined);
         this.setCommandLineOption("server", undefined);
+        this.setCommandLineOption("writeManifest", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -870,6 +939,7 @@ function listCommand (program) {
         .option('-q --quiet',            i18n.__('cli_list_opt_quiet'))
         .option('-I --ignore-timestamps',i18n.__('cli_list_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_list_opt_all'))
+        .option('--write-manifest <manifest>',   i18n.__('cli_list_opt_write_manifest'))
         .option('--path <path>',         i18n.__('cli_list_opt_path'))
         .option('--dir <dir>',           i18n.__('cli_list_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))

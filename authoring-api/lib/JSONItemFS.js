@@ -288,7 +288,7 @@ class JSONItemFS extends BaseFS {
         const fsObject = this;
         const hasConflict = opts && opts.conflict;
         let filepath = this.getItemPath(context, item, opts);
-        if (!utils.isValidWindowsPathname(filepath)) {
+        if (!utils.isValidFilePath(filepath)) {
             const deferred = Q.defer();
             deferred.reject(new Error(i18n.__("invalid_path", {path: filepath})));
             return deferred.promise;
@@ -313,13 +313,16 @@ class JSONItemFS extends BaseFS {
                             // the new conflict file.) But, if the item has not been renamed, we do not want to delete
                             // the existing artifact file when we save a conflict file.
                             fsObject.handleRename(context, item.id, baseFilepath, opts);
-                            fsObject.pruneItem(item, opts);
-                            fs.writeFileSync(filepath, JSON.stringify(item, null, "  "));
+
+                            // Make a copy of the item so we can prune it before saving.
+                            const prunedItem = utils.clone(item);
+                            fsObject.pruneItem(prunedItem, opts);
+                            fs.writeFileSync(filepath, JSON.stringify(prunedItem, null, "  "));
                             if (!hasConflict) {
                                 hashes.updateHashes(context, fsObject.getPath(context, opts), filepath, item, undefined, undefined, opts);
 
                                 // Add the item to the cache, if a cache has been enabled.
-                                JSONItemFS.addItemToCache(context, filepath, item, opts);
+                                JSONItemFS.addItemToCache(context, filepath, prunedItem, opts);
                             }
                             return resolve(item);
                         } catch (err) {

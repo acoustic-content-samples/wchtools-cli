@@ -13,6 +13,8 @@
   "cannot_pull_item": "O item '%(name)s' não pôde ser puxado.",
 
   "deleted_original_file": "Excluído arquivo original: %(old_name)s novo arquivo: %(new_name)s",
+  "file_parse_error": "Não é possível analisar arquivo: %(path)s",
+  "file_skipped": "Nenhum ID localizado no arquivo: %(path)s, ignorando",
   "error_cancelling_job": "Erro ao cancelar tarefa: ID %(id)s",
   "error_fs_get_item": "Erro no sistema de arquivos getItem",
   "error_fs_get_filestats": "Erro no sistema de arquivos getFileStats para %(name)s.",
@@ -32,6 +34,7 @@
   "deleted_item": "Item excluído com o ID: %(id)s",
   "deleted_item_retry": "Tente excluir o item '%(name)s' novamente. Erro: %(message)s",
   "get_item_error": "Erro ao obter item %(service_name)s: ",
+  "authoring_search_error": "Ocorreu um erro ao procurar o serviço %(service_name)s: ",
   "create_item_error": "Erro ao criar item %(service_name)s: ",
   "update_item_error": "Erro ao atualizar item %(service_name)s: ",
   "delete_item_error": "Erro ao excluir item %(service_name)s: ",

@@ -13,6 +13,8 @@
   "cannot_pull_item": "No se ha podido extraer el elemento '%(name)s'.",
 
   "deleted_original_file": "Archivo original suprimido: nuevo archivo de %(old_name)s: %(new_name)s",
+  "file_parse_error": "No se ha podido analizar el archivo: %(path)s",
+  "file_skipped": "No se ha encontrado el id en el archivo: %(path)s, skipping",
   "error_cancelling_job": "Error al cancelar el trabajo: id %(id)s",
   "error_fs_get_item": "Error en getItem del sistema de archivos",
   "error_fs_get_filestats": "Error en getFileStats del sistema de archivos para %(name)s.",
@@ -32,6 +34,7 @@
   "deleted_item": "Se ha suprimido el elemento con el ID: %(id)s",
   "deleted_item_retry": "Reintento de suprimir el elemento '%(name)s'. Error: %(message)s",
   "get_item_error": "Error al obtener el elemento %(service_name)s: ",
+  "authoring_search_error": "Se ha producido un error al buscar el servicio %(service_name)s: ",
   "create_item_error": "Error al crear el elemento %(service_name)s: ",
   "update_item_error": "Error al actualizar el elemento %(service_name)s: ",
   "delete_item_error": "Error al suprimir el elemento %(service_name)s: ",

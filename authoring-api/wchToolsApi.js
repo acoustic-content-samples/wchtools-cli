@@ -34,6 +34,7 @@ const pagesHelper = require('./pagesHelper').instance;
 const login = require('./lib/loginREST').instance;
 const utils = require('./lib/utils/utils.js');
 const options = require('./lib/utils/options.js');
+const manifests = require('./lib/utils/manifests.js');
 const events = require("events");
 
 class WchToolsApi {
@@ -190,6 +191,10 @@ class WchToolsApi {
 
     static getOptions () {
         return options;
+    }
+
+    static getManifests () {
+        return manifests;
     }
 
     pushAllItems (opts) {

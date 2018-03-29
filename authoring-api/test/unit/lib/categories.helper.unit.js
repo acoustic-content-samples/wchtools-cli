@@ -225,8 +225,8 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
                 const itemMetadata2 = UnitTest.getJsonObject(nonSystemPath1);
                 const itemMetadata3 = UnitTest.getJsonObject(nonSystemPath2);
 
-                // Create a helper.listModifiedLocalItemNames stub that returns a list of items.
-                const stubList = sinon.stub(helper, "listModifiedLocalItemNames");
+                // Create a helper._listModifiedLocalItemNames stub that returns a list of items.
+                const stubList = sinon.stub(helper, "_listModifiedLocalItemNames");
                 stubList.resolves([helper.getName(itemMetadata1), helper.getName(itemMetadata2), helper.getName(itemMetadata3)]);
 
                 const stubGetLocalItem = sinon.stub(helper, "getLocalItem");
@@ -282,8 +282,8 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
                 itemMetadata1["ancestorIds"] = ["040e272a2bdb3f225a4176681251d5f8", "another-id"];
                 itemMetadata2["ancestorIds"] = ["another-id"];
 
-                // Create a helper.listModifiedLocalItemNames stub that returns a list of items.
-                const stubList = sinon.stub(helper, "listModifiedLocalItemNames");
+                // Create a helper._listModifiedLocalItemNames stub that returns a list of items.
+                const stubList = sinon.stub(helper, "_listModifiedLocalItemNames");
                 stubList.resolves([helper.getName(itemMetadata1), helper.getName(itemMetadata2)]);
 
                 // Create a helper.pushItem stub that return an item.

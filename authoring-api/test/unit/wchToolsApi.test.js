@@ -32,7 +32,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getItemTypeHelper", function (done) {
             const helper = ToolsApi.getItemTypeHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("types");
+            expect(helper.getArtifactName()).to.equal("types");
             expect(helper).to.have.property("getVirtualFolderName");
             expect(helper).to.have.property("createRemoteItem");
             expect(helper).to.have.property("pullAllItems");
@@ -42,7 +42,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getAssetsHelper", function (done) {
             const helper = ToolsApi.getAssetsHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("assets");
+            expect(helper.getArtifactName()).to.equal("assets");
             expect(helper).to.have.property("getVirtualFolderName");
             expect(helper).to.have.property("pushModifiedItems");
             expect(helper).to.have.property("deleteRemoteItem");
@@ -52,7 +52,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getImageProfilesHelper", function (done) {
             const helper = ToolsApi.getImageProfilesHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("image-profiles");
+            expect(helper.getArtifactName()).to.equal("image-profiles");
             expect(helper).to.have.property("canPushItem");
             expect(helper).to.have.property("getLocalItems");
             expect(helper).to.have.property("pushModifiedItems");
@@ -62,7 +62,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getRenditionsHelper", function (done) {
             const helper = ToolsApi.getRenditionsHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("renditions");
+            expect(helper.getArtifactName()).to.equal("renditions");
             expect(helper).to.have.property("doesDirectoryExist");
             expect(helper).to.have.property("getPathName");
             expect(helper).to.have.property("pushAllItems");
@@ -72,7 +72,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getContentHelper", function (done) {
             const helper = ToolsApi.getContentHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("content");
+            expect(helper.getArtifactName()).to.equal("content");
             expect(helper).to.have.property("isRetryPushEnabled");
             expect(helper).to.have.property("listLocalDeletedNames");
             expect(helper).to.have.property("supportsDeleteByPath");
@@ -82,7 +82,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getCategoriesHelper", function (done) {
             const helper = ToolsApi.getCategoriesHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("categories");
+            expect(helper.getArtifactName()).to.equal("categories");
             expect(helper).to.have.property("canPullItem");
             expect(helper).to.have.property("getLocalItem");
             expect(helper).to.have.property("pullAllItems");
@@ -101,7 +101,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getPublishingSourcesHelper", function (done) {
             const helper = ToolsApi.getPublishingSourcesHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("publishing-sources");
+            expect(helper.getArtifactName()).to.equal("publishing-sources");
             expect(helper).to.have.property("getName");
             expect(helper).to.have.property("pushAllItems");
             expect(helper).to.have.property("listRemoteDeletedNames");
@@ -111,7 +111,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getPublishingProfilesHelper", function (done) {
             const helper = ToolsApi.getPublishingProfilesHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("publishing-profiles");
+            expect(helper.getArtifactName()).to.equal("publishing-profiles");
             expect(helper).to.have.property("getName");
             expect(helper).to.have.property("canPushItem");
             expect(helper).to.have.property("getLogger");
@@ -121,7 +121,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getPublishingSiteRevisionsHelper", function (done) {
             const helper = ToolsApi.getPublishingSiteRevisionsHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("site-revisions");
+            expect(helper.getArtifactName()).to.equal("site-revisions");
             expect(helper).to.have.property("getName");
             expect(helper).to.have.property("isRetryPushEnabled");
             expect(helper).to.have.property("getEventEmitter");
@@ -131,7 +131,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getLayoutsHelper", function (done) {
             const helper = ToolsApi.getLayoutsHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("layouts");
+            expect(helper.getArtifactName()).to.equal("layouts");
             expect(helper).to.have.property("supportsDeleteById");
             expect(helper).to.have.property("createRemoteItem");
             expect(helper).to.have.property("getPathName");
@@ -141,7 +141,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getLayoutMappingsHelper", function (done) {
             const helper = ToolsApi.getLayoutMappingsHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("layout-mappings");
+            expect(helper.getArtifactName()).to.equal("layout-mappings");
             expect(helper).to.have.property("supportsDeleteByPath");
             expect(helper).to.have.property("deleteRemoteItem");
             expect(helper).to.have.property("pushModifiedItems");
@@ -151,7 +151,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getSitesHelper", function (done) {
             const helper = ToolsApi.getSitesHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("sites");
+            expect(helper.getArtifactName()).to.equal("sites");
             expect(helper).to.have.property("addRetryPushProperties");
             expect(helper).to.have.property("getLocalItems");
             expect(helper).to.have.property("pushItem");
@@ -161,7 +161,7 @@ describe("Unit tests for wchToolsApi.js", function () {
         it("getPagesHelper", function (done) {
             const helper = ToolsApi.getPagesHelper();
             expect(helper).to.be.ok;
-            expect(helper._artifactName).to.equal("pages");
+            expect(helper.getArtifactName()).to.equal("pages");
             expect(helper).to.have.property("getName");
             expect(helper).to.have.property("filterRetryPush");
             expect(helper).to.have.property("getRemoteItemByPath");
@@ -783,6 +783,65 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubSources.restore();
                     stubProfiles.restore();
                     stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+    });
+
+    describe("deleteAllItems", function () {
+        it("should succeed when no items to delete", function (done) {
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems");
+            stubImageProfiles.resolves([]);
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "deleteRemoteItems");
+            stubCategories.resolves([]);
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "deleteRemoteItems");
+            stubAssets.resolves([]);
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "deleteRemoteItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "deleteRemoteItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "deleteRemoteItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
+            stubContent.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
+            stubPages.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            const api = new ToolsApi();
+            api.deleteAllItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledOnce;
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(0);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubPages.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);

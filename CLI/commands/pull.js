@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016, 2017
+Copyright IBM Corporation 2016, 2017, 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,6 +55,10 @@ const EVENT_RESOURCE_PULLED = "resource-pulled";
 const EVENT_RESOURCE_PULLED_ERROR = "resource-pulled-error";
 const EVENT_ITEM_LOCAL_ONLY = "local-only";
 const EVENT_RESOURCE_LOCAL_ONLY = "resource-local-only";
+const EVENT_POST_PROCESS = "post-process";
+
+// Embedded inline renditions have a special id format
+const EMBEDDED_RENDITION_ID = /r=.*&a=.*/;
 
 class PullCommand extends BaseCommand {
     /**
@@ -81,11 +85,31 @@ class PullCommand extends BaseCommand {
         const context = toolsApi.getContext();
         const self = this;
 
-        // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
-        self.handleArtifactTypes(["webassets"]);
+        if (!self.validateOptions()) {
+            self.resetCommandLineOptions();
+            return;
+        }
+
+        // Handle the various validation checks.
+        if (this.getCommandLineOption("manifest") && this.getCommandLineOption("deletions")) {
+            // Pull by manifest is not compatible with pulling deletions.
+            this.errorMessage(i18n.__("cli_pull_manifest_and_deletions"));
+            this.resetCommandLineOptions();
+            return;
+        }
 
         // Make sure the "dir" option can be handled successfully.
         if (!self.handleDirOption(context)) {
+            return;
+        }
+
+        // Handle the manifest options.
+        if (!self.handleManifestOptions(context)) {
+            return;
+        }
+
+        // Handle the cases of no artifact types, "all" authoring types, and using a manifest.
+        if (!self.handleArtifactTypes(context, ["webassets"])) {
             return;
         }
 
@@ -111,6 +135,15 @@ class PullCommand extends BaseCommand {
 
                 return self.pullArtifacts(context);
             })
+            .then(function () {
+                // Save the results to a manifest, if one was specified.
+                try {
+                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
+                } catch (err) {
+                    // Log the error that occurred while saving the manifest, but do not fail the pull operation.
+                    self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                }
+            })
             .catch(function (err) {
                 // Pass the error through to the endDisplay() method.
                 error = err;
@@ -129,7 +162,14 @@ class PullCommand extends BaseCommand {
      */
     startDisplay () {
         // Display the console message that the list is starting.
-        BaseCommand.displayToConsole( i18n.__(this._modified ? 'cli_pull_modified_started' : 'cli_pull_started'));
+        const manifest = this.getCommandLineOption("manifest");
+        if (manifest) {
+            BaseCommand.displayToConsole(i18n.__('cli_pull_manifest_started', {name: manifest}));
+        } else if (this._modified) {
+            BaseCommand.displayToConsole(i18n.__('cli_pull_modified_started'));
+        } else {
+            BaseCommand.displayToConsole(i18n.__('cli_pull_started'));
+        }
 
         // Start the spinner (progress indicator) if we're not doing verbose output.
         if (!this.getCommandLineOption("verbose")) {
@@ -144,16 +184,31 @@ class PullCommand extends BaseCommand {
      * @param err An error to be displayed if the pull operation resulted in an error before it was started.
      */
     endDisplay (err) {
+        let message;
         const logger = this.getLogger();
-        logger.info(PREFIX + i18n.__(this._modified ? 'cli_pull_modified_pulling_complete' : 'cli_pull_pulling_complete') + SUFFIX);
+        const manifest = this.getCommandLineOption("manifest");
+        if (manifest) {
+            message = i18n.__('cli_pull_manifest_pulling_complete', {name: manifest})
+        } else if (this._modified) {
+            message = i18n.__('cli_pull_modified_pulling_complete');
+        } else {
+            message = i18n.__('cli_pull_pulling_complete');
+        }
+        logger.info(PREFIX + message + SUFFIX);
+
         if (this.spinner) {
             this.spinner.stop();
         }
 
-        // FUTURE This is not translation compatible. We need to convert this to a string with substitution parameters.
         let isError = false;
         let logError = true;
-        let message = i18n.__(this._modified ? 'cli_pull_modified_complete' : 'cli_pull_complete');
+        if (manifest) {
+            message = i18n.__('cli_pull_manifest_complete', {name: manifest})
+        } else if (this._modified) {
+            message = i18n.__('cli_pull_modified_complete');
+        } else {
+            message = i18n.__('cli_pull_complete');
+        }
         if (this._artifactsCount > 0) {
             message += " " + i18n.__n('cli_pull_success', this._artifactsCount);
         }
@@ -197,6 +252,40 @@ class PullCommand extends BaseCommand {
     }
 
     /**
+     * Determine whether certain combinations of options are incompatible, and if so log an error
+     * @return {boolean}
+     */
+    validateOptions() {
+        const self = this;
+        let valid = true;
+        if (self.getCommandLineOption("byTypeName")) {
+            self._modified = false;
+            if (self.getCommandLineOption("deletions")) {
+                self.errorMessage(i18n.__('cli_pull_opt_bytype_deletions'));
+                valid = false;
+            } else if (!(self.getCommandLineOption("allAuthoring") ||
+                       ( self.getCommandLineOption("types") &&
+                         self.getCommandLineOption("assets") &&
+                         self.getCommandLineOption("renditions")) ) ) {
+                self.errorMessage(i18n.__('cli_pull_opt_by_type_all'));
+                valid = false;
+            } else if ( self.getCommandLineOption("categories") ||
+                        self.getCommandLineOption("pages") ||
+                        self.getCommandLineOption("sites") ||
+                        self.getCommandLineOption("publishingProfiles") ||
+                        self.getCommandLineOption("publishingSiteRevisions") ||
+                        self.getCommandLineOption("publishingSources") ||
+                        self.getCommandLineOption("layouts") ||
+                        self.getCommandLineOption("mappings") ||
+                        self.getCommandLineOption("imageProfiles")) {
+                self.errorMessage(i18n.__('cli_pull_opt_bytype_artifacts'));
+                valid = false;
+            }
+        }
+        return valid;
+    }
+
+    /**
      * Pull the artifacts for the types specified on the command line.
      *
      * @param {Object} context The API context associated with this pull command.
@@ -209,6 +298,11 @@ class PullCommand extends BaseCommand {
 
         // Determine whether to continue pulling subsequent artifact types on error.
         const continueOnError = options.getProperty(context, "continueOnError");
+        const byTypeName = this.getCommandLineOption("byTypeName");
+
+        if (byTypeName) {
+            return self.pullByType(context, byTypeName);
+        }
 
         self.readyToPull()
             .then(function () {
@@ -285,6 +379,208 @@ class PullCommand extends BaseCommand {
             });
 
         return deferred.promise;
+    }
+
+    /*
+     * Remove all event listeners (eg, to replace with new ones with different output strings)
+     */
+    clearEventListeners(emitter){
+        emitter.removeAllListeners(EVENT_ITEM_PULLED);
+        emitter.removeAllListeners(EVENT_ITEM_PULLED_ERROR);
+        emitter.removeAllListeners(EVENT_POST_PROCESS);
+    }
+
+    setupEventListeners() {
+        const self = this;
+        self.itemTypePulled = function (item) {
+            self._artifactsCount++;
+            item.path = item.path || "/"+item.name+".json";
+            self.getLogger().info(i18n.__('cli_pull_type_pulled_path_2', item));
+        };
+        self.contentPulled = function (item) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_content_pulled_2', item));
+        };
+        self.assetPulled = function (item) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_asset_pulled_2', item));
+        };
+        self.renditionPulled = function (item) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_rendition_pulled_2', item));
+        };
+        self.itemTypePulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_type_pull_error', {name: name, message: error.message}));
+        };
+        self.contentPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_content_pull_error', {name: name, message: error.message}));
+        };
+        self.assetPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_asset_pull_error', {name: name, message: error.message}));
+        };
+        self.renditionPulledError = function(error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_rendition_pull_error', {name: name, message: error.message}));
+        }
+    }
+
+    /*
+     * Pull specified type, content directly associated with that type, assets directly referenced by that content
+     */
+    pullByType (context, typeName) {
+        const deferred = Q.defer();
+        const typeHelper = ToolsApi.getItemTypeHelper();
+        const contentHelper = ToolsApi.getContentHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+        self.setupEventListeners();
+
+        // Start the spinner (progress indicator) if we're not doing verbose output.
+        if (!self.getCommandLineOption("verbose")) {
+            self.spinner = ora();
+            self.spinner.start();
+        }
+
+        let assets = new Set([]);
+        let renditions = new Set([]);
+        let imageElements = [];
+        let references=[];  // For now, we only care if there are "any" references - future, we may walk them too
+        const postProcessTypes = function(item) {
+            if (item && item.elements) {
+                imageElements = item.elements.filter((elem)=>(elem.elementType==='image' || elem.elementType==='video'));
+                references = item.elements.filter((elem)=>(elem.elementType==='reference'));
+            }
+            if (item && item.thumbnail && item.thumbnail.id) {
+                assets.add(item.thumbnail.id);
+            }
+            if (references.length>0){
+              self.getLogger().warn(i18n.__('cli_pull_type_references', {name: item.name}));
+            }
+        }
+
+        const postProcessContent = function(item) {
+            if (item && item.elements) {
+                imageElements.forEach(elem=>{
+                    let e = item.elements[elem.key]
+                    if (e.asset && e.asset.id) {
+                        assets.add(e.asset.id);
+                    }
+                    if (e.renditions) {
+                        for (var renditionKey in e.renditions) {
+                            if (e.renditions.hasOwnProperty(renditionKey)) {
+                                let r = e.renditions[renditionKey].renditionId;
+                                if (r && !EMBEDDED_RENDITION_ID.test(r)){
+                                    renditions.add(r);
+                                }
+                            }
+                        }
+                    }
+                    if (e.thumbnail && e.thumbnail.renditionId && !EMBEDDED_RENDITION_ID.test(e.thumbnail.renditionId)) {
+                        renditions.add(e.thumbnail.renditionId);
+                    }
+                })
+            }
+        }
+
+        // Search for the type by the specified type name (unfortunately, "could" be more than one,
+        // even though it's not recommended to have more than one type with same name, it's not prevented)
+        let searchOptions = {"fq": [ "classification:content-type", "name:(\"" + typeName + "\")"], "fl":"id"};
+
+        // Fetch the specified type (future - see if type by name endpoint is more efficient than search?)
+        emitter.on(EVENT_ITEM_PULLED, self.itemTypePulled);
+        emitter.on(EVENT_ITEM_PULLED_ERROR, self.itemTypePulledError);
+        emitter.on(EVENT_POST_PROCESS, postProcessTypes);
+        self.getLogger().info(PullingTypes);
+        typeHelper.searchRemote(context, searchOptions, self.getApiOptions())
+            .then(function (searchResults) {
+                return self.pullMatchingItems(typeHelper, context, searchResults, self.getApiOptions());
+            })
+            .then(()=> {
+                // Swap content emitter for type emitter
+                this.clearEventListeners(emitter);
+                emitter.on(EVENT_ITEM_PULLED, self.contentPulled);
+                emitter.on(EVENT_ITEM_PULLED_ERROR, self.contentPulledError);
+                emitter.on("post-process", postProcessContent);
+                // Search for content by this type and pull any that is found
+                self.getLogger().info(PullingContents);
+                searchOptions = {"fq": ["type:(\"" + typeName + "\")"], "fl":"id,document"};
+                return contentHelper.searchRemote(context, searchOptions, self.getApiOptions())
+            })
+            .then(function (searchResults) {
+                return self.pullMatchingItems(contentHelper, context, searchResults, self.getApiOptions());
+            })
+            .then(function(){
+                self.clearEventListeners(emitter);
+                emitter.on(EVENT_ITEM_PULLED, self.assetPulled);
+                emitter.on(EVENT_ITEM_PULLED_ERROR, self.assetPulledError);
+                self.getLogger().info(PullingAssets);
+                return self.pullMatchingItems(ToolsApi.getAssetsHelper(), context, Array.from(assets), self.getApiOptions() );
+            })
+            .then(function(){
+                self.clearEventListeners(emitter);
+                emitter.on(EVENT_ITEM_PULLED, self.renditionPulled);
+                emitter.on(EVENT_ITEM_PULLED_ERROR, self.renditionPulledError);
+                self.getLogger().info(PullingRenditions);
+                return self.pullMatchingItems(ToolsApi.getRenditionsHelper(), context, Array.from(renditions), self.getApiOptions() );
+            })
+            .then(()=>{
+                deferred.resolve();
+            })
+            .catch(function (err) {
+                // An error was encountered before the pull process started, so make sure this error is accounted for.
+                self._artifactsError++;
+                deferred.reject(err);
+            })
+            .finally(function () {
+                self.clearEventListeners(emitter);
+                // Stop the spinner if it's being displayed.
+                if (self.spinner) {
+                    self.spinner.stop();
+                }
+            });
+            return deferred.promise;
+    }
+
+    /**
+     * Pull the specified items.
+     *
+     * @param {Object} helper The helper to use for pulling items.
+     * @param {Object} context The API context associated with this command.
+     * @param {Array} items The list of items to be processed.
+     * @param {Object} opts The API options to be used for the operations.
+     *
+     * @returns {Q.Promise} A promise that the specified operations have been completed.
+     */
+    pullMatchingItems (helper, context, items, opts) {
+        // Throttle the delete operations to the configured concurrency limit.
+        const self = this;
+        const logger = self.getLogger();
+
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        return utils.throttledAll(context, items.map(function (item) {
+            // For each item, return a function that returns a promise.
+            return function () {
+                // Delete the specified item and display a success or failure message.
+                return helper.pullItem(context, item.id || item, opts)
+                    .then(function (message) {
+                        // Track the number of successful delete operations.
+                        self._artifactsCount++;
+
+                        // Add a debug entry for the server-generated message. (Not displayed in verbose mode.)
+                        logger.debug(message);
+                    })
+                    .catch(function (err) {
+                        // Track the number of failed delete operations.
+                        self._artifactsError++;
+
+                        // Add an error entry for the localized failure message. (Displayed in verbose mode.)
+                        logger.error(i18n.__("cli_pull_failure", {"artifacttype": helper.getArtifactName(),  "name": item.name || item.id || item, "err": err.message}));
+                    });
+            }
+        }), concurrentLimit);
     }
 
     /**
@@ -498,17 +794,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let assetPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            assetPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            assetPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return assetPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -595,17 +883,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let imageProfilesPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            imageProfilesPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            imageProfilesPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return imageProfilesPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -672,17 +952,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            artifactPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            artifactPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return artifactPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -749,17 +1021,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            artifactPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            artifactPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return artifactPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -826,17 +1090,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let renditionPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            renditionPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            renditionPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return renditionPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -903,17 +1159,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let categoryPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            categoryPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            categoryPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return categoryPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -986,17 +1234,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let typePromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            typePromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            typePromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return typePromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1063,17 +1303,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let contentPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            contentPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            contentPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return contentPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1140,17 +1372,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            artifactPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            artifactPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return artifactPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1224,17 +1448,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            artifactPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            artifactPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return artifactPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1301,17 +1517,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let sourcePromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            sourcePromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            sourcePromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return sourcePromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1378,17 +1586,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let profilesPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            profilesPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            profilesPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return profilesPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1455,17 +1655,9 @@ class PullCommand extends BaseCommand {
 
         // Get the API options and start the pull operation.
         const apiOptions = this.getApiOptions();
-        let artifactPromise;
-        if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
-            // If ignoring timestamps or syncing deletions then pull all items.
-            artifactPromise = helper.pullAllItems(context, apiOptions);
-        } else {
-            // The default behavior is to only pull modified items.
-            artifactPromise = helper.pullModifiedItems(context, apiOptions);
-        }
 
         // Return the promise for the results of the pull operation.
-        return artifactPromise
+        return this.pullItems(context, helper, apiOptions)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1496,6 +1688,26 @@ class PullCommand extends BaseCommand {
     }
 
     /**
+     * Pull items with the given helper, based on the command line options.
+     *
+     * @param {Object} context The API context to be used for the pull operation.
+     * @param {Object} helper The helper to be used for the pull operation.
+     * @param {Object} opts - The options to be used for the pull operation.
+     */
+    pullItems (context, helper, opts) {
+        if (this.getCommandLineOption("manifest")) {
+            // If a manifest was specified then pull the items from that manifest.
+            return helper.pullManifestItems(context, opts);
+        } else if (this.getCommandLineOption("ignoreTimestamps") || this.getCommandLineOption("deletions")) {
+            // If ignoring timestamps or syncing deletions then pull all items.
+            return helper.pullAllItems(context, opts);
+        } else {
+            // The default behavior is to only pull modified items.
+            return helper.pullModifiedItems(context, opts);
+        }
+    }
+
+    /**
      * Reset the command line options for this command.
      *
      * NOTE: This is used to reset the values when the command is invoked by the mocha testing. Normally the process
@@ -1519,6 +1731,9 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("pages", undefined);
         this.setCommandLineOption("deletions", undefined);
         this.setCommandLineOption("quiet", undefined);
+        this.setCommandLineOption("byTypeName", undefined);
+        this.setCommandLineOption("manifest", undefined);
+        this.setCommandLineOption("writeManifest", undefined);
         super.resetCommandLineOptions();
     }
 }
@@ -1544,8 +1759,11 @@ function pullCommand (program) {
         .option('-S --publishing-sources',i18n.__('cli_pull_opt_sources'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-I --ignore-timestamps',i18n.__('cli_pull_opt_ignore_timestamps'))
+        .option('--by-type-name <name>', i18n.__('cli_pull_opt_by_type_name'))
         .option('--deletions',           i18n.__('cli_pull_opt_deletions'))
         .option('-q --quiet',            i18n.__('cli_pull_opt_quiet'))
+        .option('--manifest <manifest>', i18n.__('cli_pull_opt_use_manifest'))
+        .option('--write-manifest <manifest>',i18n.__('cli_pull_opt_write_manifest'))
         .option('--dir <dir>',           i18n.__('cli_pull_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
@@ -1553,7 +1771,7 @@ function pullCommand (program) {
         .action(function (commandLineOptions) {
             const command = new PullCommand(program);
             if (command.setCommandLineOptions(commandLineOptions, this)) {
-                if (command.getCommandLineOption("ignoreTimestamps") || command.getCommandLineOption("deletions")) {
+                if (command.getCommandLineOption("ignoreTimestamps") || command.getCommandLineOption("manifest") || command.getCommandLineOption("deletions")) {
                     command._modified = false;
                 }
                 command.doPull();

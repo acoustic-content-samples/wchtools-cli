@@ -13,6 +13,8 @@
   "cannot_pull_item": "Impossibile eseguire il pull dell'elemento '%(name)s'.",
 
   "deleted_original_file": "File originale eliminato: %(old_name)s nuovo file: %(new_name)s",
+  "file_parse_error": "Impossibile analizzare il file: %(path)s",
+  "file_skipped": "Nessun id trovato nel file: %(path)s, viene ignorato",
   "error_cancelling_job": "Errore durante l'annullamento del lavoro: id %(id)s",
   "error_fs_get_item": "Errore nel getItem del file system",
   "error_fs_get_filestats": "Errore in getFileStats file system per %(name)s.",
@@ -32,6 +34,7 @@
   "deleted_item": "Eliminato l'elemento con ID: %(id)s",
   "deleted_item_retry": "Ripetere l'eliminazione dell'elemento '%(name)s'. Errore: %(message)s",
   "get_item_error": "Errore durante il richiamo dell'elemento %(service_name)s: ",
+  "authoring_search_error": "Si è verificato un errore durante la ricerca del servizio %(service_name)s. ",
   "create_item_error": "Errore durante la creazione dell'elemento %(service_name)s: ",
   "update_item_error": "Errore durante l'aggiornamento dell'elemento %(service_name)s: ",
   "delete_item_error": "Errore durante l'eliminazione dell'elemento %(service_name)s: ",

@@ -33,6 +33,7 @@ const ToolsApi = require("wchtools-api");
 const toolsCli = require("../../../wchToolsCli");
 const BaseCommand = require("../../../lib/baseCommand");
 const mkdirp = require("mkdirp");
+const manifests = ToolsApi.getManifests();
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const options = require("wchtools-api").getOptions();
@@ -256,6 +257,34 @@ class ListUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("fails if initializeManifests fails", function (done) {
+                const stub = sinon.stub(manifests, "initializeManifests");
+                stub.returns(false);
+
+                // Execute the command to push using a manifest.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, '--write-manifest', 'foo', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected message was returned.
+                        expect(err.message).to.contain("could not be read");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -395,6 +424,56 @@ class ListUnitTest extends UnitTest {
                         // Restore the original methods and values.
                         stubGet.restore();
                         stubList.restore();
+                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list server working when save manifest fails", function (done) {
+                // Create a stub to return a value for the "username" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "username") {
+                        return "foo";
+                    } else {
+                        return originalGetProperty(context, key);
+                    }
+                });
+
+                // Set the password for this test only.
+                const originalPassword = process.env.WCHTOOLS_PASSWORD;
+                process.env.WCHTOOLS_PASSWORD = "password";
+
+                const stubList = sinon.stub(helper, "listRemoteItemNames");
+                stubList.resolves([itemName1, itemName2, badItem]);
+
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSave = sinon.stub(manifests, "saveManifest");
+                stubSave.throws(new Error("Save manifest error expected by unit test."));
+
+                // Execute the command to list the items on the server.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--write-manifest", "foo", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        expect(stubSave).to.have.been.calledOnce;
+                        expect(msg).to.contain('artifacts listed 3');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the original methods and values.
+                        stubGet.restore();
+                        stubList.restore();
+                        stubInit.restore();
+                        stubSave.restore();
                         process.env.WCHTOOLS_PASSWORD = originalPassword;
 
                         // Call mocha's done function to indicate that the test is over.

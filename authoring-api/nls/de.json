@@ -13,6 +13,8 @@
   "cannot_pull_item": "Element '%(name)s' konnte nicht mit Pull-Operation extrahiert werden.",
 
   "deleted_original_file": "Gelöschte Originaldatei: %(old_name)s neue Datei: %(new_name)s",
+  "file_parse_error": "Datei kann nicht geparst werden: %(path)s",
+  "file_skipped": "In Datei %(path)s wurde keine ID gefunden, wird übersprungen",
   "error_cancelling_job": "Fehler beim Abbrechen des Jobs: id %(id)s",
   "error_fs_get_item": "Fehler beim Abrufen des Elements aus Dateisystem",
   "error_fs_get_filestats": "Fehler in getFileStats des Dateisystems für %(name)s.",
@@ -32,6 +34,7 @@
   "deleted_item": "Gelöschtes Element mit ID: %(id)s",
   "deleted_item_retry": "Es wird erneut versucht, das Element '%(name)s' zu löschen. Fehler: %(message)s",
   "get_item_error": "Fehler beim Abrufen des Elements %(service_name)s: ",
+  "authoring_search_error": "Beim Durchsuchen des Service %(service_name)s ist ein Fehler aufgetreten: ",
   "create_item_error": "Fehler beim Erstellen des Elements %(service_name)s: ",
   "update_item_error": "Fehler beim Aktualisieren des Elements %(service_name)s: ",
   "delete_item_error": "Fehler beim Löschen des Elements %(service_name)s: ",

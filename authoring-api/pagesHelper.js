@@ -79,7 +79,7 @@ class PagesHelper extends JSONPathBasedItemHelper {
         }
         return retVal;
     }
-    
+
     /**
      * Determine whether the helper supports deleting items by id.
      *
@@ -96,6 +96,29 @@ class PagesHelper extends JSONPathBasedItemHelper {
      */
     supportsDeleteByPath() {
         return true;
+    }
+
+    /**
+     * Get the items from the current manifest.
+     *
+     * @param {Object} context The API context to be used by the operation.
+     * @param {Object} opts - The options to be used to get the items.
+     *
+     * @returns {Q.Promise} A promise to get the items from the current manifest.
+     *
+     * @resolves {Array} The items from the current manifest, or an empty array.
+     */
+    getManifestItems (context, opts) {
+        // Sort the manifest items by path length. This guarantees that a parent will be before any of its children.
+        return super.getManifestItems(context, opts)
+            .then(function (items) {
+                return items.sort(function (a, b) {
+                    // A parent's path is always shorter than its child's path
+                    const alen = a.path ? a.path.length : 0;
+                    const blen = b.path ? b.path.length : 0;
+                    return alen - blen;
+                });
+            });
     }
 }
 

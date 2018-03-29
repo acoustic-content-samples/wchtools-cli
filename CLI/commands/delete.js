@@ -48,8 +48,20 @@ class DeleteCommand extends BaseCommand {
         const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
         const context = toolsApi.getContext();
 
+        // Make sure the "dir" option can be handled successfully.
+        if (!this.handleDirOption(context)) {
+            return;
+        }
+
+        // Handle the manifest options.
+        if (!this.handleManifestOptions(context)) {
+            return;
+        }
+
         // Make sure the artifact type options are valid.
-        this.handleArtifactTypes();
+        if (!this.handleArtifactTypes(context)) {
+            return;
+        }
 
         const webassets = this.getCommandLineOption("webassets");
         const assets = this.getCommandLineOption("assets");
@@ -65,11 +77,19 @@ class DeleteCommand extends BaseCommand {
         const byTypeName = this.getCommandLineOption("byTypeName");
         const recursive = this.getCommandLineOption("recursive");
         const all = this.getCommandLineOption("all");
+        const manifest = this.getCommandLineOption("manifest");
         const pageContent = this.getCommandLineOption("pageContent");
         let helper;
 
         // Handle the various validation checks.
-        if (all) {
+        if (manifest) {
+            if (all) {
+                // Delete all and delete by manifest are mutually exclusive.
+                this.errorMessage(i18n.__("cli_delete_all_no_manifest"));
+                this.resetCommandLineOptions();
+                return;
+            }
+        } else if (all) {
             if (this.getOptionArtifactCount() === 0) {
                 // Delete all requires at least one artifact type to be specified.
                 this.errorMessage(i18n.__("cli_delete_all_no_type"));
@@ -187,11 +207,6 @@ class DeleteCommand extends BaseCommand {
             this.setApiOption("delete-content", true);
         }
 
-        // Make sure the "dir" option can be handled successfully.
-        if (!this.handleDirOption(context)) {
-            return;
-        }
-
         // Check to see if the initialization process was successful.
         if (!this.handleInitialization(context)) {
             return;
@@ -213,6 +228,9 @@ class DeleteCommand extends BaseCommand {
                 if (all) {
                     // Handle delete all, which can have multiple artifact types specified.
                     return self.deleteAll(context);
+                } else if (manifest) {
+                    // Handle delete by manifest, which can define multiple artifact types.
+                    return self.deleteByManifest(context);
                 } else if (tag) {
                     // Handle delete by tag, which can also have multiple artifact types specified.
                     return self.deleteByTag(context, tag);
@@ -236,6 +254,17 @@ class DeleteCommand extends BaseCommand {
                         return self.deleteBySearch(helper, context, "name", named);
                     }
                 }
+            })
+            .then(function (results) {
+                // Save the results to a manifest, if one was specified.
+                try {
+                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
+                } catch (err) {
+                    // Log the error that occurred while saving the manifest, but do not fail the delete operation.
+                    logger.error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                }
+
+                return results;
             })
             .catch(function (err) {
                 // Don't log an error whose "noLog" property has been set.
@@ -463,7 +492,7 @@ class DeleteCommand extends BaseCommand {
             self.spinner.start();
         }
 
-        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
         return utils.throttledAll(context, items.map(function (item) {
             // For each item, return a function that returns a promise.
             return function () {
@@ -616,7 +645,7 @@ class DeleteCommand extends BaseCommand {
         const deferred = Q.defer();
         const self = this;
 
-        // Determine whether to continue pushing subsequent artifact types on error.
+        // Determine whether to continue deleting subsequent artifact types on error.
         const continueOnError = options.getProperty(context, "continueOnError");
 
         self.startDeleteByTagDisplay()
@@ -806,7 +835,7 @@ class DeleteCommand extends BaseCommand {
         const self = this;
         const logger = self.getLogger();
 
-        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
         return utils.throttledAll(context, items.map(function (item) {
             // For each item, return a function that returns a promise.
             return function () {
@@ -831,6 +860,299 @@ class DeleteCommand extends BaseCommand {
                     });
             }
         }), concurrentLimit);
+    }
+
+    /**
+     * Start the display when deleting artifacts by manifest.
+     */
+    startDeleteByManifestDisplay () {
+        const deferred = Q.defer();
+
+        // Display the console message that the delete by manifest process is starting.
+        const preview = this.getCommandLineOption("preview");
+        const messageKey = preview ? "cli_preview_delete_manifest_started" : "cli_delete_manifest_started";
+        BaseCommand.displayToConsole(i18n.__(messageKey, {name: this.getCommandLineOption("manifest")}));
+
+        // Start the command line spinner to give the user visual feedback, except when displaying verbose output or previewing.
+        if (!this.getCommandLineOption("verbose") && !preview) {
+            this.spinner = ora();
+            this.spinner.start();
+        }
+
+        deferred.resolve();
+        return deferred.promise;
+    }
+
+    /**
+     * Display final information when the delete by manifest process has completed.
+     */
+    endDeleteByManifestDisplay () {
+        // Turn off the spinner that was started in startDeleteAllDisplay().
+        if (this.spinner) {
+            this.spinner.stop();
+        }
+
+        if (this.getCommandLineOption("preview")) {
+            // Display a success message.
+            const message = i18n.__('cli_preview_delete_manifest_completed', {name: this.getCommandLineOption("manifest")});
+            this.getLogger().info(message);
+            this.successMessage(message);
+        }
+        else if (this._artifactsCount === 0) {
+            // No artifacts were deleted -- only errors.
+            let message = i18n.__n('cli_delete_summary_errors', this._artifactsError);
+
+            if (!this.getCommandLineOption("verbose")) {
+                // Tell the user where to find the log that contains the results.
+                message += " " + i18n.__('cli_log_non_verbose');
+            }
+
+            // Display the results as an error message.
+            this.getLogger().error(message);
+            this.errorMessage(message);
+        } else {
+            // Construct a message describing the results.
+            let message = i18n.__('cli_delete_manifest_completed', {name: this.getCommandLineOption("manifest")});
+
+            // Display the number of artifacts deleted successfully.
+            message += " " + i18n.__n('cli_delete_summary_success', this._artifactsCount);
+
+            if (this._artifactsError > 0) {
+                // Display the number of errors encountered.
+                message += " " + i18n.__n('cli_delete_summary_errors', this._artifactsError);
+
+                // Set the exit code for the process, to indicate that some artifacts had delete errors.
+                process.exitCode = this.CLI_ERROR_EXIT_CODE;
+            }
+            if (!this.getCommandLineOption("verbose")) {
+                // Tell the user where to find the log that contains the results.
+                message += " " + i18n.__('cli_log_non_verbose');
+            }
+
+            // Display a success message.
+            this.getLogger().info(message);
+            this.successMessage(message);
+        }
+    }
+
+    /**
+     * Delete the artifacts specified in the current manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @return {Q.Promise} A promise to delete all artifacts specified in the current manifest.
+     */
+    deleteByManifest (context) {
+        const deferred = Q.defer();
+        const self = this;
+
+        // Determine whether to continue deleting subsequent artifact types on error.
+        const continueOnError = options.getProperty(context, "continueOnError");
+
+        self.startDeleteByManifestDisplay()
+            .then(function () {
+                if (self.getCommandLineOption("pages")) {
+                    return self.handleDeletePromise(self.deleteManifestPages(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("content")) {
+                    return self.handleDeletePromise(self.deleteManifestContent(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("layoutMappings")) {
+                    return self.handleDeletePromise(self.deleteManifestLayoutMappings(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("types")) {
+                    return self.handleDeletePromise(self.deleteManifestTypes(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("layouts")) {
+                    return self.handleDeletePromise(self.deleteManifestLayouts(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("categories")) {
+                    return self.handleDeletePromise(self.deleteManifestCategories(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
+                    return self.handleDeletePromise(self.deleteManifestAssets(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("imageProfiles")) {
+                    return self.handleDeletePromise(self.deleteManifestImageProfiles(context), continueOnError);
+                }
+            })
+            .then(function () {
+                self.endDeleteByManifestDisplay();
+                deferred.resolve();
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    /**
+     * Delete the asset artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the asset artifacts are deleted.
+     */
+    deleteManifestAssets (context) {
+        const helper = ToolsApi.getAssetsHelper();
+
+        // The manifest can have both types of assets in the assets section.
+        this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_BOTH);
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_assets", "cli_preview_deleting_manifest_assets", "path");
+    }
+
+    /**
+     * Delete the image profile artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the image profile artifacts are deleted.
+     */
+    deleteManifestImageProfiles (context) {
+        const helper = ToolsApi.getImageProfilesHelper();
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_image_profiles", "cli_preview_deleting_manifest_image_profiles", "name");
+    }
+
+    /**
+     * Delete the layout artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the layout artifacts are deleted.
+     */
+    deleteManifestLayouts (context) {
+        const helper = ToolsApi.getLayoutsHelper();
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_layouts", "cli_preview_deleting_manifest_layouts", "name");
+    }
+
+    /**
+     * Delete the layout mapping artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the layout mappings artifacts are deleted.
+     */
+    deleteManifestLayoutMappings (context) {
+        const helper = ToolsApi.getLayoutMappingsHelper();
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_layout_mappings", "cli_preview_deleting_manifest_layout_mappings", "name");
+    }
+
+    /**
+     * Delete the category artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the category artifacts are deleted.
+     */
+    deleteManifestCategories (context) {
+        const helper = ToolsApi.getCategoriesHelper();
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_categories", "cli_preview_deleting_manifest_categories", "name");
+    }
+
+    /**
+     * Delete the type artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the type artifacts are deleted.
+     */
+    deleteManifestTypes (context) {
+        const helper = ToolsApi.getItemTypeHelper();
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_types", "cli_preview_deleting_manifest_types", "name");
+    }
+
+    /**
+     * Delete the content artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the content artifacts are deleted.
+     */
+    deleteManifestContent (context) {
+        const helper = ToolsApi.getContentHelper();
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_content", "cli_preview_deleting_manifest_content", "name");
+    }
+
+
+    /**
+     * Delete the page artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the page artifacts are deleted.
+     */
+    deleteManifestPages (context) {
+        const helper = ToolsApi.getPagesHelper();
+
+        return this.deleteManifestItems(context, helper, "cli_deleting_manifest_pages", "cli_preview_deleting_manifest_pages", "path");
+    }
+
+    deleteManifestItems (context, helper, messageKey, previewMessageKey, displayField) {
+        const self = this;
+        const logger = self.getLogger();
+
+        if (self.getCommandLineOption("preview")) {
+            BaseCommand.displayToConsole(i18n.__(previewMessageKey));
+            return helper.getManifestItems(context, self.getApiOptions())
+                .then(function (items) {
+                    items.forEach(function (item) {
+                        BaseCommand.displayToConsole("    " + item[displayField]);
+                    });
+            });
+        } else {
+            const emitter = context.eventEmitter;
+
+            // Add a banner for the type of artifacts being deleted.
+            logger.info(PREFIX + i18n.__(messageKey) + SUFFIX);
+
+            // The api emits an event when an item is deleted, so we log it for the user.
+            const itemDeleted = function (item) {
+                self._artifactsCount++;
+                logger.info(i18n.__("cli_delete_manifest_item_success", {name: item[displayField]}));
+            };
+            emitter.on("deleted", itemDeleted);
+
+            // The api emits an event when there is a delete error, so we log it for the user.
+            const itemDeletedError = function (error, item) {
+                self._artifactsError++;
+                logger.error(i18n.__("cli_delete_manifest_item_failure", {name: item[displayField], err: error.message}));
+            };
+            emitter.on("deleted-error", itemDeletedError);
+
+            return helper.deleteManifestItems(context, this.getApiOptions())
+                .catch(function (err) {
+                    // If the promise is rejected, it means that an error was encountered before the delete process started,
+                    // so we need to make sure this error is accounted for.
+                    self._artifactsError++;
+                    throw err;
+                })
+                .finally(function () {
+                    emitter.removeListener("deleted", itemDeleted);
+                    emitter.removeListener("deleted-error", itemDeletedError);
+                });
+        }
     }
 
     /**
@@ -954,7 +1276,7 @@ class DeleteCommand extends BaseCommand {
         const deferred = Q.defer();
         const self = this;
 
-        // Determine whether to continue pushing subsequent artifact types on error.
+        // Determine whether to continue deleting subsequent artifact types on error.
         const continueOnError = options.getProperty(context, "continueOnError");
 
         self.startDeleteAllDisplay()
@@ -1253,6 +1575,7 @@ class DeleteCommand extends BaseCommand {
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("categories", undefined);
         this.setCommandLineOption("pages", undefined);
+        this.setCommandLineOption("sites", undefined);
         this.setCommandLineOption("all", undefined);
         this.setCommandLineOption("id", undefined);
         this.setCommandLineOption("byTypeName", undefined);
@@ -1264,6 +1587,7 @@ class DeleteCommand extends BaseCommand {
         this.setCommandLineOption("quiet", undefined);
         this.setCommandLineOption("pageContent", undefined);
         this.setCommandLineOption("allAuthoring", undefined);
+        this.setCommandLineOption("manifest", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -1294,6 +1618,7 @@ function deleteCommand (program) {
         .option('-r --recursive',        i18n.__('cli_delete_opt_recursive'))
         .option('-P --preview',          i18n.__('cli_delete_opt_preview'))
         .option('-q --quiet',            i18n.__('cli_delete_opt_quiet'))
+        .option('--manifest <manifest>', i18n.__('cli_delete_opt_use_manifest'))
         .option('--dir <dir>',           i18n.__('cli_delete_opt_dir', {"product_name": utils.ProductName}))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))

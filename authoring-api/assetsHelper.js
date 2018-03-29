@@ -28,6 +28,7 @@ const options = require("./lib/utils/options.js");
 const utils = require("./lib/utils/utils.js");
 const path = require("path");
 const hashes = require("./lib/utils/hashes.js");
+const manifests = require("./lib/utils/manifests.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 /**
@@ -146,6 +147,21 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Updates the manifest with results of an asset operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} itemList The list of items to be added to the manifest.
+     * @param {Object} opts - The options to be used for the list operation.
+     */
+    _updateManifest (context, itemList, opts) {
+        const helper = this;
+        const manifestList = itemList.filter(function (item) {
+            return (item && item.path && item.path !== "/robots.txt" && item.path !== "/sitemap.xml");
+        });
+        manifests.updateManifestSection(context, helper.getArtifactName(), manifestList, opts);
+    }
+
+    /**
      * Pull the specified asset from the content hub.
      *
      * @param {Object} context - The context to be used for the push operation.
@@ -160,7 +176,7 @@ class AssetsHelper extends BaseHelper {
         const helper = this;
         const assetPath = helper._fsApi.getAssetPath(asset);
         // Verify the pathname.
-        if (!utils.isValidWindowsPathname(assetPath) || hashes.isHashesFile(assetPath)) {
+        if (!utils.isValidFilePath(assetPath) || hashes.isHashesFile(assetPath)) {
             const deferred = Q.defer();
             deferred.reject(new Error(i18n.__("invalid_path", {path: assetPath})));
             return deferred.promise;
@@ -216,6 +232,88 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Get the given items from the content hub.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} items - The items to be retrieved.
+     * @param {Object} opts - The options to be used for this operations.
+     *
+     * @returns {Q.Promise} A promise for the items that were retrieved.
+     *
+     * @protected
+     */
+    _getRemoteItemList (context, items, opts) {
+        const deferred = Q.defer();
+        const helper = this;
+
+        // Create an array of functions, one function for each item being retrieved.
+        const functions = items.map(function (item) {
+            return function () {
+                return helper._restApi.getItem(context, item.id, opts);
+            };
+        });
+
+        // Get the items in the list, throttling the concurrent requests to the defined limit for this artifact type.
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
+        utils.throttledAll(context, functions, concurrentLimit)
+            .then(function (promises) {
+                const retrievedItems = [];
+                promises.forEach(function (promise) {
+                    if ((promise.state === 'fulfilled') && promise.value) {
+                        retrievedItems.push(promise.value);
+                    }
+                });
+
+                // Resolve the promise with the list of retrieved items.
+                deferred.resolve(retrievedItems);
+            });
+
+        // Return the promise that will eventually be resolved with the retrieved items.
+        return deferred.promise;
+    }
+
+    /**
+     * Pull the given items.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} items - The items to be pulled.
+     * @param {Object} opts - The options to be used for this operations.
+     *
+     * @returns {Q.Promise} A promise for the items that were pulled.
+     *
+     * @protected
+     */
+    _pullItemList (context, items, opts) {
+        const deferred = Q.defer();
+        const helper = this;
+
+        // Create an array of functions, one function for each item being pulled.
+        const functions = items.map(function (item) {
+            return function () {
+                return helper._pullAsset(context, item, opts);
+            };
+        });
+
+        // Pull the items in the list, throttling the concurrent requests to the defined limit for this artifact type.
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
+        utils.throttledAll(context, functions, concurrentLimit)
+            .then(function (promises) {
+                const pulledItems = [];
+                promises.forEach(function (promise) {
+                    if ((promise.state === 'fulfilled') && promise.value) {
+                        pulledItems.push(promise.value);
+                    }
+                });
+
+                // Resolve the promise with the list of pulled items.
+                deferred.resolve(pulledItems);
+            });
+
+        // Return the promise that will eventually be resolved with the pulled items.
+        return deferred.promise;
+    }
+
+    /**
      * Pull the chunk of assets retrieved by the given function.
      *
      * @param {Object} context - The context to be used for the push operation.
@@ -251,7 +349,7 @@ class AssetsHelper extends BaseHelper {
                 }
 
                 // Throttle the number of assets to be pulled concurrently, using the currently configured limit.
-                const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+                const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
                 const results = utils.throttledAll(context, assetList.map(function (asset) {
                     // Return a function that returns a promise for each asset being pulled.
                     return function () {
@@ -264,10 +362,12 @@ class AssetsHelper extends BaseHelper {
                     .then(function (promises) {
                         // Return a list of results - asset metadata for a fulfilled promise, error for a rejected promise.
                         const assets = [];
+                        const manifestList = [];
                         promises.forEach(function (promise, index) {
                             if (promise.state === "fulfilled") {
                                 const asset = promise.value;
                                 assets.push(asset);
+                                manifestList.push(assetList[index]);
                             }
                             else {
                                 const error = promise.reason;
@@ -279,6 +379,9 @@ class AssetsHelper extends BaseHelper {
                                 context.pullErrorCount++;
                             }
                         });
+
+                        // Append the resulting assets to the manifest if writing/updating a manifest.
+                        helper._updateManifest(context, manifestList, opts);
 
                         // Return the number of assets processed (either success or failure) and an array of pulled assets.
                         return {length: listLength, assets: assets};
@@ -303,7 +406,7 @@ class AssetsHelper extends BaseHelper {
         results = results.concat(pullInfo.assets);
 
         const currentChunkSize = pullInfo.length;
-        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
+        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
             // with the accumulated results.
@@ -313,7 +416,7 @@ class AssetsHelper extends BaseHelper {
             const helper = this;
 
             // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
+            const offset = options.getRelevantOption(context, opts, "offset", helper.getArtifactName());
             opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // Pull the next chunk of assets from the content hub.
@@ -325,6 +428,32 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Pull the asset with the specified id from the content hub.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} id - The ID of the item to be pulled.
+     * @param {Object} opts - The options to be used for the pull operation.
+     *
+     * @returns {Q.Promise} A promise for the asset that was pulled.
+     */
+    pullItem (context, id, opts) {
+        const helper = this;
+        return this._restApi.getItem(context, id, opts)
+            .then(function (asset) {
+                // The asset with the specified id was found, so pull it.
+                const logger = helper.getLogger(context);
+                logger.trace("Pull found asset by id: " + id + " path found: " + asset.path);
+                return helper._pullAsset(context, asset, opts);
+            })
+            .catch(function (err) {
+                // The asset with the specified name was not found.
+                const logger = helper.getLogger(context);
+                logger.trace("Pull could not find asset: " + id);
+                throw err;
+            });
+    }
+
+    /**
      * Pull the asset with the specified path from the content hub.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -333,7 +462,7 @@ class AssetsHelper extends BaseHelper {
      *
      * @returns {Q.Promise} A promise for the asset that was pulled.
      */
-    pullItem (context, assetPath, opts) {
+    pullItemByPath (context, assetPath, opts) {
         // The content hub assets API does not support retrieving an item by path. So in order to pull a specific item,
         // get the items from the content hub one chunk at a time, and look for an asset with the specified path.
         const helper = this;
@@ -359,9 +488,8 @@ class AssetsHelper extends BaseHelper {
     _pullResource (context, resource, opts) {
         const helper = this;
         const basePath = helper._fsApi.getResourcesPath(context, opts);
-        const resourcePath = "/../resources/" + resource.id;
         // Get the local file stream to be written.
-        return helper._fsApi.getItemWriteStream(context, resourcePath, opts)
+        return helper._fsApi.getResourceWriteStream(context, resource.id, opts)
             .then(function (stream) {
                 let md5Promise;
                 stream.on("pipe", function (src) {
@@ -372,7 +500,7 @@ class AssetsHelper extends BaseHelper {
                 const asset = {
                     id: resource.id,
                     resource: resource.id,
-                    path: resourcePath
+                    path: helper._fsApi.getResourcePath(context, resource.id, opts)
                 };
                 // Specify in the opts that we need the resource filename returned.
                 // Download the specified resource contents and write them to the given stream.
@@ -388,7 +516,7 @@ class AssetsHelper extends BaseHelper {
                         // Notify any listeners that the resource at the given path was pulled.
                         const emitter = helper.getEventEmitter(context);
                         if (emitter) {
-                            emitter.emit("resource-pulled", relative);
+                            emitter.emit("resource-pulled", {"path":relative, "id":resource.id});
                         }
                         return asset;
                     });
@@ -548,6 +676,30 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Pull the items in the current manifest from the remote content hub to the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the pull operations.
+     *
+     * @returns {Q.Promise} A promise to pull the remote items to the local file system.
+     *
+     * @resolves {Array} The items that were pulled.
+     */
+    pullManifestItems (context, opts) {
+        // Get the names (actually the proxy items) from the current manifest and pull them from the content hub.
+        const helper = this;
+        return helper.getManifestItems(context, opts)
+            .then(function (items) {
+                // Get the asset metadata for the items in the manifest.
+                return helper._getRemoteItemList(context, items, opts);
+            })
+            .then(function (items) {
+                // Pull the asset resources for the items in the manifest.
+                return helper._pullItemList(context, items, opts);
+            });
+    }
+
+    /**
      * Pull all assets from the content hub.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -564,7 +716,7 @@ class AssetsHelper extends BaseHelper {
         let allFSItems;
         const emitter = helper.getEventEmitter(context);
         if (emitter && options.getRelevantOption(context, opts, "deletions")) {
-            allFSItems = this.listLocalItemNames(context, opts);
+            allFSItems = this._listLocalItemNames(context, opts);
         }
 
         // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
@@ -719,7 +871,7 @@ class AssetsHelper extends BaseHelper {
         const timestamp = new Date();
 
         // Throttle the number of assets to be pushed concurrently, using the currently configured limit.
-        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
         const readyResults = utils.throttledAll(context, paths.map(function (name) {
             return function () {
                 return helper.pushItem(context, name, opts);
@@ -761,6 +913,7 @@ class AssetsHelper extends BaseHelper {
                 return assets;
             })
             .then(function (assets) {
+                helper._updateManifest(context, assets, opts);
                 // Keep track of the timestamp of this operation, but only if there were no errors.
                 if (errorCount === 0) {
                     helper._setLastPushTimestamps(context, timestamp, opts);
@@ -1043,7 +1196,7 @@ class AssetsHelper extends BaseHelper {
                         // Push the resource to the content hub.
                         helper._restApi.pushItem(context, true, true, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
                             .then(function (resource) {
-                                errorInfo = {id: resource.id, path: resourcePath};
+                                errorInfo = {id: resource.id || resourceId, path: resourcePath};
 
                                 // Once the resource file has been saved, resolve the top-level promise.
                                 /* istanbul ignore next */
@@ -1060,7 +1213,7 @@ class AssetsHelper extends BaseHelper {
                                 // The push succeeded so emit a "resource-pushed" event.
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
-                                    emitter.emit("resource-pushed", {id: resource.id, path: resourcePath});
+                                    emitter.emit("resource-pushed", {id: resource.id || resourceId, path: resourcePath});
                                 }
                             })
                             .catch(function (err) {
@@ -1141,10 +1294,10 @@ class AssetsHelper extends BaseHelper {
         const timestamp = new Date();
 
         // Throttle the number of resources to be pushed concurrently, using the currently configured limit.
-        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
         const results = utils.throttledAll(context, paths.map(function (path) {
             return function () {
-                return helper._pushResource(context, path, opts);
+                return helper._pushResource(context, path.path, opts);
             };
         }), concurrentLimit);
 
@@ -1210,6 +1363,26 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Push the items in the current manifest from the local file system to the remote content hub.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the push operations.
+     *
+     * @returns {Q.Promise} A promise to push the local items to the remote content hub.
+     *
+     * @resolves {Array} The items that were pushed.
+     */
+    pushManifestItems (context, opts) {
+        // Get the items from the current manifest and push them to the content hub.
+        const helper = this;
+        return helper.getManifestItems(context, opts)
+            .then(function (assets) {
+                // Push each asset in the manifest, using the path property.
+                return helper._pushNameList(context, assets.map(asset => asset.path), opts);
+            });
+    }
+
+    /**
      * Push local assets to the content hub.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -1220,7 +1393,7 @@ class AssetsHelper extends BaseHelper {
     pushAllItems (context, opts) {
         // Get the list of local assets, based on the specified options.
         const helper = this;
-        return helper.listLocalItemNames(context, opts)
+        return helper._listLocalItemNames(context, opts)
             .then(function (names) {
                 // Push the assets in the list.
                 return helper._pushNameList(context, names.map(function (item) {
@@ -1250,7 +1423,7 @@ class AssetsHelper extends BaseHelper {
     pushModifiedItems (context, opts) {
         // Get the list of modified local assets, based on the specified options.
         const helper = this;
-        return helper.listModifiedLocalItemNames(context, [this.NEW, this.MODIFIED], opts)
+        return helper._listModifiedLocalItemNames(context, [this.NEW, this.MODIFIED], opts)
             .then(function (names){
                 // Push the assets in the list.
                 return helper._pushNameList(context, names.map(function (item) {
@@ -1436,7 +1609,7 @@ class AssetsHelper extends BaseHelper {
         results = results.concat(listInfo.assets);
 
         const currentChunkSize = listInfo.length;
-        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
+        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
             // with the accumulated results.
@@ -1446,7 +1619,7 @@ class AssetsHelper extends BaseHelper {
             const helper = this;
 
             // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
+            const offset = options.getRelevantOption(context, opts, "offset", helper.getArtifactName());
             opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // List the next chunk of assets from the content hub.
@@ -1611,7 +1784,7 @@ class AssetsHelper extends BaseHelper {
      *
      * @returns {Q.Promise} - A promise for an array of the names of all remote assets.
      */
-    listRemoteItemNames (context, opts) {
+    _listRemoteItemNames (context, opts) {
         // Create the deferred to be used for recursively retrieving assets.
         const deferred = Q.defer();
 
@@ -1639,9 +1812,28 @@ class AssetsHelper extends BaseHelper {
                 return assets.map(function (asset) {
                     return {
                         path: helper._fsApi.getAssetPath(asset),
+                        name: asset.name,
                         id: asset.id
                     };
                 });
+            });
+    }
+
+    /**
+     * Get a list of the names of all remote assets.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts - The options to be used for this operation.
+     *
+     * @returns {Q.Promise} - A promise for an array of the names of all remote assets.
+     */
+    listRemoteItemNames (context, opts) {
+        const helper = this;
+        return this._listRemoteItemNames(context, opts)
+            .then(function(itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
             });
     }
 
@@ -1688,7 +1880,7 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} - A promise for an array of the names of all remote assets that were modified since being
      *                        pushed/pulled.
      */
-    listModifiedRemoteItemNames (context, flags, opts) {
+    _listModifiedRemoteItemNames (context, flags, opts) {
         const deferred = Q.defer();
 
         // Use getModifiedRemoteItems() as the list function, so that only modified assets will be pulled.
@@ -1731,6 +1923,26 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Get a list of the names of all remote assets that have been modified.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} flags - An array of the state (NEW, DELETED, MODIFIED) of the assets to be included in the list.
+     * @param {Object} opts - The options to be used for this operation.
+     *
+     * @returns {Q.Promise} - A promise for an array of the names of all remote assets that were modified since being
+     *                        pushed/pulled.
+     */
+    listModifiedRemoteItemNames (context, flags, opts) {
+        const helper = this;
+        return this._listModifiedRemoteItemNames(context, flags, opts)
+            .then(function(itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
+            });
+    }
+
+    /**
      * Get a list of the names of all remote assets that have been deleted from the content hub.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -1743,7 +1955,7 @@ class AssetsHelper extends BaseHelper {
 
         // Get the list of all remote assets.
         const helper = this;
-        helper.listRemoteItemNames(context, opts)
+        helper._listRemoteItemNames(context, opts)
             .then(function (remoteItems) {
                 // Get the list of local assets that are known to have existed on the server.
                 const dir = helper._fsApi.getAssetsPath(context, opts);
@@ -1777,9 +1989,27 @@ class AssetsHelper extends BaseHelper {
      *
      * @returns {Q.Promise} A promise for a list of local asset names, based on the specified options.
      */
-    listLocalItemNames (context, opts) {
+    _listLocalItemNames (context, opts) {
         // Get the list of asset paths on the local file system.
         return this._fsApi.listNames(context, null, opts);
+    }
+
+    /**
+     * Get a list of local asset names, based on the specified options.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts - The options to be used for the list operation.
+     *
+     * @returns {Q.Promise} A promise for a list of local asset names, based on the specified options.
+     */
+    listLocalItemNames (context, opts) {
+        const helper = this;
+        return this._listLocalItemNames(context, opts)
+            .then(function(itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
+            });
     }
 
     /**
@@ -1791,7 +2021,7 @@ class AssetsHelper extends BaseHelper {
      *
      * @returns {Q.Promise} A promise for a list of modified local asset paths, based on the specified options.
      */
-    listModifiedLocalItemNames (context, flags, opts) {
+    _listModifiedLocalItemNames (context, flags, opts) {
         // Get the list of local asset paths.
         const dir = this._fsApi.getAssetsPath(context, opts);
 
@@ -1818,6 +2048,25 @@ class AssetsHelper extends BaseHelper {
                 } else {
                     return results;
                 }
+            });
+    }
+
+    /**
+     * Get a list of modified local asset paths, based on the specified options.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} flags - An array of the state (NEW, DELETED, MODIFIED) of the assets to be included in the list.
+     * @param {Object} opts - The options to be used for the list operation.
+     *
+     * @returns {Q.Promise} A promise for a list of modified local asset paths, based on the specified options.
+     */
+    listModifiedLocalItemNames (context, flags, opts) {
+        const helper = this;
+        return this._listModifiedLocalItemNames(context, flags, opts)
+            .then(function(itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
             });
     }
 
@@ -2011,7 +2260,7 @@ class AssetsHelper extends BaseHelper {
         } else {
             // The specified asset was not found.
             const currentChunkSize = assets.length;
-            const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
+            const maxChunkSize = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
 
             if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
                 // The current chunk is a partial chunk, so there are no more assets to be retrieved. Reject the promise
@@ -2022,7 +2271,7 @@ class AssetsHelper extends BaseHelper {
                 const helper = this;
 
                 // Increase the offset so that the next chunk of assets will be retrieved.
-                const offset = options.getRelevantOption(context, opts, "offset", this._artifactName);
+                const offset = options.getRelevantOption(context, opts, "offset", this.getArtifactName());
                 opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
                 // Retrieve the next chunk of assets from the REST service.
