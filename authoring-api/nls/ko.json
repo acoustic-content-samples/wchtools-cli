@@ -13,6 +13,8 @@
   "cannot_pull_item": "'%(name)s' 항목을 가져올 수 없습니다.",
 
   "deleted_original_file": "삭제된 원본 파일: %(old_name)s 새 파일: %(new_name)s",
+  "file_parse_error": "파일을 구문 분석할 수 없음: %(path)s",
+  "file_skipped": "파일에서 ID를 찾을 수 없음: %(path)s, 건너뜀",
   "error_cancelling_job": "작업 취소 중 오류: id %(id)s",
   "error_fs_get_item": "파일 시스템 getItem의 오류",
   "error_fs_get_filestats": "%(name)s에 대해 파일 시스템 getFileStats의 오류입니다.",
@@ -32,6 +34,7 @@
   "deleted_item": "ID: %(id)s의 항목이 삭제됨",
   "deleted_item_retry": "항목 '%(name)s' 삭제를 재시도합니다. 오류: %(message)s",
   "get_item_error": "항목 %(service_name)s 가져오기 중 오류: ",
+  "authoring_search_error": "%(service_name)s 서비스 검색 중 오류 발생: ",
   "create_item_error": "항목 %(service_name)s 작성 중 오류: ",
   "update_item_error": "항목 %(service_name)s 업데이트 중 오류: ",
   "delete_item_error": "항목 %(service_name)s 삭제 중 오류: ",

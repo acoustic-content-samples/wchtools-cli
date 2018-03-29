@@ -30,6 +30,7 @@ const Q = require("q");
 const rimraf = require("rimraf");
 const diff = require("diff");
 const sinon = require("sinon");
+const manifests = require(UnitTest.API_PATH + "lib/utils/manifests.js");
 const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
 const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const options = require(UnitTest.API_PATH + "lib/utils/options.js");
@@ -109,6 +110,8 @@ class BaseHelperUnitTest extends UnitTest {
             self.testDeleteLocalItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteRemoteItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteRemoteItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testGetManifestItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testDeleteManifestItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
 
             // Execute any additional tests defined by a subclass. Executing the tests here allows them to be within the
             // same "describe" as the base helper tests, and allows them to leverage the same before and after functions.
@@ -1158,7 +1161,7 @@ class BaseHelperUnitTest extends UnitTest {
                 helper.pullAllItems(context, {offset: 0, limit: 2, validateName: true})
                     .then(function (items) {
                         // Verify that the results have the expected values.
-                        expect(items).to.have.lengthOf(3);
+                        expect(items).to.have.lengthOf(2);
                         expect(items[0].id).to.equal(itemMetadata1.id);
                         expect(items[1].id).to.equal(itemMetadata2.id);
                         expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
@@ -2288,9 +2291,9 @@ class BaseHelperUnitTest extends UnitTest {
         const self = this;
         describe("pushModifiedItems", function () {
             it("should fail when getting the local items fails.", function (done) {
-                // Create a helper.listLocalModifiedItemNames stub that returns an error.
+                // Create a helper._listLocalModifiedItemNames stub that returns an error.
                 const ITEM_ERROR = "There was an error getting the local modified items.";
-                const stub = sinon.stub(helper, "listModifiedLocalItemNames");
+                const stub = sinon.stub(helper, "_listModifiedLocalItemNames");
                 stub.rejects(ITEM_ERROR);
 
                 // Create an helper.pushItemByName spy.
@@ -2328,8 +2331,8 @@ class BaseHelperUnitTest extends UnitTest {
             });
 
             it("should succeed when getting the local items succeeds.", function (done) {
-                // Create a helper.listModifiedLocalItemNames stub that returns a list of items.
-                const stubList = sinon.stub(helper, "listModifiedLocalItemNames");
+                // Create a helper._listModifiedLocalItemNames stub that returns a list of items.
+                const stubList = sinon.stub(helper, "_listModifiedLocalItemNames");
                 stubList.resolves([helper.getName(itemMetadata1), helper.getName(itemMetadata2)]);
 
                 // Create a helper.pushItem stub that return an item.
@@ -3548,6 +3551,115 @@ class BaseHelperUnitTest extends UnitTest {
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }
+            });
+        });
+    }
+
+    testGetManifestItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        describe("getManifestItems", function () {
+            it("should succeed with no section", function (done) {
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+
+                let error;
+                helper.getManifestItems(context)
+                    .then(function (items) {
+                        expect(items).to.have.lengthOf(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with empty section", function (done) {
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns({});
+
+                let error;
+                helper.getManifestItems(context)
+                    .then(function (items) {
+                        expect(items).to.have.lengthOf(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with existing section", function (done) {
+                const TEST_MANIFEST_SECTION = {"id1": {"id": "id1", "name": "name1", "path": "path1"}, "id2": {"id": "id2", "name": "name2", "path": "path2"}};
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(TEST_MANIFEST_SECTION);
+
+                let error;
+                helper.getManifestItems(context)
+                    .then(function (items) {
+                        expect(items).to.have.lengthOf(2);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testDeleteManifestItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        describe("deleteManifestItems", function () {
+            it("should succeed with no section", function (done) {
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+
+                let error;
+                helper.deleteManifestItems(context)
+                    .then(function (items) {
+                        expect(items).to.have.lengthOf(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with empty section", function (done) {
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns({});
+
+                let error;
+                helper.deleteManifestItems(context)
+                    .then(function (items) {
+                        expect(items).to.have.lengthOf(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
             });
         });
     }

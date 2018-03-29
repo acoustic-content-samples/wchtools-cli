@@ -70,11 +70,23 @@ class PushCommand extends BaseCommand {
         const context = toolsApi.getContext();
         const self = this;
 
-        // Handle the cases of either no artifact type options being specified, or the "all" option being specified.
-        self.handleArtifactTypes(["webassets"]);
+        // Handle the dir option.
+        if (!self.handleDirOption(context)) {
+            return;
+        }
 
-        // Make sure the "named", "dir" and "path" options can be handled successfully.
-        if (!self.handleNamedOption() || !self.handleDirOption(context) || !self.handlePathOption()) {
+        // Handle the manifest options.
+        if (!self.handleManifestOptions(context)) {
+            return;
+        }
+
+        // Handle the cases of no artifact types, "all" authoriong types, and using a manifest.
+        if (!self.handleArtifactTypes(context, ["webassets"])) {
+            return;
+        }
+
+        // Make sure the "named" and "path" options can be handled successfully.
+        if (!self.handleNamedOption() || !self.handlePathOption()) {
             return;
         }
 
@@ -84,6 +96,7 @@ class PushCommand extends BaseCommand {
         }
 
         // Make sure the url has been specified.
+        let error;
         self.handleUrlOption(context)
             .then(function() {
                 // Make sure the user name and password have been specified.
@@ -100,14 +113,21 @@ class PushCommand extends BaseCommand {
                 return self.pushArtifacts(context);
             })
             .then(function () {
-                // End the display of the pushed artifacts.
-                self.endDisplay();
+                // Save the results to a manifest, if one was specified.
+                try {
+                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
+                } catch (err) {
+                    // Log the error that occurred while saving the manifest, but do not fail the push operation.
+                    self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                }
             })
             .catch(function (err) {
-                // End the display of the pushed artifacts.
-                self.endDisplay(err);
+                error = err;
             })
             .finally(function () {
+                // End the display of the pushed artifacts.
+                self.endDisplay(error);
+
                 // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
             });
@@ -118,7 +138,14 @@ class PushCommand extends BaseCommand {
      */
     startDisplay () {
         // Display the console message that the list is starting.
-        BaseCommand.displayToConsole(i18n.__(this._modified ? 'cli_push_modified_started' : 'cli_push_started'));
+        const manifest = this.getCommandLineOption("manifest");
+        if (manifest) {
+            BaseCommand.displayToConsole(i18n.__('cli_push_manifest_started', {name: manifest}));
+        } else if (this._modified) {
+            BaseCommand.displayToConsole(i18n.__('cli_push_modified_started'));
+        } else {
+            BaseCommand.displayToConsole(i18n.__('cli_push_started'));
+        }
 
         // Start the spinner (progress indicator) if we're not doing verbose output.
         if (!this.getCommandLineOption("verbose")) {
@@ -133,15 +160,31 @@ class PushCommand extends BaseCommand {
      * @param err An error to be displayed if the pull operation resulted in an error before it was started.
      */
     endDisplay (err) {
+        let message;
         const logger = this.getLogger();
-        logger.info(i18n.__(this._modified ? 'cli_push_modified_pushing_complete' : 'cli_push_pushing_complete'));
+        const manifest = this.getCommandLineOption("manifest");
+        if (manifest) {
+            message = i18n.__('cli_push_manifest_pushing_complete', {name: manifest})
+        } else if (this._modified) {
+            message = i18n.__('cli_push_modified_pushing_complete');
+        } else {
+            message = i18n.__('cli_push_pushing_complete');
+        }
+        logger.info(message);
+
         if (this.spinner) {
             this.spinner.stop();
         }
 
         let isError = false;
         let logError = true;
-        let message = i18n.__(this._modified ? 'cli_push_modified_complete' : 'cli_push_complete');
+        if (manifest) {
+            message = i18n.__('cli_push_manifest_complete', {name: manifest})
+        } else if (this._modified) {
+            message = i18n.__('cli_push_modified_complete');
+        } else {
+            message = i18n.__('cli_push_complete');
+        }
         if (this._artifactsCount > 0) {
             message += " " + i18n.__n('cli_push_success', this._artifactsCount);
         }
@@ -256,7 +299,21 @@ class PushCommand extends BaseCommand {
             })
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
-                    return self.handlePushPromise(self.pushPages(context), continueOnError);
+                    // Get the list of site ids to use for pushing pages.
+                    const siteIds = self.getSiteIds(context) || ["default"];
+
+                    // Local function to recursively push pages for one site at a time.
+                    let index = 0;
+                    const pushPagesBySite = function (context) {
+                        if (index < siteIds.length) {
+                            return self.handlePushPromise(self.pushPages(context, siteIds[index++]), continueOnError)
+                                .then(function () {
+                                    return pushPagesBySite(context);
+                                });
+                        }
+                    };
+
+                    return pushPagesBySite(context);
                 }
             })
             .then(function () {
@@ -392,17 +449,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let assetsPromise;
-        if (this.getCommandLineOption("named")) {
-            assetsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            assetsPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            assetsPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return assetsPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -458,17 +506,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let imageProfilesPromise;
-        if (this.getCommandLineOption("named")) {
-            imageProfilesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            imageProfilesPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            imageProfilesPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return imageProfilesPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -522,17 +561,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let artifactsPromise;
-        if (this.getCommandLineOption("named")) {
-            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactsPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return artifactsPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -586,17 +616,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let artifactsPromise;
-        if (this.getCommandLineOption("named")) {
-            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactsPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return artifactsPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -650,17 +671,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let renditionsPromise;
-        if (this.getCommandLineOption("named")) {
-            renditionsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            renditionsPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            renditionsPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return renditionsPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -714,17 +726,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let categoriesPromise;
-        if (this.getCommandLineOption("named")) {
-            categoriesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            categoriesPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            categoriesPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return categoriesPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -778,17 +781,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let typePromise;
-        if (this.getCommandLineOption("named")) {
-            typePromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            typePromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            typePromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return typePromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -842,17 +836,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let contentsPromise;
-        if (this.getCommandLineOption("named")) {
-            contentsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            contentsPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            contentsPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return contentsPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -869,10 +854,11 @@ class PushCommand extends BaseCommand {
      * Push the page definitions
      *
      * @param {Object} context The API context to be used for the push operation.
+     * @param {String} siteId The id of the site containing the pages being pushed.
      *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
      */
-    pushPages (context) {
+    pushPages (context, siteId) {
         const helper = ToolsApi.getPagesHelper();
         const emitter = context.eventEmitter;
         const self = this;
@@ -900,23 +886,14 @@ class PushCommand extends BaseCommand {
         // If a name is specified, push the named content.
         // If Ignore-timestamps is specified then push all content.
         // Otherwise only push modified content (which is the default behavior).
-        const apiOptions = this.getApiOptions();
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
 
-        if (helper.doesDirectoryExist(context, apiOptions)) {
+        if (helper.doesDirectoryExist(context, opts)) {
             this._directoriesCount++;
         }
 
-        let artifactsPromise;
-        if (this.getCommandLineOption("named")) {
-            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactsPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return artifactsPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, opts)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -970,17 +947,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let artifactsPromise;
-        if (this.getCommandLineOption("named")) {
-            artifactsPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactsPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            artifactsPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return artifactsPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -1030,17 +998,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let sourcesPromise;
-        if (this.getCommandLineOption("named")) {
-            sourcesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            sourcesPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            sourcesPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return sourcesPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -1090,17 +1049,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let profilesPromise;
-        if (this.getCommandLineOption("named")) {
-            profilesPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            profilesPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            profilesPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return profilesPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -1150,17 +1100,8 @@ class PushCommand extends BaseCommand {
             this._directoriesCount++;
         }
 
-        let artifactPromise;
-        if (this.getCommandLineOption("named")) {
-            artifactPromise = helper.pushItem(context, this.getCommandLineOption("named"), apiOptions);
-        } else if (this.getCommandLineOption("ignoreTimestamps")) {
-            artifactPromise = helper.pushAllItems(context, apiOptions);
-        } else {
-            artifactPromise = helper.pushModifiedItems(context, apiOptions);
-        }
-
-        // Return the promise for the results of the action.
-        return artifactPromise
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the pull process started,
                 // so we need to make sure this error is accounted for.
@@ -1171,6 +1112,28 @@ class PushCommand extends BaseCommand {
                 emitter.removeListener("pushed", siteRevisionPushed);
                 emitter.removeListener("pushed-error", siteRevisionPushedError);
             });
+    }
+
+    /**
+     * Push items with the given helper, based on the command line options.
+     *
+     * @param {Object} context The API context to be used for the push operation.
+     * @param {Object} helper The helper to be used for the push operation.
+     * @param {Object} opts - The options to be used for the push operation.
+     *
+     * @return {Q.Promise} A promise to push items using the given helper.
+     */
+    pushItems (context, helper, opts) {
+        if (this.getCommandLineOption("manifest")) {
+            // If a manifest was specified then push the items from that manifest.
+            return helper.pushManifestItems(context, opts);
+        } else if (this.getCommandLineOption("named")) {
+            return helper.pushItem(context, this.getCommandLineOption("named"), opts);
+        } else if (this.getCommandLineOption("ignoreTimestamps")) {
+            return helper.pushAllItems(context, opts);
+        } else {
+            return helper.pushModifiedItems(context, opts);
+        }
     }
 
     /**
@@ -1225,6 +1188,9 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("path", undefined);
         this.setCommandLineOption("sites", undefined);
         this.setCommandLineOption("pages", undefined);
+        this.setCommandLineOption("createOnly", undefined);
+        this.setCommandLineOption("manifest", undefined);
+        this.setCommandLineOption("writeManifest", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -1255,6 +1221,8 @@ function pushCommand (program) {
         .option('--create-only',         i18n.__('cli_push_opt_create_only'))
         .option('--named <named>',       i18n.__('cli_push_opt_named'))
         .option('--path <path>',         i18n.__('cli_push_opt_path'))
+        .option('--manifest <manifest>', i18n.__('cli_push_opt_use_manifest'))
+        .option('--write-manifest <manifest>', i18n.__('cli_push_opt_write_manifest'))
         .option('--dir <dir>',           i18n.__('cli_push_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
@@ -1262,7 +1230,7 @@ function pushCommand (program) {
         .action(function (commandLineOptions) {
             const command = new PushCommand(program);
             if (command.setCommandLineOptions(commandLineOptions, this)) {
-                if(command.getCommandLineOption("ignoreTimestamps"))
+                if(command.getCommandLineOption("ignoreTimestamps") || command.getCommandLineOption("manifest"))
                     command._modified = false;
                 command.doPush();
             }

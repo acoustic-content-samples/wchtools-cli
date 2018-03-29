@@ -20,6 +20,7 @@ const Q = require("q");
 const options = require("./lib/utils/options.js");
 const utils = require("./lib/utils/utils.js");
 const hashes = require("./lib/utils/hashes.js");
+const manifests = require("./lib/utils/manifests.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const SearchREST = require("./lib/authoringSearchREST.js");
 const searchREST = SearchREST.instance;
@@ -152,6 +153,15 @@ class BaseHelper {
     }
 
     /**
+     * Get the name of the artifact type managed by this helper.
+     *
+     * @returns {String} The name of the artifact types used by this helper.
+     */
+    getArtifactName () {
+        return this._artifactName;
+    }
+
+    /**
      * Get the name of the virtual folder used by this helper.
      *
      * @returns {String} The name of the virtual folder used by this helper.
@@ -177,6 +187,36 @@ class BaseHelper {
     getRemoteItems (context, opts) {
         // Return the REST object's promise to get the remote items.
         return this._restApi.getItems(context, opts);
+    }
+
+    /**
+     * Get the items from the current manifest.
+     *
+     * @param {Object} context The API context to be used by the operation.
+     * @param {Object} opts - The options to be used to get the items.
+     *
+     * @returns {Q.Promise} A promise to get the items from the current manifest.
+     *
+     * @resolves {Array} The items from the current manifest, or an empty array.
+     */
+    getManifestItems (context, opts) {
+        const items = [];
+        const section = manifests.getManifestSection(context, this.getArtifactName(), opts);
+
+        if (section) {
+            // The section has a property for each item, the key is the item id.
+            const keys = Object.keys(section);
+
+            // Add an item for each id in the section.
+            keys.forEach(function (key) {
+                // Clone the item, so that the original is not modified.
+                const item = utils.clone(section[key]);
+                items.push(item);
+            });
+        }
+
+        // Return a promise resolved with the manifest items for this helper, if there are any.
+        return Q(items);
     }
 
     /**
@@ -245,6 +285,27 @@ class BaseHelper {
     }
 
     /**
+     * Delete the items in the current manifest from the remote content hub.
+     *
+     * @param {Object} context The API context to be used by the delete operation.
+     * @param {Object} opts The options to be used to delete the items.
+     *
+     * @returns {Q.Promise} A promise to delete the items in the current manifest from the remote content hub.
+     *
+     * @resolves When all items have been deleted or resulted in an error.
+     * @rejects {Error} An error that occurred during the delete. Note that errors occurring during the delete of an
+     *                  individual item do not cause the promise to be rejected.
+     */
+    deleteManifestItems (context, opts) {
+        // Get the (proxy) items from the current manifest and delete them from the content hub.
+        const helper = this;
+        return helper.getManifestItems(context, opts)
+            .then(function (items) {
+                return helper._deleteItemList(context, items, opts);
+            });
+    }
+
+    /**
      * Delete the items on the remote content hub.
      *
      * @param {Object} context The API context to be used by the delete operation.
@@ -306,10 +367,10 @@ class BaseHelper {
                             self.initializeRetryDelete(context);
 
                             // List function for getting the items to be retried.
-                            const limit = options.getRelevantOption(context, opts, "limit", self._artifactName);
+                            const limit = options.getRelevantOption(context, opts, "limit", self.getArtifactName());
                             const getRetryChunk = function (context, opts) {
                                 const deferredChunk = Q.defer();
-                                const offset = options.getRelevantOption(context, opts, "offset", self._artifactName);
+                                const offset = options.getRelevantOption(context, opts, "offset", self.getArtifactName());
 
                                 if (offset >= itemsToDelete.length) {
                                     // Past the end of the array.
@@ -386,6 +447,180 @@ class BaseHelper {
      * Delete the remote items returned from the given list function.
      *
      * @param {Object} context The API context to be used by the delete operation.
+     * @param {Array} items A list of items to be deleted.
+     * @param {Object} opts The options to be used to delete the items.
+     *
+     * @returns {Q.Promise} A promise to delete the items on the remote content hub.
+     *
+     * @resolves {Array} The deleted items.
+     * @rejects {Error} An error that occurred during the delete. Note that errors occurring during the delete of an
+     *                  individual item do not cause the promise to be rejected.
+     */
+    _deleteItemList (context, items, opts) {
+        // Create a deferred object to control the timing of this operation.
+        const deferred = Q.defer();
+        const self = this;
+        const emitter = self.getEventEmitter(context);
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", self.getArtifactName());
+
+        // Retry is only available if it is enabled for this helper.
+        if (self.isRetryDeleteEnabled()) {
+            // Initialize the retry state on the context.
+            context.retryDelete = {};
+            self.initializeRetryDelete(context);
+
+            // Add the filter for determining whether a failed delete should be retried.
+            context.filterRetryDelete = self.filterRetryDelete.bind(self);
+        }
+
+        // Filter the list of remote items to remove any that should not be deleted.
+        items = items.filter(function (item) {
+            return self.canDeleteItem(item, false, opts);
+        });
+
+        // Keep track of all items that were successfully deleted.
+        let allDeletedItems = [];
+
+        // Local function to delete the specified items.
+        const deleteItems = function (context, items, opts) {
+            const currentDeferred = Q.defer();
+
+            // Keep track of the items that were successfully deleted during the current cycle.
+            const currentDeletedItems = [];
+
+            // Create a function for each item to be deleted.
+            const functions = items.map(function (item) {
+                return function () {
+                    return self.deleteRemoteItem(context, item, opts)
+                        .then(function () {
+                            // Emit a "deleted" event so that listeners know the item was deleted.
+                            if (emitter) {
+                                emitter.emit("deleted", item);
+                            }
+
+                            // Add the deleted item to the list.
+                            currentDeletedItems.push(item);
+                        })
+                        .catch(function (err) {
+                            if (err.statusCode === 404) {
+                                // The item no longer exists, so assume it was deleted automatically.
+                                if (emitter) {
+                                    // Emit a "deleted" event so that listeners know the item was deleted.
+                                    emitter.emit("deleted", item);
+                                }
+
+                                // Add the deleted item to the list, but do not propagate the error.
+                                currentDeletedItems.push(item);
+                            }
+                            else {
+                                // Only notify the listeners that the item was not deleted if it won't be retried.
+                                if (emitter && !err.retry) {
+                                    // Emit a "deleted-error" event so that listeners know the item was not deleted.
+                                    emitter.emit("deleted-error", err, item);
+                                }
+
+                                // Do not add the item to the list, but do propagate the error.
+                                throw err;
+                            }
+                        });
+                };
+            });
+
+            // Throttle the functions that will delete each item.
+            utils.throttledAll(context, functions, concurrentLimit)
+                .then(function () {
+                    // Keep track of all items that have been deleted.
+                    allDeletedItems = allDeletedItems.concat(currentDeletedItems);
+
+                    // Resolve with the array of items that were deleted in the current cycle.
+                    currentDeferred.resolve(currentDeletedItems);
+                })
+                .catch(function (err) {
+                    currentDeferred.reject(err);
+                });
+
+            return currentDeferred.promise;
+        };
+
+        // Recursive function for handling retries.
+        const retryDeleteItems = function (items) {
+            // Check to see if a retry is required.
+            const retryItems = self.getRetryDeleteProperty(context, BaseHelper.RETRY_DELETE_ITEMS);
+            if (retryItems && retryItems.length > 0) {
+                // There are items to retry, so check to see whether any delete operations were successful.
+                if (items.length > 0) {
+                    // There was at least one successful delete during the current cycle, so proceed with the retry.
+                    const itemsToDelete = [];
+                    retryItems.forEach(function (retryItem) {
+                        // Add each retry item to the list of items to be deleted.
+                        const item = retryItem[BaseHelper.RETRY_DELETE_ITEM];
+                        itemsToDelete.push(item);
+
+                        // Log a warning that the delete of this item will be retried.
+                        const error = retryItem[BaseHelper.RETRY_DELETE_ITEM_ERROR];
+                        const name = self.getName(item);
+                        utils.logWarnings(context, i18n.__("deleted_item_retry", {name: name, message: error.log ? error.log : error.message}));
+                    });
+
+                    // Initialize the retry values and then retry the delete of the items in the list.
+                    self.initializeRetryDelete(context);
+
+                    // Retry the delete of the items in the list.
+                    deleteItems(context, itemsToDelete, opts)
+                        .then(function (items) {
+                            // Recursive call to continue retry handling.
+                            retryDeleteItems(items);
+                        })
+                        .catch(function (err) {
+                            deferred.reject(err);
+                        });
+                } else {
+                    // There were no successful deletes during the current cycle, so do not retry again.
+                    retryItems.forEach(function (retryItem) {
+                        // Emit a "deleted-error" event and log the error for each undeleted item.
+                        const item = retryItem[BaseHelper.RETRY_DELETE_ITEM];
+                        const error = retryItem[BaseHelper.RETRY_DELETE_ITEM_ERROR];
+                        const heading = retryItem[BaseHelper.RETRY_DELETE_ITEM_HEADING];
+                        delete error.retry;
+
+                        const emitter = self.getEventEmitter(context);
+                        if (emitter) {
+                            emitter.emit("deleted-error", error, item);
+                        }
+                        utils.logErrors(context, heading, error);
+                    });
+
+                    // Resolve the promise now that there are no more items to delete.
+                    deferred.resolve(allDeletedItems);
+                }
+            } else {
+                // There were no items to retry, so resolve the promise.
+                deferred.resolve(allDeletedItems);
+            }
+        };
+
+        // Delete the remote items and then recursively delete any items to be retried.
+        deleteItems(context, items, opts)
+            .then(function (deletedItems) {
+                // Start the recursive retry handling.
+                retryDeleteItems(deletedItems);
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise
+            .finally(function () {
+                // Once the promise has been settled, remove the retry delete state from the context.
+                delete context.retryDelete;
+                delete context.filterRetryDelete;
+            });
+    }
+
+    /**
+     * Delete the remote items returned from the given list function.
+     *
+     * @param {Object} context The API context to be used by the delete operation.
      * @param {Function} listFn A function that returns a promise for a chunk of items to be deleted.
      * @param {Object} opts The options to be used to delete the items.
      *
@@ -399,9 +634,9 @@ class BaseHelper {
         const deferred = Q.defer();
         const self = this;
         const emitter = self.getEventEmitter(context);
-        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", self._artifactName);
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", self.getArtifactName());
 
-        this.getLogger(context).debug("Retrieving delete chunk from offset " + options.getRelevantOption(context, opts, "offset", self._artifactName) + ".");
+        this.getLogger(context).debug("Retrieving delete chunk from offset " + options.getRelevantOption(context, opts, "offset", self.getArtifactName()) + ".");
 
         listFn(opts)
             .then(function (items) {
@@ -489,7 +724,7 @@ class BaseHelper {
 
         // Determine whether this is the last chunk to be deleted.
         const currentChunkSize = deleteInfo.chunkSize;
-        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this._artifactName);
+        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             this.getLogger(context).debug("Partial delete chunk - Received " + currentChunkSize + ", maximum chunk size is " + maxChunkSize + ".");
 
@@ -502,7 +737,7 @@ class BaseHelper {
             const self = this;
 
             // Increase the offset so that the next chunk of items will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", self._artifactName);
+            const offset = options.getRelevantOption(context, opts, "offset", self.getArtifactName());
             opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // Adjust the offset by the number of items deleted, if necessary.

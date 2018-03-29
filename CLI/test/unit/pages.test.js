@@ -36,4 +36,4 @@ listUnitTest.run(helper, '--pages', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAM
 
 const DeleteUnitTest = require("./lib/delete.unit.js");
 const deleteUnitTest = new DeleteUnitTest();
-deleteUnitTest.run(helper, '-p', BASE_NAME + '-1');
+deleteUnitTest.run(helper, '--pages', BASE_NAME + '-1');

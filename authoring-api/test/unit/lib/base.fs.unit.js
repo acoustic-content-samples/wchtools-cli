@@ -1005,7 +1005,7 @@ class BaseFsApiUnitTest extends UnitTest {
         // Create a stub that will return a list of item names from the recursive function.
         const stub = sinon.stub(fs, "readdir");
         const err = null;
-        stub.yields(err, [itemName1, itemName2]);
+        stub.yields(err, [itemName1, itemName2, "foo.json"]);
 
         const FAKE_EXTENSION = ".json";
         const stubGetExtension = sinon.stub(fsApi, "getExtension");
@@ -1024,7 +1024,7 @@ class BaseFsApiUnitTest extends UnitTest {
                 expect(stub).to.have.been.calledOnce;
 
                 // Verify that the expected values are returned.
-                expect(paths).to.have.lengthOf(2);
+                expect(paths).to.have.lengthOf(3);
                 if (paths[0].path) {
                     expect(itemName1).to.contains(paths[0].path);
                 } else {

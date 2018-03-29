@@ -13,6 +13,8 @@
   "cannot_pull_item": "無法取回項目 '%(name)s'。",
 
   "deleted_original_file": "已刪除原始檔案：%(old_name)s 新的檔案：%(new_name)s",
+  "file_parse_error": "無法剖析檔案：%(path)s",
+  "file_skipped": "檔案中找不到 ID：%(path)s，跳過",
   "error_cancelling_job": "取消工作時發生錯誤：ID %(id)s",
   "error_fs_get_item": "檔案系統 getItem 中發生錯誤",
   "error_fs_get_filestats": "%(name)s 的 getFileStats 檔案系統發生錯誤。",
@@ -32,6 +34,7 @@
   "deleted_item": "已刪除 ID 為 %(id)s 的項目",
   "deleted_item_retry": "重試刪除項目 '%(name)s'。錯誤：%(message)s",
   "get_item_error": "取得項目 %(service_name)s 時發生錯誤：",
+  "authoring_search_error": "搜尋 %(service_name)s 服務時發生錯誤：",
   "create_item_error": "建立項目 %(service_name)s 時發生錯誤：",
   "update_item_error": "更新項目 %(service_name)s 時發生錯誤：",
   "delete_item_error": "刪除項目 %(service_name)s 時發生錯誤：",

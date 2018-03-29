@@ -177,13 +177,19 @@ function isValidApiUrl(url) {
  * @returns {boolean} true if path is invalid
  */
 function isInvalidPath (path) {
-    return vPath.test(path);
+    return (utils.isWindows() && vPath.test(path));
+}
+
+/**
+ * Are we running on a windows platform?
+ * @return {boolean}
+ */
+function isWindows() {
+    return process.plaform === 'win32';
 }
 
 /**
  * Validate the specified file path to avoid bug #71 in mkdirp, which can result in an infinite loop on Windows.
- *
- * Note: This validation could be removed once the mkdirp issue has been addressed.
  *
  * @param {String} filePath - The file path to be validated.
  *
@@ -191,7 +197,7 @@ function isInvalidPath (path) {
  *
  * @private
  */
-function isValidWindowsPathname (filePath){
+function isValidFilePath (filePath){
     return (filePath && !isInvalidPath(filePath) && !filePath.includes("http:") && !filePath.includes("https:"));
 }
 
@@ -745,7 +751,8 @@ const utils = {
     apisLogConfig: apisLogConfig,
     isValidApiUrl: isValidApiUrl,
     isInvalidPath: isInvalidPath,
-    isValidWindowsPathname: isValidWindowsPathname,
+    isWindows: isWindows,
+    isValidFilePath: isValidFilePath,
     getError: getError,
     getApiLogPath: getApiLogPath,
     cloneOpts: cloneOpts,

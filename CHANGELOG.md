@@ -1,5 +1,11 @@
 # Changelog
 
+### v2.5 changes since 2.3.4
+
+ - Made pulling artifacts with invalid Windows filename characters less restrictive on other operating systems (previously raised a file path error for invalid Windows filename characters, on other operating systems).
+ - Add limited pull -by-type-name support, for pulling content by type name and assets directly referenced by image and video elements, along with asset renditions (initial support includes only those artifacts; does not follow reference elements).  Categories and Image profiles should be pulled/pushed separately, and prior to using this, if attempting to use this to move content between tenants.  See the Readme for more information and description of limitations of this option.
+ - Add support for pushing, pulling and deleting artifacts by manifest.  Use --manifest to specify a manifest file to use for push/pull/delete actions.  Use --write-manifest to generate or update a manifest based on the results of list, pull, and push operations.   Search for "manifest" in the Readme, for more information about working with manifests.
+
 ### v2.3.4 changes since 2.3.1
 
  - Improve error reporting when encountering corrupt and unparseable JSON (e.g. accidentally edited content json with syntax error).

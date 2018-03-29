@@ -80,7 +80,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
   After you successfully install the wchtools CLI, initialize the username and the API URL for your Watson Content Hub tenant.   Obtain the API URL from the "Hub Information" dialog, which is available from a drop-down menu off the username on the top navigation bar of the content hub authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
 
-#### Initializing wchtools with a non-federated IBM id
+#### Initializing wchtools with a username and API URL for a non-federated IBM id
 
       wchtools init
       User: myWCHusername@mycompany.com
@@ -94,6 +94,10 @@ Then follow the Getting Started instructions below, to configure and start using
 
   If your IBM id account is federated, you may receive an error when wchtools tries to authenticate that user to the WCH login API, indicating that you are trying to use a federated account.   If this happens, you may instead create an API key as described in the following IBM Bluemix documentation, and then use "apikey" as the username and the value of that API key as the password, for both WCH REST APIs and for wchtools.
 
+#### Using an API key instead of a username and password, with Watson Content Hub tooling and APIs
+
+  You may authenticate to the Watson Content Hub login API via wchtools using an API key, instead of a username and password, whether or not your IBM id is associated with a federated user.   While federated users, "must" authenticate with an API key, other users may also choose to do so.   
+
 https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use.   Then use "apikey" as the value for "Username" on the init command or as passed to the --user argument of wchtools, and use the value of the API key as the password to authenticate with, associated with that API key.
@@ -104,6 +108,9 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
       wchtools list -A --server
       Password:  0zXyZMapDLGaFDmebg1Fh1d2wDLMXmvXbU666t0TL-zz
+
+      or
+      wchtools list -A --server --password 0zXyZMapDLGaFDmebg1Fh1d2wDLMXmvXbU666t0TL-zz
 
 #### Trying your first wchtools commands
 
@@ -130,16 +137,17 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
   The actual authoring or web resource artifacts are stored in the following subfolders under the working directory.
 
     <working dir>
-       assets/...          ( Non-managed (web resource) assets, such as html, js, css, managed with wchtools, not authoring UI)
+       assets/...          ( Non-managed (web resource) assets, such as html, js, css, managed with wchtools, not authoring UI )
        assets/dxdam/...    ( Managed Authoring Assets, uploaded via Authoring UI and tagged with additional metadata )
-       categories/         ( authoring categories and taxonomies)
-       content/            ( authoring content items)
+       assets/dxconfig/... ( configuration storage area, including manifests )
+       categories/         ( authoring categories and taxonomies )
+       content/            ( authoring content items )
        image-profiles/     ( authoring image profiles )
        renditions/         ( authoring renditions )
        sites/{site-id}/{pages}  site metadata and page node hierarhy for the site
        publishing-profiles/( publishing profiles )
        publishing-sources/ ( publishing sources )
-       resources/          ( image resources no longer referenced by asset metadata, when images updated on assets)
+       resources/          ( image resources no longer referenced by asset metadata, when images updated on assets )
        types/              ( authoring content types )
 
 
@@ -208,6 +216,28 @@ wchtools pull -A (or specified artifact type)  with --deletions
 
     wchtools pull -a -v --deletions
 
+
+#### Pulling content by type name, along with assets directly referenced by image and video elements, and renditions directly referenced by that content.
+
+Scenario: Using Content as a Service, a developer wants to pull all Content of a given type (eg, Article or Recipe) from one tenant, and push that set of artifacts to a second tenant (eg, if using a separate authoring tenant from production tenant, with manual migration of Content and Assets).   
+
+Please note that this particular option is targeted at Content as a Service customers, not those using WCH Sites and Pages, since it does not operate on the latter artifact types.
+
+    wchtools pull -A -v --by-type-name "Sample Article"
+
+This limited pull option allows you to pull all content associated with a specified type name, along with assets directly referenced by that content, in image and video elements, and referenced renditions.
+
+Use -A (for all authoring artifacts supported by the --by-type-name option) to benefit from any improvements that may be made to this option in future releases (eg, additional authoring artifact types).  Unlike other pull options -A means all artifact types that are currently supported by --by-type-name, when used with this option.
+
+If using this to move content between WCH tenants, you will need to pull and push categories and image profiles between those tenants first, using the existing pull -c -i options.   
+
+The current --by-type-name option does not support pulling other content types and content and assets associated via "reference" elements, or other authoring artifacts.  Specifying a content type that includes reference elements to other types and artifacts, which are not followed by the current version of this option, will result in a warning in verbose output and in the log, that not all artifacts associated with the type may be pulled during this operation.
+
+Specifying an artifact type that this option does not currently support, will result in an error.   The --deletions option which relies on pulling "all" artifacts and comparing with what was in the local working directory prior to the pull, is not compatible with pulling by type (which relies on searching for content by the type and then walking the content looking for asset references) and will also result in an error, if specified with this option.
+
+Since this option works by finding the type by name, retrieving all content by that type and then walking the content to find asset and rendition references, it does not use the WCH "by-modified" APIs which the pull-modified operations rely on.  This results in all artifacts that it finds directly associated with the type being pulled each time you run the command with this option, rather than only those that are created or modified since the last pull by type.   If you then push all artifacts to a second WCH tenant where you had already pushed those same artifacts before, the revision values will be different than the prior push.  In this case, you can use the -f (--force-override) option to push with an override of the revision check, if you encounter revision conflict errors and with to overwrite what was pushed before, in case the artifats had been updated.   As always, it is not recommended to edit the same artifacts across multiple WCH tenancies and then attempt to migrate one to the other, as that may result in conflicts, or overwritten changes.
+
+If you have more complex content types and references, or need to pull other authoring artifacts, then the existing pull all or pull all modified options may be more appropriate for your use cases.   
 
 ### Delete command (for explicit deletion of server side artifacts)
 
@@ -332,6 +362,83 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
     - use with care and only after using up to date wchtools to pull all artifacts to a safe location
     - use only when you intend to completely clean out your Watson Content Hub tenant of all artifacts, to start with a clean empty hub.
+
+
+### Pushing, pulling, and deleting, by manifest
+A manifest file can be used to control the set of authoring artifacts that are acted upon by the wchtools commands. The push, pull, and delete actions all support using a manifest to specify which artifacts to perform the desired operation on. Likewise, the push, pull, delete and list commands can be used to generate a new manifest from your environment. The manifest file is a simple JSON list of artifacts grouped by artifact type.
+
+Please note that manifests just provide the wchtools commands with a list of artifacts to operate on, they cannot and do not change the behavior of WCH APIs.  These manifest based commands are thus subject to the same validation and limitations those APIs provide.  For instance, if other pages and/or content that are "not" listed in a manfiest refer to a content type listed in the manifest, you will not be able to delete that content type via manifest, until those pages and content are first removed (by UI or by another wchtools delete command).
+
+#### Manifest file location
+When a manifest is created, it is created in the /assets/dxconfig/manifests directory of the local working directory for the command. When specifying a manifest on the command line, you need only specify the name of the manifest, wchtools will automatically locate the manifest in the /assets/dxconfig/manifests directory. For example:
+
+    wchtools pull --manifest my_site
+
+will look for a file called my_site.json in the assets/dxconfig/manifests directory relative to your working directory.
+
+Alternatively, if you specify the manifest using a full path, you can point to a manifest anywhere on your local file system.
+
+    wchtools pull --manifest /Users/wchuser/manifests/my_site.json
+
+#### Using a manifest
+A manifest can be specified using the manifest option on the command line. For example:
+
+    wchtools push --manifest <manifest>
+
+When a manifest is specified, the manifest provides the list of artifacts that the command should act on. For example, if your manifest contained only 3 content items, but your working directory contained 10 content items, the command:
+
+    wchtools push --manifest <manifest>
+
+will only push the 3 content items that are listed in the manifest.
+
+If no artifact type specifiers (e.g. -c, -t, -a, etc) are provided on the command line, the action will also use the manifest to determine which artifact types to act on. For example, if a manifest contained only types and content artifacts, a command such as:
+
+    wchtools pull --manifest <manifest>
+
+would handle pulling only types and content since those are the only artifacts specified in the manifest.
+
+If artifact type specifiers (e.g. -c, -t, -a, etc) are provided on the command line, the command will only act on those artifact types and only on those artifacts specified in the manifest. For example, if a manifest contained types, content, layouts, sites and pages, the following command would only pull the types and content artifacts included in the manifest:
+
+    wchtools pull -c -t --manifest <manifest>
+
+A manifest can be used as a list of artifacts to delete, using:
+
+    wchtools delete --manifest <manifest>
+
+This will delete only those artifacts that are specified in the manifest file.
+
+#### Creating a new manifest
+A manifest file can be created based on the results of the artifacts successfully processed by the push, pull, delete and list commands.
+
+To generate a new manifest from the contents of your local working directory, execute:
+
+    wchtools list --write-manifest <manifest>
+
+The set of artifacts that are included in the manifest can be further restricted if desired. For example, to generate a manifest for just content artifacts, execute:
+
+    wchtools list -c --write-manifest <manifest>
+
+To generate a new manifest from the contents of your WCH tenant, use:
+
+    wchtools list --server --write-manifest <manifest>
+
+To push the modified contents of your local working directory to your tenant and generate a manifest that includes only the artifacts that were pushed, use:
+
+    wchtools push --write-manifest <manifest>
+
+To pull all artifacts from your WCH tenant to a local working directory and generate a manifest of everything that was pulled, use:
+
+    wchtools pull -A --write-manifest <manifest>
+
+Since manifests are stored in a folder called "/dxconfig/manifests" under the {working-directory}/assets folder, they will be pushed with the web application assets and can be shared with other developers using the same tenant, by pushing them to your WCH tenant with those web application assets.  They may also be shared by checking the manifest(s) in to the source code control repository that you and the other developers are using to track your web application artifacts. 
+
+#### Using both --manifest and --write-manifest
+
+It is possible to use both --manifest and --write-manifest in the same command. This may be useful if you want to restrict the set of artifacts that are processed by the command (using the specified manifest) and then generate a new manifest that contains only those artifacts that were successfully processed by the action. For example:
+
+    wchtools push -c --manifest my_site --write-manifest new_content
+    
+Assuming you had an existing manifest called my_site which included all artifacts for your site, the above command would push only the locally modified content items to your tenant and afterwards generate a new manifest called new_content which includes only those content items that were modified (and successfully pushed to your tenant).
 
 
 #### Triggering a publish job

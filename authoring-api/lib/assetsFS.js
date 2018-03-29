@@ -486,10 +486,29 @@ class AssetsFS extends BaseFS {
      * NOTE: The specified asset may not exist.
      */
     getItemWriteStream (context, name, opts) {
-        const deferred = Q.defer();
-
         // Get the file path for the specified file, creating the working directory if necessary.
         const filepath = this.getPath(context, opts) + name;
+        return this._getItemWriteStream(context, filepath, opts);
+    }
+
+    /**
+     * Gets a write stream for an asset that is stored locally on the file system.
+     *
+     * NOTE: The specified asset may not exist.
+     */
+    getResourceWriteStream (context, name, opts) {
+        // Get the file path for the specified file, creating the working directory if necessary.
+        const filepath = this.getResourcesPath(context, opts) + name;
+        return this._getItemWriteStream(context, filepath, opts);
+    }
+
+    /**
+     * Gets a write stream for an asset that is stored locally on the file system.
+     *
+     * NOTE: The specified asset may not exist.
+     */
+    _getItemWriteStream (context, filepath, opts) {
+        const deferred = Q.defer();
 
         // Create any directories specified in the file's path.
         mkdirp.mkdirp(path.dirname(filepath), function (err) {
@@ -582,11 +601,13 @@ class AssetsFS extends BaseFS {
                     }
                     deferred.resolve(files.map(function (file) {
                         let id;
+                        let name;
                         if (file.startsWith("/" + CONTENT_RESOURCE_DIRECTORY)) {
                             const path = fsObject.getMetadataPath(context, file, opts);
                             try {
                                 const item = JSON.parse(fs.readFileSync(path));
                                 id = item.id;
+                                name = item.name;
                             } catch (err) {
                                 // we couldn't read the metadata file to get the id, log a warning and continue
                                 utils.logWarnings(context, i18n.__("file_parse_error", {path: path}));
@@ -594,6 +615,7 @@ class AssetsFS extends BaseFS {
                         }
                         return {
                             id: id,
+                            name: name,
                             path: file
                         };
                     }));

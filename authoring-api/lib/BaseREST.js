@@ -67,6 +67,9 @@ class BaseREST {
             } else if (key.startsWith("x-ibm-dx-") && key !== "x-ibm-dx-tenant-base-url") {
                 if (value && typeof value === "string") {
                     hdrs[key] = value;
+                } else {
+                    // Log a warning since the passed for the header value is not a string.
+                    utils.logWarnings(context, i18n.__("header_value_not_string", {header: key}));
                 }
             }
         });

@@ -21,6 +21,7 @@ const fs = require("fs");
 const options = require("./lib/utils/options.js");
 const utils = require("./lib/utils/utils.js");
 const hashes = require("./lib/utils/hashes.js");
+const manifests = require("./lib/utils/manifests.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 /**
@@ -197,6 +198,25 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
+     * Push the items in the current manifest from the local file system to the remote content hub.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the push operations.
+     *
+     * @returns {Q.Promise} A promise to push the local items to the remote content hub.
+     *
+     * @resolves {Array} The items that were pushed.
+     */
+    pushManifestItems (context, opts) {
+        // Get the names (actually the proxy items) from the current manifest and push them to the content hub.
+        const helper = this;
+        return helper.getManifestItems(context, opts)
+            .then(function (items) {
+                return helper._pushNameList(context, items, opts);
+            });
+    }
+
+    /**
      * Push all items from the local file system to the remote content hub.
      *
      * Note: The remote items will be created if they do not exist, otherwise the remote items will be updated.
@@ -209,7 +229,7 @@ class JSONItemHelper extends BaseHelper {
      * @resolves {Array} The items that were pushed.
      */
     pushAllItems (context, opts) {
-        // Return the promise to to get the list of local item names and push those items to the content hub.
+        // Return the promise to get the list of local item names and push those items to the content hub.
         const helper = this;
         return helper._fsApi.listNames(context, opts)
             .then(function (names) {
@@ -232,7 +252,7 @@ class JSONItemHelper extends BaseHelper {
     pushModifiedItems (context, opts) {
         // Return the promise to to get the list of modified local item names and push those items to the content hub.
         const helper = this;
-        return helper.listModifiedLocalItemNames(context, [helper.NEW, helper.MODIFIED], opts)
+        return helper._listModifiedLocalItemNames(context, [helper.NEW, helper.MODIFIED], opts)
             .then(function (names) {
                 return helper._pushNameList(context, names, opts);
             });
@@ -274,6 +294,7 @@ class JSONItemHelper extends BaseHelper {
                     const emitter = helper.getEventEmitter(context);
                     if (emitter) {
                         emitter.emit("pulled", helper.makeEmittedObject(context, item, opts));
+                        emitter.emit("post-process", item);
                     }
                 }
 
@@ -286,6 +307,25 @@ class JSONItemHelper extends BaseHelper {
                     emitter.emit("pulled-error", err, id);
                 }
                 throw err;
+            });
+    }
+
+    /**
+     * Pull the items in the current manifest from the remote content hub to the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the pull operations.
+     *
+     * @returns {Q.Promise} A promise to pull the remote items to the local file system.
+     *
+     * @resolves {Array} The items that were pulled.
+     */
+    pullManifestItems (context, opts) {
+        // Get the names (actually the proxy items) from the current manifest and pull them from the content hub.
+        const helper = this;
+        return helper.getManifestItems(context, opts)
+            .then(function (items) {
+                return helper._pullItemList(context, items, opts);
             });
     }
 
@@ -309,7 +349,7 @@ class JSONItemHelper extends BaseHelper {
         const deletions = options.getRelevantOption(context, opts, "deletions");
         let allFSItems;
         if (deletions) {
-            allFSItems = this.listLocalItemNames(context, opts);
+            allFSItems = this._listLocalItemNames(context, opts);
         }
 
         // Get the timestamp to set before we call the REST API.
@@ -401,6 +441,37 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
+     * Updates the manifest with results of a list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} itemList The list of items to be added to the manifest.
+     * @param {Object} opts - The options to be used for the list operation.
+     */
+    _updateManifest (context, itemList, opts) {
+        const helper = this;
+        const manifestList = itemList.filter(function (item) {
+            return helper.canPullItem(item);
+        });
+        manifests.updateManifestSection(context, helper.getArtifactName(), manifestList, opts);
+    }
+
+    /**
+     * Lists all local items.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts - The options to be used for the push operation.
+     *
+     * @returns {Q.Promise} - A promise that resolves with an array of the names of
+     *                      all items that exist on the file system.
+     */
+    _listLocalItemNames (context, opts) {
+        return this._fsApi.listNames(context, opts);
+    }
+
+    /**
+     * Lists all local items.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
      * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the push operation.
      *
@@ -408,7 +479,12 @@ class JSONItemHelper extends BaseHelper {
      *                      all items that exist on the file system.
      */
     listLocalItemNames (context, opts) {
-        return this._fsApi.listNames(context, opts);
+        const helper = this;
+        return this._listLocalItemNames(context, opts)
+            .then(function (itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
+            });
     }
 
     /**
@@ -421,7 +497,7 @@ class JSONItemHelper extends BaseHelper {
      * @returns {Q.Promise} A promise that resolves with an array of names for all items on the file system which have
      *                      been modified since being pushed/pulled.
      */
-    listModifiedLocalItemNames (context, flags, opts) {
+    _listModifiedLocalItemNames (context, flags, opts) {
         const helper = this;
         const fsObject = this._fsApi;
         const dir = fsObject.getPath(context, opts);
@@ -447,6 +523,26 @@ class JSONItemHelper extends BaseHelper {
                 } else {
                     return results;
                 }
+            });
+    }
+
+    /**
+     * Get an array of names for all items on the file system which have been modified since being pushed/pulled.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} flags An array of the state (NEW, DELETED, MODIFIED) of the items to be included in the list.
+     * @param {Object} opts The options to be used for the push operation.
+     *
+     * @returns {Q.Promise} A promise that resolves with an array of names for all items on the file system which have
+     *                      been modified since being pushed/pulled.
+     */
+    listModifiedLocalItemNames (context, flags, opts) {
+        const helper = this;
+        return this._listModifiedLocalItemNames(context, flags, opts)
+            .then(function(itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
             });
     }
 
@@ -492,7 +588,7 @@ class JSONItemHelper extends BaseHelper {
      *
      * @returns {Q.Promise} - A promise for an array of the names of all remote items.
      */
-    listRemoteItemNames (context, opts) {
+    _listRemoteItemNames (context, opts) {
         // Create the deferred to be used for recursively retrieving items.
         const deferred = Q.defer();
 
@@ -520,6 +616,24 @@ class JSONItemHelper extends BaseHelper {
                 return items.map(function (item) {
                     return helper._makeListItemResult(context, item, opts);
                 });
+            });
+    }
+
+    /**
+     * Get a list of the names of all remote items.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts - The options to be used for this operation.
+     *
+     * @returns {Q.Promise} - A promise for an array of the names of all remote items.
+     */
+    listRemoteItemNames (context, opts) {
+        const helper = this;
+        return this._listRemoteItemNames(context, opts)
+            .then(function(itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
             });
     }
 
@@ -559,7 +673,7 @@ class JSONItemHelper extends BaseHelper {
      * @returns {Q.Promise} - A promise for an array of the names of all remote items that were modified since being
      *                        pushed/pulled.
      */
-    listModifiedRemoteItemNames (context, flags, opts) {
+    _listModifiedRemoteItemNames (context, flags, opts) {
         const deferred = Q.defer();
         const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(helper, context, flags);
@@ -591,6 +705,26 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
+     * Get a list of the names of all remote items that have been modified.
+     * This function serves as an entry point for the list command and should not be internally called otherwise.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} flags - An array of the state (NEW, DELETED, MODIFIED) of the items to be included in the list.
+     * @param {Object} opts - The options to be used for this operation.
+     *
+     * @returns {Q.Promise} - A promise for an array of the names of all remote items that were modified since being
+     *                        pushed/pulled.
+     */
+    listModifiedRemoteItemNames (context, flags, opts) {
+        const helper = this;
+        return this._listModifiedRemoteItemNames(context, flags, opts)
+            .then(function(itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
+            });
+    }
+
+    /**
      * Get a list of the names of all remote items that have been deleted.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -604,7 +738,7 @@ class JSONItemHelper extends BaseHelper {
         const dir = this._fsApi.getDir(context, opts);
         const extension = this._fsApi.getExtension();
 
-        this.listRemoteItemNames(context, opts)
+        this._listRemoteItemNames(context, opts)
             .then(function (remoteItems) {
                 deferred.resolve(
                     hashes.listFiles(context, dir, opts)
@@ -762,7 +896,7 @@ class JSONItemHelper extends BaseHelper {
         const deferred = Q.defer();
 
         const helper = this;
-        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper._artifactName);
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
         const pushedItems = [];
         const pushItems = function (names, opts) {
             const results = utils.throttledAll(context, names.map(function (name) {
@@ -845,11 +979,56 @@ class JSONItemHelper extends BaseHelper {
 
         // Return the promise that will eventually be resolved in the pushItems function.
         return deferred.promise
+            .then(function (itemList) {
+                helper._updateManifest(context, itemList, opts);
+                return itemList;
+            })
             .finally(function () {
                 // Once the promise has been settled, remove the retry push state from the context.
                 delete context.retryPush;
                 delete context.filterRetryPush;
             });
+    }
+
+    /**
+     * Pull the given items.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} items - The items to be pulled.
+     * @param {Object} opts - The options to be used for this operations.
+     *
+     * @returns {Q.Promise} A promise for the items that were pulled.
+     *
+     * @protected
+     */
+    _pullItemList (context, items, opts) {
+        const deferred = Q.defer();
+        const helper = this;
+
+        // Create an array of functions, one function for each item being pulled.
+        const functions = items.map(function (item) {
+            return function () {
+                return helper.pullItem(context, item.id, opts);
+            };
+        });
+
+        // Pull the items in the list, throttling the concurrent requests to the defined limit for this artifact type.
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
+        utils.throttledAll(context, functions, concurrentLimit)
+            .then(function (promises) {
+                const pulledItems = [];
+                promises.forEach(function (promise) {
+                    if ((promise.state === 'fulfilled') && promise.value) {
+                        pulledItems.push(promise.value);
+                    }
+                });
+
+                // Resolve the promise with the list of pulled items.
+                deferred.resolve(pulledItems);
+            });
+
+        // Return the promise that will eventually be resolved with the pulled items.
+        return deferred.promise;
     }
 
     _pullItemsChunk (context, listFn, opts) {
@@ -887,9 +1066,11 @@ class JSONItemHelper extends BaseHelper {
                 return Q.allSettled(promises)
                     .then(function (promises) {
                         items = [];
+                        const manifestList = [];
                         promises.forEach(function (promise, index) {
                             if (promise.state === "fulfilled") {
                                 items.push(promise.value);
+                                manifestList.push(promise.value);
                             }
                             else {
                                 items.push(promise.reason);
@@ -900,6 +1081,10 @@ class JSONItemHelper extends BaseHelper {
                                 context.pullErrorCount++;
                             }
                         });
+
+                        // Append the resulting itemList to the manifest if writing/updating a manifest.
+                        helper._updateManifest(context, manifestList, opts);
+
                         deferred.resolve({chunkSize: chunkSize, items: items});
                     });
             })
@@ -914,14 +1099,14 @@ class JSONItemHelper extends BaseHelper {
         //append the results from the previous chunk to the allItems array
         allItems.push.apply(allItems, pullInfo.items);
         const iLen = pullInfo.chunkSize;
-        const limit = options.getRelevantOption(context, opts, "limit", helper._artifactName);
+        const limit = options.getRelevantOption(context, opts, "limit", helper.getArtifactName());
         //test to see if we got less than the full chunk size
         if (iLen === 0 || iLen < limit) {
             //resolve the deferred with the allItems array
             deferred.resolve(allItems);
         } else {
             //get the next chunk
-            const offset = options.getRelevantOption(context, opts, "offset", helper._artifactName);
+            const offset = options.getRelevantOption(context, opts, "offset", helper.getArtifactName());
             opts = utils.cloneOpts(opts, {offset: offset + limit});
             this._pullItemsChunk(context, listFn, opts)
                 .then(function (pullInfo) {
@@ -940,11 +1125,11 @@ class JSONItemHelper extends BaseHelper {
         results = results.concat(listInfo.items);
 
         const iLen = listInfo.length;
-        const limit = options.getRelevantOption(context, opts, "limit", this._artifactName);
+        const limit = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
         if (iLen === 0 || iLen < limit) {
             deferred.resolve(results);
         } else {
-            const offset = options.getRelevantOption(context, opts, "offset", this._artifactName);
+            const offset = options.getRelevantOption(context, opts, "offset", this.getArtifactName());
             opts = utils.cloneOpts(opts, {offset: offset + limit});
             const helper = this;
             helper._listItemChunk(context, listFn, opts)

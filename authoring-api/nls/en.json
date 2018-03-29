@@ -24,6 +24,7 @@
   "save_item_write_failed_bad_path": "saveItem failed to write to file %(path)s bad path",
   "close_stream_failed": "closeStream failed with error: ",
   "error_options_file": "Error reading configuration options file: %(filename)s. %(error)s",
+  "error_manifest_file": "Error reading manifest file: %(filename)s. %(error)s",
 
   "name_required": "Name must be specified.",
   "category_exists": "A category with name %(name)s already exists.",
@@ -49,6 +50,9 @@
   "error_set_last_pull_timestamp": "Error in setLastPullTimestamp: ",
   "error_set_last_push_timestamp": "Error in setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Error in getHashesForFile: ",
+  "error_manifest_file_read": "Error reading manifest file %(filename)s: %(error)s",
+  "error_manifest_file_write": "Error writing manifest file %(filename)s: %(error)s",
+  "error_manifest_file_does_not_exist": "Manifest file %(filename)s does not exist.",
 
   "error_unsupported_endpoint": "The %(service_name)s API does not support the %(endpoint)s endpoint.",
   "unknown_error": "Unknown error",
@@ -66,5 +70,6 @@
   "retry_failed_retry": "A request (%(id)d) that was retried (attempt %(attempt)d) failed before the maximum number of retries. %(message)s",
   "retry_next_attempt": "A request (%(id)d) will be retried (attempt %(attempt)d) in %(delay)d milliseconds.",
   "retry_success": "A request (%(id)d) that was retried succeeded after %(attempt)d attempts.",
-  "retry_max_attempts": "A request (%(id)d) was retried the maximum number of times."
+  "retry_max_attempts": "A request (%(id)d) was retried the maximum number of times.",
+  "header_value_not_string": "Ignoring HTTP header %(header)s; the value provided is not a string."
 }

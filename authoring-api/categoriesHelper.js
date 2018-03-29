@@ -97,6 +97,15 @@ class CategoriesHelper extends JSONItemHelper {
         return super.canDeleteItem(item, isDeleteAll, opts) && item["permanent"] !== true;
     }
 
+    _makeListItemResult (context, item, opts) {
+        // Override _makeListItemResult so we can add the permanent field to perform filtering in the methods above.
+        return {
+            id: item.id,
+            name: item.name,
+            permanent: item.permanent
+        };
+    }
+
     /**
      * Push the items with the given names.
      *

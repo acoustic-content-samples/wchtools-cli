@@ -23,12 +23,14 @@ const UnitTest = require("./base.cli.unit.js");
 
 // Require the node modules used in this test file.
 const fs = require("fs");
+const Q = require("q");
 const sinon = require("sinon");
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const toolsCli = require("../../../wchToolsCli");
 const prompt = require("prompt");
 const options = ToolsApi.getOptions();
+const manifests = ToolsApi.getManifests();
 
 class DeleteUnitTest extends UnitTest {
     constructor () {
@@ -67,11 +69,13 @@ class DeleteUnitTest extends UnitTest {
                 self.testDeleteBySearch(helper, switches, itemName1, '--named');
                 self.testDeleteByTag(helper, switches, itemName1);
                 self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteByManifest (helper, switches, itemName1);
                 self.testDeleteParamFail(helper, switches, itemName1);
             } else if (switches.includes("-c")) {
                 self.testDeleteBySearch(helper, switches, itemName1, '--named');
                 self.testDeleteByTag(helper, switches, itemName1);
                 self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteByManifest (helper, switches, itemName1);
                 self.testDeleteBySearch(helper, switches, itemName1, '--by-type-name');
                 self.testDeleteParamFail(helper, switches, itemName1);
                 self.testDeletePageContentFail (helper, itemName1);
@@ -79,12 +83,15 @@ class DeleteUnitTest extends UnitTest {
                 self.testDeleteByTag(helper, switches, itemName1);
                 self.testDeleteAll (helper, switches, itemName1);
                 self.testDeleteAll (helper, "-aw", itemName1);
+                self.testDeleteByManifest (helper, switches, itemName1);
                 self.testDeleteParamFail(helper, switches, itemName1);
             } else if (switches.includes("-w") || switches.includes("-l") || switches.includes("-m")) {
                 self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteByManifest (helper, switches, itemName1);
                 self.testDeleteParamFail(helper, switches, itemName1);
-            } else if (switches.includes("-i") || switches.includes("-C") || switches.includes("-p")) {
+            } else if (switches.includes("-i") || switches.includes("-C") || switches.includes("--pages")) {
                 self.testDeleteAll (helper, switches, itemName1);
+                self.testDeleteByManifest (helper, switches, itemName1);
             }
         });
     }
@@ -147,7 +154,7 @@ class DeleteUnitTest extends UnitTest {
             });
 
             it("should succeed if deleting pages and page content", function (done) {
-                if (switches.includes("-p")) {
+                if (switches.includes("--pages")) {
                     const stubDelete = sinon.stub(helper, "deleteRemoteItem");
                     stubDelete.resolves({id: itemName1});
 
@@ -710,40 +717,100 @@ class DeleteUnitTest extends UnitTest {
                         done(error);
                     });
             });
-        });
 
-        it("should fail if the dir parameter is invalid", function (done) {
-            const stub = sinon.stub(fs, "statSync");
-            const STAT_ERROR = new Error("BAD DIRECTORY");
-            STAT_ERROR.code = "Invalid directory";
-            stub.throws(STAT_ERROR);
-            let error;
-            toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, searchArg, 'foo', '--dir', '....'])
-                .then(function (/*msg*/) {
-                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                    error = new Error("The command should have failed.");
-                })
-                .catch(function (err) {
-                    // The stub should only have been called once, and the expected error should have been returned.
-                    expect(stub).to.have.been.calledOnce;
-                    expect(err.message).to.contain(STAT_ERROR.code);
-                    expect(err.message).to.contain('....');
-                })
-                .catch(function (err) {
-                    error = err;
-                })
-                .finally(function () {
-                    // Restore the stubbed method.
-                    stub.restore();
+            it("should fail if the dir parameter is invalid", function (done) {
+                const stub = sinon.stub(fs, "statSync");
+                const STAT_ERROR = new Error("BAD DIRECTORY");
+                STAT_ERROR.code = "Invalid directory";
+                stub.throws(STAT_ERROR);
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, searchArg, 'foo', '--dir', '....'])
+                    .then(function (/*msg*/) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // The stub should only have been called once, and the expected error should have been returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(err.message).to.contain(STAT_ERROR.code);
+                        expect(err.message).to.contain('....');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
 
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                });
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
     testDeleteByTag (helper, switches, itemName1) {
         describe("Deleting items by tag", function () {
+            it("should fail if no artifact types specified", function(done) {
+                // Execute the command to delete the items.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--tag', itemName1])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        expect(err.message).to.contain("artifact type must be specified");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if only an invalid artifact type is specified", function(done) {
+                // Execute the command to delete the items.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", '--layouts', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--tag', itemName1])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        expect(err.message).to.contain("only supported for content items, content types, and content assets");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if an invalid artifact type is also specified", function(done) {
+                // Execute the command to delete the items.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, "--layouts", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--tag', itemName1])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        expect(err.message).to.contain("only supported for content items, content types, and content assets");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail if no matching artifacts", function(done) {
                 const stubSearch = sinon.stub(helper, "searchRemote");
                 stubSearch.resolves([]);
@@ -889,6 +956,47 @@ class DeleteUnitTest extends UnitTest {
                         // Restore the helper's stubbed methods.
                         stubSearch.restore();
                         stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when search fails, no continue on error", function(done) {
+                // Create a stub to return a value for the "continueOnError" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "continueOnError") {
+                        return false;
+                    } else {
+                        return originalGetProperty(context, key);
+                    }
+                });
+
+                const DELETE_ERROR = "Delete failure expected by unit test.";
+                const stubSearch = sinon.stub(helper, "searchRemote");
+                stubSearch.rejects(DELETE_ERROR);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '--tag', itemName1])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // The stub should only have been called once, and the expected message should have been returned.
+                        expect(stubSearch).to.have.been.calledOnce;
+                        expect(err.message).to.contain(DELETE_ERROR);
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubGet.restore();
+                        stubSearch.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -1180,35 +1288,35 @@ class DeleteUnitTest extends UnitTest {
                         done(error);
                     });
             });
-        });
 
-        it("should fail if the dir parameter is invalid", function (done) {
-            const stub = sinon.stub(fs, "statSync");
-            const STAT_ERROR = new Error("BAD DIRECTORY");
-            STAT_ERROR.code = "Invalid directory";
-            stub.throws(STAT_ERROR);
-            let error;
-            toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--tag', 'foo', '--dir', '....'])
-                .then(function (/*msg*/) {
-                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                    error = new Error("The command should have failed.");
-                })
-                .catch(function (err) {
-                    // The stub should only have been called once, and the expected error should have been returned.
-                    expect(stub).to.have.been.calledOnce;
-                    expect(err.message).to.contain(STAT_ERROR.code);
-                    expect(err.message).to.contain('....');
-                })
-                .catch(function (err) {
-                    error = err;
-                })
-                .finally(function () {
-                    // Restore the stubbed method.
-                    stub.restore();
+            it("should fail if the dir parameter is invalid", function (done) {
+                const stub = sinon.stub(fs, "statSync");
+                const STAT_ERROR = new Error("BAD DIRECTORY");
+                STAT_ERROR.code = "Invalid directory";
+                stub.throws(STAT_ERROR);
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--tag', 'foo', '--dir', '....'])
+                    .then(function (/*msg*/) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // The stub should only have been called once, and the expected error should have been returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(err.message).to.contain(STAT_ERROR.code);
+                        expect(err.message).to.contain('....');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
 
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                });
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -1561,7 +1669,7 @@ class DeleteUnitTest extends UnitTest {
             });
 
             it("should not delete for a base tier", function(done) {
-                if (switches !== "-l" && switches !== "-m" && switches !== "-p") {
+                if (switches !== "-l" && switches !== "-m" && switches !== "--pages") {
                     return done();
                 }
 
@@ -1756,7 +1864,7 @@ class DeleteUnitTest extends UnitTest {
 
                 // Execute the command to delete the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -1766,6 +1874,46 @@ class DeleteUnitTest extends UnitTest {
                         expect(stubDelete).to.have.been.calledThrice;
                         expect(err.message).to.contain('Encountered 3 errors');
                         expect(err.message).to.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when all deletes fail - quiet, verbose", function(done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const DELETE_ERROR = "Delete failure expected by unit test.";
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().rejects(DELETE_ERROR);
+                stubDelete.onSecondCall().rejects(DELETE_ERROR);
+                stubDelete.onThirdCall().rejects(DELETE_ERROR);
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-v', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // The stub should only have been called once, and the expected message should have been returned.
+                        expect(stubDelete).to.have.been.calledThrice;
+                        expect(err.message).to.contain('Encountered 3 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1930,6 +2078,504 @@ class DeleteUnitTest extends UnitTest {
                         // Restore the stubbed method.
                         stub.restore();
                         stubPrompt.restore();
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testDeleteByManifest (helper, switches, itemName1) {
+        describe("CLI-unit-delete-manifest-fail", function () {
+            it("fails if both --mainfest and --all are specified", function (done) {
+                const stub = sinon.stub(manifests, "initializeManifests");
+                stub.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Execute the command to delete using a manifest.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '-v', '--all', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected message was returned.
+                        expect(err.message).to.contain("manifest cannot be used");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stub.restore();
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("fails if initializeManifests fails", function (done) {
+                const stub = sinon.stub(manifests, "initializeManifests");
+                stub.returns(false);
+
+                // Execute the command to delete using a manifest.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '-v', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected message was returned.
+                        expect(err.message).to.contain("could not be read");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("fails if no items in manifest", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                // No types (so no incompatible types).
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+
+                // Execute the command to delete using a manifest.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '-v', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected message was returned.
+                        expect(err.message).to.contain("did not contain any artifacts");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubInit.restore();
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("fails if incompatible types in manifest", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                // Sites is an incompatible type.
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+
+                // Create a stub to return a value for the "tier" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "tier") {
+                        return "Base";
+                    } else {
+                        return originalGetProperty(context, key);
+                    }
+                });
+
+                // Execute the command to delete using a manifest.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '-v', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected message was returned.
+                        expect(err.message).to.contain("contains artifact types that are not valid for this tenant");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubGet.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test delete manifest fails if delete fails and not continue on error", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Create a stub to return a value for the "continueOnError" key.
+                const originalGetProperty = options.getProperty;
+                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
+                    if (key === "continueOnError") {
+                        return false;
+                    } else {
+                        return originalGetProperty(context, key);
+                    }
+                });
+
+                // Stub the helper.deleteManifestItems method to reject with an error.
+                const DELETE_ERROR = "Delete failure expected by unit test.";
+                const stubDelete = sinon.stub(helper, "deleteManifestItems");
+                stubDelete.rejects(DELETE_ERROR);
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(err.message).to.contain(DELETE_ERROR);
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubGet.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test delete manifest fails if no artifacts deleted", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Stub the helper.deleteManifestItems method to return a promise that is resolved after emitting events.
+                const stubDelete = sinon.stub(helper, "deleteManifestItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-1", id: "fail-id-1", path: "fail-path-1"});
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-2", id: "fail-id-2", path: "fail-path-2"});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(err.message).to.contain('2 errors');
+                        expect(err.message).to.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test delete manifest fails if no artifacts deleted, verbose", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Stub the helper.deleteManifestItems method to return a promise that is resolved after emitting events.
+                const stubDelete = sinon.stub(helper, "deleteManifestItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-1", id: "fail-id-1", path: "fail-path-1"});
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-2", id: "fail-id-2", path: "fail-path-2"});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, "-v", "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(err.message).to.contain('2 errors');
+                        expect(err.message).to.not.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+
+        describe("CLI-unit-delete-manifest-succeed", function () {
+            it("test delete manifest working", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Stub the helper.deleteManifestItems method to return a promise that is resolved after emitting events.
+                const stubDelete = sinon.stub(helper, "deleteManifestItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("deleted", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("deleted", {name: itemName1 + "-2", id: undefined, path: itemName1 + "-2"});
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-1", id: "fail-id-1", path: "fail-path-1"});
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-2", id: "fail-id-2", path: "fail-path-2"});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts successfully');
+                        expect(msg).to.contain('2 errors');
+                        expect(msg).to.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test delete manifest working, verbose", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Stub the helper.deleteManifestItems method to return a promise that is resolved after emitting events.
+                const stubDelete = sinon.stub(helper, "deleteManifestItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("deleted", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("deleted", {name: itemName1 + "-2", id: undefined, path: itemName1 + "-2"});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '-v', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts successfully');
+                        expect(msg).to.not.contain('wchtools-cli.log');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test delete manifest working, preview", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Stub the helper.getManifestItems method to return a promise that is resolved after emitting events.
+                const stubGet = sinon.stub(helper, "getManifestItems");
+                stubGet.resolves([{name: itemName1, id: undefined, path: itemName1}, {name: itemName1 + "-2", id: undefined, path: itemName1 + "-2"}]);
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--preview', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubGet).to.have.been.calledOnce;
+                        expect(msg).to.contain('preview complete');
+                        expect(msg).to.contain('foo');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubGet.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test delete working when save manifest fails", function (done) {
+                const stubInit = sinon.stub(manifests, "initializeManifests");
+                stubInit.returns(true);
+
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(undefined);
+                stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                if (switches === "--pages") {
+                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
+                }
+
+                // Stub the helper.deleteManifestItems method to return a promise that is resolved after emitting events.
+                const stubDelete = sinon.stub(helper, "deleteManifestItems", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("deleted", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("deleted", {name: itemName1 + "-2", id: undefined, path: itemName1 + "-2"});
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-1", id: "fail-id-1", path: "fail-path-1"});
+                        emitter.emit("deleted-error", {message: "This failure was expected by the unit test"}, {name: "fail-name-2", id: "fail-id-2", path: "fail-path-2"});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                const stubSave = sinon.stub(manifests, "saveManifest");
+                stubSave.throws(new Error("Save manifest error expected by unit test."));
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '-v', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubDelete).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts successfully');
+                        expect(msg).to.contain('2 errors');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubInit.restore();
+                        stubSection.restore();
+                        stubDelete.restore();
+                        stubSave.restore();
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });

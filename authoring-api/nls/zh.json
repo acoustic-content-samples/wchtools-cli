@@ -13,6 +13,8 @@
   "cannot_pull_item": "无法拉取项“%(name)s”。",
 
   "deleted_original_file": "已删除原始文件：%(old_name)s 新文件：%(new_name)s",
+  "file_parse_error": "无法解析文件：%(path)s",
+  "file_skipped": "在文件 %(path)s 中找不到标识，正在跳过",
   "error_cancelling_job": "取消标识为 %(id)s 的作业时发生错误",
   "error_fs_get_item": "文件系统 getItem 中发生错误",
   "error_fs_get_filestats": "%(name)s 的文件系统 getFileStats 中出错。",
@@ -32,6 +34,7 @@
   "deleted_item": "已删除标识为 %(id)s 的项",
   "deleted_item_retry": "请重试删除项“%(name)s”。错误：%(message)s",
   "get_item_error": "获取项 %(service_name)s 时出错：",
+  "authoring_search_error": "搜索 %(service_name)s 服务时发生错误：",
   "create_item_error": "创建项 %(service_name)s 时出错：",
   "update_item_error": "更新项 %(service_name)s 时出错：",
   "delete_item_error": "删除项 %(service_name)s 时出错：",
