@@ -1,6 +1,6 @@
 # Changelog
 
-### v2.5 changes since 2.3.4
+### v2.4.1 changes since 2.3.4
 
  - Made pulling artifacts with invalid Windows filename characters less restrictive on other operating systems (previously raised a file path error for invalid Windows filename characters, on other operating systems).
  - Add limited pull -by-type-name support, for pulling content by type name and assets directly referenced by image and video elements, along with asset renditions (initial support includes only those artifacts; does not follow reference elements).  Categories and Image profiles should be pulled/pushed separately, and prior to using this, if attempting to use this to move content between tenants.  See the Readme for more information and description of limitations of this option.
