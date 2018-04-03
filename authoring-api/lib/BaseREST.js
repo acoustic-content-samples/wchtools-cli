@@ -133,7 +133,9 @@ class BaseREST {
                 // Get the error into the standard format.
                 const error = utils.getError(err, body, response, requestOptions);
 
-                if (error.statusCode) {
+                if (utils.retryNetworkErrors(err) ) {
+                    retVal = true;
+                } else if (error.statusCode) {
                     // Determine whether the request should be retried, based on the status code for the error.
                     switch (error.statusCode) {
                         // 403 Forbidden - Handle the special case that sometimes occurs during authorization. In general we
@@ -173,7 +175,7 @@ class BaseREST {
 
                 // Add a log warning for the retry.
                 if (retVal) {
-                    utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.log}));
+                    utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.original_message || error.log}));
                 }
             }
 
@@ -199,8 +201,9 @@ class BaseREST {
                 delay = randomnessFactor * delay;
             }
 
-            // Use an exponential backoff strategy if a factor has been defined.
-            const attempt = response.attempts;
+            // Use an exponential backoff strategy if a factor has been defined
+            // Fallback to calculating delay based on 1 attempt if no response provided due to socket error
+            const attempt = response ? response.attempts : ((err && err.attempts) ? err.attempts : 1);
             if (factor !== 0) {
                 const backoffFactor = Math.pow(factor, attempt - 1);
                 delay = backoffFactor * delay;

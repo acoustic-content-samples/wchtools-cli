@@ -1,5 +1,9 @@
 # Changelog
 
+### v2.4.3 changes since 2.4.1
+
+ - Improved retry handling to also retry http requests on network or socket level errors, not just HTTP 429 and 5xx errors.
+
 ### v2.4.1 changes since 2.3.4
 
  - Made pulling artifacts with invalid Windows filename characters less restrictive on other operating systems (previously raised a file path error for invalid Windows filename characters, on other operating systems).

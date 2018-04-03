@@ -38,6 +38,9 @@ let httplang;
 // Enable the request module cookie jar so cookies can be shared across response, request with this request wrapper
 const requestWrapper = require("requestretry").defaults({jar: true});
 
+// Expose the default retry strategy for detecting retryable network errors.
+const retryNetworkErrors = require("requestretry").RetryStrategies.NetworkError;
+
 /**
  * Get the object that is used to localize strings.
  *
@@ -293,7 +296,8 @@ function getBaseError (err, body, resp) {
  * @returns {Error} an error if one is found
  */
 function getErrorFromErr (error) {
-    if (error && error.code && (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET')) {
+    if (error && error.code && (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT')) {
+        error.original_message = error.message;
         error.message = i18n.__("service_unavailable");
     }
     return error;
@@ -770,6 +774,7 @@ const utils = {
     throttledAll: throttledAll,
     getI18N: getI18N,
     getRequestWrapper: getRequestWrapper,
+    retryNetworkErrors: retryNetworkErrors,
     getRelativePath: getRelativePath,
     getHTTPLanguage: getHTTPLanguage,
     replaceAll: replaceAll,
