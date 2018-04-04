@@ -1467,7 +1467,9 @@ class AssetsHelper extends BaseHelper {
     filterRetryPush (context, error, opts) {
         let retVal = false;
 
-        if (error.statusCode) {
+        if (utils.retryNetworkErrors(error) ) {
+            retVal = true;
+        } else if (error.statusCode) {
             // Determine whether the request should be retried, based on the status code for the error.
             switch (error.statusCode) {
                 // 403 Forbidden - Handle the special case that sometimes occurs during authorization. In general we

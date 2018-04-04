@@ -1,6 +1,6 @@
 # Changelog
 
-### v2.4.3 changes since 2.4.1
+### v2.4.5 changes since 2.4.1
 
  - Improved retry handling to also retry http requests on network or socket level errors, not just HTTP 429 and 5xx errors.
 
