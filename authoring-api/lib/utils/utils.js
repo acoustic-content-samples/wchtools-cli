@@ -266,6 +266,9 @@ function getError (err, body, response, requestOptions) {
 
         // The log entry will contain the response if it exists.
         try {
+            if (response && response.request && response.request.headers && response.request.headers.authorization) {
+                response.request.headers.authorization = "****";
+            }
             error.log += " Response: " + JSON.stringify(response);
         } catch (e) {
             //do nothing

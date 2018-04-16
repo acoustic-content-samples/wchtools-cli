@@ -168,6 +168,12 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   When you pull artifacts from the Watson Content Hub authoring services, wchtools CLI creates folders for types, assets, and content under the working directory. The tool does not operate on raw artifacts in a current working directory. You must specify the <working-directory> parent of the subfolders that contain the contain artifacts, or be in the <working-directory> parent folder that contains such subfolders, when you run wchtools CLI with the push, pull or list commands.
 
+#### Pulling web assets under a specific folder or path
+
+  To pull web assets under a specific path, specify the --path {/somepath} option.  For example:
+
+    wchtools pull -w -v --path /myNavigationWidget  --dir <path-to-working-directory>
+
 #### Pushing a full site's, pages, content and related authoring artifacts from a local file system folder
 
   To push (import) all pages, content model, content, and assets to a local working directory, run the following command:
@@ -422,6 +428,10 @@ To generate a new manifest from the contents of your WCH tenant, use:
 
     wchtools list --server --write-manifest <manifest>
 
+To generate a new manifest of web artifacts under a specific folder path, use the --path argument with the web assets path (eg, for /myNavWidget):
+
+    wchtools list -w --server --write-manifest <manifest> --path /myNavWidget
+
 To push the modified contents of your local working directory to your tenant and generate a manifest that includes only the artifacts that were pushed, use:
 
     wchtools push --write-manifest <manifest>
@@ -483,13 +493,13 @@ Assuming you had an existing manifest called my_site which included all artifact
 
   Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. To allow for a more granular push of web resource assets, with an option for a path below the <working-directory>/assets/ root path, you can push only a subset of web resource assets. For example, consider a working directory named  c:\work on Windows or ~/work on Linux or Mac, with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , topNav, sideNav.
 
-   - To push only the topNav assets, you would use
+   - To push only the web assets under a folder called /topNav, you would use
 
-              wchtools push --path topNav/
+              wchtools push --path /topNav
 
    - To push only the style folder that is below the topNav folder, you would use
 
-             wchtools push --path topNav/style
+             wchtools push --path /topNav/style
 
    - To push assets from a specific working directory, use
 
@@ -542,7 +552,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
      "is_ignore_additive": false
 
-  By default, the .wchtoolsoptions file can be found in the user's home directory after running the init command.
+  By default, the .wchtoolsoptions file can be found in the user's home directory after running the init command.   You may also specify a tooling project working-directory with the init command, to write configuration for a particular working directory of artifacts that you wish to push or pull with different configuration options than the default .wchtoolsoptions configuration file is set to use.
 
 #### Creating and managing templates, layouts and layout mappings
 
@@ -618,6 +628,26 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
             set WCHTOOLS_MAX_HEAP=2048
             wchtools_heap push ...
+
+#### Setting non-default number of retries and back-off delay, for network issues on WCH API requests.
+
+  The init command supports optional arguments for setting the maximum number of retry attempts per WCH API request error, on network issues or HTTP 429 server too busy responses.  It also allows you to specify the minimum time and maximum time (in milliseconds) to wait, between retry attempts.  By default, 5 total attempts will be tried, starting at a 1 second delay (1000 ms) and backing off by a factor of 2, up to a maximum of 16 seconds (16000 milliseconds).   You do not need to initialize these settings, if the default values meet your needs.
+
+      wchtools init --help
+      ...
+      --retry-max-attempts <n>  The maximum number of attempts if a WCH API request fails due to a network or server too busy error. The default is 5.
+      --retry-min-time <n>      The minimum amount of time in milliseconds to wait before attempting to retry a failed WCH API request. The default is 1000.
+      --retry-max-time <n>      The maximum amount of time in milliseconds to wait before attempting to retry a failed WCH API request. The default is 16000.
+
+  The default retry backoff factor is 2, so the actual time delay between retries will be (1 x the min time), then (2 x the min time), then 4x, etc, until the maximum number of attempts is tried for that request.  The time delay will be the smaller of the current backoff calculation, and the specified or default retry max time.  In other words, if the backoff calculation specified a delay time of 32 seconds (32000 milliseconds), but the maximum time was set to 16 seconds (16000 milliseconds), then it would wait maximum 16 seconds between retry attempts, rather than the calculated backoff factor.
+
+  For example, if you are having temporary network issues that affect an asset push, and have not set these configuration values, a request will be attempted 5 times (including the initial attempt), with the following delays:
+    - Retry #1 after a 1 second delay
+    - Retry #2 after a 2 second delay
+    - Retry #3 after a 4 second delay
+    - Retry #4 after an 8 second delay
+   
+  If you use the above init options to set 10 attempts, with a min of 5000 (5 seconds) and a max of 15000 (15 seconds) then retry #1 will be after a 5 second delay, retry #2 after a 10 second delay and retries #3 through #9 will all use the maximum 15 second delay,  for that particular WCH API request.   Each WCH API request (eg, to create or update an asset or content item) will be attempted the maximum number of attempts set, and start at the minimum retry attempt time (the settings are per artifact pushed or pulled, not per push command).
 
 #### Limitations
   The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
