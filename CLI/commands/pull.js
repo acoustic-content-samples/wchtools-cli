@@ -113,6 +113,11 @@ class PullCommand extends BaseCommand {
             return;
         }
 
+        // Make sure the "path" option can be handled successfully.
+        if (!self.handlePathOption()) {
+            return;
+        }
+
         // Check to see if the initialization process was successful.
         if (!self.handleInitialization(context)) {
             return;
@@ -566,16 +571,10 @@ class PullCommand extends BaseCommand {
                 // Delete the specified item and display a success or failure message.
                 return helper.pullItem(context, item.id || item, opts)
                     .then(function (message) {
-                        // Track the number of successful delete operations.
-                        self._artifactsCount++;
-
                         // Add a debug entry for the server-generated message. (Not displayed in verbose mode.)
                         logger.debug(message);
                     })
                     .catch(function (err) {
-                        // Track the number of failed delete operations.
-                        self._artifactsError++;
-
                         // Add an error entry for the localized failure message. (Displayed in verbose mode.)
                         logger.error(i18n.__("cli_pull_failure", {"artifacttype": helper.getArtifactName(),  "name": item.name || item.id || item, "err": err.message}));
                     });
@@ -1762,6 +1761,7 @@ function pullCommand (program) {
         .option('--by-type-name <name>', i18n.__('cli_pull_opt_by_type_name'))
         .option('--deletions',           i18n.__('cli_pull_opt_deletions'))
         .option('-q --quiet',            i18n.__('cli_pull_opt_quiet'))
+        .option('--path <path>',         i18n.__('cli_pull_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_pull_opt_use_manifest'))
         .option('--write-manifest <manifest>',i18n.__('cli_pull_opt_write_manifest'))
         .option('--dir <dir>',           i18n.__('cli_pull_opt_dir'))

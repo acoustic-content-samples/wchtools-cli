@@ -348,6 +348,23 @@ class AssetsHelper extends BaseHelper {
                     });
                 }
 
+                if (opts && opts.filterPath) {
+                    // make sure filter path is correct format
+                    let filterPath = opts.filterPath.replace(/\\/g, '/');
+                    if (filterPath.charAt(0) !== '/') {
+                        filterPath = '/' + filterPath;
+                    }
+                    if (!filterPath.endsWith('/')) {
+                        filterPath = filterPath + '/';
+                    }
+                    assetList = assetList
+                        .filter(function (asset) {
+                            if (asset.path && asset.path.indexOf(filterPath) === 0) {
+                                return asset;
+                            }
+                        });
+                }
+
                 // Throttle the number of assets to be pulled concurrently, using the currently configured limit.
                 const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
                 const results = utils.throttledAll(context, assetList.map(function (asset) {
@@ -752,7 +769,7 @@ class AssetsHelper extends BaseHelper {
                 }
             })
             .then(function (items) {
-                if (context.pullErrorCount === 0) {
+                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
                     // Only update the last pull timestamp if there were no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
@@ -791,7 +808,6 @@ class AssetsHelper extends BaseHelper {
         // Use getModifiedRemoteItems() as the list function, so that only new and modified assets will be pulled.
         const listFn = this.getModifiedRemoteItems.bind(this, context, [this.NEW, this.MODIFIED]);
         const helper = this;
-
         // Keep track of the error count.
         context.pullErrorCount = 0;
 
@@ -822,7 +838,7 @@ class AssetsHelper extends BaseHelper {
                 }
             })
             .then(function (items) {
-                if (context.pullErrorCount === 0) {
+                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
                     // Only update the last pull timestamp if there were no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
@@ -1588,6 +1604,23 @@ class AssetsHelper extends BaseHelper {
                             if (helper._fsApi.isContentResource(asset))
                                 return asset;
                         });
+                }
+
+                if (opts && opts.filterPath) {
+                    // make sure filter path is correct format
+                    let filterPath = opts.filterPath.replace(/\\/g, '/');
+                    if (filterPath.charAt(0) !== '/') {
+                        filterPath = '/' + filterPath;
+                    }
+                    if (!filterPath.endsWith('/')) {
+                        filterPath = filterPath + '/';
+                    }
+                    assetList = assetList
+                        .filter(function (asset) {
+                            if (asset.path && asset.path.indexOf(filterPath) === 0) {
+                                return asset;
+                            }
+                    });
                 }
 
                 return {length: chunkLength, assets: assetList};

@@ -80,6 +80,20 @@ class InitCommand extends BaseCommand {
     }
 
     /**
+     * Check for the specified numeric option
+     * @param {string} option name
+     */
+    checkForNumericOption(optionName, configOptionName, newOptions) {
+        const n = this.getCommandLineOption(optionName);
+        if (n) {
+            if (Number.isNaN(n) || (Number(n)<0) || !Number.isSafeInteger(Number(n)))
+                this.getProgram().errorMessage(i18n.__('cli_init_expected_numeric_arg', {arg: "retryMaxAttempts", argv: n}));
+            else
+                newOptions[configOptionName] = Number(n);
+        }
+    }
+
+    /**
      * Update the given options, and presist to file.
      *
      * @param {Object} context The API context associated with this init command.
@@ -99,10 +113,15 @@ class InitCommand extends BaseCommand {
             newOptions["x-ibm-dx-tenant-base-url"] = this.getCommandLineOption("url");
         }
 
+        this.checkForNumericOption("retryMaxAttempts", "retryMaxAttempts", newOptions);
+        this.checkForNumericOption("retryMinTime", "retryMinTimeout",  newOptions);
+        this.checkForNumericOption("retryMaxTime", "retryMaxTimeout",  newOptions);
+
         // Validate the specified API URL.
         if (utils.isValidApiUrl(newOptions["x-ibm-dx-tenant-base-url"])) {
             // Update the appropriate options file and display the result.
             try {
+                newOptions["x-ibm-dx-tenant-base-url"] = newOptions["x-ibm-dx-tenant-base-url"].trim();
                 const optionsFilePath = options.setOptions(context, newOptions, true, this.getCommandLineOption("dir"));
                 this.getProgram().successMessage(i18n.__('cli_init_success', {"path": optionsFilePath}));
             } catch (e) {
@@ -171,6 +190,9 @@ class InitCommand extends BaseCommand {
     resetCommandLineOptions () {
         this.setCommandLineOption("url", undefined);
         this.setCommandLineOption("dir", undefined);
+        this.setCommandLineOption("retryMaxAttempts", undefined);
+        this.setCommandLineOption("retryMinTime", undefined);
+        this.setCommandLineOption("retryMaxTime", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -188,6 +210,9 @@ function initCommand (program) {
         .option('--user <user>', i18n.__('cli_init_opt_user_name'))
         .option('--url <url>', i18n.__('cli_init_opt_url', {"product_name": utils.ProductName}))
         .option('--dir <directory>', i18n.__('cli_init_opt_dir'))
+        .option('--retry-max-attempts <n>', i18n.__('cli_init_opt_retry_max_attempts'))
+        .option('--retry-min-time <n>', i18n.__('cli_init_opt_retry_min_time'), parseInt)
+        .option('--retry-max-time <n>', i18n.__('cli_init_opt_retry_max_time'), parseInt)
         .action(function (commandLineOptions) {
             const command = new InitCommand(program);
             if (command.setCommandLineOptions(commandLineOptions, this)) {

@@ -370,7 +370,7 @@ class JSONItemHelper extends BaseHelper {
         // After the promise has been resolved, update the last pull timestamp (but only if there were no errors.)
         return deferred.promise
             .then(function (items) {
-                if (context.pullErrorCount === 0) {
+                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
                     hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 const emitter = helper.getEventEmitter(context);
@@ -430,7 +430,7 @@ class JSONItemHelper extends BaseHelper {
         // After the promise has been resolved, update the last pull timestamp (but only if there were no errors.)
         return deferred.promise
             .then(function (items) {
-                if (context.pullErrorCount === 0) {
+                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
                     hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 return items;
@@ -840,7 +840,7 @@ class JSONItemHelper extends BaseHelper {
             })
             .catch(function (err) {
                 const name = opts.originalPushFileName || helper.getName(item);
-                const heading = logError + name;
+                const heading = logError + JSON.stringify(name);
 
                 // Determine whether the push of this item should be retried.
                 if (err.retry) {

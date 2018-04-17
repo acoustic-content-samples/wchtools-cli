@@ -1,5 +1,12 @@
 # Changelog
 
+### v2.5 changes since v2.4.5
+
+ - Fix gap in list --path support so that the path filter applies to --server web assets too, not just local web assets.
+ - Add --path support to pull command, to allow pulling web assets under a specific path, for consistency with push and list --path options.
+   - Note, the --path filter is limited to web assets at this time.
+ - Add ability to set retryMaxAttempts, retryMinTime and retryMaxTime config options via init command, to control retries on WCH API network/HTTP errors.
+
 ### v2.4.5 changes since 2.4.1
 
  - Improved retry handling to also retry http requests on network or socket level errors, not just HTTP 429 and 5xx errors.
