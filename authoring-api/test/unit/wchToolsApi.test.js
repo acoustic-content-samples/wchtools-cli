@@ -313,7 +313,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
-                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubPages).to.not.have.been.called; // Because there are no local sites.
                     expect(stubSources).to.have.been.calledOnce;
                     expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -351,6 +351,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             const api = new ToolsApi();
             const context = api.getContext();
 
+            const stubLocalSites = sinon.stub(ToolsApi, "getLocalSites");
+            stubLocalSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
             const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems", function () {
                 context.eventEmitter.emit("pushed", "imageProfile1");
                 context.eventEmitter.emit("pushed", "imageProfile2");
@@ -407,7 +409,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
-                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledTwice; // Because there are two local sites
                     expect(stubSources).to.have.been.calledOnce;
                     expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -422,6 +424,104 @@ describe("Unit tests for wchToolsApi.js", function () {
                 })
                 .finally(function () {
                     // The stubs should be restored when the test is complete.
+                    stubLocalSites.restore();
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubRenditions.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubSites.restore();
+                    stubPages.restore();
+                    stubSources.restore();
+                    stubProfiles.restore();
+                    stubSiteRevisions.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should succeed when items are pushed (no sites)", function (done) {
+            const api = new ToolsApi();
+            const context = api.getContext();
+
+            const stubLocalSites = sinon.stub(ToolsApi, "getLocalSites");
+            stubLocalSites.resolves(null);
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems", function () {
+                context.eventEmitter.emit("pushed", "imageProfile1");
+                context.eventEmitter.emit("pushed", "imageProfile2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "imageProfile1"}, {id: "test2", name: "imageProfile2"}]);
+                return deferred.promise;
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "pushAllItems", function () {
+                context.eventEmitter.emit("pushed", "category1");
+                context.eventEmitter.emit("pushed", "category2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "category1"}, {id: "test2", name: "category2"}]);
+                return deferred.promise;
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "pushAllItems", function () {
+                context.eventEmitter.emit("pushed", "asset1");
+                context.eventEmitter.emit("pushed", "asset2");
+                const deferred = Q.defer();
+                deferred.resolve([{id: "test1", name: "asset1"}, {id: "test2", name: "asset2"}]);
+                return deferred.promise;
+            });
+            const stubRenditions = sinon.stub(ToolsApi.getRenditionsHelper(), "pushAllItems");
+            stubRenditions.resolves([]);
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "pushAllItems");
+            stubLayouts.resolves([]);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "pushAllItems");
+            stubTypes.resolves([]);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "pushAllItems");
+            stubLayoutMappings.resolves([]);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
+            stubContent.resolves([]);
+            const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
+            stubSites.resolves([]);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
+            stubPages.resolves([]);
+            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
+            stubSources.resolves([]);
+            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
+            stubProfiles.resolves([]);
+            const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
+            stubSiteRevisions.resolves([]);
+
+            // Call the method being tested.
+            let error;
+            api.pushAllItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubRenditions).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubSites).to.have.been.calledOnce;
+                    expect(stubPages).to.not.have.been.called; // Because there are no local sites
+                    expect(stubSources).to.have.been.calledOnce;
+                    expect(stubProfiles).to.have.been.calledOnce;
+                    expect(stubSiteRevisions).to.have.been.calledOnce;
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(6);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubLocalSites.restore();
                     stubImageProfiles.restore();
                     stubCategories.restore();
                     stubAssets.restore();
@@ -592,7 +692,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
-                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubPages).to.not.have.been.called;
                     expect(stubSources).to.have.been.calledOnce;
                     expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -755,7 +855,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
-                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubPages).to.not.have.been.called;
                     expect(stubSources).to.have.been.calledOnce;
                     expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -792,22 +892,24 @@ describe("Unit tests for wchToolsApi.js", function () {
 
     describe("deleteAllItems", function () {
         it("should succeed when no items to delete", function (done) {
+            const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
+            stubRemoteSites.resolves(null);
             const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems");
-            stubImageProfiles.resolves([]);
+            stubImageProfiles.resolves(undefined);
             const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "deleteRemoteItems");
-            stubCategories.resolves([]);
+            stubCategories.resolves(undefined);
             const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "deleteRemoteItems");
-            stubAssets.resolves([]);
+            stubAssets.resolves(undefined);
             const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "deleteRemoteItems");
-            stubLayouts.resolves([]);
+            stubLayouts.resolves(undefined);
             const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "deleteRemoteItems");
-            stubTypes.resolves([]);
+            stubTypes.resolves(undefined);
             const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "deleteRemoteItems");
-            stubLayoutMappings.resolves([]);
+            stubLayoutMappings.resolves(undefined);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
-            stubContent.resolves([]);
+            stubContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
-            stubPages.resolves([]);
+            stubPages.resolves(undefined);
 
             // Call the method being tested.
             let error;
@@ -815,6 +917,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             api.deleteAllItems()
                 .then(function (items) {
                     // Verify that the stubs were each called once.
+                    expect(stubRemoteSites).to.have.been.calledOnce;
                     expect(stubImageProfiles).to.have.been.calledOnce;
                     expect(stubCategories).to.have.been.calledOnce;
                     expect(stubAssets).to.have.been.calledOnce;
@@ -822,7 +925,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
-                    expect(stubPages).to.have.been.calledOnce;
+                    expect(stubPages).to.not.have.been.called; // Because there are no remote sites.
 
                     // Verify that the expected values are returned.
                     expect(items).to.have.lengthOf(0);
@@ -834,6 +937,320 @@ describe("Unit tests for wchToolsApi.js", function () {
                 })
                 .finally(function () {
                     // The stubs should be restored when the test is complete.
+                    stubRemoteSites.restore();
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubPages.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should succeed when items are deleted", function (done) {
+            const api = new ToolsApi();
+            const context = api.getContext();
+
+            // Make sure there is an event emitter, keep track of the original emitter.
+            const emitter = context.eventEmitter;
+            context.eventEmitter = new events.EventEmitter();
+
+            const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
+            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "imageProfile1");
+                context.eventEmitter.emit("deleted", "imageProfile2");
+                return Q();
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "category1");
+                context.eventEmitter.emit("deleted", "category2");
+                return Q();
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "asset1");
+                context.eventEmitter.emit("deleted", "asset2");
+                return Q();
+            });
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "deleteRemoteItems");
+            stubLayouts.resolves(undefined);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "deleteRemoteItems");
+            stubTypes.resolves(undefined);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "deleteRemoteItems");
+            stubLayoutMappings.resolves(undefined);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
+            stubContent.resolves(undefined);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
+            stubPages.resolves(undefined);
+
+            // Call the method being tested.
+            let error;
+            api.deleteAllItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(6);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the original emitter.
+                    context.eventEmitter = emitter;
+
+                    // The stubs should be restored when the test is complete.
+                    stubRemoteSites.restore();
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubPages.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should fail when an item delete fails", function (done) {
+            const api = new ToolsApi();
+            const context = api.getContext();
+            const DELETE_ERROR = "There was an error deleting an item, as expected by unit test.";
+
+            // Make sure there is an event emitter, keep track of the original emitter.
+            const emitter = context.eventEmitter;
+            context.eventEmitter = new events.EventEmitter();
+
+            const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
+            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "imageProfile1");
+                context.eventEmitter.emit("deleted", "imageProfile2");
+                return Q();
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "category1");
+                context.eventEmitter.emit("deleted-error", new Error(DELETE_ERROR), "category2");
+                return Q();
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted-error", new Error(DELETE_ERROR), "asset1");
+                context.eventEmitter.emit("deleted", "asset2");
+                return Q();
+            });
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "deleteRemoteItems");
+            stubLayouts.resolves(undefined);
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "deleteRemoteItems");
+            stubTypes.resolves(undefined);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "deleteRemoteItems");
+            stubLayoutMappings.resolves(undefined);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
+            stubContent.resolves(undefined);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
+            stubPages.resolves(undefined);
+
+            // Call the method being tested.
+            let error;
+            api.deleteAllItems()
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The promise for deleting all items should have been rejected.");
+                })
+                .catch (function (errs) {
+                    // Verify that the expected error is returned.
+                    expect(errs).to.have.lengthOf(2);
+                    errs.forEach(function (err) {
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.equal(DELETE_ERROR);
+                    });
+
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the original emitter.
+                    context.eventEmitter = emitter;
+
+                    // The stubs should be restored when the test is complete.
+                    stubRemoteSites.restore();
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubPages.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should succeed when a helper deleteRemoteItems fails - continueOnError true", function (done) {
+            const api = new ToolsApi({eventEmitter: new events.EventEmitter(), continueOnError: true});
+            const context = api.getContext();
+            const DELETE_ERROR = "Delete failure, expected by unit test.";
+
+            const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
+            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "imageProfile1");
+                context.eventEmitter.emit("deleted", "imageProfile2");
+                return Q();
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "category1");
+                context.eventEmitter.emit("deleted", "category2");
+                return Q();
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "asset1");
+                context.eventEmitter.emit("deleted", "asset2");
+                return Q();
+            });
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "deleteRemoteItems");
+            stubLayouts.rejects(new Error(DELETE_ERROR));
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "deleteRemoteItems");
+            stubTypes.resolves(undefined);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "deleteRemoteItems");
+            stubLayoutMappings.resolves(undefined);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
+            stubContent.resolves(undefined);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
+            stubPages.resolves(undefined);
+
+            // Call the method being tested.
+            let error;
+            api.deleteAllItems()
+                .then(function (items) {
+                    // Verify that the stubs were each called once.
+                    expect(stubImageProfiles).to.have.been.calledOnce;
+                    expect(stubCategories).to.have.been.calledOnce;
+                    expect(stubAssets).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
+
+                    // Verify that the expected values are returned.
+                    expect(items).to.have.lengthOf(6);
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubRemoteSites.restore();
+                    stubImageProfiles.restore();
+                    stubCategories.restore();
+                    stubAssets.restore();
+                    stubLayouts.restore();
+                    stubTypes.restore();
+                    stubLayoutMappings.restore();
+                    stubContent.restore();
+                    stubPages.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
+        it("should fail when a helper deleteRemoteItems fails - continueOnError false", function (done) {
+            const api = new ToolsApi({eventEmitter: new events.EventEmitter(), continueOnError: false});
+            const context = api.getContext();
+            const DELETE_ERROR = "Delete failure, expected by unit test.";
+
+            const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
+            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "imageProfile1");
+                context.eventEmitter.emit("deleted", "imageProfile2");
+                return Q();
+            });
+            const stubCategories = sinon.stub(ToolsApi.getCategoriesHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "category1");
+                context.eventEmitter.emit("deleted", "category2");
+                return Q();
+            });
+            const stubAssets = sinon.stub(ToolsApi.getAssetsHelper(), "deleteRemoteItems", function () {
+                context.eventEmitter.emit("deleted", "asset1");
+                context.eventEmitter.emit("deleted", "asset2");
+                return Q();
+            });
+            const stubLayouts = sinon.stub(ToolsApi.getLayoutsHelper(), "deleteRemoteItems");
+            stubLayouts.rejects(new Error(DELETE_ERROR));
+            const stubTypes = sinon.stub(ToolsApi.getItemTypeHelper(), "deleteRemoteItems");
+            stubTypes.resolves(undefined);
+            const stubLayoutMappings = sinon.stub(ToolsApi.getLayoutMappingsHelper(), "deleteRemoteItems");
+            stubLayoutMappings.resolves(undefined);
+            const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
+            stubContent.resolves(undefined);
+            const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
+            stubPages.resolves(undefined);
+
+            // Call the method being tested.
+            let error;
+            api.deleteAllItems()
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The promise for deleting all items should have been rejected.");
+                })
+                .catch (function (err) {
+                    // Verify that the expected error is returned.
+                    expect(err.message).to.contain(DELETE_ERROR);
+
+                    // Verify that the stubs were called as expected.
+                    expect(stubPages).to.have.been.calledTwice;
+                    expect(stubContent).to.have.been.calledOnce;
+                    expect(stubLayoutMappings).to.have.been.calledOnce;
+                    expect(stubTypes).to.have.been.calledOnce;
+                    expect(stubLayouts).to.have.been.calledOnce;
+                    expect(stubAssets).to.not.have.been.called;
+                    expect(stubCategories).to.not.have.been.called;
+                    expect(stubImageProfiles).to.not.have.been.called;
+                })
+                .catch (function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // The stubs should be restored when the test is complete.
+                    stubRemoteSites.restore();
                     stubImageProfiles.restore();
                     stubCategories.restore();
                     stubAssets.restore();

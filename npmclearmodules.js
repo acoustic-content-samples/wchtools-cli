@@ -16,4 +16,5 @@ limitations under the License.
 var child_process = require('child_process');
 child_process.execSync('node ./node_modules/rimraf/bin.js ./authoring-api/node_modules', { encoding: 'utf8'});
 child_process.execSync('node ./node_modules/rimraf/bin.js ./CLI/node_modules', { encoding: 'utf8'});
+child_process.execSync('node ./node_modules/rimraf/bin.js ./node_modules/log4js', { encoding: 'utf8'});
 process.exit();

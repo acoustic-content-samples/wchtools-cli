@@ -1,6 +1,12 @@
 # Changelog
 
-### v2.5 changes since v2.4.5
+### v2.6.2 changes since 2.5.2
+
+ - Add ability to ignore conflicts involving unimportant differences when pushing.
+ - Add support for pushing, pulling and listing ready artifacts. Use --ready to specify that only content types, content items, and content assets with a status of "ready" should be pulled/pushed/listed.
+ - Fix issue in deleting assets and web assets via manifest.
+
+### v2.5.2 changes since v2.4.5
 
  - Fix gap in list --path support so that the path filter applies to --server web assets too, not just local web assets.
  - Add --path support to pull command, to allow pulling web assets under a specific path, for consistency with push and list --path options.

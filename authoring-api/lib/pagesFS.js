@@ -33,9 +33,8 @@ class PagesFS extends JSONPathBasedItemFS {
         if (enforcer !== singletonEnforcer)
             throw i18n.__("singleton_construct_error", {classname: "PagesFS"});
 
-        // TODO - once there's more than one site, the folder name for pages
-        // will need to be dynamic, being sites/<site-id> (for now just default)
-        super("pages", "sites/default", ".json");
+        // The folderName is passed as "" because it always needs to be calculated dynamically in the getFolderName() method.
+        super("pages", "", ".json");
     }
 
     static get instance() {
@@ -43,6 +42,24 @@ class PagesFS extends JSONPathBasedItemFS {
             this[singleton] = new PagesFS(singletonEnforcer);
         }
         return this[singleton];
+    }
+
+    /**
+     * Get the folder name for storing local artifacts based on the given options.
+     *
+     * @param {Object} context The API context to be used by the file operation.
+     * @param {Object} [opts] Any override options to be used for this operation.
+     *
+     * @return {String} The folder name for storing local artifacts based on the given options.
+     *
+     * @override
+     */
+    getFolderName (context, opts) {
+        let siteId = "default";
+        if (opts && opts.siteId) {
+            siteId = opts.siteId;
+        }
+        return "sites/" + siteId;
     }
 
     /**

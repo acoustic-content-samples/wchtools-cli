@@ -432,7 +432,8 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                restApi.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -440,7 +441,7 @@ class BaseRestUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
                         expect(stub).to.have.callCount(5);
-                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
                         expect(stub.firstCall.args[0].json).to.equal(true);
 
                         // Verify that the expected error is returned.
@@ -471,7 +472,8 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                restApi.getItems(context, {retryMaxAttempts: 1, retryMinTimeout: 10, retryMaxTimeout: 100})
+                const opts = {retryMaxAttempts: 1, retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -479,7 +481,7 @@ class BaseRestUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
                         expect(stub).to.have.callCount(1);
-                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
                         expect(stub.firstCall.args[0].json).to.equal(true);
 
                         // Verify that the expected error is returned.
@@ -511,7 +513,8 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                restApi.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -519,7 +522,7 @@ class BaseRestUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
                         expect(stub).to.have.callCount(2);
-                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
                         expect(stub.firstCall.args[0].json).to.equal(true);
 
                         // Verify that the expected error is returned.
@@ -550,7 +553,8 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                restApi.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -558,7 +562,7 @@ class BaseRestUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
                         expect(stub).to.have.callCount(2);
-                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
                         expect(stub.firstCall.args[0].json).to.equal(true);
 
                         // Verify that the expected error is returned.
@@ -589,11 +593,12 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                restApi.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                restApi.getItems(context, opts)
                     .then(function () {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
                         expect(stub).to.have.callCount(2);
-                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
                         expect(stub.firstCall.args[0].json).to.equal(true);
                     })
                     .catch(function (err) {
@@ -625,7 +630,8 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                restApi.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100, retryFactor: 0, retryRandomize: true, retryStatusCodes: otherCodes})
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, retryFactor: 0, retryRandomize: true, retryStatusCodes: otherCodes, siteId: "foo"};
+                restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -633,7 +639,7 @@ class BaseRestUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
                         expect(stub).to.have.callCount(5);
-                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
                         expect(stub.firstCall.args[0].json).to.equal(true);
 
                         // Verify that the expected error is returned.
@@ -665,7 +671,8 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                restApi.getItems(context, {retryMinTimeout: 10, retryMaxTimeout: 100})
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the asset request URI should have been rejected.");
@@ -673,7 +680,7 @@ class BaseRestUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath());
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
                         expect(stub.firstCall.args[0].json).to.equal(true);
 
                         // Verify that the expected error is returned.

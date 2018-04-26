@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "2.5.2",
+  "version": "2.6.2",
   "keywords": [
     "api",
     "tools"
@@ -37,7 +37,7 @@
     "cp": "^0.2.0",
     "diff": "^3.2.0",
     "istanbul": "^0.4.5",
-    "mocha": "^3.3.0",
+    "mocha": "^4.0.0",
     "require-subvert": "^0.1.0",
     "rimraf": "^2.6.1",
     "sinon": "^1.10.3",

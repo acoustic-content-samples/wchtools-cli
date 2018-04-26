@@ -1996,7 +1996,6 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         // Verify that the post was called with an asset URI that includes a forceOverride element
                         // and the expected body, which includes the new asset metadata id and a modified path.
                         expect(stubPost.args[0][0].uri).to.contain("/authoring/v1/assets");
-                        expect(stubPost.args[0][0].uri).to.contain("forceOverride=true");
                         expect(stubPost.args[0][0].body.resource).to.equal(UnitTest.DUMMY_ID);
 
                         // Verify that the expected value is returned.

@@ -121,6 +121,10 @@ describe("init", function () {
             const stubPrompt = sinon.stub(prompt, "get");
             stubPrompt.yields(new Error(PROMPT_ERROR), {});
 
+            // Stub the setOptions method so that the test doesn't actually modify the options.
+            const stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
+            
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', "--user", TEST_USER])
                 .then(function () {
@@ -139,6 +143,7 @@ describe("init", function () {
                     // Restore the stubs that were created.
                     stubGet.restore();
                     stubPrompt.restore();
+                    stubSet.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
@@ -231,6 +236,10 @@ describe("init", function () {
             const stubPrompt = sinon.stub(prompt, "get");
             stubPrompt.yields(null, {"username": TEST_USER, "x-ibm-dx-tenant-base-url": INVALID_URL});
 
+            // Stub the setOptions method so that the test doesn't actually modify the options.
+            const stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
+
             // Execute the command to set the user.
             toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init'])
                 .then(function () {
@@ -248,6 +257,7 @@ describe("init", function () {
                 .finally(function () {
                     // Restore the stubs that were created.
                     stubPrompt.restore();
+                    stubSet.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
@@ -310,19 +320,55 @@ describe("init", function () {
                     done(error);
                 });
         });
+
+        it("test init bad retry param", function (done) {
+            let error;
+
+            // Stub the prompt.get method so that the test doesn't actually prompt for the user and url.
+            const stubPrompt = sinon.stub(prompt, "get");
+            stubPrompt.yields(null, {"username": TEST_USER, "x-ibm-dx-tenant-base-url": TEST_URL});
+
+            // Stub the setOptions method so that the test doesn't actually modify the options.
+            const stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
+            
+            // Execute the command to set the user.
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--retry-max-attempts', 'asdfqwerty'])
+                .then(function () {
+                    // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                    error = new Error("The command should have failed.");
+                })
+                .catch(function (err) {
+                    expect(err.message).to.contain("numeric value");
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Restore the stubs that were created.
+                    stubPrompt.restore();
+                    stubSet.restore();
+
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
     });
 
     describe("initialization process", function () {
         // Stub the setOptions method so that the tests don't actually modify the options.
-        let stubGet;
+        let stubSet;
 
         before(function () {
-            stubGet = sinon.stub(options, "setOptions");
-            stubGet.returns(OPTIONS_SAVE_DIRECTORY);
+            stubSet = sinon.stub(options, "setOptions");
+            stubSet.returns(OPTIONS_SAVE_DIRECTORY);
         });
 
         after(function () {
-            stubGet.restore();
+            stubSet.restore();
         });
 
         it("should succeed with no errors", function (done) {
@@ -330,7 +376,7 @@ describe("init", function () {
             const spy = sinon.spy(ToolsApi, "getInitializationErrors");
 
             let error;
-            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--dir', '.', '--user', TEST_USER, '--url', TEST_URL])
+            toolsCli.parseArgs(['', process.cwd() + "/index.js", 'init', '--dir', '.', '--user', TEST_USER, '--url', TEST_URL, '--retry-max-attempts', '10'])
                 .then(function () {
                     expect(spy.firstCall.returnValue).to.have.lengthOf(0);
                 })

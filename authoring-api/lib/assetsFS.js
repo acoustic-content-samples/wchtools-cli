@@ -96,7 +96,7 @@ class AssetsFS extends BaseFS {
         // Add the virtual folder, unless the "noVirtualFolder" option is specified. (This option is useful when the
         // working directory is used to store only assets, in which case a virtual assets folder is not necessary.)
         if (!opts || !opts.noVirtualFolder) {
-            assetsDir += this.getFolderName() + path.sep;
+            assetsDir += this.getFolderName(context, opts) + path.sep;
         }
 
         return assetsDir;
@@ -252,7 +252,7 @@ class AssetsFS extends BaseFS {
     getMetadataPath (context, name, opts) {
         name = BaseFS.getValidFileName(name);
         if (this.isContentResource(name)) {
-            // make sure teh resource directory is created and append the name that includes the path including dxdam */
+            // make sure the resource directory is created and append the name that includes the path including dxdam
             return this.getContentResourcePath(context, opts) + name + this.getExtension();
         }
         return this.getPath(context, opts) + name;
@@ -600,24 +600,32 @@ class AssetsFS extends BaseFS {
                         });
                     }
                     deferred.resolve(files.map(function (file) {
-                        let id;
-                        let name;
+                        const proxy = {"path": file};
+
+                        // Web assets do not have metadata, so only set additional proxy properties for content assets.
                         if (file.startsWith("/" + CONTENT_RESOURCE_DIRECTORY)) {
-                            const path = fsObject.getMetadataPath(context, file, opts);
+                            const metadataPath = fsObject.getMetadataPath(context, file, opts);
                             try {
-                                const item = JSON.parse(fs.readFileSync(path));
-                                id = item.id;
-                                name = item.name;
+                                const item = JSON.parse(fs.readFileSync(metadataPath).toString());
+                                proxy.id = item.id;
+                                proxy.name = item.name;
+
+                                // Include any additional properties on the proxy item.
+                                const additionalProperties = opts["additionalItemProperties"];
+                                if (additionalProperties) {
+                                    additionalProperties.forEach(function (property) {
+                                        if (item[property]) {
+                                            proxy[property] = item[property];
+                                        }
+                                    });
+                                }
                             } catch (err) {
                                 // we couldn't read the metadata file to get the id, log a warning and continue
-                                utils.logWarnings(context, i18n.__("file_parse_error", {path: path}));
+                                utils.logWarnings(context, err);
                             }
                         }
-                        return {
-                            id: id,
-                            name: name,
-                            path: file
-                        };
+
+                        return proxy;
                     }));
                 }
             });

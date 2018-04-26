@@ -102,7 +102,7 @@ class LoginREST extends BaseREST {
 
         // Resolve the promise with the standard request options and the retry options.
         const requestOptions = {
-            uri: (baseUrl || api_gateway) + this.getUriPath(),
+            uri: (baseUrl || api_gateway) + this.getUriPath(context, opts),
             headers: LoginREST.getHeaders(context, opts),
             auth: {
                 "user": opts.username,

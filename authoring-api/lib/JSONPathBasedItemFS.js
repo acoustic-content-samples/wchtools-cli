@@ -21,6 +21,7 @@ const JSONItemFS = require("./JSONItemFS.js");
 const fs = require("fs");
 const Q = require("q");
 const utils = require("./utils/utils.js");
+const i18n = utils.getI18N(__dirname, ".json", "en");
 const recursiveReadDir = require("recursive-readdir");
 
 class JSONPathBasedItemFS extends JSONItemFS {
@@ -132,25 +133,34 @@ class JSONPathBasedItemFS extends JSONItemFS {
                         reject(err);
                     } else {
                         const extension = fsObject.getExtension();
-                        const names = files.filter(function(file) {
-                            return file.endsWith(extension);
-                        }).map(function(file) {
-                            let id;
-                            let name;
-                            try {
-                                const item = JSON.parse(fs.readFileSync(file));
-                                id = item.id;
-                                name = item.name;
-                            } catch (err) {
-                                // we couldn't open the file to read the id/name metadata, log a warning and continue
-                                utils.logWarnings(context, i18n.__("file_parse_error", {path: file}));
-                            }
-                            return {
-                                id: id,
-                                name: name,
-                                path: utils.getRelativePath(artifactDir, file)
-                            };
-                        });
+                        const names = files
+                            .filter(function (file) {
+                                return file.endsWith(extension);
+                            })
+                            .map(function (file) {
+                                const proxy = {};
+                                proxy.path = utils.getRelativePath(artifactDir, file);
+                                try {
+                                    const item = JSON.parse(fs.readFileSync(file).toString());
+                                    proxy.id = item.id;
+                                    proxy.name = item.name;
+
+                                    // Include any additional properties on the proxy item.
+                                    const additionalProperties = opts["additionalItemProperties"];
+                                    if (additionalProperties) {
+                                        additionalProperties.forEach(function (property) {
+                                            if (item[property]) {
+                                                proxy[property] = item[property];
+                                            }
+                                        });
+                                    }
+                                } catch (err) {
+                                    // we couldn't open the file to read the id/name metadata, log a warning and continue
+                                    utils.logWarnings(context, i18n.__("file_parse_error", {path: file}));
+                                }
+                                return proxy;
+                            });
+
                         resolve(names);
                     }
                 });

@@ -28,12 +28,8 @@ class PagesREST extends JSONPathBasedItemREST {
         if (enforcer !== singletonEnforcer)
             throw i18n.__("singleton_construct_error", {classname: "PagesREST"});
 
-        // TODO the "default" in the following endpoint needs to be dynamic and
-        // passed in based on which site you're pulling page definitions for.
-        // For Aug mvp there is one site, "default" so this will work temporarily
-        // but we should make this dynamic asap so this code will work when WCH
-        // allows more than one site (each of which will have a page hierarchy)
-        super("pages", "/authoring/v1/sites/default/pages", "/views/by-modified", "/views/by-modified");
+        // The uriPath is passed as "" because it always needs to be calculated dynamically in the getUriPath() method.
+        super("pages", "", "/views/by-modified", "/views/by-modified");
     }
 
     static get instance() {
@@ -41,6 +37,14 @@ class PagesREST extends JSONPathBasedItemREST {
             this[singleton] = new PagesREST(singletonEnforcer);
         }
         return this[singleton];
+    }
+
+    getUriPath (context, opts) {
+        let siteId = "default";
+        if (opts && opts.siteId) {
+            siteId = opts.siteId;
+        }
+        return "/authoring/v1/sites/" + siteId + "/pages";
     }
 
     /*

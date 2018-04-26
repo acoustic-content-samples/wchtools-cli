@@ -40,7 +40,6 @@ const ListLayoutMappings =       PREFIX + i18n.__('cli_listing_layout_mappings')
 const ListRenditions =           PREFIX + i18n.__('cli_listing_renditions') + SUFFIX;
 const ListPublishingSiteRevisions = PREFIX + i18n.__('cli_listing_site_revisions') + SUFFIX;
 const ListSites =                   PREFIX + i18n.__('cli_listing_sites') + SUFFIX;
-const ListPages =                   PREFIX + i18n.__('cli_listing_pages') + SUFFIX;
 
 class ListCommand extends BaseCommand {
     /**
@@ -50,6 +49,10 @@ class ListCommand extends BaseCommand {
      */
     constructor (program) {
         super(program);
+    }
+
+    static _getPagesDisplayHeader (siteId) {
+        return PREFIX + i18n.__('cli_listing_pages_for_site', {id: siteId}) + SUFFIX;
     }
 
     _calculateTabs (maxLength, str) {
@@ -95,6 +98,11 @@ class ListCommand extends BaseCommand {
             return;
         }
 
+        // Handle the ready and draft options.
+        if (!self.handleReadyDraftOptions()) {
+            return;
+        }
+
         // Check to see if the initialization process was successful.
         if (!self.handleInitialization(context)) {
             return;
@@ -109,6 +117,11 @@ class ListCommand extends BaseCommand {
             .then(function () {
                 // Login using the current options, if login is required for this list command.
                 return self.handleLogin(context, self.getApiOptions());
+            })
+            .then(function () {
+                // Initialize the list of sites to be used for this command, if necessary.
+                const remote = Boolean(self.getCommandLineOption("server"));
+                return self.initSites(context, remote);
             })
             .then(function () {
                 // List the modified and new artifacts by default.
@@ -129,6 +142,11 @@ class ListCommand extends BaseCommand {
                 } catch (err) {
                     // Log the error that occurred while saving the manifest, but do not fail the list operation.
                     self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                }
+
+                // Stop the command line spinner before displaying any output.
+                if (self.spinner) {
+                    self.spinner.stop();
                 }
 
                 // Display the list of artifacts for each of the specified types.
@@ -240,9 +258,17 @@ class ListCommand extends BaseCommand {
                 self.endDisplay(artifactsCount);
             })
             .catch(function (err) {
+                // Stop the command line spinner before displaying any output.
+                if (self.spinner) {
+                    self.spinner.stop();
+                }
+
                 self.errorMessage(err.message);
             })
             .finally(function () {
+                // Reset the list of sites used for this command.
+                self.resetSites(context);
+
                 // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
             });
@@ -359,11 +385,6 @@ class ListCommand extends BaseCommand {
      * @param {number} count The total number of artifacts that were listed.
      */
     endDisplay (count) {
-        // Stop the command line spinner.
-        if (this.spinner) {
-            this.spinner.stop();
-        }
-
         // Display the console message that the list is complete.
         this.successMessage(i18n.__("cli_listing_complete", {count: count}));
         if (this.getCommandLineOption("quiet")) {
@@ -461,7 +482,22 @@ class ListCommand extends BaseCommand {
             })
             .then(function () {
                 if (self.getCommandLineOption("pages") && !self.isBaseTier(context)) {
-                    return self.handleListPromise(self.listPages(context), results);
+                    // Get the list of site ids to use for listing pages.
+                    const siteIds = context.siteList;
+
+                    // Local function to recursively list pages for one site at a time.
+                    let index = 0;
+                    const listPagesBySite = function (context) {
+                        if (index < siteIds.length) {
+                            return self.handleListPromise(self.listPages(context, siteIds[index++]), results)
+                                .then(function () {
+                                    // List pages for the next site after the previous site is complete.
+                                    return listPagesBySite(context);
+                                });
+                        }
+                    };
+
+                    return listPagesBySite(context);
                 }
             })
             .then(function () {
@@ -788,19 +824,21 @@ class ListCommand extends BaseCommand {
      * List the page node artifacts for a specified site (default only in mvp)
      *
      * @param {Object} context The API context associated with this list command.
+     * @param {String} siteId The id of the site containing the pages being listed.
      *
      * @returns {Q.Promise} A promise that is resolved with the specified list
      */
-    listPages (context) {
+    listPages (context, siteId) {
         const helper = ToolsApi.getPagesHelper();
-        const apiOptions = this.getApiOptions();
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
         const listFunction = this.getListFunction(helper, context);
-        const listPromise = listFunction(apiOptions);
+        const listPromise = listFunction(opts);
         const deferred = Q.defer();
 
         listPromise
             .then(function (result) {
-                deferred.resolve({"type": ListPages, "value": result});
+                const displayHeader = ListCommand._getPagesDisplayHeader(siteId);
+                deferred.resolve({"type": displayHeader, "value": result});
             })
             .catch(function (err) {
                 deferred.reject(err);
@@ -940,6 +978,8 @@ function listCommand (program) {
         .option('-I --ignore-timestamps',i18n.__('cli_list_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_list_opt_all'))
         .option('--write-manifest <manifest>',   i18n.__('cli_list_opt_write_manifest'))
+        .option('--ready',               i18n.__('cli_list_opt_ready'))
+        //.option('--draft',               i18n.__('cli_list_opt_draft'))
         .option('--path <path>',         i18n.__('cli_list_opt_path'))
         .option('--dir <dir>',           i18n.__('cli_list_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))

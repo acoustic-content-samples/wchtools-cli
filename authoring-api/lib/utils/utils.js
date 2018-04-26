@@ -238,6 +238,8 @@ function getError (err, body, response, requestOptions) {
                 error.message = i18n.__("conflict") + ' : ' + error.message;
             } else if (response.statusCode >= 500) {
                 error.message = i18n.__("service_error") + i18n.__("please_try", {log_dir: getApiLogPath()});
+            } else if ((response.statusCode === 413) && (requestOptions && requestOptions.body)) {
+                requestOptions.body = "..."; 
             }
         }
 
@@ -521,6 +523,89 @@ function clone (obj) {
 }
 
 /**
+ * Compares the provided objects and appends the differences to the provided collector object.
+ * Note: This function is recursive.
+ *
+ * The structure of the diffs added to the diffs object is:
+ * {
+ *   added: [diff, diff, ...],
+ *   removed: [diff, diff, ...],
+ *   changed: [diff, diff, ...]
+ * }
+ *
+ * Each diff contains a node which is an array of keys (path) leading to this node in the object.
+ * {
+ *   node: ["x", "y", "z", ...],
+ *   value1: <the value of this key in obj1,
+ *   value2: <the value of this key in obj2
+ * }
+ *
+ * @param diffs the object to collect the differences
+ * @param root an array of keys representing the nesting level of the objects being compared
+ * @param obj1 the first object to compare
+ * @param obj2 the second object to compare
+ * @param ignoreKeys an array of keys in the objects to ignore
+ * @private
+ */
+function _compare(diffs, root, obj1, obj2, ignoreKeys) {
+    const keys = new Set(Object.keys(obj1).concat(Object.keys(obj2)));
+    keys.forEach(function (key) {
+        if (!ignoreKeys.has(key)) {
+            const child1 = obj1[key];
+            const child2 = obj2[key];
+
+            const node = clone(root);
+            node.push(key);
+            const diff = {node: node};
+            if (child1 === undefined || child1 === null || typeof(child1) !== "object") {
+                diff.value1 = child1;
+            } else {
+                diff.value1 = JSON.stringify(child1, null, 2);
+            }
+            if (child2 === undefined || child2 === null || typeof(child2) !== "object") {
+                diff.value2 = child2;
+            } else {
+                diff.value2 = JSON.stringify(child2, null, 2);
+            }
+
+            if (child1 !== undefined) {
+                if (child2 !== undefined) {
+                    if (typeof(child1) === "object" && typeof(child2) === "object") {
+                        _compare(diffs, node, child1, child2, ignoreKeys);
+                    } else {
+                        if (child1 !== child2) {
+                            diffs.changed.push(diff);
+                        }
+                    }
+                } else {
+                    diffs.added.push(diff);
+                }
+            } else if (child2 !== undefined) {
+                diffs.removed.push(diff);
+            }
+        }
+    });
+}
+
+/**
+ * Performs a deep comparison of the two objects.
+ *
+ * @param obj1 the first object to compare
+ * @param obj2 the second object to compare
+ * @param ignoreKeys an array of keys in the objects to ignore
+ */
+function compare(obj1, obj2, ignoreKeys) {
+    ignoreKeys = new Set(ignoreKeys || []);
+    const diffs = {
+        added: [],
+        removed: [],
+        changed: []
+    };
+    _compare(diffs, [], obj1, obj2, ignoreKeys);
+    return diffs;
+}
+
+/**
  * helper to call the path normalize function so not all files would need their own include of path
  * @param filePath path to normalize
  */
@@ -764,6 +849,7 @@ const utils = {
     getApiLogPath: getApiLogPath,
     cloneOpts: cloneOpts,
     clone: clone,
+    compare: compare,
     pathNormalize: pathNormalize,
     removeEmptyParentDirectories: removeEmptyParentDirectories,
     getUserHome: getUserHome,

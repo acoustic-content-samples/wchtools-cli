@@ -919,11 +919,19 @@ class BaseFsApiUnitTest extends UnitTest {
             });
 
             it("should fail when getting the item names fails", function (done) {
-                self.listNamesReadError(fsApi, itemName1, itemName2 , done);
+                self.listNamesReadDirError(fsApi, itemName1, itemName2 , done);
+            });
+
+            it("should fail when reading the item files fails", function (done) {
+                self.listNamesReadFileError(fsApi, itemName1, itemName2 , done);
             });
 
             it("should succeed when getting item names", function (done) {
                 self.listNamesSuccess(fsApi, itemName1, itemName2 , done);
+            });
+
+            it("should succeed when getting item names with additional properties", function (done) {
+                self.listNamesAdditionalPropertiesSuccess(fsApi, itemName1, itemName2 , done);
             });
         });
     }
@@ -961,10 +969,11 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
-    listNamesReadError (fsApi, itemName1, itemName2, done) {
+    listNamesReadDirError (fsApi, itemName1, itemName2, done) {
         // Create a stub for fs.existsSync that will return true.
         const stubExists = sinon.stub(fs, "existsSync");
         stubExists.returns(true);
+
         // Create a stub for fs.readdir that will return an error.
         const stubReaddir = sinon.stub(fs, "readdir");
         const ITEM_ERROR = "Error reading the item.";
@@ -1001,6 +1010,55 @@ class BaseFsApiUnitTest extends UnitTest {
             });
     }
 
+    listNamesReadFileError (fsApi, itemName1, itemName2, done) {
+        // Create a stub that will return a list of item names from the recursive function.
+        const stub = sinon.stub(fs, "readdir");
+        const err = null;
+        stub.yields(err, [itemName1, itemName2]);
+
+        const FAKE_EXTENSION = ".json";
+        const stubGetExtension = sinon.stub(fsApi, "getExtension");
+        stubGetExtension.returns(FAKE_EXTENSION);
+
+        this.addTestDouble(stub);
+        this.addTestDouble(stubGetExtension);
+
+        const stubRead = sinon.stub(fs, "readFileSync");
+        stubRead.throws(new Error("Error reading file, as expected by unit test."));
+
+        // Call the method being tested.
+        let error;
+
+        // Set the current working directory to the "valid resources" directory.
+        fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY})
+            .then(function (paths) {
+                // Verify that the get stub was called once with the lookup URI.
+                expect(stub).to.have.been.calledOnce;
+
+                // Verify that the expected values are returned.
+                expect(paths).to.have.lengthOf(2);
+
+                expect(itemName1).to.contains(paths[0].path);
+                expect(itemName2).to.contains(paths[1].path);
+            })
+            .catch (function (err) {
+                // NOTE: A failed expectation from above will be handled here.
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // Must restore the stubRead stub before calling restoreOptions().
+                stubRead.restore();
+
+                // noinspection JSUnresolvedFunction
+                // Restore the default options.
+                UnitTest.restoreOptions(context);
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    }
+
     listNamesSuccess (fsApi, itemName1, itemName2, done) {
         // Create a stub that will return a list of item names from the recursive function.
         const stub = sinon.stub(fs, "readdir");
@@ -1019,6 +1077,56 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Set the current working directory to the "valid resources" directory.
         fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY})
+            .then(function (paths) {
+                // Verify that the get stub was called once with the lookup URI.
+                expect(stub).to.have.been.calledOnce;
+
+                // Verify that the expected values are returned.
+                expect(paths).to.have.lengthOf(3);
+                if (paths[0].path) {
+                    expect(itemName1).to.contains(paths[0].path);
+                } else {
+                    expect(itemName1).to.contains(paths[0].id);
+                }
+                if (paths[1].path) {
+                    expect(itemName2).to.contains(paths[1].path);
+                } else {
+                    expect(itemName2).to.contains(paths[1].id);
+                }
+            })
+            .catch (function (err) {
+                // NOTE: A failed expectation from above will be handled here.
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // noinspection JSUnresolvedFunction
+                // Restore the default options.
+                UnitTest.restoreOptions(context);
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    }
+
+    listNamesAdditionalPropertiesSuccess (fsApi, itemName1, itemName2, done) {
+        // Create a stub that will return a list of item names from the recursive function.
+        const stub = sinon.stub(fs, "readdir");
+        const err = null;
+        stub.yields(err, [itemName1, itemName2, "foo.json"]);
+
+        const FAKE_EXTENSION = ".json";
+        const stubGetExtension = sinon.stub(fsApi, "getExtension");
+        stubGetExtension.returns(FAKE_EXTENSION);
+
+        this.addTestDouble(stub);
+        this.addTestDouble(stubGetExtension);
+
+        // Call the method being tested.
+        let error;
+
+        // Set the current working directory to the "valid resources" directory.
+        fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY, "additionalItemProperties": ["status"]})
             .then(function (paths) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;

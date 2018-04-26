@@ -47,7 +47,7 @@ class BaseHelperUnitTest extends UnitTest {
 
     run (restApi, fsApi, helper, path1, path2, badPath) {
         const self = this;
-        const type =  fsApi.getFolderName();
+        const type =  fsApi.getFolderName(context);
 
         // The contents of the test item metadata files.
         const itemMetadata1 = UnitTest.getJsonObject(path1);
@@ -98,9 +98,11 @@ class BaseHelperUnitTest extends UnitTest {
             self.testPushItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testPushAllItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testPushModifiedItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testPushManifestItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testPullItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testPullAllItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testPullModifiedItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testPullManifestItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testListLocalItemNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testListRemoteItemNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testListLocalDeletedNames(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
@@ -213,7 +215,7 @@ class BaseHelperUnitTest extends UnitTest {
         const self = this;
         describe("getVirtualFolderName", function () {
             it("should get the item folder name from the FS API.", function () {
-                const nooptFolder = helper.getVirtualFolderName({"noVirtualFolder":true});
+                const nooptFolder = helper.getVirtualFolderName(context, {"noVirtualFolder":true});
                 expect(nooptFolder).to.equal("");
 
                 // Create an fsApi.getFolderName stub that returns the folder name.
@@ -225,7 +227,7 @@ class BaseHelperUnitTest extends UnitTest {
                 self.addTestDouble(stub);
 
                 // Call the method being tested.
-                const folderName = helper.getVirtualFolderName();
+                const folderName = helper.getVirtualFolderName(context);
 
                 // Verify that the stub was called and that the helper returned the expected value.
                 expect(stub).to.have.been.calledOnce;
@@ -1189,6 +1191,136 @@ class BaseHelperUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when pulling all ready items.", function (done) {
+                const stubGet = sinon.stub(restApi, "getItems");
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata2);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                stubGet.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
+
+                // Create a helper.canPullItem stub that return false for some of the items.
+                const stubCan = sinon.stub(helper, "canPullItem");
+                stubCan.returns(true);
+
+                // The saveItem method should only be called for the successfully pulled items.
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                stubSave.onCall(0).resolves(readyMetadata1);
+                stubSave.onCall(1).resolves(readyMetadata2);
+                stubSave.onCall(2).resolves(readyMetadata3);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubCan);
+                self.addTestDouble(stubSave);
+
+                // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = helper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("pulled-error", spyError);
+
+                // Call the method being tested.
+                let error;
+                helper.pullAllItems(context, {filterReady: true})
+                    .then(function (items) {
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.be.calledOnce;
+
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(3);
+                        expect(items[0].status).to.equal("ready");
+                        expect(items[1].status).to.equal("ready");
+                        expect(items[2].status).to.equal("ready");
+
+                        // Verify that the spies were not called.
+                        expect(spyPull).to.have.been.calledThrice;
+                        expect(spyError).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pulling all draft items.", function (done) {
+                const stubGet = sinon.stub(restApi, "getItems");
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata2);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                stubGet.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
+
+                // Create a helper.canPullItem stub that return false for some of the items.
+                const stubCan = sinon.stub(helper, "canPullItem");
+                stubCan.returns(true);
+
+                // The saveItem method should only be called for the successfully pulled items.
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                stubSave.onCall(0).resolves(draftMetadata1);
+                stubSave.onCall(1).resolves(draftMetadata2);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubCan);
+                self.addTestDouble(stubSave);
+
+                // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = helper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("pulled-error", spyError);
+
+                // Call the method being tested.
+                let error;
+                helper.pullAllItems(context, {filterDraft: true})
+                    .then(function (items) {
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.be.calledOnce;
+
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(2);
+                        expect(items[0].status).to.equal("draft");
+                        expect(items[1].status).to.equal("draft");
+
+                        // Verify that the spies were not called.
+                        expect(spyPull).to.have.been.calledTwice;
+                        expect(spyError).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -1379,6 +1511,121 @@ class BaseHelperUnitTest extends UnitTest {
                         emitter.removeListener("pulled", spyPull);
                         emitter.removeListener("pulled-error", spyError);
 
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testPullManifestItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        const self = this;
+        describe("pullManifestItems", function () {
+            it("should fail when getting the manifest items fails.", function (done) {
+                // Create a helper.getManifestItems stub that returns an error.
+                const MANIFEST_ERROR = "There was an error getting the manifest items.";
+                const stub = sinon.stub(helper, "getManifestItems");
+                stub.rejects(MANIFEST_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.pullManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the manifest items should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stub).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.contain(MANIFEST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when pulling the list of items fails.", function (done) {
+                // Create an helper.getManifestItems stub that returns a promise for the metadata of the items.
+                const stubGet = sinon.stub(helper, "getManifestItems");
+                stubGet.resolves([itemMetadata1, itemMetadata2, UnitTest.DUMMY_METADATA]);
+
+                // Create a helper._pullItemList stub that returns an error.
+                const LIST_ERROR = "There was an error pulling the manifest items.";
+                const stubList = sinon.stub(helper, "_pullItemList");
+                stubList.rejects(LIST_ERROR);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubList);
+
+                // Call the method being tested.
+                let error;
+                helper.pullManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the manifest items should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stubList).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.contain(LIST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pulling manifest items.", function (done) {
+                // Create an helper.getManifestItems stub that returns a promise for the metadata of the items.
+                const stubGet = sinon.stub(helper, "getManifestItems");
+                stubGet.resolves([itemMetadata1, itemMetadata2, UnitTest.DUMMY_METADATA]);
+
+                // Create a helper.pullItem method that resolves for two items and rejects for one.
+                const PULL_ERROR = "Error pulling the item, as expected by a unit test";
+                const stubPull = sinon.stub(helper, "pullItem");
+                stubPull.onCall(0).resolves(itemMetadata1);
+                stubPull.onCall(1).resolves(itemMetadata2);
+                stubPull.onCall(2).rejects(PULL_ERROR);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubPull);
+
+                // Call the method being tested.
+                let error;
+                helper.pullManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (items) {
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(2);
+                        expect(items[0].id).to.equal(itemMetadata1.id);
+                        expect(items[1].id).to.equal(itemMetadata2.id);
+
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.have.been.calledOnce;
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -1788,9 +2035,14 @@ class BaseHelperUnitTest extends UnitTest {
                 conflictError.statusCode = 409;
                 stubUpdate.rejects(conflictError);
 
+                // Clone itemMetadata1 and modify the description and tags fields.
+                const modifiedItemMetadata1 = JSON.parse(JSON.stringify(itemMetadata1));
+                modifiedItemMetadata1.description = "modified:" + itemMetadata1.description;
+                delete modifiedItemMetadata1.tags;
+
                 // Create an fsApi.getItem stub that returns a promise for item metadata with a "rev" value.
                 const stubrGet = sinon.stub(restApi, "getItem");
-                stubrGet.resolves(itemMetadata1);
+                stubrGet.resolves(modifiedItemMetadata1);
 
                 // Create a fsApi.saveItem stub that returns a promise for the item metadata.
                 const stubSave = sinon.stub(fsApi, "saveItem");
@@ -1828,6 +2080,75 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(spyError.firstCall.args[0].statusCode).to.equal(409);
                     })
                     .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pushed", spyPush);
+                        emitter.removeListener("pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pushing a local item for update with an unimportant conflict.", function (done) {
+                // Create an fsApi.getItem stub that returns a promise for item metadata with a "rev" value.
+                const stubGet = sinon.stub(fsApi, "getItem");
+                stubGet.resolves(itemMetadata1);
+
+                // Create a restApi.updateItem stub that returns a promise for the item metadata.
+                const stubUpdate = sinon.stub(restApi, "updateItem");
+                const conflictError = new Error("conflict");
+                conflictError.statusCode = 409;
+                stubUpdate.rejects(conflictError);
+
+                // Clone itemMetadata1 and modify the unimportant fields.
+                const modifiedItemMetadata1 = JSON.parse(JSON.stringify(itemMetadata1));
+                modifiedItemMetadata1.rev = "3-db5c66d33df3b5efd9f63531417f7606";
+                modifiedItemMetadata1.created = "2018-03-21T17:34:20.612Z";
+                modifiedItemMetadata1.creator = "test_user";
+                modifiedItemMetadata1.creatorId = "293d111b-cf5c-4b49-99d9-d7b8d4d1f63e";
+                modifiedItemMetadata1.lastModified = "2018-03-21T17:34:20.612Z";
+                modifiedItemMetadata1.lastModifier = "test_user";
+                modifiedItemMetadata1.lastModifierId = "293d111b-cf5c-4b49-99d9-d7b8d4d1f63e";
+                modifiedItemMetadata1.systemModified = "2018-03-21T17:34:20.612Z";
+
+                // Create an fsApi.getItem stub that returns a promise for item metadata with a "rev" value.
+                const stubrGet = sinon.stub(restApi, "getItem");
+                stubrGet.resolves(modifiedItemMetadata1);
+
+                // Create a fsApi.saveItem stub that returns a promise for the item metadata.
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                stubSave.resolves(itemMetadata1);
+
+                // Create spies to listen for the "pushed" and "pushed-error" events.
+                const emitter = helper.getEventEmitter(context);
+                const spyPush = sinon.spy();
+                emitter.on("pushed", spyPush);
+                const spyError = sinon.spy();
+                emitter.on("pushed-error", spyError);
+
+                // The stubs and spies should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubrGet);
+                self.addTestDouble(stubUpdate);
+                self.addTestDouble(stubSave);
+
+                // Call the method being tested.
+                let error;
+                helper.pushItem(context, UnitTest.DUMMY_PATH, UnitTest.DUMMY_OPTIONS)
+                    .then(function (/*item*/) {
+                        // Verify that the stubs were all called once.
+                        expect(stubGet).to.have.been.calledOnce;
+                        expect(stubrGet).to.have.been.calledOnce;
+                        expect(stubUpdate).to.have.been.calledOnce;
+                        expect(stubSave).to.have.been.calledOnce;
+                        expect(spyPush).to.have.been.calledOnce;
+                        expect(spyPush.firstCall.args[0].id).to.not.be.undefined;
+                        expect(spyError).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = err;
                     })
                     .finally(function () {
@@ -2378,7 +2699,78 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testListLocalItemNames (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testPushManifestItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        const self = this;
+        describe("pushManifestItems", function () {
+            it("should fail when getting the manifest items fails.", function (done) {
+                // Create a helper.getManifestItems stub that returns an error.
+                const MANIFEST_ERROR = "There was an error getting the manifest items.";
+                const stub = sinon.stub(helper, "getManifestItems");
+                stub.rejects(MANIFEST_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.pushManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the manifest items should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stub).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.contain(MANIFEST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when pushing the list of items fails.", function (done) {
+                // Create a helper._pushNameList stub that returns an error.
+                const LIST_ERROR = "There was an error pushing the manifest items.";
+                const stub = sinon.stub(helper, "_pushNameList");
+                stub.rejects(LIST_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.pushManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the manifest items should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stub).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.contain(LIST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testListLocalItemNames (restApi, fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("listLocalItemNames", function () {
             it("should fail when getting item names fails.", function (done) {
@@ -2415,8 +2807,104 @@ class BaseHelperUnitTest extends UnitTest {
             });
 
             it("should succeed when getting item names succeeds.", function (done) {
-                // TODO
-                done();
+                const stub = sinon.stub(fsApi, "listNames");
+                stub.resolves([itemMetadata1, itemMetadata2]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.listLocalItemNames(context)
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
+                        expect(items.length).to.equal(2);
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting item names succeeds - ready only.", function (done) {
+                const stub = sinon.stub(fsApi, "listNames");
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata2);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                stub.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.listLocalItemNames(context, {filterReady: true})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
+                        expect(items.length).to.equal(3);
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting item names succeeds - draft only.", function (done) {
+                const stub = sinon.stub(fsApi, "listNames");
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata2);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                stub.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.listLocalItemNames(context, {filterDraft: true})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
+                        expect(items.length).to.equal(2);
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
             });
         });
     }
@@ -2524,21 +3012,68 @@ class BaseHelperUnitTest extends UnitTest {
                     });
             });
 
-            it("should succeed when getting item names succeeds and opt .", function (done) {
+            it("should succeed when getting item names succeeds - ready only.", function (done) {
                 const stub = sinon.stub(restApi, "getItems");
-                stub.resolves([itemMetadata1, itemMetadata2]);
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata2);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                stub.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
 
                 // Call the method being tested.
                 let error;
-                helper.listRemoteItemNames(context, UnitTest.DUMMY_OPTIONS)
+                helper.listRemoteItemNames(context, {filterReady: true})
                     .then(function (items) {
                         // Verify that the stub was called once.
                         expect(stub).to.be.calledOnce;
 
-                        // Verify that the expected error is returned.
+                        // Verify that the expected items are returned.
+                        expect(items.length).to.equal(3);
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting item names succeeds - draft only.", function (done) {
+                const stub = sinon.stub(restApi, "getItems");
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata2);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                stub.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.listRemoteItemNames(context, {filterDraft: true})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
                         expect(items.length).to.equal(2);
                     })
                     .catch(function (err) {
@@ -2557,7 +3092,7 @@ class BaseHelperUnitTest extends UnitTest {
         const self = this;
         describe("listLocalDeletedNames", function () {
             it("should get no items.", function (done) {
-                // Create a hashes.listFiles stub that returns an empty list.
+                // Create a hashes.listFiles stub that returns an empty list of files.
                 const stub = sinon.stub(hashes, "listFiles");
                 stub.returns([]);
 
@@ -2585,7 +3120,7 @@ class BaseHelperUnitTest extends UnitTest {
             });
 
             it("should succeed when getting item names succeeds.", function (done) {
-                // Create an fsApi.listItemNames stub that returns an a list.
+                // Create a hashes.listFiles stub that returns a list of files that don't exist locally.
                 const stub = sinon.stub(hashes, "listFiles");
                 const rVal = [
                     {id: undefined, path: "file1" + fsApi.getExtension()},
@@ -2612,6 +3147,79 @@ class BaseHelperUnitTest extends UnitTest {
                         error = new Error("An unexpected Error."  + err);
                     })
                     .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting item names succeeds - ready only.", function (done) {
+                // Create a hashes.listFiles stub that returns a list of files that don't exist locally.
+                const stub = sinon.stub(hashes, "listFiles");
+                const rVal = [
+                    {id: "foo", path: "file1" + fsApi.getExtension()},
+                    {id: "foo:draft", path: "file2" + fsApi.getExtension()},
+                    {id: "bar", path: "file3" + fsApi.getExtension()}
+                ];
+                stub.returns(rVal);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.listLocalDeletedNames(context, {"filterReady": true})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
+                        expect(items.length).to.equal(2);
+                        expect(items[0].id).to.equal("foo");
+                        expect(items[1].id).to.equal("bar");
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting item names succeeds - draft only.", function (done) {
+                // Create a hashes.listFiles stub that returns a list of files that don't exist locally.
+                const stub = sinon.stub(hashes, "listFiles");
+                const rVal = [
+                    {id: "foo", path: "file1" + fsApi.getExtension()},
+                    {id: "foo:draft", path: "file2" + fsApi.getExtension()},
+                    {id: "bar", path: "file3" + fsApi.getExtension()}
+                ];
+                stub.returns(rVal);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.listLocalDeletedNames(context, {"filterDraft": true})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected item is returned.
+                        expect(items.length).to.equal(1);
+                        expect(items[0].id).to.equal("foo:draft");
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        stub.restore();
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -2731,6 +3339,7 @@ class BaseHelperUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
             it("local modified & new should succeed when getting item names succeeds.", function (done) {
                 // Create an fsApi.listItemNames stub that returns an a list.
                 const stub = sinon.stub(fsApi, "listNames");
@@ -2787,6 +3396,89 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(stub).to.be.calledOnce;
 
                         // Verify that the expected error is returned.
+                        expect(items.length).to.equal(2);
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+
+            it("should succeed when getting item names succeeds - ready only.", function (done) {
+                const stub = sinon.stub(fsApi, "listNames");
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata1);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata1);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata1);
+                draftMetadata2.status = "draft";
+                stub.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
+
+                const stubModified = sinon.stub(hashes, "isLocalModified");
+                stubModified.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(stubModified);
+
+                // Call the method being tested.
+                let error;
+                helper.listModifiedLocalItemNames(context, [helper.NEW, helper.MODIFIED], {filterReady: true})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
+                        expect(items.length).to.equal(3);
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting item names succeeds - draft only.", function (done) {
+                const stub = sinon.stub(fsApi, "listNames");
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata1);
+                readyMetadata2.status = "ready";
+                const readyMetadata3 = utils.clone(itemMetadata1);
+                readyMetadata3.status = "ready";
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata1);
+                draftMetadata2.status = "draft";
+                stub.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
+
+                const stubModified = sinon.stub(hashes, "isLocalModified");
+                stubModified.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+                self.addTestDouble(stubModified);
+
+                // Call the method being tested.
+                let error;
+                helper.listModifiedLocalItemNames(context, [helper.NEW, helper.MODIFIED], {filterDraft: true})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
                         expect(items.length).to.equal(2);
                     })
                     .catch(function (err) {
@@ -3240,7 +3932,8 @@ class BaseHelperUnitTest extends UnitTest {
                 stubGet.onCall(0).resolves([itemMetadata1]);
                 stubGet.onCall(1).resolves([itemMetadata2]);
                 stubGet.onCall(2).resolves([itemMetadata1]);
-                stubGet.onCall(3).resolves([]);
+                stubGet.onCall(3).resolves([itemMetadata2]);
+                stubGet.onCall(4).resolves([]);
 
                 const stubCan = sinon.stub(helper, "canDeleteItem");
                 stubCan.returns(true);
@@ -3256,13 +3949,16 @@ class BaseHelperUnitTest extends UnitTest {
                 });
 
                 const stubDelete = sinon.stub(restApi, "deleteItem");
+                const notFoundError = new Error();
+                notFoundError.statusCode = 404;
                 const DELETE_ERROR = "Error deleting item, expected by unit test.";
                 const deleteError = new Error(DELETE_ERROR);
                 deleteError.retry = true;
                 stubDelete.onCall(0).resolves(itemMetadata1);
                 stubDelete.onCall(1).resolves(itemMetadata2);
-                stubDelete.onCall(2).rejects(deleteError);
+                stubDelete.onCall(2).rejects(notFoundError);
                 stubDelete.onCall(3).rejects(deleteError);
+                stubDelete.onCall(4).rejects(deleteError);
 
                 // Remove the emitter and make sure the delete still fails as expected.
                 const emitter = context.eventEmitter;
@@ -3279,11 +3975,11 @@ class BaseHelperUnitTest extends UnitTest {
                 helper.deleteRemoteItems(context, UnitTest.DUMMY_OPTIONS)
                     .then(function (items) {
                         // Verify that the stubs were called the expected number of times.
-                        expect(stubGet).to.have.callCount(4);
-                        expect(stubCan).to.have.callCount(4);
-                        expect(stubDelete).to.have.callCount(4);
+                        expect(stubGet).to.have.callCount(5);
+                        expect(stubCan).to.have.callCount(5);
+                        expect(stubDelete).to.have.callCount(5);
 
-                        expect(items).to.have.lengthOf(2);
+                        expect(items).to.have.lengthOf(3);
                     })
                     .catch(function (err) {
                         error = err;
@@ -3617,6 +4313,27 @@ class BaseHelperUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed with existing section, some items missing id", function (done) {
+                const TEST_MANIFEST_SECTION = {"id1": {"id": "id1", "name": "name1", "path": "path1"}, "id2": {"name": "name2", "path": "path2"}};
+                const stubSection = sinon.stub(manifests, "getManifestSection");
+                stubSection.returns(TEST_MANIFEST_SECTION);
+
+                let error;
+                helper.getManifestItems(context)
+                    .then(function (items) {
+                        expect(items).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubSection.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -3742,6 +4459,95 @@ class BaseHelperUnitTest extends UnitTest {
                         // Verify that the expected item was returned.
                         expect(documents).to.have.lengthOf(1);
                         expect(documents[0].id).to.equal(itemMetadata1.id);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with ready filter.", function (done) {
+                const itemMetadata1 = UnitTest.getJsonObject(path1);
+                const stubRest = sinon.stub(searchREST, "search");
+                stubRest.resolves({"documents": [itemMetadata1] });
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubRest);
+
+                let error;
+                helper.searchRemote(context, {"q": "foo", "fl": "bar", "fq": "another"}, {filterReady: true})
+                    .then(function (documents) {
+                        // Verify that the stub was called once.
+                        expect(stubRest).to.have.been.calledOnce;
+
+                        // Verify that the expected options were passed to the stub.
+                        expect(stubRest.args[0][1]["q"]).to.equal("foo");
+                        expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(4);
+                        expect(stubRest.args[0][1]["fl"][0]).to.equal("bar");
+                        expect(stubRest.args[0][1]["fl"][1]).to.equal("id");
+                        expect(stubRest.args[0][1]["fl"][2]).to.equal("name");
+                        expect(stubRest.args[0][1]["fl"][3]).to.equal("status");
+                        if (helper._classification) {
+                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(2);
+                            expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
+                            expect(stubRest.args[0][1]["fq"][1]).to.contain(helper._classification);
+                        } else {
+                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(1);
+                            expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
+                        }
+
+                        // Verify that the expected item was returned.
+                        expect(documents).to.have.lengthOf(1);
+                        expect(documents[0].id).to.equal(itemMetadata1.id);
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with draft filter.", function (done) {
+                const itemMetadata1 = UnitTest.getJsonObject(path1);
+                const stubRest = sinon.stub(searchREST, "search");
+                stubRest.resolves({"documents": [itemMetadata1] });
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubRest);
+
+                let error;
+                helper.searchRemote(context, {"q": "foo", "fl": "bar", "fq": "another"}, {filterDraft: true})
+                    .then(function (documents) {
+                        // Verify that the stub was called once.
+                        expect(stubRest).to.have.been.calledOnce;
+
+                        // Verify that the expected options were passed to the stub.
+                        expect(stubRest.args[0][1]["q"]).to.equal("foo");
+                        expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(4);
+                        expect(stubRest.args[0][1]["fl"][0]).to.equal("bar");
+                        expect(stubRest.args[0][1]["fl"][1]).to.equal("id");
+                        expect(stubRest.args[0][1]["fl"][2]).to.equal("name");
+                        expect(stubRest.args[0][1]["fl"][3]).to.equal("status");
+                        if (helper._classification) {
+                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(2);
+                            expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
+                            expect(stubRest.args[0][1]["fq"][1]).to.contain(helper._classification);
+                        } else {
+                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(1);
+                            expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
+                        }
+
+                        // Verify that no draft items were returned.
+                        expect(documents).to.have.lengthOf(0);
                     })
                     .catch (function (err) {
                         // NOTE: A failed expectation from above will be handled here.
