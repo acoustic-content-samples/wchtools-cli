@@ -307,7 +307,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             });
 
             it("should succeed when setting a new working directory", function (done) {
-                const folderName = assetsFS.getFolderName();
+                const folderName = assetsFS.getFolderName(context);
                 let path = assetsFS.getPath(context);
 
                 // Before setting the new working directory, the asset path should not contain that directory.
@@ -608,7 +608,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the specified asset path.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.args[0][0]).to.contain(assetsFS.getFolderName());
+                        expect(stub.args[0][0]).to.contain(assetsFS.getFolderName(context));
 
                         // Verify that the expected error is returned.
                         expect(err.name).to.equal("Error");
@@ -648,7 +648,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                         try {
                             // Verify that the stubs were called once with the specified asset path.
                             expect(stubDir).to.have.been.calledOnce;
-                            expect(stubDir.args[0][0]).to.contain(assetsFS.getFolderName());
+                            expect(stubDir.args[0][0]).to.contain(assetsFS.getFolderName(context));
                             expect(stub).to.have.been.calledOnce;
                             expect(stub.args[0][0]).to.contain(UnitTest.DUMMY_METADATA.path);
 
@@ -1334,8 +1334,16 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 self.listNamesError(done);
             });
 
+            it("should fail when reading an asset file fails", function (done) {
+                self.listNamesReadError(done);
+            });
+
             it("should succeed when getting asset names", function (done) {
                 self.listNamesSuccess(done);
+            });
+
+            it("should succeed when getting asset names with additional properties", function (done) {
+                self.listNamesAdditionalPropertiesSuccess(done);
             });
 
             it("should succeed when getting filtered web asset names", function (done) {
@@ -1465,6 +1473,68 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             });
     }
 
+    listNamesReadError (done) {
+        const opts = {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY};
+
+        // Create a stub for fs.existsSync that will return true.
+        const stubExists = sinon.stub(fs, "existsSync");
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
+
+        // Create a stub that will return a list of asset names from the recursive function.
+        const stubReaddir = sinon.stub();
+        const err = null;
+        const assetPaths = [
+            UnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1,
+            UnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2,
+            UnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_3
+        ];
+        stubReaddir.yields(err, assetPaths);
+
+        // Subvert the "recursive-readdir" module with the specified stub.
+        // noinspection JSUnresolvedFunction
+        requireSubvert.subvert("recursive-readdir", stubReaddir);
+
+        // Reload assetsFS, so that it gets the subverted version of the recursive function.
+        // noinspection JSUnresolvedFunction
+        assetsFS = requireSubvert.require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+        // Create a stub for fs.readFileSync that will return metadata for the filtered file.
+        const originalReadFileSync = fs.readFileSync;
+        const stubRead = sinon.stub(fs, "readFileSync", function (filename, readOptions) {
+            if (filename.endsWith(assetsFS.getExtension())) {
+                throw(new Error("Error reading file, as expected by unit test."));
+            } else {
+                // Return the contents of the specified file.
+                return originalReadFileSync.call(fs, filename, readOptions);
+            }
+        });
+
+        this.addTestDouble(stubExists);
+        this.addTestDouble(stubRead);
+
+        // Call the method being tested.
+        let error;
+        assetsFS.listNames(context, null, opts)
+            .then(function (paths) {
+                // Verify that the expected values are returned.
+                expect(paths).to.have.lengthOf(3);
+                expect(paths[0].path).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[1].path).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+                expect(paths[2].path).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+            })
+            .finally(function () {
+                // Restore the subverted functions.
+                // noinspection JSUnresolvedFunction
+                requireSubvert.cleanUp();
+
+                // Reload assetsFS, so that it gets the original version of recursive.
+                assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    }
+
     listNamesSuccess (done) {
         const opts = {"workingDir": UnitTest.VALID_RESOURCES_DIRECTORY};
 
@@ -1504,6 +1574,67 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 expect(paths[0].path).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
                 expect(paths[1].path).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
                 expect(paths[2].path).to.be.oneOf([AssetsUnitTest.ASSET_JPG_1, AssetsUnitTest.ASSET_CSS_1, AssetsUnitTest.ASSET_CSS_2]);
+            })
+            .catch(function (err) {
+                // NOTE: A failed expectation from above will be handled here.
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // Restore the subverted functions.
+                // noinspection JSUnresolvedFunction
+                requireSubvert.cleanUp();
+
+                // Reload assetsFS, so that it gets the original version of recursive.
+                assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+                // Restore the default options.
+                UnitTest.restoreOptions(context);
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    }
+
+    listNamesAdditionalPropertiesSuccess (done) {
+        const opts = {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY, "additionalItemProperties": ["rev"]};
+
+        // Create a stub for fs.existsSync that will return true.
+        const stubExists = sinon.stub(fs, "existsSync");
+        stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
+
+        this.addTestDouble(stubExists);
+
+        // Create a stub that will return a list of asset names from the recursive function.
+        const stub = sinon.stub();
+        const err = null;
+        const assetPaths = [
+            UnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1,
+            UnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2,
+            UnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_3
+        ];
+        stub.yields(err, assetPaths);
+
+        // Subvert the "recursive-readdir" module with the specified stub.
+        // noinspection JSUnresolvedFunction
+        requireSubvert.subvert("recursive-readdir", stub);
+
+        // Reload assetsFS, so that it gets the subverted version of the recursive function.
+        // noinspection JSUnresolvedFunction
+        assetsFS = requireSubvert.require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
+
+        // Call the method being tested.
+        let error;
+        assetsFS.listNames(context, null, opts)
+            .then(function (paths) {
+                // Verify that the get stub was called once with the lookup URI.
+                expect(stub).to.have.been.calledOnce;
+
+                // Verify that the expected values are returned.
+                expect(paths).to.have.lengthOf(3);
+                expect(paths[0].path).to.be.oneOf([AssetsUnitTest.ASSET_CONTENT_JPG_1, AssetsUnitTest.ASSET_CONTENT_JPG_2, AssetsUnitTest.ASSET_CONTENT_JPG_3]);
+                expect(paths[1].path).to.be.oneOf([AssetsUnitTest.ASSET_CONTENT_JPG_1, AssetsUnitTest.ASSET_CONTENT_JPG_2, AssetsUnitTest.ASSET_CONTENT_JPG_3]);
+                expect(paths[2].path).to.be.oneOf([AssetsUnitTest.ASSET_CONTENT_JPG_1, AssetsUnitTest.ASSET_CONTENT_JPG_2, AssetsUnitTest.ASSET_CONTENT_JPG_3]);
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.

@@ -45,7 +45,6 @@ const PullingPublishingProfiles = PREFIX + i18n.__('cli_pull_pulling_profiles') 
 const PullingPublishingSources = PREFIX + i18n.__('cli_pull_pulling_sources') + SUFFIX;
 const PullingPublishingSiteRevisions = PREFIX + i18n.__('cli_pull_pulling_site_revisions') + SUFFIX;
 const PullingSites = PREFIX + i18n.__('cli_pull_pulling_sites') + SUFFIX;
-const PullingPages = PREFIX + i18n.__('cli_pull_pulling_pages') + SUFFIX;
 
 // Define the names of the events emitted by the API during a pull operation.
 const EVENT_ITEM_PULLED = "pulled";
@@ -74,6 +73,10 @@ class PullCommand extends BaseCommand {
 
         // Only pull modified artifacts by default.
         this._modified = true;
+    }
+
+    static _getPagesDisplayHeader (siteId) {
+        return PREFIX + i18n.__('cli_pull_pulling_pages_for_site', {id: siteId}) + SUFFIX;
     }
 
     /**
@@ -113,6 +116,11 @@ class PullCommand extends BaseCommand {
             return;
         }
 
+        // Handle the ready and draft options.
+        if (!self.handleReadyDraftOptions()) {
+            return;
+        }
+
         // Make sure the "path" option can be handled successfully.
         if (!self.handlePathOption()) {
             return;
@@ -133,6 +141,10 @@ class PullCommand extends BaseCommand {
             .then(function () {
                 // Login using the current options.
                 return login.login(context, self.getApiOptions());
+            })
+            .then(function () {
+                // Initialize the list of remote sites to be used for this command, if necessary.
+                return self.initSites(context, true);
             })
             .then(function () {
                 // Start the display of the pulled artifacts.
@@ -156,6 +168,9 @@ class PullCommand extends BaseCommand {
             .finally(function () {
                 // End the display of the pulled artifacts.
                 self.endDisplay(error);
+
+                // Reset the list of sites used for this command.
+                self.resetSites(context);
 
                 // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
@@ -270,7 +285,8 @@ class PullCommand extends BaseCommand {
                 valid = false;
             } else if (!(self.getCommandLineOption("allAuthoring") ||
                        ( self.getCommandLineOption("types") &&
-                         self.getCommandLineOption("assets") &&
+                           self.getCommandLineOption("content") &&
+                           self.getCommandLineOption("assets") &&
                          self.getCommandLineOption("renditions")) ) ) {
                 self.errorMessage(i18n.__('cli_pull_opt_by_type_all'));
                 valid = false;
@@ -357,7 +373,21 @@ class PullCommand extends BaseCommand {
             })
             .then(function () {
                 if (self.getCommandLineOption("pages") && !self.isBaseTier(context)) {
-                    return self.handlePullPromise(self.pullPages(context), continueOnError);
+                    // Get the list of site ids to use for pulling pages.
+                    const siteIds = context.siteList;
+
+                    // Local function to recursively pull pages for one site at a time.
+                    let index = 0;
+                    const pullPagesBySite = function (context) {
+                        if (index < siteIds.length) {
+                            return self.handlePullPromise(self.pullPages(context, siteIds[index++]), continueOnError)
+                                .then(function () {
+                                    return pullPagesBySite(context);
+                                });
+                        }
+                    };
+
+                    return pullPagesBySite(context);
                 }
             })
             .then(function () {
@@ -449,8 +479,8 @@ class PullCommand extends BaseCommand {
             self.spinner.start();
         }
 
-        let assets = new Set([]);
-        let renditions = new Set([]);
+        const assets = new Set([]);
+        const renditions = new Set([]);
         let imageElements = [];
         let references=[];  // For now, we only care if there are "any" references - future, we may walk them too
         const postProcessTypes = function(item) {
@@ -464,19 +494,19 @@ class PullCommand extends BaseCommand {
             if (references.length>0){
               self.getLogger().warn(i18n.__('cli_pull_type_references', {name: item.name}));
             }
-        }
+        };
 
         const postProcessContent = function(item) {
             if (item && item.elements) {
-                imageElements.forEach(elem=>{
-                    let e = item.elements[elem.key]
+                imageElements.forEach(elem => {
+                    const e = item.elements[elem.key];
                     if (e.asset && e.asset.id) {
                         assets.add(e.asset.id);
                     }
                     if (e.renditions) {
-                        for (var renditionKey in e.renditions) {
+                        for (const renditionKey in e.renditions) {
                             if (e.renditions.hasOwnProperty(renditionKey)) {
-                                let r = e.renditions[renditionKey].renditionId;
+                                const r = e.renditions[renditionKey].renditionId;
                                 if (r && !EMBEDDED_RENDITION_ID.test(r)){
                                     renditions.add(r);
                                 }
@@ -488,7 +518,7 @@ class PullCommand extends BaseCommand {
                     }
                 })
             }
-        }
+        };
 
         // Search for the type by the specified type name (unfortunately, "could" be more than one,
         // even though it's not recommended to have more than one type with same name, it's not prevented)
@@ -1405,19 +1435,21 @@ class PullCommand extends BaseCommand {
 
 
     /**
-     * Pull the page definitions for the specified site (default site in mvp)
+     * Pull the pages for the specified site.
      *
      * @param {Object} context The API context to be used for the pull operation.
+     * @param {String} siteId The id of the site.
      *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the artifacts.
      */
-    pullPages (context) {
-
+    pullPages (context, siteId) {
         const helper = ToolsApi.getPagesHelper();
         const emitter = context.eventEmitter;
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
         const self = this;
 
-        self.getLogger().info(PullingPages);
+        const displayHeader = PullCommand._getPagesDisplayHeader(siteId);
+        self.getLogger().info(displayHeader);
 
         // The API emits an event when an item is pulled, so we log it for the user.
         const artifactPulled = function (item) {
@@ -1445,11 +1477,8 @@ class PullCommand extends BaseCommand {
         };
         emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
 
-        // Get the API options and start the pull operation.
-        const apiOptions = this.getApiOptions();
-
         // Return the promise for the results of the pull operation.
-        return this.pullItems(context, helper, apiOptions)
+        return this.pullItems(context, helper, opts)
             .then(function (items) {
                 // Handle any local items that need to be deleted.
                 if (itemsToDelete.length > 0) {
@@ -1458,7 +1487,7 @@ class PullCommand extends BaseCommand {
                     const promptKey = "cli_pull_page_delete_confirm";
                     const successKey = "cli_pull_page_deleted";
                     const errorKey = "cli_pull_page_delete_error";
-                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, opts)
                         .then(function () {
                             return items;
                         });
@@ -1731,6 +1760,7 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("deletions", undefined);
         this.setCommandLineOption("quiet", undefined);
         this.setCommandLineOption("byTypeName", undefined);
+        this.setCommandLineOption("path", undefined);
         this.setCommandLineOption("manifest", undefined);
         this.setCommandLineOption("writeManifest", undefined);
         super.resetCommandLineOptions();
@@ -1764,6 +1794,8 @@ function pullCommand (program) {
         .option('--path <path>',         i18n.__('cli_pull_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_pull_opt_use_manifest'))
         .option('--write-manifest <manifest>',i18n.__('cli_pull_opt_write_manifest'))
+        .option('--ready',               i18n.__('cli_pull_opt_ready'))
+        //.option('--draft',               i18n.__('cli_pull_opt_draft'))
         .option('--dir <dir>',           i18n.__('cli_pull_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))

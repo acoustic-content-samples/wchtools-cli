@@ -180,6 +180,8 @@ class BaseCommand {
      * terminated and these values need to be reset.
      */
     resetCommandLineOptions () {
+        this.setCommandLineOption("ready", undefined);
+        this.setCommandLineOption("draft", undefined);
         this.setCommandLineOption("dir", undefined);
         this.setCommandLineOption("url", undefined);
         this.setCommandLineOption("user", undefined);
@@ -265,25 +267,6 @@ class BaseCommand {
      *
      * @param {Object} context The API context associated with this command.
      *
-     * @returns {Array} An array of the site ids to use for this command, or undefined.
-     */
-    getSiteIds (context) {
-        // TODO This will need to be updated when om#998 functionality is merged.
-        if (this.getCommandLineOption("manifest")) {
-            const opts = this.getApiOptions();
-            const sitesSection = manifests.getManifestSection(context, "sites", opts);
-            if (sitesSection) {
-                // The sites section has a property for each site, named by the site id.
-                return Object.keys(sitesSection);
-            }
-        }
-    }
-
-    /**
-     * Initialize manifest handling for the command.
-     *
-     * @param {Object} context The API context associated with this command.
-     *
      * @returns {boolean} A value of true if the manifests are properly initialized, otherwise false to indicate that
      *          command execution should not continue.
      */
@@ -331,6 +314,21 @@ class BaseCommand {
         }
 
         return true;
+    }
+
+    /**
+     * Get an array of the manifest's site ids to use for this command.
+     *
+     * @param {Object} context The API context associated with this command.
+     *
+     * @returns {Array} An array of the manifest's site ids to use for this command, or undefined.
+     */
+    getManifestSiteIds (context) {
+        const sitesSection = manifests.getManifestSection(context, "sites", this.getApiOptions());
+        if (sitesSection) {
+            // The sites section has a property for each site, named by the site id.
+            return Object.keys(sitesSection);
+        }
     }
 
     /**
@@ -383,7 +381,7 @@ class BaseCommand {
 
                 // Sites and pages are handled separately so that a page section can be found for each site.
                 if (artifactType.section === "sites") {
-                    siteIds = self.getSiteIds(context);
+                    siteIds = self.getManifestSiteIds(context);
                     if (siteIds) {
                         hasSection = true;
                     }
@@ -778,6 +776,131 @@ class BaseCommand {
         }
 
         return true;
+    }
+
+    /**
+     * Handle the ready and draft options specified on the command line.
+     *
+     * @returns {boolean} A value of true if the specified ready and draft options are valid, otherwise false to
+     *          indicate that command execution should not continue.
+     */
+    handleReadyDraftOptions () {
+        const readyOnly = this.getCommandLineOption("ready");
+        //const draftOnly = this.getCommandLineOption("draft");
+        const manifest = this.getCommandLineOption("manifest");
+        if (readyOnly) {
+            /*if (draftOnly) {
+                // Cannot specify both the "ready" and "draft" options.
+                this.errorMessage(i18n.__('cli_ready_and_draft_options'));
+                this.resetCommandLineOptions();
+                return false;
+            } else*/ if (manifest) {
+                // Cannot specify both the "ready" and "manifest" options.
+                this.errorMessage(i18n.__('cli_ready_and_manifest_options'));
+                this.resetCommandLineOptions();
+                return false;
+            } else {
+                this.setApiOption("filterReady", true);
+            }
+        } /*else if (draftOnly) {
+            if (manifest) {
+                // Cannot specify both the "draft" and "manifest" options.
+                this.errorMessage(i18n.__('cli_draft_and_manifest_options'));
+                this.resetCommandLineOptions();
+                return false;
+            } else {
+                this.setApiOption("filterDraft", true);
+            }
+        }*/
+
+        return true;
+    }
+
+    /**
+     * Initialize the list of sites to be used for this command, if necessary.
+     *
+     * @param {Object} context The API context associated with this command.
+     * @param {Boolean} remote A flag that indicates whether to retrieve the remote sites or the local sites.
+     *
+     * @returns {Q.Promise} A promise that will be resolved once the sites have been initialized.
+     */
+    initSites (context, remote) {
+        const deferred = Q.defer();
+        const self = this;
+
+        // Only initialize the sites if the tenant supports sites, and the sites or pages option was specified.
+        if (!this.isBaseTier(context) && (this.getCommandLineOption("sites") || this.getCommandLineOption("pages"))) {
+            if (this.getCommandLineOption("manifest")) {
+                // Use the sites defined by the manifest.
+                context.siteList = self.getManifestSiteIds(context);
+
+                // The site list has been set synchronously, so go ahead and resolve the promise.
+                deferred.resolve();
+            } else {
+                // Determine what type of sites to use for this command -- draft, ready, or both.
+                const includeReadySites = this.getCommandLineOption("ready") || !this.getCommandLineOption("draft");
+                const includeDraftSites = this.getCommandLineOption("draft") || !this.getCommandLineOption("ready");
+
+                // Get all sites, either local or remote.
+                const getSites = remote ? ToolsApi.getRemoteSites : ToolsApi.getLocalSites;
+                getSites(context, this.getApiOptions())
+                    .then(function (sites) {
+                        // Start with an empty site list, and add any existing sites to be used for this command.
+                        context.siteList = [];
+                        if (sites) {
+                            const readySiteIds = [];
+                            const draftSiteIds = [];
+                            sites.forEach(function (site) {
+                                // Old tenants that do not have a siteStatus property are considered to be "ready".
+                                const siteStatus = site.siteStatus || "ready";
+                                if (includeReadySites && (siteStatus === "ready")) {
+                                    // The ready site should be handled by this command.
+                                    readySiteIds.push(site.id);
+                                } else if (includeDraftSites && (siteStatus === "draft")) {
+                                    // The draft site should be handled by this command.
+                                    draftSiteIds.push(site.id);
+                                }
+                            });
+
+                            // Create a list of ready and draft site ids, in the order required by this command.
+                            context.siteList = self.createSiteList(readySiteIds, draftSiteIds);
+                        }
+
+                        deferred.resolve();
+                    })
+                    .catch(function (err) {
+                        deferred.reject(err);
+                    });
+            }
+        } else {
+            // Sites are not required for this command, so just return a resolved promise.
+            context.siteList = [];
+            deferred.resolve();
+        }
+
+        return deferred.promise;
+    }
+
+    /**
+     * Create a site list to be used for this command, based on the given lists of ready and draft site ids.
+     *
+     * @param {Array} readySiteIds The list of ready site ids to be used for this command.
+     * @param {Array} draftSiteIds The list of draft site ids to be used for this command.
+     *
+     * @return {Array} A site list to be used for this command.
+     */
+    createSiteList (readySiteIds, draftSiteIds) {
+        // By default, handle the ready sites before the draft sites.
+        return readySiteIds.concat(draftSiteIds);
+    }
+
+    /**
+     * Reset the list of sites to be used for this command.
+     *
+     * @param {Object} context The API context associated with this command.
+     */
+    resetSites (context) {
+        delete context.siteList;
     }
 
     getLogConfig () {

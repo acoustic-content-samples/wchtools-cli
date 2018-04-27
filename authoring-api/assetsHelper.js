@@ -331,6 +331,25 @@ class AssetsHelper extends BaseHelper {
             .then(function (assetList) {
                 const listLength = assetList.length;
 
+                // Filter the asset list based on the ready and draft options.
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if (readyOnly) {
+                    // Filter out any assets that are not ready.
+                    assetList = assetList.filter(function (asset) {
+                        if (!asset.status || asset.status === "ready") {
+                            return asset;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any assets that are not draft.
+                    assetList = assetList.filter(function (asset) {
+                        if (asset.status === "draft") {
+                            return asset;
+                        }
+                    });
+                }
+
                 // Filter the asset list based on the type of assets specified by the options.
                 if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS) {
                     // Filter out any content assets.
@@ -693,6 +712,53 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Get the items from the current manifest.
+     *
+     * @param {Object} context The API context to be used by the operation.
+     * @param {Object} opts - The options to be used to get the items.
+     *
+     * @returns {Q.Promise} A promise to get the items from the current manifest.
+     *
+     * @resolves {Array} The items from the current manifest, or an empty array.
+     */
+    getManifestItems (context, opts) {
+        const self = this;
+        const items = [];
+        const section = manifests.getManifestSection(context, this.getArtifactName(), opts);
+
+        if (section) {
+            // The section has a property for each item, the key is the item id.
+            const keys = Object.keys(section);
+
+            // Add an item for each id in the section.
+            keys.forEach(function (key) {
+                // Make sure the item is valid (contains at least a path).
+                if (section[key].path) {
+                    // Clone the item, so that the original is not modified.
+                    let item = utils.clone(section[key]);
+                    if (opts && opts[self.ASSET_TYPES] === self.ASSET_TYPES_WEB_ASSETS) {
+                        // Filter out any content assets.
+                        if (self._fsApi.isContentResource(item)) {
+                            item = undefined;
+                        }
+                    } else if (opts && opts[self.ASSET_TYPES] === self.ASSET_TYPES_CONTENT_ASSETS) {
+                        // Filter out any web assets.
+                        if (!self._fsApi.isContentResource(item)) {
+                            item = undefined;
+                        }
+                    }
+                    if (item) {
+                        items.push(item);
+                    }
+                }
+            });
+        }
+
+        // Return a promise resolved with the manifest items for this helper, if there are any.
+        return Q(items);
+    }
+
+    /**
      * Pull the items in the current manifest from the remote content hub to the local file system.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -769,8 +835,10 @@ class AssetsHelper extends BaseHelper {
                 }
             })
             .then(function (items) {
-                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
-                    // Only update the last pull timestamp if there were no pull errors.
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
+                    // Only update the last pull timestamp if there was no filtering and no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
                 if (allFSItems) {
@@ -838,8 +906,10 @@ class AssetsHelper extends BaseHelper {
                 }
             })
             .then(function (items) {
-                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
-                    // Only update the last pull timestamp if there were no pull errors.
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
+                    // Only update the last pull timestamp if there was no filtering and no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
                 return items;
@@ -886,16 +956,28 @@ class AssetsHelper extends BaseHelper {
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
 
-        // Throttle the number of assets to be pushed concurrently, using the currently configured limit.
+        let readyResults;
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
-        const readyResults = utils.throttledAll(context, paths.map(function (name) {
-            return function () {
-                return helper.pushItem(context, name, opts);
-            };
-        }), concurrentLimit);
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
 
-        let results = readyResults;
-        if (drafts.length > 0) {
+        // Push the ready assets, unless only draft assets should be pushed.
+        if (!draftOnly) {
+            // Throttle the number of assets to be pushed concurrently, using the currently configured limit.
+            readyResults = utils.throttledAll(context, paths.map(function (name) {
+                return function () {
+                    return helper.pushItem(context, name, opts);
+                };
+            }), concurrentLimit);
+        } else {
+            // Not pushing ready assets, so return a resolved promise.
+            readyResults = Q([]);
+        }
+
+        let results;
+
+        // Push the draft assets if there are any, unless only ready assets should be pushed.
+        if (drafts.length > 0 && !readyOnly) {
             // Wait for the ready assets to be done, then push the batch of draft assets.
             const deferred = Q.defer();
             results = deferred.promise;
@@ -909,6 +991,8 @@ class AssetsHelper extends BaseHelper {
                     deferred.resolve(readyPromises.concat(draftPromises));
                 });
             });
+        } else {
+            results = readyResults;
         }
 
         // Return the promise to push all of the specified assets.
@@ -930,8 +1014,9 @@ class AssetsHelper extends BaseHelper {
             })
             .then(function (assets) {
                 helper._updateManifest(context, assets, opts);
-                // Keep track of the timestamp of this operation, but only if there were no errors.
-                if (errorCount === 0) {
+                // Keep track of the timestamp of this operation, but only if there was no filtering and no errors.
+                const filterPath = options.getRelevantOption(context, opts, "filterPath");
+                if ((errorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
                     helper._setLastPushTimestamps(context, timestamp, opts);
                 }
                 return assets;
@@ -1587,6 +1672,25 @@ class AssetsHelper extends BaseHelper {
             .then(function (assetList) {
                 const chunkLength = assetList.length;
 
+                // Filter the asset list based on the ready and draft options.
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if (readyOnly) {
+                    // Filter out any assets that are not ready.
+                    assetList = assetList.filter(function (asset) {
+                        if (!asset.status || asset.status === "ready") {
+                            return asset;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any assets that are not draft.
+                    assetList = assetList.filter(function (asset) {
+                        if (asset.status === "draft") {
+                            return asset;
+                        }
+                    });
+                }
+
                 // If web assets only, filter out the content assets.
                 if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS) {
                     assetList = assetList
@@ -2025,8 +2129,35 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} A promise for a list of local asset names, based on the specified options.
      */
     _listLocalItemNames (context, opts) {
-        // Get the list of asset paths on the local file system.
-        return this._fsApi.listNames(context, null, opts);
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+
+        if (readyOnly || draftOnly) {
+            // Make sure the proxy items contain the status (only exists on content assets).
+            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+        }
+
+        return this._fsApi.listNames(context, null, opts)
+            .then(function (assets) {
+                // Filter the asset list based on the ready and draft options.
+                if (readyOnly) {
+                    // Filter out any assets that are draft.
+                    assets = assets.filter(function (asset) {
+                        if (!asset.status || asset.status === "ready") {
+                            return asset;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any assets that are not draft.
+                    assets = assets.filter(function (asset) {
+                        if (asset.status === "draft") {
+                            return asset;
+                        }
+                    });
+                }
+
+                return assets;
+            });
     }
 
     /**
@@ -2060,28 +2191,52 @@ class AssetsHelper extends BaseHelper {
         // Get the list of local asset paths.
         const dir = this._fsApi.getAssetsPath(context, opts);
 
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+
+        if (readyOnly || draftOnly) {
+            // Make sure the proxy items contain the status (only exists on content assets).
+            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+        }
+
         const helper = this;
         return helper._fsApi.listNames(context, null, opts)
             .then(function (assets) {
                 // Filter the list so that it only contains modified asset paths.
-                const results = assets
-                    .filter(function (asset) {
+                assets = assets.filter(function (asset) {
                         const metadataPath = helper._fsApi.getMetadataPath(context, asset.path, opts);
                         const path = helper._fsApi.getPath(context, opts) + asset.path;
                         return hashes.isLocalModified(context, flags, dir, metadataPath, path, opts);
                     });
 
+                // Filter the asset list based on the ready and draft options.
+                if (readyOnly) {
+                    // Filter out any assets that are draft.
+                    assets = assets.filter(function (asset) {
+                        if (!asset.status || asset.status === "ready") {
+                            return asset;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any assets that are not draft.
+                    assets = assets.filter(function (asset) {
+                        if (asset.status === "draft") {
+                            return asset;
+                        }
+                    });
+                }
+
                 // Add the deleted asset paths if the flag was specified.
                 if (flags.indexOf(helper.DELETED) !== -1) {
                     return helper.listLocalDeletedNames(context, opts)
-                        .then(function (assets) {
-                            assets.forEach(function (asset) {
-                                results.push(asset);
+                        .then(function (deletedAssets) {
+                            deletedAssets.forEach(function (asset) {
+                                assets.push(asset);
                             });
-                            return results;
+                            return assets;
                         });
                 } else {
-                    return results;
+                    return assets;
                 }
             });
     }
@@ -2160,17 +2315,30 @@ class AssetsHelper extends BaseHelper {
         const dir = this._fsApi.getAssetsPath(context, opts);
         const localAssets = hashes.listFiles(context, dir, opts);
 
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+
         // Get the list of deleted local assets.
         const deletedAssetPaths = localAssets
-            .filter(function (item) {
+            .filter(function (asset) {
                 // An asset is considered to be deleted if it's stat cannot be retrieved.
                 let stat;
                 try {
-                    stat = fs.statSync(dir + item.path);
+                    stat = fs.statSync(dir + asset.path);
                 } catch (ignore) {
                     // Ignore this error and assume the asset is deleted.
                 }
                 return !stat;
+            })
+            .filter(function (asset) {
+                // Filter the item list based on the ready and draft options.
+                const draft = asset.id && (asset.id.indexOf(":") >= 0);
+                if ((readyOnly && draft) || (draftOnly && !draft)) {
+                    // Filter out any items that do not match the specified option.
+                    return false;
+                } else {
+                    return true;
+                }
             });
 
         // Resolve with the list of deleted asset paths.
@@ -2265,6 +2433,35 @@ class AssetsHelper extends BaseHelper {
         }
 
         return super.canDeleteItem(item, isDeleteAll, opts);
+    }
+
+    /**
+     * Delete the specified remote item.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} item The item to be deleted.
+     * @param {Object} opts The options to be used for the delete operation.
+     *
+     * @returns {Q.Promise} A promise for the deleted item.
+     */
+    deleteRemoteItem (context, item, opts) {
+        const deferred = Q.defer();
+        if (item && !item.id && item.path) {
+            this._restApi.getItemByPath(context, item.path, opts)
+                .then(function (newItem) {
+                    deferred.resolve(newItem);
+                })
+                .catch(function (err) {
+                    deferred.reject(err);
+                });
+        } else {
+            deferred.resolve(item);
+        }
+
+        const superDeleteRemoteItem = super.deleteRemoteItem.bind(this);
+        return deferred.promise.then(function (itemToDelete) {
+            return superDeleteRemoteItem(context, itemToDelete, opts);
+        });
     }
 
     /**

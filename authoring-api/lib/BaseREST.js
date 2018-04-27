@@ -33,7 +33,7 @@ class BaseREST {
         return this._serviceName;
     }
 
-    getUriPath () {
+    getUriPath (context, opts) {
         return this._uriPath;
     }
 
@@ -77,7 +77,7 @@ class BaseREST {
     }
 
     getRequestURI (context, opts) {
-        // Promise based to allow for lookup of URI if necdessary going forward
+        // Promise based to allow for lookup of URI if necessary going forward
         const deferred = Q.defer();
         let baseUrl = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", this.getServiceName());
 
@@ -261,7 +261,7 @@ class BaseREST {
             .then(function (uri) {
                 // Resolve the promise with the standard request options and the retry options.
                 const requestOptions = {
-                    uri: uri + restObject.getUriPath(),
+                    uri: uri + restObject.getUriPath(context, opts),
                     json: true,
                     headers: headers
                 };

@@ -166,12 +166,12 @@ class BaseHelper {
      *
      * @returns {String} The name of the virtual folder used by this helper.
      */
-    getVirtualFolderName (opts) {
+    getVirtualFolderName (context, opts) {
         // The "noVirtualFolder" option can be used to store artifacts directly in the specified working folder.
         if (opts && opts.noVirtualFolder) {
             return "";
         }
-        return this._fsApi.getFolderName();
+        return this._fsApi.getFolderName(context, opts);
     }
 
     /**
@@ -209,9 +209,12 @@ class BaseHelper {
 
             // Add an item for each id in the section.
             keys.forEach(function (key) {
-                // Clone the item, so that the original is not modified.
-                const item = utils.clone(section[key]);
-                items.push(item);
+                // Make sure the item is valid (contains at least an id).
+                if (section[key].id) {
+                    // Clone the item, so that the original is not modified.
+                    const item = utils.clone(section[key]);
+                    items.push(item);
+                }
             });
         }
 
@@ -505,8 +508,8 @@ class BaseHelper {
                             if (err.statusCode === 404) {
                                 // The item no longer exists, so assume it was deleted automatically.
                                 if (emitter) {
-                                    // Emit a "deleted" event so that listeners know the item was deleted.
-                                    emitter.emit("deleted", item);
+                                    // Emit a "deleted-ignored" event so that listeners know the item was deleted.
+                                    emitter.emit("deleted-ignored", item);
                                 }
 
                                 // Add the deleted item to the list, but do not propagate the error.
@@ -668,8 +671,8 @@ class BaseHelper {
                                 if (err.statusCode === 404) {
                                     // The item no longer exists, so assume it was deleted automatically.
                                     if (emitter) {
-                                        // Emit a "deleted" event so that listeners know the item was deleted.
-                                        emitter.emit("deleted", item);
+                                        // Emit a "deleted-ignored" event so that listeners know the item was deleted.
+                                        emitter.emit("deleted-ignored", item);
                                     }
 
                                     // Add the deleted item to the list, but do not propagate the error.
@@ -959,7 +962,29 @@ class BaseHelper {
         // Get the next "chunk".
         return listFn(opts)
             .then(function (itemList) {
-                return {length: itemList.length, items: itemList};
+                // Keep track of the original number of items in the chunk.
+                const chunkSize = itemList.length;
+
+                // Filter the item list based on the ready and draft options.
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if (readyOnly) {
+                    // Filter out any items that are not ready.
+                    itemList = itemList.filter(function (item) {
+                        if (!item.status || item.status === "ready") {
+                            return item;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any items that are not draft.
+                    itemList = itemList.filter(function (item) {
+                        if (item.status === "draft") {
+                            return item;
+                        }
+                    });
+                }
+
+                return {length: chunkSize, items: itemList};
             });
     };
 
@@ -989,6 +1014,11 @@ class BaseHelper {
             }
             if (searchOptions["fl"].indexOf("name") === -1) {
                 searchOptions["fl"].push("name");
+            }
+
+            // Make sure status is included in the results, if filtering by status.
+            if (opts && (opts["filterReady"] || opts["filterDraft"]) && (searchOptions["fl"].indexOf("status") === -1)) {
+                searchOptions["fl"].push("status");
             }
         }
         if (!searchOptions["fq"]) {

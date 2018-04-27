@@ -34,8 +34,7 @@ class AssetsUnitTest extends UnitTest {
     // File and directory constants used by all assets unit tests.
     static get ASSETS_DIRECTORY() { return "assets"; };
     static get METADATA_DIRECTORY() { return "/.metadata"; };
-    static get VALID_ASSETS_DIRECTORY() {
-        return this.VALID_RESOURCES_DIRECTORY + this.ASSETS_DIRECTORY; };
+    static get VALID_ASSETS_DIRECTORY() { return this.VALID_RESOURCES_DIRECTORY + this.ASSETS_DIRECTORY; };
     static get INVALID_ASSETS_DIRECTORY() { return this.INVALID_RESOURCES_DIRECTORY + this.ASSETS_DIRECTORY; };
     static get VALID_ASSETS_METADATA_DIRECTORY() { return this.API_PATH + this.VALID_ASSETS_DIRECTORY + this.METADATA_DIRECTORY; };
     static get VALID_CONTENT_ASSETS_METADATA_DIRECTORY() { return this.API_PATH + this.VALID_ASSETS_DIRECTORY; };

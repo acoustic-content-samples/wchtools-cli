@@ -64,7 +64,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
         or
 
-        - To uninstall the current version and then install, run the sudo chmod a+x ./reinstall.sh and sudo ./reinstall.sh.  
+        - To uninstall the current version and then install, run the sudo chmod a+x ./reinstall.sh and sudo ./reinstall.sh.
 
 
 ### Notification of updated versions of wchtools
@@ -89,14 +89,14 @@ Then follow the Getting Started instructions below, to configure and start using
 #### Using a Federated Identity (user) with Watson Content Hub tooling and APIs
 
   Some user IBM ids are "Federated" accounts as described here: https://www.ibm.com/support/knowledgecenter/SS3UMF/dch/admin/fed_authentication_admin.html
-  
+
   Federated user accounts may use the WCH Authoring UI with the user's username and password, but cannot use that same username and password for either WCH REST API access, or for use with wchtools, which uses those same WCH REST APIs.
 
   If your IBM id account is federated, you may receive an error when wchtools tries to authenticate that user to the WCH login API, indicating that you are trying to use a federated account.   If this happens, you may instead create an API key as described in the following IBM Bluemix documentation, and then use "apikey" as the username and the value of that API key as the password, for both WCH REST APIs and for wchtools.
 
 #### Using an API key instead of a username and password, with Watson Content Hub tooling and APIs
 
-  You may authenticate to the Watson Content Hub login API via wchtools using an API key, instead of a username and password, whether or not your IBM id is associated with a federated user.   While federated users, "must" authenticate with an API key, other users may also choose to do so.   
+  You may authenticate to the Watson Content Hub login API via wchtools using an API key, instead of a username and password, whether or not your IBM id is associated with a federated user.   While federated users, "must" authenticate with an API key, other users may also choose to do so.
 
 https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
@@ -206,7 +206,7 @@ wchtools 2.2 and later adds a new pull option called --deletions which can help 
 
 wchtools pull -A (or specified artifact type)  with --deletions
   - Is a super-set of -I --ignore-timestamps, in that it will walk every instance of the specified artifact types, ensuring you have the latest copy of each
-  - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the WCH authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.   
+  - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the WCH authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.
   - It asks whether you want to delete these local-only files, rather than deleting by default, in case they were local files just created by the developer, that you just haven't pushed yet.
   -If you know the local working directory shouldn't have any locally created files that you haven't pushed yet (eg, it's used for backup only, not for creating new artifacts) you may run wchtools pull -A --deletions --quiet to tell it to quietly (no-prompt) delete artifacts that exist locally but were not pulled during this pull --deletions (ignoring timestamps) session.
 
@@ -225,7 +225,7 @@ wchtools pull -A (or specified artifact type)  with --deletions
 
 #### Pulling content by type name, along with assets directly referenced by image and video elements, and renditions directly referenced by that content.
 
-Scenario: Using Content as a Service, a developer wants to pull all Content of a given type (eg, Article or Recipe) from one tenant, and push that set of artifacts to a second tenant (eg, if using a separate authoring tenant from production tenant, with manual migration of Content and Assets).   
+Scenario: Using Content as a Service, a developer wants to pull all Content of a given type (eg, Article or Recipe) from one tenant, and push that set of artifacts to a second tenant (eg, if using a separate authoring tenant from production tenant, with manual migration of Content and Assets).
 
 Please note that this particular option is targeted at Content as a Service customers, not those using WCH Sites and Pages, since it does not operate on the latter artifact types.
 
@@ -235,7 +235,7 @@ This limited pull option allows you to pull all content associated with a specif
 
 Use -A (for all authoring artifacts supported by the --by-type-name option) to benefit from any improvements that may be made to this option in future releases (eg, additional authoring artifact types).  Unlike other pull options -A means all artifact types that are currently supported by --by-type-name, when used with this option.
 
-If using this to move content between WCH tenants, you will need to pull and push categories and image profiles between those tenants first, using the existing pull -c -i options.   
+If using this to move content between WCH tenants, you will need to pull and push categories and image profiles between those tenants first, using the existing pull -c -i options.
 
 The current --by-type-name option does not support pulling other content types and content and assets associated via "reference" elements, or other authoring artifacts.  Specifying a content type that includes reference elements to other types and artifacts, which are not followed by the current version of this option, will result in a warning in verbose output and in the log, that not all artifacts associated with the type may be pulled during this operation.
 
@@ -243,7 +243,7 @@ Specifying an artifact type that this option does not currently support, will re
 
 Since this option works by finding the type by name, retrieving all content by that type and then walking the content to find asset and rendition references, it does not use the WCH "by-modified" APIs which the pull-modified operations rely on.  This results in all artifacts that it finds directly associated with the type being pulled each time you run the command with this option, rather than only those that are created or modified since the last pull by type.   If you then push all artifacts to a second WCH tenant where you had already pushed those same artifacts before, the revision values will be different than the prior push.  In this case, you can use the -f (--force-override) option to push with an override of the revision check, if you encounter revision conflict errors and with to overwrite what was pushed before, in case the artifats had been updated.   As always, it is not recommended to edit the same artifacts across multiple WCH tenancies and then attempt to migrate one to the other, as that may result in conflicts, or overwritten changes.
 
-If you have more complex content types and references, or need to pull other authoring artifacts, then the existing pull all or pull all modified options may be more appropriate for your use cases.   
+If you have more complex content types and references, or need to pull other authoring artifacts, then the existing pull all or pull all modified options may be more appropriate for your use cases.
 
 ### Delete command (for explicit deletion of server side artifacts)
 
@@ -360,7 +360,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
   To delete all pages from your tenant:
 
-    wchtools delete -p --all -v  
+    wchtools delete -p --all -v
 
   To delete all instances of all artifacts from your tenant:
 
@@ -368,7 +368,6 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
     - use with care and only after using up to date wchtools to pull all artifacts to a safe location
     - use only when you intend to completely clean out your Watson Content Hub tenant of all artifacts, to start with a clean empty hub.
-
 
 ### Pushing, pulling, and deleting, by manifest
 A manifest file can be used to control the set of authoring artifacts that are acted upon by the wchtools commands. The push, pull, and delete actions all support using a manifest to specify which artifacts to perform the desired operation on. Likewise, the push, pull, delete and list commands can be used to generate a new manifest from your environment. The manifest file is a simple JSON list of artifacts grouped by artifact type.
@@ -440,16 +439,32 @@ To pull all artifacts from your WCH tenant to a local working directory and gene
 
     wchtools pull -A --write-manifest <manifest>
 
-Since manifests are stored in a folder called "/dxconfig/manifests" under the {working-directory}/assets folder, they will be pushed with the web application assets and can be shared with other developers using the same tenant, by pushing them to your WCH tenant with those web application assets.  They may also be shared by checking the manifest(s) in to the source code control repository that you and the other developers are using to track your web application artifacts. 
+Since manifests are stored in a folder called "/dxconfig/manifests" under the {working-directory}/assets folder, they will be pushed with the web application assets and can be shared with other developers using the same tenant, by pushing them to your WCH tenant with those web application assets.  They may also be shared by checking the manifest(s) in to the source code control repository that you and the other developers are using to track your web application artifacts.
 
 #### Using both --manifest and --write-manifest
 
 It is possible to use both --manifest and --write-manifest in the same command. This may be useful if you want to restrict the set of artifacts that are processed by the command (using the specified manifest) and then generate a new manifest that contains only those artifacts that were successfully processed by the action. For example:
 
     wchtools push -c --manifest my_site --write-manifest new_content
-    
+
 Assuming you had an existing manifest called my_site which included all artifacts for your site, the above command would push only the locally modified content items to your tenant and afterwards generate a new manifest called new_content which includes only those content items that were modified (and successfully pushed to your tenant).
 
+### Pulling, pushing, and listing only "ready" artifacts.
+Some artifact types (content items and content assets) support draft versions. A draft version of an artifact is a working copy that will not be published until it is set to ready. For this reason a site developer may not want to include draft versions in a push, pull, or list operation.
+
+#### Pulling only ready artifacts
+When populating a new WCH tenant, a site developer may not want to include draft versions of artifacts. In this case, the developer can pull only the ready artifacts to a directory on the local file system.
+
+    wchtools pull -A -v --ready
+
+The local file system directory will contain only the ready artifacts from the current WCH tenant, which can then be pushed to the new WCH tenant.
+
+#### Creating a manifest that contains only ready artifacts
+When creating a manifest for a set of WCH artifacts, it may be desirable to include only the ready items.
+
+    wchtools list --server -A --ready --write-manifest ready_only_content
+
+The manifest created from this command will include all of the ready artifacts in the current WCH tenant.
 
 #### Triggering a publish job
   By default, authoring artifacts such as assets are published to the delivery system when they are uploaded and authoring artifacts such as content are moved from draft to ready state. Therefore, an explicit publish command is not necessary.   If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
@@ -646,13 +661,17 @@ After you disable auto-publishing, you may either invoke a publish manually with
     - Retry #2 after a 2 second delay
     - Retry #3 after a 4 second delay
     - Retry #4 after an 8 second delay
-   
+
   If you use the above init options to set 10 attempts, with a min of 5000 (5 seconds) and a max of 15000 (15 seconds) then retry #1 will be after a 5 second delay, retry #2 after a 10 second delay and retries #3 through #9 will all use the maximum 15 second delay,  for that particular WCH API request.   Each WCH API request (eg, to create or update an asset or content item) will be attempted the maximum number of attempts set, and start at the minimum retry attempt time (the settings are per artifact pushed or pulled, not per push command).
+
+#### Conflict Handling
+
+When pushing artifacts using wchtools, it is possible to encounter a scenario where the version of the artifact being pushed conflicts with changes made to that artifact on the tenant. In this situation, wchtools will compare the local version of the artifact with the remote version of the artifact to determine if meaningful differences are detected. If meaningful differences are found the copy of the artifact on the tenant is written to the local file system with a .conflict suffix and the push action for that item is logged as an error. After a manual inspection of the conflicting artifacts (and resolution of any important conflicts), you can use the -f --force-override option to re-attempt the push action. If no meaningful differences are found, the rejection of the push update request by the tenant is ignored and a warning is written to the log instead. wchtools uses a list of ignorable fields to determine if changes are meaninfgul or not. This list includes fields such as rev, created, lastModified, systemModified, createorId, lastModifierId, creator, lastModifier, as well as other calculated/synthetic fields such as links, types, categories, publishing.
 
 #### Limitations
   The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
 
-  - The authoring APIs and services do not allow you to push an update to an authoring artifact, where the "revision" field of the item you are trying to push does not match the current revision stored that is stored on the server by the authoring service. This action is enforced by the services to help prevent overwriting newer updates by another user through authoring UI with an older copy of an artifact.  If a wchtools push encounters such a 409 conflict error for an authoring artifact or artifacts, each conflicting copy is saved to the appropriate artifact subfolder with a "conflict" suffix. You can compare the files locally to determine which changes are appropriate.  If you determine that it is safe to override the conflicting server changes with your local artifacts, you may try pushing again with the -f or --force-override options to ask the authoring services to override the revision conflict validation.
+  - The authoring APIs and services do not allow you to push an update to an authoring artifact, where the "revision" field of the item you are trying to push does not match the current revision stored that is stored on the server by the authoring service. This action is enforced by the services to help prevent overwriting newer updates by another user through authoring UI with an older copy of an artifact.  If a wchtools push encounters such a 409 conflict error for an authoring artifact or artifacts, each conflicting copy is saved to the appropriate artifact subfolder with a "conflict" suffix. Some conflicts are not meaningful (for example, a difference in the lastModified timestamp field) and are automatically ignored by wchtools which treats the push as successful but logs a warning indicating that a conflict was ignored. You can compare the files locally to determine which changes are appropriate.  If you determine that it is safe to override the conflicting server changes with your local artifacts, you may try pushing again with the -f or --force-override options to ask the authoring services to override the revision conflict validation.
 
   - The authoring content service does not allow pushing a "ready" state content item, if that content item currently has a "draft" outstanding. You can push a draft content item, whether a draft exists, or no artifact exists for that content ID. But you cannot push a "ready" content item if that item has a draft.  If you must push a ready item, for example, to recover from a server side mistake, where a draft exists, you can cancel the draft and try again. Or you can fix the issue with the authoring UI and then pull the content down to the local filesystem again for archiving.
 

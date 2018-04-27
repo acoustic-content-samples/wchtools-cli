@@ -207,6 +207,11 @@ class DeleteCommand extends BaseCommand {
             this.setApiOption("delete-content", true);
         }
 
+        // Handle the ready and draft options.
+        //if (!this.handleReadyDraftOptions()) {
+        //    return;
+        //}
+
         // Check to see if the initialization process was successful.
         if (!this.handleInitialization(context)) {
             return;
@@ -223,6 +228,10 @@ class DeleteCommand extends BaseCommand {
             .then(function () {
                 // Login using the current options.
                 return login.login(context, self.getApiOptions());
+            })
+            .then(function () {
+                // Initialize the list of remote sites to be used for this command, if necessary.
+                return self.initSites(context, true);
             })
             .then(function () {
                 if (all) {
@@ -274,6 +283,10 @@ class DeleteCommand extends BaseCommand {
                 self.errorMessage(err.message);
             })
             .finally(function () {
+                // Reset the list of sites used for this command.
+                self.resetSites(context);
+
+                // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
             });
     }
@@ -298,6 +311,7 @@ class DeleteCommand extends BaseCommand {
      * @param {Object} helper The helper for the artifact type.
      * @param {Object} context The API context associated with this delete command.
      * @param {String} path The path of the artifact to delete.
+     * @param {String} displayField The field to be displayed for the artifact.
      */
     deleteByPath (helper, context, path, displayField) {
         const self = this;
@@ -1011,8 +1025,16 @@ class DeleteCommand extends BaseCommand {
     deleteManifestAssets (context) {
         const helper = ToolsApi.getAssetsHelper();
 
-        // The manifest can have both types of assets in the assets section.
-        this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_BOTH);
+        // The manifest can have both types of assets in the assets section, filter based on the command line options.
+        const webassets = this.getCommandLineOption("webassets");
+        const assets = this.getCommandLineOption("assets");
+        if (webassets && assets) {
+            this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_BOTH);
+        } else if (webassets) {
+            this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
+        } else if (assets) {
+            this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_CONTENT_ASSETS);
+        }
 
         return this.deleteManifestItems(context, helper, "cli_deleting_manifest_assets", "cli_preview_deleting_manifest_assets", "path");
     }
@@ -1134,6 +1156,13 @@ class DeleteCommand extends BaseCommand {
             };
             emitter.on("deleted", itemDeleted);
 
+            // The api emits an event when an item to be deleted cannot be found, so we log it for the user.
+            const itemDeletedIgnored = function (item) {
+                self._artifactsCount++;
+                logger.info(i18n.__("cli_delete_item_ignored", {name: item[displayField]}));
+            };
+            emitter.on("deleted-ignored", itemDeletedIgnored);
+
             // The api emits an event when there is a delete error, so we log it for the user.
             const itemDeletedError = function (error, item) {
                 self._artifactsError++;
@@ -1150,6 +1179,7 @@ class DeleteCommand extends BaseCommand {
                 })
                 .finally(function () {
                     emitter.removeListener("deleted", itemDeleted);
+                    emitter.removeListener("deleted-ignored", itemDeletedIgnored);
                     emitter.removeListener("deleted-error", itemDeletedError);
                 });
         }
@@ -1513,6 +1543,13 @@ class DeleteCommand extends BaseCommand {
         };
         emitter.on("deleted", itemDeleted);
 
+        // The api emits an event when an item to be deleted cannot be found, so we log it for the user.
+        const itemDeletedIgnored = function (item) {
+            self._artifactsCount++;
+            logger.info(i18n.__("cli_delete_item_ignored", {name: item[displayField]}));
+        };
+        emitter.on("deleted-ignored", itemDeletedIgnored);
+
         // The api emits an event when there is a delete error, so we log it for the user.
         const itemDeletedError = function (error, item) {
             self._artifactsError++;
@@ -1529,6 +1566,7 @@ class DeleteCommand extends BaseCommand {
             })
             .finally(function () {
                 emitter.removeListener("deleted", itemDeleted);
+                emitter.removeListener("deleted-ignored", itemDeletedIgnored);
                 emitter.removeListener("deleted-error", itemDeletedError);
             });
     }
@@ -1556,6 +1594,22 @@ class DeleteCommand extends BaseCommand {
             });
 
         return deferred.promise;
+    }
+
+    /**
+     * Create a site list to be used for this command, based on the given lists of ready and draft site ids.
+     *
+     * @param {Array} readySiteIds The list of ready site ids to be used for this command.
+     * @param {Array} draftSiteIds The list of draft site ids to be used for this command.
+     *
+     * @return {Array} A site list to be used for this command.
+     *
+     * @override
+     */
+    createSiteList (readySiteIds, draftSiteIds) {
+        // For delete, handle the draft sites before the ready sites. With this ordering, draft pages will be deleted
+        // before ready pages. (A ready page cannot be deleted if there is a draft page that refers to it.)
+        return draftSiteIds.concat(readySiteIds);
     }
 
     /**
@@ -1619,6 +1673,8 @@ function deleteCommand (program) {
         .option('-P --preview',          i18n.__('cli_delete_opt_preview'))
         .option('-q --quiet',            i18n.__('cli_delete_opt_quiet'))
         .option('--manifest <manifest>', i18n.__('cli_delete_opt_use_manifest'))
+        //.option('--ready',               i18n.__('cli_delete_opt_ready'))
+        //.option('--draft',               i18n.__('cli_delete_opt_draft'))
         .option('--dir <dir>',           i18n.__('cli_delete_opt_dir', {"product_name": utils.ProductName}))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))

@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "Error filtering remote item list in listModifiedRemoteItemNames",
   "push_error_creating_item": "Push error creating item: ",
   "push_error_updating_item": "Push error updating item: ",
+  "push_warning_ignore_conflict": "Ignoring unimportant differences in pushed item: %(name)s.",
   "pushed_item_error": "Pushed item error: ",
   "pushed_item_retry": "Retry pushing item '%(name)s'. Error: %(message)s",
   "invalid_path": "Invalid path: %(path)s",

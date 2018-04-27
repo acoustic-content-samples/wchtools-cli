@@ -186,6 +186,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             self.testPullAsset();
             self.testPullAllAssets();
             self.testPullModifiedAssets();
+            self.testPullManifestItems();
             self.testPullResources();
             self.testPushAsset();
             self.testPushAllAssets();
@@ -367,7 +368,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 self.addTestDouble(stub);
 
                 // Call the method being tested.
-                const folderName = assetsHelper.getVirtualFolderName();
+                const folderName = assetsHelper.getVirtualFolderName(context);
 
                 // Verify that the stub was called and that the helper returned the expected value.
                 expect(stub).to.have.been.calledOnce;
@@ -1783,6 +1784,258 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when pulling only ready content assets.", function (done) {
+                // Read the contents of four test asset metadata files.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const assetMetadataPath3 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const assetMetadataPath4 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1 + assetsFS.getExtension());
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2 + assetsFS.getExtension());
+                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3 + assetsFS.getExtension());
+                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4 + assetsFS.getExtension());
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stubGet = sinon.stub(assetsREST, "getItems");
+                stubGet.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+
+                // Create an assetsHelper.pullResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pullResources");
+                stubResources.resolves([]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.onCall(0).resolves(stream1);
+                const stream2 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_2 = "unique.id.2";
+                stream2.tag = STREAM_TAG_2;
+                stubStream.onCall(1).resolves(stream2);
+
+                const emitPipe = function(stream, res) {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(res);
+                    return d.promise;
+                };
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the asset metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        return emitPipe(stream1, assetMetadata1);
+                    } else if (stubPull.callCount === 2) {
+                        return emitPipe(stream2, assetMetadata3);
+                    }
+                });
+
+                // Create an assetsFS.saveItem stub that returns asset metadata.
+                const stubSave = sinon.stub(assetsFS, "saveItem");
+                stubSave.onCall(0).resolves(assetMetadata1);
+                stubSave.onCall(1).resolves(assetMetadata3);
+
+                // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("pulled-error", spyError);
+
+                // The stubs and spies should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubResources);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubSave);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullAllItems(context, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS, filterReady: true})
+                    .then(function (assets) {
+                        // Verify that the helper returned the expected values.
+                        // Note that pullAllAssets is designed to return a metadata array, but currently it does not.
+                        if (assets) {
+                            expect(assets).to.have.lengthOf(2);
+                            expect(assets[0].path).to.equal(assetMetadata1.path);
+                            expect(assets[1].path).to.equal(assetMetadata3.path);
+                        }
+
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.have.been.calledOnce;
+
+                        // Verify that the stream stub was called twice with the expected path.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.equal(assetsFS.getAssetPath(assetMetadata1));
+                        expect(stubStream.args[1][1]).to.equal(assetsFS.getAssetPath(assetMetadata3));
+
+                        // Verify that the pull stub was called twice with the expected path and stream.
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][1].path).to.equal(assetMetadata1.path);
+                        expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG_1);
+                        expect(stubPull.args[1][1].path).to.equal(assetMetadata3.path);
+                        expect(stubPull.args[1][2].tag).to.equal(STREAM_TAG_2);
+
+                        // Verify that the save stub was called twice with the expected path.
+                        expect(stubSave).to.have.been.calledTwice;
+                        expect(stubSave.args[0][1].path).to.equal(assetMetadata1.path);
+                        expect(stubSave.args[1][1].path).to.equal(assetMetadata3.path);
+
+                        // Verify that the spies were called the expected number of times with the expected values.
+                        expect(spyPull).to.have.been.calledTwice;
+                        expect(spyPull.args[0][0].path).to.equal(assetsFS.getAssetPath(assetMetadata1));
+                        expect(spyPull.args[1][0].path).to.equal(assetsFS.getAssetPath(assetMetadata3));
+                        expect(spyError).to.not.have.been.called;
+
+                        expect(stubSetLastPull).to.not.have.been.called;
+
+                        // Verify that the hashes were called as expected.
+                        expect(stubUpdateHashes).to.have.callCount(2);
+                        expect(stubUpdateHashes.args[0][2]).to.contain(assetsFS.getAssetPath(assetMetadata1));
+                        expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[1][2]).to.contain(assetsFS.getAssetPath(assetMetadata3));
+                        expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pulling only draft content assets.", function (done) {
+                // Read the contents of four test asset metadata files.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const assetMetadataPath3 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const assetMetadataPath4 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1 + assetsFS.getExtension());
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2 + assetsFS.getExtension());
+                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3 + assetsFS.getExtension());
+                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4 + assetsFS.getExtension());
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stubGet = sinon.stub(assetsREST, "getItems");
+                stubGet.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+
+                // Create an assetsHelper.pullResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pullResources");
+                stubResources.resolves([]);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_1 = "unique.id.1";
+                stream1.tag = STREAM_TAG_1;
+                stubStream.onCall(0).resolves(stream1);
+                const stream2 = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG_2 = "unique.id.2";
+                stream2.tag = STREAM_TAG_2;
+                stubStream.onCall(1).resolves(stream2);
+
+                const emitPipe = function(stream, res) {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(res);
+                    return d.promise;
+                };
+
+                // Create a stub for assetsREST.pullItem that returns a promise for the asset metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    if (stubPull.callCount === 1) {
+                        return emitPipe(stream1, assetMetadata2);
+                    } else if (stubPull.callCount === 2) {
+                        return emitPipe(stream2, assetMetadata4);
+                    }
+                });
+
+                // Create an assetsFS.saveItem stub that returns asset metadata.
+                const stubSave = sinon.stub(assetsFS, "saveItem");
+                stubSave.onCall(0).resolves(assetMetadata2);
+                stubSave.onCall(1).resolves(assetMetadata4);
+
+                // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("pulled-error", spyError);
+
+                // The stubs and spies should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubResources);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(stubSave);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullAllItems(context, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS, filterDraft: true})
+                    .then(function (assets) {
+                        // Verify that the helper returned the expected values.
+                        // Note that pullAllAssets is designed to return a metadata array, but currently it does not.
+                        if (assets) {
+                            expect(assets).to.have.lengthOf(2);
+                            expect(assets[0].path).to.equal(assetMetadata2.path);
+                            expect(assets[1].path).to.equal(assetMetadata4.path);
+                        }
+
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.have.been.calledOnce;
+
+                        // Verify that the stream stub was called twice with the expected path.
+                        expect(stubStream).to.have.been.calledTwice;
+                        expect(stubStream.args[0][1]).to.equal(assetsFS.getAssetPath(assetMetadata2));
+                        expect(stubStream.args[1][1]).to.equal(assetsFS.getAssetPath(assetMetadata4));
+
+                        // Verify that the pull stub was called twice with the expected path and stream.
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][1].path).to.equal(assetMetadata2.path);
+                        expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG_1);
+                        expect(stubPull.args[1][1].path).to.equal(assetMetadata4.path);
+                        expect(stubPull.args[1][2].tag).to.equal(STREAM_TAG_2);
+
+                        // Verify that the save stub was called twice with the expected path.
+                        expect(stubSave).to.have.been.calledTwice;
+                        expect(stubSave.args[0][1].path).to.equal(assetMetadata2.path);
+                        expect(stubSave.args[1][1].path).to.equal(assetMetadata4.path);
+
+                        // Verify that the spies were called the expected number of times with the expected values.
+                        expect(spyPull).to.have.been.calledTwice;
+                        expect(spyPull.args[0][0].path).to.equal(assetsFS.getAssetPath(assetMetadata2));
+                        expect(spyPull.args[1][0].path).to.equal(assetsFS.getAssetPath(assetMetadata4));
+                        expect(spyError).to.not.have.been.called;
+
+                        expect(stubSetLastPull).to.not.have.been.called;
+
+                        // Verify that the hashes were called as expected.
+                        expect(stubUpdateHashes).to.have.callCount(2);
+                        expect(stubUpdateHashes.args[0][2]).to.contain(assetsFS.getAssetPath(assetMetadata2));
+                        expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[1][2]).to.contain(assetsFS.getAssetPath(assetMetadata4));
+                        expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -2153,6 +2406,191 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         emitter.removeListener("pulled", spyPull);
                         emitter.removeListener("pulled-error", spyError);
 
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testPullManifestItems () {
+        const self = this;
+        describe("pullManifestItems", function () {
+            it("should fail when getting the manifest items fails.", function (done) {
+                // Create a helper.getManifestItems stub that returns an error.
+                const MANIFEST_ERROR = "There was an error getting the manifest items.";
+                const stub = sinon.stub(assetsHelper, "getManifestItems");
+                stub.rejects(MANIFEST_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the manifest items should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stub).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.contain(MANIFEST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when getting the remote item metadata fails.", function (done) {
+                // Read the contents of five test asset metadata files.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
+
+                // Create a helper.getManifestItems stub that returns a promise for the manifest items.
+                const stubGet = sinon.stub(assetsHelper, "getManifestItems");
+                stubGet.resolves([assetMetadata1, assetMetadata2, UnitTest.DUMMY_METADATA]);
+
+                // Create a helper._getRemoteItemList stub that returns an error.
+                const LIST_ERROR = "There was an error getting the remote item metadata.";
+                const stubList = sinon.stub(assetsHelper, "_getRemoteItemList");
+                stubList.rejects(LIST_ERROR);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubList);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the manifest items should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stubList).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.contain(LIST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail when pulling the list of items fails.", function (done) {
+                // Read the contents of five test asset metadata files.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
+
+                // Create a helper.getManifestItems stub that returns a promise for the manifest items.
+                const stubGet = sinon.stub(assetsHelper, "getManifestItems");
+                stubGet.resolves([assetMetadata1, assetMetadata2, UnitTest.DUMMY_METADATA]);
+
+                // Create a helper._getRemoteItemList stub that returns a promise for the metadata of the items.
+                const stubList = sinon.stub(assetsHelper, "_getRemoteItemList");
+                stubGet.resolves([assetMetadata1, assetMetadata2, UnitTest.DUMMY_METADATA]);
+
+                // Create a helper._pullItemList stub that returns an error.
+                const LIST_ERROR = "There was an error pulling the manifest items.";
+                const stubPull = sinon.stub(assetsHelper, "_pullItemList");
+                stubPull.rejects(LIST_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubList);
+                self.addTestDouble(stubPull);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the manifest items should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        try {
+                            // Verify that the stub was called once.
+                            expect(stubList).to.be.calledOnce;
+
+                            // Verify that the expected error is returned.
+                            expect(err.message).to.contain(LIST_ERROR);
+                        } catch (err) {
+                            error = err;
+                        }
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pulling manifest items.", function (done) {
+                // Read the contents of five test asset metadata files.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
+
+                // Create a helper.getManifestItems stub that returns a promise for the manifest items.
+                const stubGet = sinon.stub(assetsHelper, "getManifestItems");
+                stubGet.resolves([assetMetadata1, assetMetadata2, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+
+                // Create a rest.getItem stub that returns a promise for the metadata of an item.
+                const GET_ERROR = "There was an error getting a remote item, as expected by a unit test.";
+                const stubList = sinon.stub(assetsREST, "getItem");
+                stubList.onCall(0).resolves(assetMetadata1);
+                stubList.onCall(1).resolves(assetMetadata2);
+                stubList.onCall(2).resolves(UnitTest.DUMMY_METADATA);
+                stubList.onCall(3).rejects(GET_ERROR);
+
+                // Create a helper._pullAsset stub that returns the meatadata of an item, and an error.
+                const LIST_ERROR = "There was an error pulling the manifest items.";
+                const stubPull = sinon.stub(assetsHelper, "_pullAsset");
+                stubPull.onCall(0).resolves(assetMetadata1);
+                stubPull.onCall(1).resolves(assetMetadata2);
+                stubPull.onCall(2).rejects(LIST_ERROR);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubList);
+                self.addTestDouble(stubPull);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullManifestItems(context, UnitTest.DUMMY_OPTIONS)
+                    .then(function (items) {
+                        // Verify that the results have the expected values.
+                        expect(items).to.have.lengthOf(2);
+                        expect(items[0].id).to.equal(assetMetadata1.id);
+                        expect(items[1].id).to.equal(assetMetadata2.id);
+
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.have.been.calledOnce;
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -4035,6 +4473,320 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when pushing only ready assets", function (done) {
+                // List of local asset names.
+                const assetNames = [
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT, status: "draft"},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_1, status: "ready"},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT, status: "draft"},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_2, status: "ready"}
+                ];
+
+                // Read the contents of the test asset files.
+                const path1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const content1 = fs.readFileSync(path1);
+                const metadataPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1 + "_amd.json";
+                const metadata1 = UnitTest.getJsonObject(metadataPath1);
+                const stream1 = new stream.Readable();
+                stream1.push(content1);
+                stream1.push(null);
+                const draftPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const draftContent1 = fs.readFileSync(draftPath1);
+                const draftMetadataPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT + "_amd.json";
+                const draftMetadata1 = UnitTest.getJsonObject(draftMetadataPath1);
+                const draftStream1 = new stream.Readable();
+                draftStream1.push(draftContent1);
+                draftStream1.push(null);
+
+                const path2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const content2 = fs.readFileSync(path2);
+                const metadataPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2 + "_amd.json";
+                const metadata2 = UnitTest.getJsonObject(metadataPath2);
+                const stream2 = new stream.Readable();
+                stream2.push(content2);
+                stream2.push(null);
+                const draftPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const draftContent2 = fs.readFileSync(draftPath2);
+                const draftMetadataPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT + "_amd.json";
+                const draftMetadata2 = UnitTest.getJsonObject(draftMetadataPath2);
+                const draftStream2 = new stream.Readable();
+                draftStream2.push(draftContent2);
+                draftStream2.push(null);
+
+                // Create an assetsFS.listNames stub that returns a promise for names.
+                const stubList = sinon.stub(assetsFS, "listNames");
+                stubList.resolves(assetNames);
+
+                // Create an assetsFS.getItemReadStream stub that returns a promise for the asset content.
+                const stubFS = sinon.stub(assetsFS, "getItemReadStream");
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_1).resolves(stream1);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT).resolves(draftStream1);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2).resolves(stream2);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT).resolves(draftStream2);
+
+                // Create an assetsREST.pushItem stub that returns a promise for asset metadata based on the value of
+                // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
+                // promises will be resolved.
+                const stubREST = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+                    stream.emit("close");
+                    const d = Q.defer();
+                    if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_1) {
+                        d.resolve(metadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT) {
+                        d.resolve(draftMetadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_2) {
+                        d.resolve(metadata2);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT) {
+                        d.resolve(draftMetadata2);
+                    }
+                    return d.promise;
+                });
+
+                // Create an assetsFS.saveItem stub that returns asset metadata.
+                const stubSave = sinon.stub(assetsFS, "saveItem", function (context, asset, opts) {
+                    return Q(asset);
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("pushed", spyPushed);
+                emitter.on("pushed-error", spyError);
+
+                // Create a stub for assetsFS.getContentLength that returns 0.
+                const stubContentLength = sinon.stub(assetsFS, "getContentLength");
+                stubContentLength.resolves(0);
+
+                // Create a stub for assetsHelper.isRetryPushEnabled that returns false.
+                const stubRetryPush = sinon.stub(assetsHelper, "isRetryPushEnabled");
+                stubRetryPush.returns(false);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubList);
+                self.addTestDouble(stubFS);
+                self.addTestDouble(stubREST);
+                self.addTestDouble(stubSave);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubRetryPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllItems(context, {filterReady: true})
+                    .then(function (assets) {
+                        // Verify that the helper returned the expected content.
+                        expect(assets).to.have.lengthOf(2);
+                        expect(diff.diffJson(metadata1, assets[0])).to.have.lengthOf(1);
+                        expect(diff.diffJson(metadata2, assets[1])).to.have.lengthOf(1);
+
+                        // Verify that the list stub was called once.
+                        expect(stubList).to.have.been.calledOnce;
+
+                        // Verify that the FS stub was called twice, once with each ready item path.
+                        expect(stubFS).to.have.callCount(2);
+                        expect(stubFS.getCall(0).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubFS.getCall(1).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+
+                        // Verify that the REST stub was called twice, with the expected args, and after the FS stub.
+                        expect(stubREST).to.have.callCount(2);
+                        expect(stubREST.getCall(0).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubREST.getCall(1).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        let requestContent = stubREST.getCall(0).args[7].read(65536);
+                        expect(Buffer.compare(content1, requestContent)).to.equal(0);
+                        requestContent = stubREST.getCall(1).args[7].read(65536);
+                        expect(Buffer.compare(content2, requestContent)).to.equal(0);
+                        expect(stubREST).to.have.been.calledAfter(stubFS);
+
+                        // Verify that the save stub was called twice.
+                        expect(stubSave).to.have.callCount(2);
+
+                        // Verify that the spies were called as expected.
+                        expect(spyPushed).to.have.callCount(2);
+                        expect(spyPushed.getCall(0).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(spyPushed.getCall(1).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the push timestamp was not called, becuase we're filtering the results.
+                        expect(stubSetLastPush).to.not.have.been.called;
+
+                        // Verify that the hashes were called as expected.
+                        expect(stubUpdateHashes).to.have.callCount(2);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                        expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pushed", spyPushed);
+                        emitter.removeListener("pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pushing only draft assets.", function (done) {
+                // List of local asset names.
+                const assetNames = [
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT, status: "draft"},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_1, status: "ready"},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT, status: "draft"},
+                    {id: undefined, path: AssetsUnitTest.ASSET_CONTENT_JPG_2, status: "ready"}
+                ];
+
+                // Read the contents of the test asset files.
+                const path1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const content1 = fs.readFileSync(path1);
+                const metadataPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1 + "_amd.json";
+                const metadata1 = UnitTest.getJsonObject(metadataPath1);
+                const stream1 = new stream.Readable();
+                stream1.push(content1);
+                stream1.push(null);
+                const draftPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const draftContent1 = fs.readFileSync(draftPath1);
+                const draftMetadataPath1 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT + "_amd.json";
+                const draftMetadata1 = UnitTest.getJsonObject(draftMetadataPath1);
+                const draftStream1 = new stream.Readable();
+                draftStream1.push(draftContent1);
+                draftStream1.push(null);
+
+                const path2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const content2 = fs.readFileSync(path2);
+                const metadataPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2 + "_amd.json";
+                const metadata2 = UnitTest.getJsonObject(metadataPath2);
+                const stream2 = new stream.Readable();
+                stream2.push(content2);
+                stream2.push(null);
+                const draftPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const draftContent2 = fs.readFileSync(draftPath2);
+                const draftMetadataPath2 = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT + "_amd.json";
+                const draftMetadata2 = UnitTest.getJsonObject(draftMetadataPath2);
+                const draftStream2 = new stream.Readable();
+                draftStream2.push(draftContent2);
+                draftStream2.push(null);
+
+                // Create an assetsFS.listNames stub that returns a promise for names.
+                const stubList = sinon.stub(assetsFS, "listNames");
+                stubList.resolves(assetNames);
+
+                // Create an assetsFS.getItemReadStream stub that returns a promise for the asset content.
+                const stubFS = sinon.stub(assetsFS, "getItemReadStream");
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_1).resolves(stream1);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT).resolves(draftStream1);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2).resolves(stream2);
+                stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT).resolves(draftStream2);
+
+                // Create an assetsREST.pushItem stub that returns a promise for asset metadata based on the value of
+                // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
+                // promises will be resolved.
+                const stubREST = sinon.stub(assetsREST, "pushItem", function (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+                    stream.emit("close");
+                    const d = Q.defer();
+                    if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_1) {
+                        d.resolve(metadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT) {
+                        d.resolve(draftMetadata1);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_2) {
+                        d.resolve(metadata2);
+                    } else if (pathname === AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT) {
+                        d.resolve(draftMetadata2);
+                    }
+                    return d.promise;
+                });
+
+                // Create an assetsFS.saveItem stub that returns asset metadata.
+                const stubSave = sinon.stub(assetsFS, "saveItem", function (context, asset, opts) {
+                    return Q(asset);
+                });
+
+                // Create spies to listen for "pushed" and "pushed-error" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyPushed = sinon.spy();
+                const spyError = sinon.spy();
+                emitter.on("pushed", spyPushed);
+                emitter.on("pushed-error", spyError);
+
+                // Create a stub for assetsFS.getContentLength that returns 0.
+                const stubContentLength = sinon.stub(assetsFS, "getContentLength");
+                stubContentLength.resolves(0);
+
+                // Create a stub for assetsHelper.isRetryPushEnabled that returns false.
+                const stubRetryPush = sinon.stub(assetsHelper, "isRetryPushEnabled");
+                stubRetryPush.returns(false);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubList);
+                self.addTestDouble(stubFS);
+                self.addTestDouble(stubREST);
+                self.addTestDouble(stubSave);
+                self.addTestDouble(stubContentLength);
+                self.addTestDouble(stubRetryPush);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pushAllItems(context, {filterDraft: true})
+                    .then(function (assets) {
+                        // Verify that the helper returned the expected content.
+                        expect(assets).to.have.lengthOf(2);
+                        expect(diff.diffJson(draftMetadata1, assets[0])).to.have.lengthOf(1);
+                        expect(diff.diffJson(draftMetadata2, assets[1])).to.have.lengthOf(1);
+
+                        // Verify that the list stub was called once.
+                        expect(stubList).to.have.been.calledOnce;
+
+                        // Verify that the FS stub was called twice, once with each specified draft path.
+                        expect(stubFS).to.have.callCount(2);
+                        expect(stubFS.getCall(0).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(stubFS.getCall(1).args[1]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+
+                        // Verify that the REST stub was called twice, with the expected args, and after the FS stub.
+                        expect(stubREST).to.have.callCount(2);
+                        expect(stubREST.getCall(0).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(stubREST.getCall(1).args[6]).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+                        let requestContent = stubREST.getCall(0).args[7].read(65536);
+                        expect(Buffer.compare(draftContent1, requestContent)).to.equal(0);
+                        requestContent = stubREST.getCall(1).args[7].read(65536);
+                        expect(Buffer.compare(draftContent2, requestContent)).to.equal(0);
+                        expect(stubREST).to.have.been.calledAfter(stubFS);
+
+                        // Verify that the save stub was called twice.
+                        expect(stubSave).to.have.callCount(2);
+
+                        // Verify that the spies were called as expected.
+                        expect(spyPushed).to.have.callCount(2);
+                        expect(spyPushed.getCall(0).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(spyPushed.getCall(1).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+                        expect(spyError).to.not.have.been.called;
+
+                        // Verify that the push timestamp was not called, becuase we're filtering the results.
+                        expect(stubSetLastPush).to.not.have.been.called;
+
+                        // Verify that the hashes were called as expected.
+                        expect(stubUpdateHashes).to.have.callCount(2);
+                        expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+                        expect(stubUpdateHashes.args[1][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pushed", spyPushed);
+                        emitter.removeListener("pushed-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -4756,7 +5508,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should succeed when there are two local resources, but one push fails.", function (done) {
                 // Create an assetsFS.listResourceNames stub to return two resource names.
                 const stubResource = sinon.stub(assetsFS, "listResourceNames");
-                stubResource.resolves([{"path":AssetsUnitTest.ASSET_HTML_1, "id":UnitTest.DUMMY_ID}, 
+                stubResource.resolves([{"path":AssetsUnitTest.ASSET_HTML_1, "id":UnitTest.DUMMY_ID},
                                        {"path":AssetsUnitTest.ASSET_CSS_1, "id":UnitTest.DUMMY_ID}]);
 
                 // Create a stub for assetsFS.getResourceContentLength that returns false.
@@ -4861,7 +5613,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             it("should succeed when there are two local resources, but one push fails (no emitter).", function (done) {
                 // Create an assetsFS.listResourceNames stub to return two resource names.
                 const stubResource = sinon.stub(assetsFS, "listResourceNames");
-                stubResource.resolves([{"path":AssetsUnitTest.ASSET_HTML_1, "id":UnitTest.DUMMY_ID}, 
+                stubResource.resolves([{"path":AssetsUnitTest.ASSET_HTML_1, "id":UnitTest.DUMMY_ID},
                                        {"path":AssetsUnitTest.ASSET_CSS_1, "id":UnitTest.DUMMY_ID}]);
 
                 // Create a stub for assetsFS.getResourceContentLength that returns false.
@@ -5524,6 +6276,89 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     });
             });
 
+
+            it("should succeed when getting a list of modified remote ready assets succeeds.", function (done) {
+                // List of multiple remote asset names.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const assetMetadataPath3 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const assetMetadataPath4 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1 + assetsFS.getExtension());
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2 + assetsFS.getExtension());
+                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3 + assetsFS.getExtension());
+                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4 + assetsFS.getExtension());
+
+                // Create an assetsREST.getModifiedItems stub that returns a promise for the modified remote asset names.
+                const stub = sinon.stub(assetsREST, "getModifiedItems");
+                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.listModifiedRemoteItemNames(context, [assetsHelper.MODIFIED], {filterReady: true})
+                    .then(function (names) {
+                        // Verify that the helper returned the expected values.
+                        expect(names).to.have.lengthOf(2);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting a list of modified remote draft assets succeeds.", function (done) {
+                // List of multiple remote asset names.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const assetMetadataPath3 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const assetMetadataPath4 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1 + assetsFS.getExtension());
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2 + assetsFS.getExtension());
+                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3 + assetsFS.getExtension());
+                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4 + assetsFS.getExtension());
+
+                // Create an assetsREST.getModifiedItems stub that returns a promise for the modified remote asset names.
+                const stub = sinon.stub(assetsREST, "getModifiedItems");
+                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.listModifiedRemoteItemNames(context, [assetsHelper.MODIFIED], {filterDraft: true})
+                    .then(function (names) {
+                        // Verify that the helper returned the expected values.
+                        expect(names).to.have.lengthOf(2);
+                        expect(names[0].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
+                        expect(names[1].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should succeed when getting a list of modified and deleted remote assets succeeds.", function (done) {
                 // List of multiple remote asset names.
                 const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
@@ -5747,6 +6582,84 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     });
             });
 
+            it("should succeed when getting a list of modified local ready asset names.", function (done) {
+                // List of multiple local asset names.
+                const assetNames = [
+                    {status: "ready", path: AssetsUnitTest.ASSET_CONTENT_JPG_1},
+                    {status: "draft", path: AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT},
+                    {status: "ready", path: AssetsUnitTest.ASSET_CONTENT_JPG_2},
+                    {status: "draft", path: AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT}
+                ];
+
+                // Create an assetsFS.listNames stub that returns a promise for the local asset names.
+                const stubNames = sinon.stub(assetsFS, "listNames");
+                stubNames.resolves(assetNames);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubNames);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.listModifiedLocalItemNames(context, [assetsHelper.NEW, assetsHelper.MODIFIED], {filterReady: true})
+                    .then(function (names) {
+                        // Verify that the helper returned the expected value.
+                        expect(names).to.have.lengthOf(2);
+                        expect(names[0].path).to.be.oneOf([AssetsUnitTest.ASSET_CONTENT_JPG_1, AssetsUnitTest.ASSET_CONTENT_JPG_2]);
+                        expect(names[1].path).to.be.oneOf([AssetsUnitTest.ASSET_CONTENT_JPG_1, AssetsUnitTest.ASSET_CONTENT_JPG_2]);
+
+                        // Verify that the names stub was called once.
+                        expect(stubNames).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting a list of modified local draft asset names.", function (done) {
+                // List of multiple local asset names.
+                const assetNames = [
+                    {status: "ready", path: AssetsUnitTest.ASSET_CONTENT_JPG_1},
+                    {status: "draft", path: AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT},
+                    {status: "ready", path: AssetsUnitTest.ASSET_CONTENT_JPG_2},
+                    {status: "draft", path: AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT}
+                ];
+
+                // Create an assetsFS.listNames stub that returns a promise for the local asset names.
+                const stubNames = sinon.stub(assetsFS, "listNames");
+                stubNames.resolves(assetNames);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubNames);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.listModifiedLocalItemNames(context, [assetsHelper.NEW, assetsHelper.MODIFIED], {filterDraft: true})
+                    .then(function (names) {
+                        // Verify that the helper returned the expected value.
+                        expect(names).to.have.lengthOf(2);
+                        expect(names[0].path).to.be.oneOf([AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT]);
+                        expect(names[1].path).to.be.oneOf([AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT]);
+
+                        // Verify that the names stub was called once.
+                        expect(stubNames).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should succeed when getting a list of modified and deleted local asset names.", function (done) {
                 // List of multiple local asset names.
                 const assetNames = [
@@ -5850,6 +6763,120 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(names[1].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
                         expect(names[2].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
                         expect(names[3].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_CSS_2, AssetsUnitTest.ASSET_HBS_2]);
+
+                        // Verify that the list files stub was called once.
+                        expect(stubListFiles).to.have.been.calledOnce;
+
+                        // Verify that the stats stub was called once.
+                        expect(stubStats).to.have.callCount(7);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting a list of deleted local ready asset names.", function (done) {
+                // List of multiple local asset names.
+                const assetNames = [
+                    {id: "foo", path: AssetsUnitTest.ASSET_HTML_1},
+                    {id: "foo:draft", path: AssetsUnitTest.ASSET_HTML_2},
+                    {id: "bar", path: AssetsUnitTest.ASSET_HTML_3},
+                    {id: "ack", path: AssetsUnitTest.ASSET_CSS_1},
+                    {id: "ack:draft", path: AssetsUnitTest.ASSET_CSS_2},
+                    {id: "nack:draft", path: AssetsUnitTest.ASSET_HBS_1},
+                    {id: "nack", path: AssetsUnitTest.ASSET_HBS_2}
+                ];
+
+                // Create a non-default stub for hashes.listFiles that returns the local asset paths.
+                stubListFiles.restore();
+                stubListFiles = sinon.stub(hashes, "listFiles");
+                stubListFiles.returns(assetNames);
+
+                // Create an fs.stats stub that returns a value for some assets, and no value for others.
+                const stubStats = sinon.stub(fs, "statSync");
+                const dir = assetsFS.getDir(context);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HTML_1).returns({size: 100});
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HTML_2).returns(null);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HTML_3).returns(null);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_CSS_1).returns({size: 100});
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_CSS_2).returns(null);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HBS_1).returns({size: 100});
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HBS_2).returns(null);
+
+                // The stats stub should be restored when the test is complete. (The list files stub is restored by the afterEach function.)
+                self.addTestDouble(stubStats);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.listLocalDeletedNames(context, {filterReady: true})
+                    .then(function (names) {
+                        // Verify that the helper returned only the deleted ready items.
+                        expect(names).to.have.lengthOf(2);
+                        expect(names[0].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_HBS_2]);
+                        expect(names[1].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_3, AssetsUnitTest.ASSET_HBS_2]);
+
+                        // Verify that the list files stub was called once.
+                        expect(stubListFiles).to.have.been.calledOnce;
+
+                        // Verify that the stats stub was called once.
+                        expect(stubStats).to.have.callCount(7);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting a list of deleted local draft asset names.", function (done) {
+                // List of multiple local asset names.
+                const assetNames = [
+                    {id: "foo", path: AssetsUnitTest.ASSET_HTML_1},
+                    {id: "foo:draft", path: AssetsUnitTest.ASSET_HTML_2},
+                    {id: "bar", path: AssetsUnitTest.ASSET_HTML_3},
+                    {id: "ack", path: AssetsUnitTest.ASSET_CSS_1},
+                    {id: "ack:draft", path: AssetsUnitTest.ASSET_CSS_2},
+                    {id: "nack:draft", path: AssetsUnitTest.ASSET_HBS_1},
+                    {id: "nack", path: AssetsUnitTest.ASSET_HBS_2}
+                ];
+
+                // Create a non-default stub for hashes.listFiles that returns the local asset paths.
+                stubListFiles.restore();
+                stubListFiles = sinon.stub(hashes, "listFiles");
+                stubListFiles.returns(assetNames);
+
+                // Create an fs.stats stub that returns a value for some assets, and no value for others.
+                const stubStats = sinon.stub(fs, "statSync");
+                const dir = assetsFS.getDir(context);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HTML_1).returns({size: 100});
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HTML_2).returns(null);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HTML_3).returns(null);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_CSS_1).returns({size: 100});
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_CSS_2).returns(null);
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HBS_1).returns({size: 100});
+                stubStats.withArgs(dir + AssetsUnitTest.ASSET_HBS_2).returns(null);
+
+                // The stats stub should be restored when the test is complete. (The list files stub is restored by the afterEach function.)
+                self.addTestDouble(stubStats);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.listLocalDeletedNames(context, {filterDraft: true})
+                    .then(function (names) {
+                        // Verify that the helper returned only the deleted ready items.
+                        expect(names).to.have.lengthOf(2);
+                        expect(names[0].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_CSS_2]);
+                        expect(names[1].path).to.be.oneOf([AssetsUnitTest.ASSET_HTML_2, AssetsUnitTest.ASSET_CSS_2]);
 
                         // Verify that the list files stub was called once.
                         expect(stubListFiles).to.have.been.calledOnce;
@@ -6297,6 +7324,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     error = new Error(RETRY_ERROR);
                     error.statusCode = 418;
                     result = assetsHelper.filterRetryPush(context, error, {retryStatusCodes: [418]});
+                    expect(result).to.equal(true);
+
+                    // Should retry on network error.
+                    error = new Error(RETRY_ERROR);
+                    error.statusCode = 500;
+                    error.code = "ENOTFOUND";
+                    result = assetsHelper.filterRetryPush(context, error);
                     expect(result).to.equal(true);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.

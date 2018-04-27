@@ -32,7 +32,15 @@ class BaseFS {
         return this._serviceName;
     }
 
-    getFolderName () {
+    /**
+     * Get the folder name for storing local artifacts based on the given options.
+     *
+     * @param {Object} context The API context to be used by the file operation.
+     * @param {Object} [opts] Any override options to be used for this operation.
+     *
+     * @return {String} The folder name for storing local artifacts based on the given options.
+     */
+    getFolderName (context, opts) {
         return this._folderName;
     }
 
@@ -57,7 +65,7 @@ class BaseFS {
     }
 
     /**
-     * Returns the path to the working directory based on the given options.
+     * Get the path to the working directory based on the given options.
      *
      * @param {Object} context The API context to be used by the file operation.
      * @param {Object} opts Any override options to be used for this operation.
@@ -75,7 +83,7 @@ class BaseFS {
      * @param {Object} opts Any override options to be used for this operation.
      */
     getPath (context, opts) {
-        return BaseFS.getWorkingDir(context, opts) + this.getFolderName() + path.sep;
+        return BaseFS.getWorkingDir(context, opts) + this.getFolderName(context, opts) + path.sep;
     }
 
     /**

@@ -43,7 +43,6 @@ const PushingPublishingSiteRevisions = PREFIX + i18n.__('cli_push_pushing_site_r
 const PushingImageProfiles =        PREFIX + i18n.__('cli_push_pushing_image_profiles') + SUFFIX;
 const PushingRenditions =           PREFIX + i18n.__('cli_push_pushing_renditions') + SUFFIX;
 const PushingSites =                PREFIX + i18n.__('cli_push_pushing_sites') + SUFFIX;
-const PushingPages =                PREFIX + i18n.__('cli_push_pushing_pages') + SUFFIX;
 
 class PushCommand extends BaseCommand {
     /**
@@ -59,6 +58,10 @@ class PushCommand extends BaseCommand {
 
         // Keep track of the number of directories that exist.
         this._directoriesCount = 0;
+    }
+
+    static _getPagesDisplayHeader (siteId) {
+        return PREFIX + i18n.__('cli_push_pushing_pages_for_site', {id: siteId}) + SUFFIX;
     }
 
     /**
@@ -90,6 +93,11 @@ class PushCommand extends BaseCommand {
             return;
         }
 
+        // Handle the ready and draft options.
+        if (!self.handleReadyDraftOptions()) {
+            return;
+        }
+
         // Check to see if the initialization process was successful.
         if (!self.handleInitialization(context)) {
             return;
@@ -105,6 +113,10 @@ class PushCommand extends BaseCommand {
             .then(function() {
                 // Login using the current options.
                 return login.login(context, self.getApiOptions());
+            })
+            .then(function () {
+                // Initialize the list of local sites to be used for this command, if necessary.
+                return self.initSites(context, false);
             })
             .then(function () {
                 // Start the display of the pushed artifacts.
@@ -127,6 +139,9 @@ class PushCommand extends BaseCommand {
             .finally(function () {
                 // End the display of the pushed artifacts.
                 self.endDisplay(error);
+
+                // Reset the list of sites used for this command.
+                self.resetSites(context);
 
                 // Reset the command line options once the command has completed.
                 self.resetCommandLineOptions();
@@ -300,7 +315,7 @@ class PushCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
                     // Get the list of site ids to use for pushing pages.
-                    const siteIds = self.getSiteIds(context) || ["default"];
+                    const siteIds = context.siteList;
 
                     // Local function to recursively push pages for one site at a time.
                     let index = 0;
@@ -851,7 +866,7 @@ class PushCommand extends BaseCommand {
     }
 
     /**
-     * Push the page definitions
+     * Push the pages for the specified site.
      *
      * @param {Object} context The API context to be used for the push operation.
      * @param {String} siteId The id of the site containing the pages being pushed.
@@ -861,9 +876,11 @@ class PushCommand extends BaseCommand {
     pushPages (context, siteId) {
         const helper = ToolsApi.getPagesHelper();
         const emitter = context.eventEmitter;
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
         const self = this;
 
-        self.getLogger().info(PushingPages);
+        const displayHeader = PushCommand._getPagesDisplayHeader(siteId);
+        self.getLogger().info(displayHeader);
 
         // The api emits an event when an item is pushed, so we log it for the user.
         const artifactPushed = function (item) {
@@ -882,11 +899,6 @@ class PushCommand extends BaseCommand {
             }
         };
         emitter.on("pushed-error", artifactPushedError);
-
-        // If a name is specified, push the named content.
-        // If Ignore-timestamps is specified then push all content.
-        // Otherwise only push modified content (which is the default behavior).
-        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
 
         if (helper.doesDirectoryExist(context, opts)) {
             this._directoriesCount++;
@@ -1143,22 +1155,50 @@ class PushCommand extends BaseCommand {
      *          command execution should not continue.
      */
     handleNamedOption () {
-        if (this.getCommandLineOption("named") && this.getCommandLineOption("ignoreTimestamps")) {
-            this.errorMessage(i18n.__('cli_push_name_and_ignore_timestamps'));
-            this.resetCommandLineOptions();
-            return false;
-        }
+        if (this.getCommandLineOption("named")) {
+            if (this.getCommandLineOption("ignoreTimestamps")) {
+                this.errorMessage(i18n.__('cli_push_name_and_ignore_timestamps'));
+                this.resetCommandLineOptions();
+                return false;
+            }
 
-        if (this.getCommandLineOption("named") && this.getCommandLineOption("path")) {
-            this.errorMessage(i18n.__('cli_push_name_and_path'));
-            this.resetCommandLineOptions();
-            return false;
-        }
+            if (this.getCommandLineOption("path")) {
+                this.errorMessage(i18n.__('cli_push_name_and_path'));
+                this.resetCommandLineOptions();
+                return false;
+            }
 
-        if (this.getCommandLineOption("named") && this.getOptionArtifactCount() !== 1) {
-            this.errorMessage(i18n.__('cli_push_name_one_type'));
-            this.resetCommandLineOptions();
-            return false;
+            // The ready and draft options can only be used with the named option for pages.
+            if (this.getCommandLineOption("pages")) {
+                if (!this.getCommandLineOption("ready") && !this.getCommandLineOption("draft")) {
+                    // Push named page from the ready site if neither ready nor draft was specified.
+                    this.setCommandLineOption("ready", true);
+                }
+/*
+                if (!this.getCommandLineOption("site")) {
+                    // TODO When multiple sites feature is available, set the "site" option to "default" if not specified.
+                }
+*/
+            } else {
+                if (this.getCommandLineOption("ready")) {
+                    this.errorMessage(i18n.__('cli_push_name_and_ready'));
+                    this.resetCommandLineOptions();
+                    return false;
+                }
+/*
+                if (this.getCommandLineOption("draft")) {
+                    this.errorMessage(i18n.__('cli_push_name_and_draft'));
+                    this.resetCommandLineOptions();
+                    return false;
+                }
+*/
+            }
+
+            if (this.getOptionArtifactCount() !== 1) {
+                this.errorMessage(i18n.__('cli_push_name_one_type'));
+                this.resetCommandLineOptions();
+                return false;
+            }
         }
 
         return true;
@@ -1219,6 +1259,8 @@ function pushCommand (program) {
         .option('-A --all-authoring',    i18n.__('cli_push_opt_all'))
         .option('-f --force-override',   i18n.__('cli_push_opt_force_override'))
         .option('--create-only',         i18n.__('cli_push_opt_create_only'))
+        .option('--ready',               i18n.__('cli_push_opt_ready'))
+        //.option('--draft',               i18n.__('cli_push_opt_draft'))
         .option('--named <named>',       i18n.__('cli_push_opt_named'))
         .option('--path <path>',         i18n.__('cli_push_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_push_opt_use_manifest'))

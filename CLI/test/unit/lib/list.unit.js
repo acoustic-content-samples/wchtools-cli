@@ -30,17 +30,43 @@ const prompt = require("prompt");
 const Q = require("q");
 const sinon = require("sinon");
 const ToolsApi = require("wchtools-api");
+const hashes = ToolsApi.getHashes();
 const toolsCli = require("../../../wchToolsCli");
 const BaseCommand = require("../../../lib/baseCommand");
 const mkdirp = require("mkdirp");
 const manifests = ToolsApi.getManifests();
 
+const DRAFT_OPTION = false;
+
 // Require the local modules that will be stubbed, mocked, and spied.
 const options = require("wchtools-api").getOptions();
+
+let stubRemoteSites;
+let stubLocalSites;
 
 class ListUnitTest extends UnitTest {
     constructor () {
         super();
+    }
+
+    static addRemoteSitesStub () {
+        const sitesHelper = ToolsApi.getSitesHelper();
+        stubRemoteSites = sinon.stub(sitesHelper._restApi, "getItems");
+        stubRemoteSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+    }
+
+    static restoreRemoteSitesStub () {
+        stubRemoteSites.restore();
+    }
+
+    static addLocalSitesStub () {
+        const sitesHelper = ToolsApi.getSitesHelper();
+        stubLocalSites = sinon.stub(sitesHelper._fsApi, "getItems");
+        stubLocalSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+    }
+
+    static restoreLocalSitesStub () {
+        stubLocalSites.restore();
     }
 
     run (helper, switches, itemName1, itemName2, badItem) {
@@ -51,11 +77,16 @@ class ListUnitTest extends UnitTest {
                 stubLogin = sinon.stub(self.getLoginHelper(), "login");
                 stubLogin.resolves("Adam.iem@mailinator.com");
 
+                ListUnitTest.addRemoteSitesStub();
+                ListUnitTest.addLocalSitesStub();
+
                 done();
             });
 
             after(function (done) {
                 stubLogin.restore();
+                ListUnitTest.restoreRemoteSitesStub();
+                ListUnitTest.restoreLocalSitesStub();
                 done();
             });
 
@@ -143,9 +174,15 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--dir", "./", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stub).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stub).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stub).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -165,7 +202,7 @@ class ListUnitTest extends UnitTest {
                 stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: undefined, id: badItem, path: badItem}]);
 
                 // Create a stub to return a value for the "x-ibm-dx-tenant-base-url" key.
-                const originalGetRelevantOption = options.getRelevantOption;
+                const originalGetRelevantOption = options.getRelevantOption.bind(options);
                 const stubGet = sinon.stub(options, "getRelevantOption", function (context, opts, key) {
                     if (key === "x-ibm-dx-tenant-base-url") {
                         return null;
@@ -178,9 +215,15 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -258,6 +301,39 @@ class ListUnitTest extends UnitTest {
                     });
             });
 
+            it("test list failure quiet", function (done) {
+                if (switches !== "-a" ) {
+                    return done();
+                }
+
+                const LIST_ERROR = "Error listing assets, expected by unit test.";
+                const stub = sinon.stub(ToolsApi, "getAssetsHelper");
+                stub.throws(new Error(LIST_ERROR));
+
+                // Execute the command to list the local assets.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--quiet", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once, and the expected message was returned.
+                        expect(err.message).to.contain(LIST_ERROR);
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "listModifiedLocalItemNames" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
                 stub.returns(false);
@@ -292,7 +368,7 @@ class ListUnitTest extends UnitTest {
         describe("CLI-unit-listing", function () {
             it("test list server error", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "foo";
@@ -315,8 +391,13 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--del", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                        }
                         expect(msg).to.contain('artifacts listed 0');
 
                         // Verify that the spy was called once with the expected message.
@@ -341,7 +422,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list server quiet error", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "foo";
@@ -367,8 +448,13 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--quiet", "--server", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                        }
                         expect(msg).to.contain('artifacts listed 0');
 
                         // Verify that the spy was not called.
@@ -392,7 +478,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list server working with username and password defined", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "foo";
@@ -406,15 +492,21 @@ class ListUnitTest extends UnitTest {
                 process.env.WCHTOOLS_PASSWORD = "password";
 
                 const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
-                stubList.resolves([itemName1, itemName2, badItem]);
+                stubList.resolves([{id:"foo", name: itemName1}, {id:"ack", name: itemName2}, {id:undefined, name: badItem}]);
 
                 // Execute the command to list the items on the server.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -433,7 +525,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list server working when save manifest fails", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "foo";
@@ -459,10 +551,18 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--write-manifest", "foo", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
+                        if (switches === "--pages") {
+                            // Verify that the list stub was called twice (once for each site), and that the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the list stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+
+                        // Verify that the manifest was only saved once, after all lists are completed.
                         expect(stubSave).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -483,7 +583,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list server working with no username and password defined", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return undefined;
@@ -497,7 +597,7 @@ class ListUnitTest extends UnitTest {
                 process.env.WCHTOOLS_PASSWORD = "";
 
                 const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
-                stubList.resolves([itemName1, itemName2, badItem]);
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
 
                 // Create a stub to return prompt values.
                 const stubPrompt = sinon.stub(prompt, "get");
@@ -507,10 +607,16 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
                         expect(stubPrompt).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -530,7 +636,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list server working with password defined but no username", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return undefined;
@@ -544,7 +650,7 @@ class ListUnitTest extends UnitTest {
                 process.env.WCHTOOLS_PASSWORD = "password";
 
                 const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
-                stubList.resolves([itemName1, itemName2, badItem]);
+                stubList.resolves([{name: itemName1, id: "ack", path: itemName1}, {name: itemName2, id: "nack", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
 
                 // Create a stub to return prompt values.
                 const stubPrompt = sinon.stub(prompt, "get");
@@ -554,10 +660,16 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
                         expect(stubPrompt).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -577,7 +689,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list server working with username defined but no password", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "foo";
@@ -591,7 +703,7 @@ class ListUnitTest extends UnitTest {
                 process.env.WCHTOOLS_PASSWORD = "";
 
                 const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
-                stubList.resolves([itemName1, itemName2, badItem]);
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
 
                 // Create a stub to return prompt values.
                 const stubPrompt = sinon.stub(prompt, "get");
@@ -601,10 +713,16 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
                         expect(stubPrompt).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -624,7 +742,7 @@ class ListUnitTest extends UnitTest {
 
             it("test list server working with prompt error", function (done) {
                 // Create a stub to return a value for the "username" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "username") {
                         return "";
@@ -638,7 +756,7 @@ class ListUnitTest extends UnitTest {
                 process.env.WCHTOOLS_PASSWORD = "";
 
                 const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
-                stubList.resolves([itemName1, itemName2, badItem]);
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
 
                 // Create a stub to return prompt values.
                 const stubPrompt = sinon.stub(prompt, "get");
@@ -652,11 +770,17 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stubList).to.have.been.calledOnce;
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
                         expect(stubPrompt).to.have.been.calledOnce;
                         expect(spyConsole).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -679,25 +803,265 @@ class ListUnitTest extends UnitTest {
 
     testListModified (helper, switches, itemName1, itemName2, badItem) {
         describe("CLI-unit-listing", function () {
-            it("test list mod param working", function (done) {
-                const stub = sinon.stub(helper, "listModifiedLocalItemNames");
-                stub.resolves([itemName1, itemName2, badItem]);
+            it("test list local modified working (all sites)", function (done) {
+                const stubList = sinon.stub(helper._fsApi, "listNames");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+
+                const stubHashes = sinon.stub(hashes, "isLocalModified");
+                stubHashes.returns(true);
 
                 // Execute the command to list the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and the expected message was returned.
-                        expect(stub).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stubs were called as expected, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            if (switches.includes("--sites")) {
+                                // Sites filtered to those in context.siteList.
+                                expect(msg).to.contain('artifacts listed 2');
+                            } else {
+                                expect(msg).to.contain('artifacts listed 3');
+                            }
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;
                     })
                     .finally(function () {
-                        // Restore the helper's "listModifiedLocalItemNames" method.
-                        stub.restore();
+                        // Restore the stubs.
+                        stubList.restore();
+                        stubHashes.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list local modified working (ready sites)", function (done) {
+                const stubList = sinon.stub(helper._fsApi, "listNames");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+
+                const stubHashes = sinon.stub(hashes, "isLocalModified");
+                stubHashes.returns(true);
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ready", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stubs were called as expected, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubList.restore();
+                        stubHashes.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list local modified working (draft sites)", function (done) {
+                // TODO Enable when --draft option is avaiable.
+                if (!DRAFT_OPTION) {
+                    return done();
+                }
+
+                const stubList = sinon.stub(helper._fsApi, "listNames");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+
+                const stubHashes = sinon.stub(hashes, "isLocalModified");
+                stubHashes.returns(true);
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--draft", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stubs were called as expected, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubList.restore();
+                        stubHashes.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list remote modified working (all sites)", function (done) {
+                const stubList = sinon.stub(helper._restApi, "getModifiedItems");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
+
+                const stubHashes = sinon.stub(hashes, "isRemoteModified");
+                stubHashes.returns(true);
+
+                let stubContentResource;
+                if (switches.includes("-a")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(true);
+                } else if (switches.includes("-w")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(false);
+                }
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stubs were called as expected, and the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            if (switches.includes("--sites")) {
+                                // Sites filtered to those in context.siteList.
+                                expect(stubHashes).to.have.been.calledThrice;
+                                expect(msg).to.contain('artifacts listed 2');
+                            } else {
+                                expect(msg).to.contain('artifacts listed 3');
+                            }
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubList.restore();
+                        stubHashes.restore();
+                        if (stubContentResource) {
+                            stubContentResource.restore();
+                        }
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list remote modified working (ready sites)", function (done) {
+                const stubList = sinon.stub(helper._restApi, "getModifiedItems");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
+
+                const stubHashes = sinon.stub(hashes, "isRemoteModified");
+                stubHashes.returns(true);
+
+                let stubContentResource;
+                if (switches.includes("-a")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(true);
+                } else if (switches.includes("-w")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(false);
+                }
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ready", "--server", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stubs were called as expected, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(stubHashes).to.have.been.calledThrice;
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubList.restore();
+                        stubHashes.restore();
+                        if (stubContentResource) {
+                            stubContentResource.restore();
+                        }
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list remote modified working (draft sites)", function (done) {
+                // TODO Enable when --draft option is avaiable.
+                if (!DRAFT_OPTION) {
+                    return done();
+                }
+
+                const stubList = sinon.stub(helper._restApi, "getModifiedItems");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
+
+                const stubHashes = sinon.stub(hashes, "isRemoteModified");
+                stubHashes.returns(true);
+
+                let stubContentResource;
+                if (switches.includes("-a")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(true);
+                } else if (switches.includes("-w")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(false);
+                }
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--draft", "--server", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stubs were called as expected, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(stubHashes).to.have.been.calledThrice;
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubList.restore();
+                        stubHashes.restore();
+                        if (stubContentResource) {
+                            stubContentResource.restore();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -708,17 +1072,28 @@ class ListUnitTest extends UnitTest {
 
     testListAll (helper, switches, itemName1, itemName2, badItem) {
         describe("CLI-unit-listing", function() {
-            it("test list all param working", function (done) {
-                const stub = sinon.stub(helper, "listLocalItemNames");
-                stub.resolves([itemName1, itemName2, badItem]);
+            it("test list local working (all sites)", function (done) {
+                const stub = sinon.stub(helper._fsApi, "listNames");
+                stub.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
 
                 // Execute the command to list the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ignore-timestamps", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        // Verify that the stub was called once, and that the expected message was returned.
-                        expect(stub).to.have.been.calledOnce;
-                        expect(msg).to.contain('artifacts listed 3');
+                        if (switches === "--pages") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stub).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 6');
+                        } else {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stub).to.have.been.calledOnce;
+                            if (switches.includes("--sites")) {
+                                // Sites filtered to those in context.siteList.
+                                expect(msg).to.contain('artifacts listed 2');
+                            } else {
+                                expect(msg).to.contain('artifacts listed 3');
+                            }
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -727,6 +1102,239 @@ class ListUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the helper's "listLocalItemNames" method.
                         stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list local working (ready sites)", function (done) {
+                const stub = sinon.stub(helper._fsApi, "listNames");
+                stub.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ready", "--ignore-timestamps", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "listLocalItemNames" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list local working (draft sites)", function (done) {
+                // TODO Enable when --draft option is avaiable.
+                if (!DRAFT_OPTION) {
+                    return done();
+                }
+
+                const stub = sinon.stub(helper._fsApi, "listNames");
+                stub.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: undefined, path: badItem}]);
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--draft", "--ignore-timestamps", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "listLocalItemNames" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list remote working (all sites)", function (done) {
+                let stubGet;
+                if (switches === "--sites") {
+                    // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
+                    // the first time (initSites) then returns the test values the second time (the actual push).
+                    ListUnitTest.restoreRemoteSitesStub();
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+                    stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                } else {
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                }
+
+                let stubContentResource;
+                if (switches.includes("-a")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(true);
+                } else if (switches.includes("-w")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(false);
+                }
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--ignore-timestamps", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        if (switches === "--pages" || switches === "--sites") {
+                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                            expect(stubGet).to.have.been.calledTwice;
+                            if (switches.includes("--sites")) {
+                                // Sites filtered to those in context.siteList.
+                                expect(msg).to.contain('artifacts listed 2');
+                            } else {
+                                expect(msg).to.contain('artifacts listed 6');
+                            }
+                        } else {
+                            // Verify that the stubs were called as expected, and the expected message was returned.
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubGet.restore();
+                        if (stubContentResource) {
+                            stubContentResource.restore();
+                        }
+
+                        // Add the global stub back now  if it was removed earlier.
+                        if (switches === "--sites") {
+                            ListUnitTest.addRemoteSitesStub();
+                        }
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list remote working (ready sites)", function (done) {
+                let stubGet;
+                if (switches === "--sites") {
+                    // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
+                    // the first time (initSites) then returns the test values the second time (the actual push).
+                    ListUnitTest.restoreRemoteSitesStub();
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+                    stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                } else {
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                }
+
+                let stubContentResource;
+                if (switches.includes("-a")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(true);
+                } else if (switches.includes("-w")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(false);
+                }
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ready", "--server", "--ignore-timestamps", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stubs were called as expected, and the expected message was returned.
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(stubGet).to.have.been.calledTwice;
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubGet.restore();
+                        if (stubContentResource) {
+                            stubContentResource.restore();
+                        }
+
+                        // Add the global stub back now  if it was removed earlier.
+                        if (switches === "--sites") {
+                            ListUnitTest.addRemoteSitesStub();
+                        }
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test list remote working (draft sites)", function (done) {
+                // TODO Enable when --draft option is avaiable.
+                if (!DRAFT_OPTION) {
+                    return done();
+                }
+
+                const stubList = sinon.stub(helper._restApi, "getItems");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+
+                let stubContentResource;
+                if (switches.includes("-a")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(true);
+                } else if (switches.includes("-w")) {
+                    stubContentResource = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContentResource.returns(false);
+                }
+
+                // Execute the command to list the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--draft", "--server", "--ignore-timestamps", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stubs were called as expected, and the expected message was returned.
+                        expect(stubList).to.have.been.calledOnce;
+                        if (switches.includes("--sites")) {
+                            // Sites filtered to those in context.siteList.
+                            expect(msg).to.contain('artifacts listed 1');
+                        } else {
+                            expect(msg).to.contain('artifacts listed 3');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubs.
+                        stubList.restore();
+                        if (stubContentResource) {
+                            stubContentResource.restore();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -832,6 +1440,60 @@ class ListUnitTest extends UnitTest {
                     })
                     .finally(function () {
                         // Restore the stubbed method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if both ready and draft specified", function (done) {
+                // TODO Enable when --draft option is avaiable.
+                if (!DRAFT_OPTION) {
+                    return done();
+                }
+
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, '--ready', '--draft', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        expect(err.message).to.contain("cannot specifiy both ready and draft");
+                    })
+                    .catch (function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should fail if the ready and draft options are not valid", function (done) {
+                const READY_ERROR = "There was a problem with the ready option, as expected by a unit test.";
+                const stub = sinon.stub(BaseCommand.prototype, "handleReadyDraftOptions", function () {
+                    this.errorMessage(READY_ERROR);
+                    this.resetCommandLineOptions();
+                    return false;
+                });
+
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, '--ready', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        expect(err.message).to.contain(READY_ERROR);
+                    })
+                    .catch (function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
                         stub.restore();
 
                         // Call mocha's done function to indicate that the test is over.

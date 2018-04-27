@@ -35,6 +35,7 @@ const login = require('./lib/loginREST').instance;
 const utils = require('./lib/utils/utils.js');
 const options = require('./lib/utils/options.js');
 const manifests = require('./lib/utils/manifests.js');
+const hashes = require('./lib/utils/hashes.js');
 const events = require("events");
 
 class WchToolsApi {
@@ -176,6 +177,16 @@ class WchToolsApi {
         return pagesHelper;
     }
 
+    static getRemoteSites (context, opts) {
+        // Get the remote sites for the specified context.
+        return sitesHelper.getRemoteItems(context, opts);
+    }
+
+    static getLocalSites (context, opts) {
+        // Get the local sites for the specified context.
+        return sitesHelper.getLocalItems(context, opts);
+    }
+
     static getInitializationErrors (context) {
         // Return any errors that occurred during initialization of the required modules.
         return options.getInitializationErrors(context);
@@ -195,6 +206,10 @@ class WchToolsApi {
 
     static getManifests () {
         return manifests;
+    }
+
+    static getHashes () {
+        return hashes;
     }
 
     pushAllItems (opts) {
@@ -233,44 +248,93 @@ class WchToolsApi {
         this.context.eventEmitter.on("pushed", pushedListener);
         this.context.eventEmitter.on("pushed-error", pushedErrorListener);
 
-        self.handlePromise(self.pushImageProfiles(opts)).then(function () {
-            return self.handlePromise(self.pushCategories(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushAssets(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushRenditions(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushLayouts(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushTypes(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushLayoutMappings(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushContent(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushSites(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushPages(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushSources(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushProfiles(opts));
-        }).then(function () {
-            return self.handlePromise(self.pushSiteRevisions(opts));
-        }).then(function () {
-            self.getLogger().info("pushItems complete");
-            if (!errors) {
-                deferred.resolve(pushedItems);
-            } else {
-                deferred.reject(errors);
-            }
-        }).catch(function (err) {
-            self.getLogger().error("pushItems complete with error", err);
-            deferred.reject(err);
-        }).finally(function () {
-            self.context.eventEmitter.removeListener("pushed", pushedListener);
-            self.context.eventEmitter.removeListener("pushed-error", pushedErrorListener);
-        });
+        let siteIds = [];
+        WchToolsApi.getLocalSites(context, opts)
+            .then(function (sites) {
+                if (sites) {
+                    // Add each local site to the ready list or the draft list.
+                    const readySiteIds = [];
+                    const draftSiteIds = [];
+                    sites.forEach(function (site) {
+                        if (site.siteStatus === "draft") {
+                            // Add draft site to the draft list.
+                            draftSiteIds.push(site.id);
+                        } else {
+                            // Add ready site to the ready list.
+                            readySiteIds.push(site.id);
+                        }
+                    });
+
+                    // A draft page always refers to a ready page, so push the ready pages before the draft pages.
+                    siteIds = readySiteIds.concat(draftSiteIds);
+                }
+            })
+            .then(function () {
+                return self.handlePromise(self.pushImageProfiles(opts))
+            })
+            .then(function () {
+                return self.handlePromise(self.pushCategories(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushAssets(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushRenditions(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushLayouts(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushTypes(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushLayoutMappings(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushContent(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushSites(opts));
+            })
+            .then(function () {
+                // Local function to recursively push pages for one site at a time.
+                let index = 0;
+                const pushPagesBySite = function () {
+                    if (index < siteIds.length) {
+                        return self.handlePromise(self.pushPages(utils.cloneOpts(opts, {siteId: siteIds[index++]})))
+                            .then(function () {
+                                return pushPagesBySite();
+                            });
+                    }
+                };
+
+                return pushPagesBySite();
+            })
+            .then(function () {
+                return self.handlePromise(self.pushSources(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushProfiles(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.pushSiteRevisions(opts));
+            })
+            .then(function () {
+                self.getLogger().info("pushItems complete");
+                if (!errors) {
+                    deferred.resolve(pushedItems);
+                } else {
+                    deferred.reject(errors);
+                }
+            })
+            .catch(function (err) {
+                self.getLogger().error("pushItems complete with error", err);
+                deferred.reject(err);
+            })
+            .finally(function () {
+                self.context.eventEmitter.removeListener("pushed", pushedListener);
+                self.context.eventEmitter.removeListener("pushed-error", pushedErrorListener);
+            });
 
         return deferred.promise;
     }
@@ -413,6 +477,7 @@ class WchToolsApi {
             self.getLogger().info("DELETED: ", name);
             deletedItems.push(name);
         };
+
         const deleteErrorListener = function (error, name) {
             self.getLogger().info("DELETE ERROR: ", name, error);
             if (!errors) {
@@ -420,40 +485,85 @@ class WchToolsApi {
             }
             errors.push(error);
         };
+
         if (!this.context.eventEmitter) {
             this.context.eventEmitter = new events.EventEmitter();
         }
         this.context.eventEmitter.on("deleted", deletedListener);
         this.context.eventEmitter.on("deleted-error", deleteErrorListener);
 
-        self.handlePromise(self.deleteAllPages(opts)).then(function () {
-            return self.handlePromise(self.deleteAllContent(opts));
-        }).then(function () {
-            return self.handlePromise(self.deleteAllLayoutMappings(opts));
-        }).then(function () {
-            return self.handlePromise(self.deleteAllTypes(opts));
-        }).then(function () {
-            return self.handlePromise(self.deleteAllLayouts(opts));
-        }).then(function () {
-            return self.handlePromise(self.deleteAllCategories(opts));
-        }).then(function () {
-            return self.handlePromise(self.deleteAllAssets(opts));
-        }).then(function () {
-            return self.handlePromise(self.deleteAllImageProfiles(opts));
-        }).then(function () {
-            self.getLogger().info("deleteAllItems complete");
-            if (!errors) {
-                deferred.resolve(deletedItems);
-            } else {
-                deferred.reject(errors);
-            }
-        }).catch(function (err) {
-            self.getLogger().error("deleteAllItems complete with error", err);
-            deferred.reject(err);
-        }).finally(function () {
-            self.context.eventEmitter.removeListener("deleted", deletedListener);
-            self.context.eventEmitter.removeListener("deleted-error", deleteErrorListener);
-        });
+        let siteIds = [];
+        WchToolsApi.getRemoteSites(this.context, opts)
+            .then(function (sites) {
+                if (sites) {
+                    // Add each remote site to the ready list or the draft list.
+                    const readySiteIds = [];
+                    const draftSiteIds = [];
+                    sites.forEach(function (site) {
+                        if (site.siteStatus === "draft") {
+                            // Add draft site to the draft list.
+                            draftSiteIds.push(site.id);
+                        } else {
+                            // Add ready site to the ready list.
+                            readySiteIds.push(site.id);
+                        }
+                    });
+
+                    // A ready page cannot be deleted if a draft page refers to it, so draft pages are deleted first.
+                    siteIds = draftSiteIds.concat(readySiteIds);
+                }
+            })
+            .then(function () {
+                // Local function to recursively delete pages for one site at a time.
+                let index = 0;
+                const deletePagesBySite = function () {
+                    if (index < siteIds.length) {
+                        return self.handlePromise(self.deleteAllPages(utils.cloneOpts(opts, {siteId: siteIds[index++]})))
+                            .then(function () {
+                                return deletePagesBySite();
+                            });
+                    }
+                };
+
+                return deletePagesBySite();
+            })
+            .then(function () {
+                return self.handlePromise(self.deleteAllContent(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.deleteAllLayoutMappings(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.deleteAllTypes(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.deleteAllLayouts(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.deleteAllCategories(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.deleteAllAssets(opts));
+            })
+            .then(function () {
+                return self.handlePromise(self.deleteAllImageProfiles(opts));
+            })
+            .then(function () {
+                self.getLogger().info("deleteAllItems complete");
+                if (!errors) {
+                    deferred.resolve(deletedItems);
+                } else {
+                    deferred.reject(errors);
+                }
+            })
+            .catch(function (err) {
+                self.getLogger().error("deleteAllItems complete with error", err);
+                deferred.reject(err);
+            })
+            .finally(function () {
+                self.context.eventEmitter.removeListener("deleted", deletedListener);
+                self.context.eventEmitter.removeListener("deleted-error", deleteErrorListener);
+            });
 
         return deferred.promise;
     }

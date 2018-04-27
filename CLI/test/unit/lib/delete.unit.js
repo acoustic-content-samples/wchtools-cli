@@ -32,24 +32,41 @@ const prompt = require("prompt");
 const options = ToolsApi.getOptions();
 const manifests = ToolsApi.getManifests();
 
+const sitesHelper = ToolsApi.getSitesHelper();
+let stubRemoteSites;
+
 class DeleteUnitTest extends UnitTest {
     constructor () {
         super();
+    }
+
+    static addRemoteSitesStub () {
+        stubRemoteSites = sinon.stub(sitesHelper._restApi, "getItems");
+        stubRemoteSites.resolves([{id: "foo"}, {id: "bar"}]);
+    }
+
+    static restoreRemoteSitesStub () {
+        stubRemoteSites.restore();
     }
 
     run (helper, switches, itemName1) {
         const self = this;
         describe("Unit tests for delete " + switches, function () {
             let stubLogin;
+            let stubRemoteSites;
             before(function (done) {
                 stubLogin = sinon.stub(self.getLoginHelper(), "login");
                 stubLogin.resolves("Adam.iem@mailinator.com");
+
+                DeleteUnitTest.addRemoteSitesStub();
 
                 done();
             });
 
             after(function (done) {
                 stubLogin.restore();
+                DeleteUnitTest.restoreRemoteSitesStub();
+
                 done();
             });
 
@@ -964,7 +981,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should fail when search fails, no continue on error", function(done) {
                 // Create a stub to return a value for the "continueOnError" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "continueOnError") {
                         return false;
@@ -1554,7 +1571,7 @@ class DeleteUnitTest extends UnitTest {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
                     })
-                    .catch(function (err) {
+                    .catch(function () {
                         // Stubs may not have been called if artifact type errored out before calling them
                     })
                     .catch (function (err) {
@@ -1650,6 +1667,10 @@ class DeleteUnitTest extends UnitTest {
                 const stubGet = sinon.stub(helper, "getRemoteItems");
                 stubGet.resolves([]);
 
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
                 // Execute the command to delete the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
@@ -1662,6 +1683,7 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the helper's stubbed methods.
                         stubGet.restore();
+                        stubRenditions.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -1674,7 +1696,7 @@ class DeleteUnitTest extends UnitTest {
                 }
 
                 // Create a stub to return a value for the "tier" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "tier") {
                         return "Base";
@@ -1685,6 +1707,10 @@ class DeleteUnitTest extends UnitTest {
 
                 const stub = sinon.stub(helper, "getRemoteItems");
                 stub.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
 
                 const stubCanDelete = sinon.stub(helper, "canDeleteItem");
                 stubCanDelete.returns(true);
@@ -1710,6 +1736,7 @@ class DeleteUnitTest extends UnitTest {
                         // Restore the helper's stubbed methods.
                         stubGet.restore();
                         stub.restore();
+                        stubRenditions.restore();
                         stubCanDelete.restore();
                         stubDelete.restore();
 
@@ -1814,6 +1841,10 @@ class DeleteUnitTest extends UnitTest {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
                 stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
 
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
                 const stubCanDelete = sinon.stub(helper, "canDeleteItem");
                 stubCanDelete.returns(true);
 
@@ -1841,6 +1872,7 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the helper's stubbed methods.
                         stubSearch.restore();
+                        stubRenditions.restore();
                         stubCanDelete.restore();
                         stubDelete.restore();
 
@@ -1852,6 +1884,10 @@ class DeleteUnitTest extends UnitTest {
             it("should fail when all deletes fail - quiet", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
                 stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
 
                 const stubCanDelete = sinon.stub(helper, "canDeleteItem");
                 stubCanDelete.returns(true);
@@ -1882,6 +1918,7 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the helper's stubbed methods.
                         stubSearch.restore();
+                        stubRenditions.restore();
                         stubCanDelete.restore();
                         stubDelete.restore();
 
@@ -1893,6 +1930,10 @@ class DeleteUnitTest extends UnitTest {
             it("should fail when all deletes fail - quiet, verbose", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
                 stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
 
                 const stubCanDelete = sinon.stub(helper, "canDeleteItem");
                 stubCanDelete.returns(true);
@@ -1922,6 +1963,7 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the helper's stubbed methods.
                         stubSearch.restore();
+                        stubRenditions.restore();
                         stubCanDelete.restore();
                         stubDelete.restore();
 
@@ -1933,6 +1975,10 @@ class DeleteUnitTest extends UnitTest {
             it("should succeed for multiple artifacts - quiet", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
                 stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
 
                 const stubPrompt = sinon.stub(prompt, "get");
                 stubPrompt.yields(null, {"confirm": "y"});
@@ -1963,6 +2009,7 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the helper's stubbed methods.
                         stubSearch.restore();
+                        stubRenditions.restore();
                         stubPrompt.restore();
                         stubCanDelete.restore();
                         stubDelete.restore();
@@ -1977,8 +2024,12 @@ class DeleteUnitTest extends UnitTest {
                 const REMOTE_FAIL = "The getRemoteItems failed, as expected by a unit test.";
                 stub.rejects(new Error(REMOTE_FAIL));
 
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
                 // Create a stub to return a value for the "continueOnError" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "continueOnError") {
                         return true;
@@ -2007,8 +2058,10 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the stubbed method.
                         stub.restore();
+                        stubRenditions.restore();
                         stubGet.restore();
                         stubPrompt.restore();
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -2019,8 +2072,12 @@ class DeleteUnitTest extends UnitTest {
                 const REMOTE_FAIL = "The getRemoteItems failed, as expected by a unit test.";
                 stub.rejects(new Error(REMOTE_FAIL));
 
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
                 // Create a stub to return a value for the "continueOnError" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "continueOnError") {
                         return false;
@@ -2048,6 +2105,7 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the stubbed method.
                         stub.restore();
+                        stubRenditions.restore();
                         stubGet.restore();
                         stubPrompt.restore();
                         // Call mocha's done function to indicate that the test is over.
@@ -2059,6 +2117,10 @@ class DeleteUnitTest extends UnitTest {
                 const stub = sinon.stub(helper, "getRemoteItems");
                 const REMOTE_FAIL = "The getRemoteItems failed, as expected by a unit test.";
                 stub.rejects(new Error(REMOTE_FAIL));
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
 
                 const stubPrompt = sinon.stub(prompt, "get");
                 stubPrompt.yields(null, {"confirm": "n"});
@@ -2077,7 +2139,9 @@ class DeleteUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the stubbed method.
                         stub.restore();
+                        stubRenditions.restore();
                         stubPrompt.restore();
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -2194,7 +2258,7 @@ class DeleteUnitTest extends UnitTest {
                 stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
 
                 // Create a stub to return a value for the "tier" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "tier") {
                         return "Base";
@@ -2241,7 +2305,7 @@ class DeleteUnitTest extends UnitTest {
                 }
 
                 // Create a stub to return a value for the "continueOnError" key.
-                const originalGetProperty = options.getProperty;
+                const originalGetProperty = options.getProperty.bind(options);
                 const stubGet = sinon.stub(options, "getProperty", function (context, key) {
                     if (key === "continueOnError") {
                         return false;

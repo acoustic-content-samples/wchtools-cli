@@ -231,7 +231,7 @@ class JSONItemHelper extends BaseHelper {
     pushAllItems (context, opts) {
         // Return the promise to get the list of local item names and push those items to the content hub.
         const helper = this;
-        return helper._fsApi.listNames(context, opts)
+        return helper.listLocalItemNames(context, opts)
             .then(function (names) {
                 return helper._pushNameList(context, names, opts);
             });
@@ -370,7 +370,9 @@ class JSONItemHelper extends BaseHelper {
         // After the promise has been resolved, update the last pull timestamp (but only if there were no errors.)
         return deferred.promise
             .then(function (items) {
-                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
                     hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 const emitter = helper.getEventEmitter(context);
@@ -430,7 +432,9 @@ class JSONItemHelper extends BaseHelper {
         // After the promise has been resolved, update the last pull timestamp (but only if there were no errors.)
         return deferred.promise
             .then(function (items) {
-                if ((context.pullErrorCount === 0) && (!opts.filterPath)) {
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
                     hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 return items;
@@ -465,7 +469,35 @@ class JSONItemHelper extends BaseHelper {
      *                      all items that exist on the file system.
      */
     _listLocalItemNames (context, opts) {
-        return this._fsApi.listNames(context, opts);
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+
+        if (readyOnly || draftOnly) {
+            // Make sure the proxy items contain the status (only exists on content assets).
+            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+        }
+
+        return this._fsApi.listNames(context, opts)
+            .then(function (itemList) {
+                // Filter the item list based on the ready and draft options.
+                if (readyOnly) {
+                    // Filter out any items that are not ready.
+                    itemList = itemList.filter(function (item) {
+                        if (!item.status || item.status === "ready") {
+                            return item;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any items that are not draft.
+                    itemList = itemList.filter(function (item) {
+                        if (item.status === "draft") {
+                            return item;
+                        }
+                    });
+                }
+
+                return itemList;
+            });
     }
 
     /**
@@ -500,9 +532,35 @@ class JSONItemHelper extends BaseHelper {
     _listModifiedLocalItemNames (context, flags, opts) {
         const helper = this;
         const fsObject = this._fsApi;
+
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+
+        if (readyOnly || draftOnly) {
+            // Make sure the proxy items contain the status.
+            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+        }
+
         const dir = fsObject.getPath(context, opts);
         return fsObject.listNames(context, opts)
             .then(function (itemNames) {
+                // Filter the item list based on the ready and draft options.
+                if (readyOnly) {
+                    // Filter out any items that are not ready.
+                    itemNames = itemNames.filter(function (item) {
+                        if (!item.status || item.status === "ready") {
+                            return item;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any items that are not draft.
+                    itemNames = itemNames.filter(function (item) {
+                        if (item.status === "draft") {
+                            return item;
+                        }
+                    });
+                }
+
                 const results = itemNames.filter(function (itemName) {
                     if (itemName.id) {
                         const itemPath = fsObject.getItemPath(context, itemName, opts);
@@ -551,6 +609,8 @@ class JSONItemHelper extends BaseHelper {
         const deferred = Q.defer();
         const dir = fsObject.getPath(context, opts);
         const extension = fsObject.getExtension();
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
         deferred.resolve(hashes.listFiles(context, dir, opts)
             .filter(function (item) {
                 let stat = undefined;
@@ -560,6 +620,16 @@ class JSONItemHelper extends BaseHelper {
                     // ignore this error we're testing to see if a file exists
                 }
                 return !stat;
+            })
+            .filter(function (item) {
+                // Filter the item list based on the ready and draft options.
+                const draft = item.id && (item.id.indexOf(":") >= 0);
+                if ((readyOnly && draft) || (draftOnly && !draft)) {
+                    // Filter out any items that do not match the specified option.
+                    return false;
+                } else {
+                    return true;
+                }
             })
             .filter(function (item) {
                 return item.path.endsWith(extension);
@@ -593,7 +663,7 @@ class JSONItemHelper extends BaseHelper {
         const deferred = Q.defer();
 
         // Recursively call restApi.getItems() to retrieve all of the remote items.
-        const listFn = this._restApi.getItems.bind(this._restApi, context);
+        const listFn = this.getRemoteItems.bind(this, context);
 
         // Get the first chunk of remote items, and then recursively retrieve any additional chunks.
         const helper = this;
@@ -801,6 +871,46 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
+     * Determine whether a push conflict between the provided localItem and remoteItem can be ignored.
+     *
+     * @param context The API context to be used for this operation.
+     * @param localItem The local item being pushed.
+     * @param remoteItem The remote item.
+     * @param opts The options for this operation.
+     * @returns {boolean}
+     */
+    canIgnoreConflict (context, localItem, remoteItem, opts) {
+        const ignoreKeys = ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing", "hierarchicalPath"];
+
+        const diffs = utils.compare(localItem, remoteItem, ignoreKeys);
+        return (diffs.added.length === 0 && diffs.removed.length === 0 && diffs.changed.length === 0);
+    }
+
+    /**
+     * Completes the push operation for the provided item.
+     *
+     * @param context The API context to be used for this operation.
+     * @param item The item that was pushed.
+     * @param opts The options for this operation.
+     *
+     * @returns {*}
+     *
+     * @private
+     */
+    _pushComplete (context, item, opts) {
+        const emitter = this.getEventEmitter(context);
+        if (emitter) {
+            emitter.emit("pushed", this.makeEmittedObject(context, item, opts));
+        }
+        const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
+        if (rewriteOnPush) {
+            return this._fsApi.saveItem(context, item, opts);
+        } else {
+            return item;
+        }
+    }
+
+    /**
      *
      * @param {Object} context The API context to be used for this operation.
      * @param {Object} item
@@ -827,16 +937,7 @@ class JSONItemHelper extends BaseHelper {
         const helper = this;
         return promise
             .then(function (item) {
-                const emitter = helper.getEventEmitter(context);
-                if (emitter) {
-                    emitter.emit("pushed", helper.makeEmittedObject(context, item, opts));
-                }
-                const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
-                if (rewriteOnPush) {
-                    return helper._fsApi.saveItem(context, item, opts);
-                } else {
-                    return item;
-                }
+                return helper._pushComplete(context, item, opts);
             })
             .catch(function (err) {
                 const name = opts.originalPushFileName || helper.getName(item);
@@ -854,29 +955,56 @@ class JSONItemHelper extends BaseHelper {
                     // Rethrow the error to propogate it back to the caller. Otherwise the caller won't know to retry.
                     throw(err);
                 } else {
-                    const emitter = helper.getEventEmitter(context);
-                    if (emitter) {
-                        emitter.emit("pushed-error", err, {id: item.id, name: item.name, path: (item.path || name.path || name)});
-                    }
-                    err.emitted = true;
-                    utils.logErrors(context, heading, err);
-                    const saveFileOnConflict = options.getRelevantOption(context, opts, "saveFileOnConflict");
-                    if (saveFileOnConflict && isUpdate && err.statusCode === 409) {
-                        return helper.getRemoteItem(context, item.id, opts)
-                            .then(function (item) {
-                                return helper._fsApi.saveItem(context, item, utils.cloneOpts(opts, {conflict: true}));
+                    const ignoreConflict = Q.defer();
+                    let remoteItemPromise;
+                    // Ignore a conflict (409) if the contents only differ in unimportant ways.
+                    if (isUpdate && err.statusCode === 409) {
+                        remoteItemPromise = helper.getRemoteItem(context, item.id, opts);
+                        remoteItemPromise
+                            .then(function (remoteItem) {
+                                ignoreConflict.resolve(helper.canIgnoreConflict(context, item, remoteItem, opts));
                             })
-                            .catch(function (error) {
-                                // Log a warning if there was an error getting the conflicting item or saving it.
-                                utils.logWarnings(context, error.toString());
-                            })
-                            .finally(function () {
-                                // throw the original err for conflict
-                                throw(err);
+                            .catch(function (err) {
+                                ignoreConflict.reject(err);
                             });
                     } else {
-                        throw(err);
+                        ignoreConflict.resolve(false);
                     }
+
+                    return ignoreConflict.promise.then(function (canIgnore) {
+                        if (canIgnore) {
+                            utils.logWarnings(context, i18n.__("push_warning_ignore_conflict", {name: item.name}));
+
+                            return helper._pushComplete(context, item, opts);
+                        } else {
+                            const emitter = helper.getEventEmitter(context);
+                            if (emitter) {
+                                emitter.emit("pushed-error", err, {id: item.id, name: item.name, path: (item.path || name.path || name)});
+                            }
+                            err.emitted = true;
+                            utils.logErrors(context, heading, err);
+                            const saveFileOnConflict = options.getRelevantOption(context, opts, "saveFileOnConflict");
+                            if (saveFileOnConflict && isUpdate && err.statusCode === 409) {
+                                if (!remoteItemPromise) {
+                                    remoteItemPromise = helper.getRemoteItem(context, item.id, opts);
+                                }
+                                return remoteItemPromise
+                                    .then(function (item) {
+                                        return helper._fsApi.saveItem(context, item, utils.cloneOpts(opts, {conflict: true}));
+                                    })
+                                    .catch(function (error) {
+                                        // Log a warning if there was an error getting the conflicting item or saving it.
+                                        utils.logWarnings(context, error.toString());
+                                    })
+                                    .finally(function () {
+                                        // throw the original err for conflict
+                                        throw(err);
+                                    });
+                            } else {
+                                throw(err);
+                            }
+                        }
+                    });
                 }
             });
     }
@@ -894,7 +1022,6 @@ class JSONItemHelper extends BaseHelper {
      */
     _pushNameList (context, names, opts) {
         const deferred = Q.defer();
-
         const helper = this;
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
         const pushedItems = [];
@@ -1039,6 +1166,25 @@ class JSONItemHelper extends BaseHelper {
             .then(function (itemList) {
                 // Keep track of the original number of items in the chunk.
                 const chunkSize = itemList.length;
+
+                // Filter the item list based on the ready and draft options.
+                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+                if (readyOnly) {
+                    // Filter out any items that are not ready.
+                    itemList = itemList.filter(function (item) {
+                        if (!item.status || item.status === "ready") {
+                            return item;
+                        }
+                    });
+                } else if (draftOnly) {
+                    // Filter out any items that are not draft.
+                    itemList = itemList.filter(function (item) {
+                        if (item.status === "draft") {
+                            return item;
+                        }
+                    });
+                }
 
                 // Filter the list to exclude any items that should not be saved to file.
                 itemList = itemList.filter(function (item) {

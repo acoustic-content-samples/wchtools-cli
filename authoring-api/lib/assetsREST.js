@@ -29,31 +29,6 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-/*
- * local utility method to do the asset metadata POST, called from multiple places in pushItem
- */
-function postAssetMetadata(context, reqOptions, deferred, createOnly) {
-    request.post(reqOptions, function (err, res, body) {
-        const response = res || {};
-        if (err || response.statusCode >= 400) {
-            // A 409 Conflict error means the asset already exists. So for createOnly, we will consider
-            // this to be a sucessful push of the asset, otherwise handle the error in the normal way.
-            if (createOnly && response.statusCode === 409) {
-                BaseREST.logRetryInfo(context, reqOptions, response.attempts);
-                deferred.resolve(reqOptions.body);
-            } else {
-                err = utils.getError(err, body, response, reqOptions);
-                BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
-                utils.logErrors(context, i18n.__("create_asset_metadata_error"), err);
-                deferred.reject(err);
-            }
-        } else {
-            BaseREST.logRetryInfo(context, reqOptions, response.attempts);
-            deferred.resolve(body);
-        }
-    });
-}
-
 /**
  * REST object for managing assets on the remote content hub.
  *
@@ -225,6 +200,26 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
+    getAssetFindOptions (context, path, opts) {
+        const deferred = Q.defer();
+        const restObject = this;
+        const headers = BaseREST.getHeaders(context, opts);
+
+        this.getRequestURI(context, opts)
+            .then(function (uri) {
+                const requestOptions = {
+                    uri: uri + "/authoring/v1/assets/record?path=" + querystring.escape(path),
+                    headers: headers
+                };
+                deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
     getResourceList (context, opts) {
         const restObject = this;
         const deferred = Q.defer();
@@ -277,6 +272,37 @@ class AssetsREST extends BaseREST {
             }
         }
         return filename;
+    }
+
+    /*
+     * Ask the authoring API to return the specified artifact by path
+     */
+    getItemByPath (context, path, opts) {
+        const deferred = Q.defer();
+        const serviceName = this.getServiceName();
+        this.getAssetFindOptions(context, path, opts)
+            .then(function (requestOptions) {
+                request.get(requestOptions, function (err, res, body) {
+                    const response = res || {};
+                    if (err || response.statusCode !== 200) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+
+                        // special case where we are just seeing if the item does exist and if not it's not an error
+                        if (!opts || opts.noErrorLog !== "true") {
+                            utils.logErrors(context, i18n.__("get_item_error", {"service_name": serviceName}), err);
+                        }
+                        deferred.reject(err);
+                    } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        deferred.resolve(JSON.parse(body));
+                    }
+                });
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+        return deferred.promise;
     }
 
     /**
@@ -345,6 +371,57 @@ class AssetsREST extends BaseREST {
             });
 
         return deferred.promise;
+    }
+
+    canIgnoreConflict (context, asset, remoteAsset, opts) {
+        const ignoreKeys = ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing"];
+
+        const diffs = utils.compare(asset, remoteAsset, ignoreKeys);
+        return (diffs.added.length === 0 && diffs.removed.length === 0 && diffs.changed.length === 0);
+    }
+
+    /*
+     * local utility method to do the asset metadata POST, called from multiple places in pushItem
+     */
+    _postAssetMetadata (context, reqOptions, deferred, createOnly) {
+        const restObject = this;
+        request.post(reqOptions, function (err, res, body) {
+            const response = res || {};
+            if (err || response.statusCode >= 400) {
+                const handleError = Q.defer();
+                // A 409 Conflict error means the asset already exists. So for createOnly, we will consider
+                // this to be a successful push of the asset, otherwise handle the error in the normal way.
+                if (createOnly && response.statusCode === 409) {
+                    BaseREST.logRetryInfo(context, reqOptions, response.attempts);
+                    handleError.resolve(false);
+                } else if (response.statusCode === 409) {
+                    const asset = reqOptions.body;
+                    restObject.getItem(context, asset.id, opts)
+                        .then(function (remoteAsset) {
+                            handleError.resolve(restObject.canIgnoreConflict(context, asset, remoteAsset, opts));
+                        })
+                        .catch(function (remoteAssetErr) {
+                            handleError.resolve(true);
+                        });
+                } else {
+                    // This is a non-conflict (409) error, just handle it.
+                    handleError.resolve(true);
+                }
+                handleError.promise.then(function (isError) {
+                    if (isError) {
+                        err = utils.getError(err, body, response, reqOptions);
+                        BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
+                        utils.logErrors(context, i18n.__("create_asset_metadata_error"), err);
+                        deferred.reject(err);
+                    } else {
+                        deferred.resolve(reqOptions.body);
+                    }
+                });
+            } else {
+                BaseREST.logRetryInfo(context, reqOptions, response.attempts);
+                deferred.resolve(body);
+            }
+        });
     }
 
     /**
@@ -435,13 +512,12 @@ class AssetsREST extends BaseREST {
                         }
 
                         if (doUpdate) {
-                            restObject.getAssetUpdateRequestOptions(context, requestBody.id, opts)
-                                .then(function (reqOptions) {
-                                    requestBody.resource = resourceMetadata.id;
-                                    delete requestBody.mediaType;
-                                    delete requestBody.filename;
-                                    reqOptions.body = requestBody;
-                                    if (requestBody.id && requestBody.rev) {
+                            requestBody.resource = resourceMetadata.id;
+                            delete requestBody.filename;
+                            if (requestBody.id && requestBody.rev) {
+                                restObject.getAssetUpdateRequestOptions(context, requestBody.id, opts)
+                                    .then(function (reqOptions) {
+                                        reqOptions.body = requestBody;
                                         request.put(reqOptions, function (err, res, body) {
                                             const response = res || {};
                                             if (response.statusCode === 404) {
@@ -449,7 +525,25 @@ class AssetsREST extends BaseREST {
                                                 reqOptions = utils.clone(reqOptions);
                                                 reqOptions.uri = reqOptions.uri.substring(0, reqOptions.uri.lastIndexOf('/'));
                                                 delete reqOptions.body.rev;
-                                                postAssetMetadata(context, reqOptions, deferred, createOnly);
+                                                restObject._postAssetMetadata(context, reqOptions, deferred, createOnly);
+                                            } else if (response.statusCode === 409) {
+                                                restObject.getItem(context, requestBody.id, opts)
+                                                    .then(function (remoteAsset) {
+                                                        if (restObject.canIgnoreConflict(context, requestBody, remoteAsset, opts)) {
+                                                            deferred.resolve(requestBody);
+                                                        } else {
+                                                            err = utils.getError(err, body, response, reqOptions);
+                                                            BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
+                                                            utils.logErrors(context, "AssetsREST.pushItem put: ", err);
+                                                            deferred.reject(err);
+                                                        }
+                                                    })
+                                                    .catch(function (remoteAssetErr) {
+                                                        err = utils.getError(err, body, response, reqOptions);
+                                                        BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
+                                                        utils.logErrors(context, "AssetsREST.pushItem put: ", err);
+                                                        deferred.reject(err);
+                                                    });
                                             } else if (err || response.statusCode >= 400) {
                                                 err = utils.getError(err, body, response, reqOptions);
                                                 BaseREST.logRetryInfo(context, reqOptions, response.attempts, err);
@@ -460,16 +554,20 @@ class AssetsREST extends BaseREST {
                                                 deferred.resolve(body);
                                             }
                                         });
-                                    } else {
-                                        postAssetMetadata(context, reqOptions, deferred, createOnly);
-                                    }
-                                });
+                                    });
+                            } else {
+                                restObject.getUpdateRequestOptions(context, opts)
+                                    .then(function (reqOptions) {
+                                        reqOptions.body = requestBody;
+                                        restObject._postAssetMetadata(context, reqOptions, deferred, createOnly);
+                                    });
+                            }
                         } else if (!isRaw) {
                             // Creating new asset metadata. Fernando web asset or create-only.
                             restObject.getUpdateRequestOptions(context, opts)
                                 .then(function (reqOptions) {
                                     reqOptions.body = requestBody;
-                                    postAssetMetadata(context, reqOptions, deferred, createOnly);
+                                    restObject._postAssetMetadata(context, reqOptions, deferred, createOnly);
                                 });
                         } else {
                             deferred.resolve(body);
