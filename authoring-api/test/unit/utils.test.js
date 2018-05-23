@@ -815,6 +815,10 @@ describe("utils", function () {
         const filePath = "/one/two/three/four/five/six/seven/eight/foo.bar";
 
         it("should work if no basePath specified", function (done) {
+            // Create a stub for fs.existsSync that returns true.
+            const stubExists = sinon.stub(fs, "existsSync");
+            stubExists.returns(true);
+
             // Create a stub for fs.readdirSync that returns an empty list at each level.
             const stubRead = sinon.stub(fs, "readdirSync");
             stubRead.returns([]);
@@ -830,6 +834,7 @@ describe("utils", function () {
             } catch (e) {
                 error = e;
             } finally {
+                stubExists.restore();
                 stubRead.restore();
                 stubRm.restore();
                 done(error);
@@ -837,6 +842,10 @@ describe("utils", function () {
         });
 
         it("should do nothing if the specified file is in basePath", function (done) {
+            // Create a stub for fs.existsSync that returns true.
+            const stubExists = sinon.stub(fs, "existsSync");
+            stubExists.returns(true);
+
             // Create a spy for fs.readdirSync to verify that it is not called.
             const spyRead = sinon.spy(fs, "readdirSync");
 
@@ -851,6 +860,7 @@ describe("utils", function () {
             } catch (e) {
                 error = e;
             } finally {
+                stubExists.restore();
                 spyRead.restore();
                 spyRm.restore();
                 done(error);
@@ -858,6 +868,10 @@ describe("utils", function () {
         });
 
         it("should work as expected if there is a sibling file", function (done) {
+            // Create a stub for fs.existsSync that returns true.
+            const stubExists = sinon.stub(fs, "existsSync");
+            stubExists.returns(true);
+
             // Create a stub for fs.readdirSync that returns a sibling file in the specified directory.
             const stubRead = sinon.stub(fs, "readdirSync");
             stubRead.returns(["ack.txt"]);
@@ -873,6 +887,7 @@ describe("utils", function () {
             } catch (e) {
                 error = e;
             } finally {
+                stubExists.restore();
                 stubRead.restore();
                 spyRm.restore();
                 done(error);
@@ -880,6 +895,10 @@ describe("utils", function () {
         });
 
         it("should work as expected if there is no sibling file", function (done) {
+            // Create a stub for fs.existsSync that returns true.
+            const stubExists = sinon.stub(fs, "existsSync");
+            stubExists.returns(true);
+
             // Create a stub for fs.readdirSync that returns a sibling file in the specified directory.
             const stubRead = sinon.stub(fs, "readdirSync");
             stubRead.returns(null);
@@ -895,6 +914,7 @@ describe("utils", function () {
             } catch (e) {
                 error = e;
             } finally {
+                stubExists.restore();
                 stubRead.restore();
                 stubRm.restore();
                 done(error);

@@ -2,7 +2,6 @@
   "name": "CLIENT_TOOL_TEST",
   "classification": "content-type",
   "description": "Client Tooling test type",
-  "tags": "",
   "status": "draft",
   "templateMapping": "",
   "creator": "user",

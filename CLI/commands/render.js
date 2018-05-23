@@ -21,7 +21,6 @@ const ToolsApi = require("wchtools-api");
 const loginHelper = ToolsApi.getLogin();
 const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
-const ora = require("ora");
 
 const jobParameters =  {
     "mode":"UPDATE",
@@ -60,11 +59,6 @@ class RenderCommand extends BaseCommand {
         const helper = ToolsApi.getPublishingJobsHelper();
         const self = this;
 
-        // Check to see if the initialization process was successful.
-        if (!self.handleInitialization(context)) {
-            return;
-        }
-
         // Make sure the url option has been specified.
         self.handleUrlOption(context)
             .then(function () {
@@ -75,9 +69,13 @@ class RenderCommand extends BaseCommand {
                 // Login using the current options.
                 return loginHelper.login(context, self.getApiOptions());
             })
+            .then(function () {
+                // Check to see if the initialization process was successful.
+                return self.handleInitialization(context);
+            })
             .then(function (/*results*/) {
                 BaseCommand.displayToConsole(i18n.__('cli_rendering_job_started'));
-                self.spinner = ora();
+                self.spinner = self.getProgram().getSpinner();
                 self.spinner.start();
                 return helper.createPublishingJob(context, jobParameters, self.getApiOptions())
                     .then(job => {

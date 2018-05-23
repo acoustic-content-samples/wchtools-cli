@@ -1,0 +1,31 @@
+{
+  "id": "d9468984-844e-47d6-ad6b-bb9f7d444aa5",
+  "rev": "90-c334d875e27be7ae0f1a73b516587dbb",
+  "name": "test1b",
+  "classification": "content-type",
+  "description": "Type used for testing path",
+  "creator": "Adam",
+  "creatorId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "created": "2016-10-17T21:01:14.391Z",
+  "lastModifier": "Adam",
+  "lastModifierId": "4ad72772-4aa3-4f94-ba6b-52754ff4e4c6",
+  "lastModified": "2016-10-17T21:03:08.833Z",
+  "status": "ready",
+  "tags": [],
+  "elements": [
+    {
+      "elementType": "image",
+      "acceptType": [
+        "jpg",
+        "jpeg",
+        "png",
+        "gif",
+        "svg"
+      ],
+      "fieldLabel": "Image",
+      "label": "Website logo",
+      "key": "websiteLogo",
+      "required": false
+    }
+  ]
+}

@@ -59,13 +59,15 @@ class LayoutsFsUnitTest extends BaseFsUnit {
 
         // Set the current working directory to the "valid resources" directory.
         fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY})
-            .then(function (paths) {
+            .then(function (items) {
                 // Verify that the expected values are returned.
-                expect(paths).to.have.lengthOf(2);
-                expect(paths[0].path).to.be.oneOf([itemName1, itemName2]);
-                expect(paths[0].id).to.not.exist;
-                expect(paths[1].path).to.be.oneOf([itemName1, itemName2]);
-                expect(paths[1].id).to.not.exist;
+                expect(items).to.have.lengthOf(2);
+                expect(items[0].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items[0].id).to.not.exist;
+                expect(items[0].name).to.not.exist;
+                expect(items[1].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items[1].id).to.not.exist;
+                expect(items[1].name).to.not.exist;
             })
             .catch (function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -103,14 +105,18 @@ class LayoutsFsUnitTest extends BaseFsUnit {
 
         // Set the current working directory to the "valid resources" directory.
         fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY})
-            .then(function (paths) {
+            .then(function (items) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
 
                 // Verify that the expected values are returned.
-                expect(paths).to.have.lengthOf(2);
-                expect(paths[0].path).to.be.oneOf([itemName1, itemName2]);
-                expect(paths[1].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items).to.have.lengthOf(2);
+                expect(items[0].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items[1].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items[0].name).to.be.oneOf(["layout-1", "layout-2"]);
+                expect(items[1].name).to.be.oneOf(["layout-1", "layout-2"]);
+                expect(items[0].id).to.exist;
+                expect(items[1].id).to.exist;
             })
             .catch (function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -145,15 +151,21 @@ class LayoutsFsUnitTest extends BaseFsUnit {
         let error;
 
         // Set the current working directory to the "valid resources" directory.
-        fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY, "additionalItemProperties": ["status"]})
-            .then(function (paths) {
+        fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY, "additionalItemProperties": ["template"]})
+            .then(function (items) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
 
                 // Verify that the expected values are returned.
-                expect(paths).to.have.lengthOf(2);
-                expect(paths[0].path).to.be.oneOf([itemName1, itemName2]);
-                expect(paths[1].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items).to.have.lengthOf(2);
+                expect(items[0].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items[1].path).to.be.oneOf([itemName1, itemName2]);
+                expect(items[0].name).to.be.oneOf(["layout-1", "layout-2"]);
+                expect(items[1].name).to.be.oneOf(["layout-1", "layout-2"]);
+                expect(items[0].id).to.exist;
+                expect(items[1].id).to.exist;
+                expect(items[0]["template"]).to.be.oneOf(["/abc/def.hbs", "/templates/mytemplate.hbs"]);
+                expect(items[1]["template"]).to.be.oneOf(["/abc/def.hbs", "/templates/mytemplate.hbs"]);
             })
             .catch (function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -162,6 +174,71 @@ class LayoutsFsUnitTest extends BaseFsUnit {
             })
             .finally(function () {
                 // noinspection JSUnresolvedFunction
+                // Restore the default options.
+                UnitTest.restoreOptions(context);
+
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    }
+
+    // Override the base FS test to test list by path.
+    listNamesByPath (fsApi, itemName1, itemName2, done) {
+        // Create a stub that will return a list of item names from the recursive function.
+        const stubDir = sinon.stub();
+        const err = null;
+        const metadataPath1 = UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + "layouts/bar/foo1.json";
+        const metadataPath2 = UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + "layouts/bar/foo2.json";
+        const metadataPath3 = UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + "layouts/foo/bar1.json";
+        const metadataPath4 = UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY + "layouts/foo/bar2.json";
+        stubDir.yields(err, [metadataPath1, metadataPath2, metadataPath3, metadataPath4]);
+
+        // Subvert the "recursive-readdir" module with the specified stub.
+        requireSubvert.subvert("recursive-readdir", stubDir);
+
+        // Reload JSONPathBasedItemFS and layoutsFS, so that fsApi gets will use the subverted recursive-readdir.
+        requireSubvert.require(UnitTest.API_PATH + "lib/JSONPathBasedItemFS.js");
+        fsApi = requireSubvert.require(UnitTest.API_PATH + "lib/layoutsFS.js").instance;
+
+        // Create an fs.readFileSync stub that will return an empty object.
+        const stubFile = sinon.stub(fs, "readFileSync");
+        stubFile.returns("{}");
+
+        const FAKE_EXTENSION = ".json";
+        const stubGetExtension = sinon.stub(fsApi, "getExtension");
+        stubGetExtension.returns(FAKE_EXTENSION);
+
+        this.addTestDouble(stubFile);
+        this.addTestDouble(stubGetExtension);
+
+        // Call the method being tested.
+        let error;
+
+        // Set the current working directory to the "valid resources" directory.
+        fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY, filterPath: "foo"})
+            .then(function (items) {
+                // Verify that the dir stub was called once and the file stub was called twice.
+                expect(stubDir).to.have.been.calledOnce;
+                expect(stubFile).to.have.been.calledTwice;
+
+                // Verify that the expected values are returned.
+                expect(items).to.have.lengthOf(2);
+                expect(items[0].path).to.contain("/foo/");
+                expect(items[1].path).to.contain("/foo/");
+            })
+            .catch (function (err) {
+                // NOTE: A failed expectation from above will be handled here.
+                // Pass the error to the "done" function to indicate a failed test.
+                error = err;
+            })
+            .finally(function () {
+                // Restore the subverted functions.
+                requireSubvert.cleanUp();
+
+                // Reload JSONPathBasedItemFS and layoutsFS, so that fsApi gets the original recursive-readdir.
+                require(UnitTest.API_PATH + "lib/JSONPathBasedItemFS.js");
+                fsApi = require(UnitTest.API_PATH + "lib/layoutsFS.js").instance;
+
                 // Restore the default options.
                 UnitTest.restoreOptions(context);
 

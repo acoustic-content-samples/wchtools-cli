@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "listModifiedRemoteItemNames でリモート・アイテム・リストをフィルタリング中にエラーが発生しました",
   "push_error_creating_item": "アイテムの作成でプッシュ・エラーが発生しました: ",
   "push_error_updating_item": "アイテムの更新でプッシュ・エラーが発生しました: ",
+  "push_warning_ignore_conflict": "プッシュ済みアイテム %(name)s 内の重要でない違いを無視します。",
   "pushed_item_error": "プッシュ済みアイテム・エラー: ",
   "pushed_item_retry": "アイテム '%(name)s' のプッシュを再試行してください。 エラー: %(message)s",
   "invalid_path": "無効なパス: %(path)s",
@@ -24,6 +25,7 @@
   "save_item_write_failed_bad_path": "saveItem でファイル %(path)s への書き込みに失敗しました。パスが正しくありません",
   "close_stream_failed": "closeStream がエラーで失敗しました: ",
   "error_options_file": "構成オプション・ファイル %(filename)s の読み取り中にエラーが発生しました。 %(error)s",
+  "error_manifest_file": "マニフェスト・ファイル %(filename)s の読み取り中にエラーが発生しました。%(error)s",
 
   "name_required": "名前を指定する必要があります。",
   "category_exists": "名前 %(name)s のカテゴリーは既に存在します。",
@@ -49,6 +51,9 @@
   "error_set_last_pull_timestamp": "setLastPullTimestamp でエラーが発生しました: ",
   "error_set_last_push_timestamp": "setLastPushTimestamp でエラーが発生しました: ",
   "error_get_hashes_for_file": "getHashesForFile でエラーが発生しました: ",
+  "error_manifest_file_read": "マニフェスト・ファイル %(filename)s の読み取り中にエラーが発生しました: %(error)s",
+  "error_manifest_file_write": "マニフェスト・ファイル %(filename)s の書き込み中にエラーが発生しました: %(error)s",
+  "error_manifest_file_does_not_exist": "マニフェスト・ファイル %(filename)s が存在しません。",
 
   "error_unsupported_endpoint": "%(service_name)s のAPI は %(endpoint)s のエンドポイントをサポートしていません。",
   "unknown_error": "不明なエラー",
@@ -66,6 +71,7 @@
   "retry_failed_retry": "再試行 (attempt %(attempt)d) した要求 (%(id)d) は、最大再試行回数になる前に失敗しました。 %(message)s",
   "retry_next_attempt": "要求 (%(id)d) は  %(delay)d ミリ秒後に再試行 (再試行 %(attempt)d) されます。",
   "retry_success": "再試行された要求 (%(id)d) は、%(attempt)d 回の再試行後に成功しました。",
-  "retry_max_attempts": "要求 (%(id)d) は最大回数の再試行が行われました。"
+  "retry_max_attempts": "要求 (%(id)d) は最大回数の再試行が行われました。",
+  "header_value_not_string": "HTTP ヘッダー %(header)s を無視します。指定された値がストリングではありません。"
 }
 

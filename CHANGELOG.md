@@ -1,5 +1,13 @@
 # Changelog
 
+### 2.7.1 changes since 2.6.2
+  - Add support for push, pull, and list of Layouts, Mappings and Content Types by path.
+  - Add support for creating/updating a deletions manifest when pulling deletions.
+  - For the case of deleting the results of a search (--named, --path, --by-type-name), an empty search result will be treated as a warning instead of an error.
+  - Add support for --server-manifest to delete or pull based on a manifest residing in the tenant's Watson Content Hub artifacts (as opposed to --manifest which looks for the specified manifest in the local working directory, under /dxconfig/manifests assets).
+  - Add support for clear --cache command to clear (invalidate) artifacts in the content delivery network cache
+  - Changes related to simplification of WCH publishing flow:  - publishing job id removed from publish response and ignored on publish --status command.  No need to push/pull publishing sources and profiles, so those placeholder options have been removed.   publish --status shows state of the overall site revision (which it did before) but no longer shows status for the virtual publishing job, since that isn't the overall state of publishing for the tenant any longer.
+
 ### v2.6.2 changes since 2.5.2
 
  - Add ability to ignore conflicts involving unimportant differences when pushing.

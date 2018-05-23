@@ -68,42 +68,6 @@ class ItemTypesHelper extends JSONPathBasedItemHelper {
     }
 
     /**
-     * Pull all items from the remote content hub to the local file system.
-     *
-     * @param {Object} context The API context to be used for this operation.
-     * @param {Object} opts The options to be used for the pull operations.
-     *
-     * @returns {Q.Promise} A promise to pull the remote items to the local file system.
-     *
-     * @resolves {Array} The items that were pulled.
-     */
-    pullAllItems (context, opts) {
-        // Create a local file path map to be used for cleaning up old files after the pull.
-        const map = this._fsApi.createLocalFilePathMap(context, opts);
-
-        // Use a clone of the opts object to store the local file path map, so that it goes away after the call.
-        return super.pullAllItems(context, utils.cloneOpts(opts, {"localFilePathMap": map}));
-    }
-
-    /**
-     * Pull any modified items from the remote content hub to the local file system.
-     *
-     * @param {Object} context The API context to be used for this operation.
-     * @param {Object} opts - The options to be used for the pull operations.
-     *
-     * @returns {Q.Promise} A promise to pull the modified remote items to the local file system.
-     *
-     * @resolves {Array} The modified items that were pulled.
-     */
-    pullModifiedItems (context, opts) {
-        // Create a local file path map to be used for cleaning up old files after the pull.
-        const map = this._fsApi.createLocalFilePathMap(context, opts);
-
-        // Use a clone of the opts object to store the local file path map, so that it goes away after the call.
-        return super.pullModifiedItems(context, utils.cloneOpts(opts, {"localFilePathMap": map}));
-    }
-
-    /**
      * Determine whether retry push is enabled.
      *
      * @returns {Boolean} A return value of true indicates that retry push is enabled.

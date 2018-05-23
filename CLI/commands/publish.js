@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016, 2017
+Copyright IBM Corporation 2016, 2017, 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ const ToolsApi = require("wchtools-api");
 const loginHelper = ToolsApi.getLogin();
 const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
-const ora = require("ora");
 
 class PublishCommand extends BaseCommand {
     /**
@@ -33,30 +32,17 @@ class PublishCommand extends BaseCommand {
         super(program);
     }
 
-    displayJobStatus(helper, context, jobId, opts) {
+    displaySiteRevisionStatus(helper, context, opts) {
         const self = this;
         const logger = this.getLogger();
         const verbose = self.getCommandLineOption("verbose");
         ToolsApi.getPublishingSiteRevisionsHelper().getRemoteItem(context, "default", opts)
             .then(function (siteRevision) {
                 const msg = i18n.__("cli_publishing_site_revision_state", {state: siteRevision.state});
-                helper.getPublishingJob(context, jobId, opts)
-                    .then(function (job) {
-                        self.successMessage(msg + "\n" + i18n.__("cli_publishing_job_status", {job_status: job.state}));
-                        if (verbose) {
-                            logger.info(i18n.__("cli_publishing_site_revision", {site_revision: JSON.stringify(siteRevision, null, "    ")}));
-                            helper.getPublishingJobStatus(context, jobId, opts)
-                                .then(function(jobStatus) {
-                                    job = Object.assign(job, jobStatus);
-                                    logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
-                                })
-                            }
-                    })
-                    .catch(function (err) {
-                        const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                        self.errorMessage(curError);
-                        self.resetCommandLineOptions();
-                    });
+                self.successMessage(msg);
+                if (verbose) {
+                    logger.info(i18n.__("cli_publishing_site_revision", {site_revision: JSON.stringify(siteRevision, null, "    ")}));
+                }
                 self.resetCommandLineOptions();
             })
             .catch(function (err) {
@@ -66,20 +52,8 @@ class PublishCommand extends BaseCommand {
             });
     }
 
-    static getJobIdFromStatusOption(helper, context, status, opts) {
-        // If status is boolean==true then --status was specified without a job id so lookup most recent job
-        if (status === true) {
-            return helper.getPublishingJobs(context, utils.cloneOpts(opts, {limit: 1}))
-                .then(jobs => {
-                    return ((jobs && jobs.length>0) ? jobs[0].id : null);
-                });
-        } else {
-            return Promise.resolve(status);
-        }
-    }
-
     /**
-     * Create a new publishing job.
+     * Create a new publishing job, or look up the status of the publishing site revision.
      */
     doPublish () {
         // Create the context for publishing.
@@ -94,11 +68,6 @@ class PublishCommand extends BaseCommand {
         const helper = ToolsApi.getPublishingJobsHelper();
         const self = this;
 
-        // Check to see if the initialization process was successful.
-        if (!self.handleInitialization(context)) {
-            return;
-        }
-
         // Make sure the url option has been specified.
         self.handleUrlOption(context)
             .then(function () {
@@ -109,41 +78,37 @@ class PublishCommand extends BaseCommand {
                 // Login using the current options.
                 return loginHelper.login(context, apiOptions);
             })
+            .then(function () {
+                // Check to see if the initialization process was successful.
+                return self.handleInitialization(context);
+            })
             .then(function (/*results*/) {
                 if (status) {
-                    return PublishCommand.getJobIdFromStatusOption(helper, context, status, apiOptions)
-                        .then(jobId => {
-                            if (jobId) {
-                                self.displayJobStatus(helper, context, jobId, apiOptions);
-                            } else {
-                                self.errorMessage(i18n.__('cli_publishing_no_jobs'));
-                            }
-                        });
+                    self.displaySiteRevisionStatus(helper, context, apiOptions);
                 } else {
-                    BaseCommand.displayToConsole(i18n.__('cli_publishing_job_started'));
-                    self.spinner = ora();
+                    BaseCommand.displayToConsole(i18n.__('cli_publishing_job_starting'));
+                    self.spinner = self.getProgram().getSpinner();
                     self.spinner.start();
                     return helper.createPublishingJob(context, jobParameters, apiOptions)
                         .then(job => {
-                            const createIdMsg = i18n.__('cli_publishing_job_created', {id: job.id});
                             self.spinner.stop();
-                            self.successMessage(createIdMsg);
+                            const startedMsg = i18n.__('cli_publishing_job_started');
+                            self.successMessage(startedMsg);
                             if (self.getCommandLineOption("verbose")) {
                                 logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
                             }
-                            self.resetCommandLineOptions();
                         })
                         .catch(err => {
                             const curError = i18n.__("cli_publishing_job_error", {message: err.message});
                             self.spinner.stop();
                             self.errorMessage(curError);
-                            self.resetCommandLineOptions();
                         });
                 }
             })
             .catch(err => {
-                const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                self.errorMessage(curError);
+                self.errorMessage(i18n.__("cli_publishing_job_error", {message: err.message}));
+            })
+            .finally(() =>{
                 self.resetCommandLineOptions();
             });
     }

@@ -80,6 +80,21 @@ class PagesFS extends JSONPathBasedItemFS {
     }
 
     /**
+     * Create a map of the local artifact files. The map will contain an array of file paths for each item id.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @return {Object} A map of the local artifact files.
+     *
+     * @protected
+     */
+    createLocalFilePathMap (context, opts) {
+        // Do not create a map of pages -- renamed pages are handled differently than other path-based items.
+        return null;
+    }
+
+    /**
      * Handle any necessary cleanup of the local file system when an artifact has been renamed.
      *
      * @param {Object} context The API context to be used for this operation.

@@ -145,8 +145,6 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
        image-profiles/     ( authoring image profiles )
        renditions/         ( authoring renditions )
        sites/{site-id}/{pages}  site metadata and page node hierarhy for the site
-       publishing-profiles/( publishing profiles )
-       publishing-sources/ ( publishing sources )
        resources/          ( image resources no longer referenced by asset metadata, when images updated on assets )
        types/              ( authoring content types )
 
@@ -168,9 +166,9 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   When you pull artifacts from the Watson Content Hub authoring services, wchtools CLI creates folders for types, assets, and content under the working directory. The tool does not operate on raw artifacts in a current working directory. You must specify the <working-directory> parent of the subfolders that contain the contain artifacts, or be in the <working-directory> parent folder that contains such subfolders, when you run wchtools CLI with the push, pull or list commands.
 
-#### Pulling web assets under a specific folder or path
+#### Pulling artifacts under a specific folder or path
 
-  To pull web assets under a specific path, specify the --path {/somepath} option.  For example:
+  To pull web assets, content types, layouts, and/or layout mappings under a specific path, specify the --path option.  For example:
 
     wchtools pull -w -v --path /myNavigationWidget  --dir <path-to-working-directory>
 
@@ -208,7 +206,8 @@ wchtools pull -A (or specified artifact type)  with --deletions
   - Is a super-set of -I --ignore-timestamps, in that it will walk every instance of the specified artifact types, ensuring you have the latest copy of each
   - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the WCH authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.
   - It asks whether you want to delete these local-only files, rather than deleting by default, in case they were local files just created by the developer, that you just haven't pushed yet.
-  -If you know the local working directory shouldn't have any locally created files that you haven't pushed yet (eg, it's used for backup only, not for creating new artifacts) you may run wchtools pull -A --deletions --quiet to tell it to quietly (no-prompt) delete artifacts that exist locally but were not pulled during this pull --deletions (ignoring timestamps) session.
+  - If you know the local working directory shouldn't have any locally created files that you haven't pushed yet (eg, it's used for backup only, not for creating new artifacts) you may run wchtools pull -A --deletions --quiet to tell it to quietly (no-prompt) delete artifacts that exist locally but were not pulled during this pull --deletions (ignoring timestamps) session.
+  - To create a manifest of the deleted (local) artifacts, use the --write-deletions-manifest option. (In this case, the --write-manifest option is used to create a manifest of the pulled artifacts.)
 
 #### Pulling all artifact types, ignoring timestamps, prompting to delete stale local files
 
@@ -385,10 +384,17 @@ Alternatively, if you specify the manifest using a full path, you can point to a
 
     wchtools pull --manifest /Users/wchuser/manifests/my_site.json
 
+The manifest can also be loaded from Watson Content Hub using the --server-manifest option.
+
+    wchtools pull --server-manifest my_site
+
+will look for a manifest file named my_site.json in /dxconfig/manifests on Watson Content Hub.
+
 #### Using a manifest
-A manifest can be specified using the manifest option on the command line. For example:
+A manifest can be specified using the manifest or server-manifest option on the command line. For example:
 
     wchtools push --manifest <manifest>
+    wchtoosl pull --server-manifest <manifest>
 
 When a manifest is specified, the manifest provides the list of artifacts that the command should act on. For example, if your manifest contained only 3 content items, but your working directory contained 10 content items, the command:
 
@@ -412,6 +418,12 @@ A manifest can be used as a list of artifacts to delete, using:
 
 This will delete only those artifacts that are specified in the manifest file.
 
+Or
+
+    wchtools delete --server-manifest <manifest>
+
+will delete only those artifacts that are specified in the named manifest obtained from Watson Content Hub.
+
 #### Creating a new manifest
 A manifest file can be created based on the results of the artifacts successfully processed by the push, pull, delete and list commands.
 
@@ -427,9 +439,10 @@ To generate a new manifest from the contents of your WCH tenant, use:
 
     wchtools list --server --write-manifest <manifest>
 
-To generate a new manifest of web artifacts under a specific folder path, use the --path argument with the web assets path (eg, for /myNavWidget):
+To generate a new manifest of artifacts under a specific folder path, use the --path argument. For example:
 
     wchtools list -w --server --write-manifest <manifest> --path /myNavWidget
+    wchtools list -tlm --server --write-manifest <manifest> --path /standard
 
 To push the modified contents of your local working directory to your tenant and generate a manifest that includes only the artifacts that were pushed, use:
 
@@ -448,6 +461,14 @@ It is possible to use both --manifest and --write-manifest in the same command. 
     wchtools push -c --manifest my_site --write-manifest new_content
 
 Assuming you had an existing manifest called my_site which included all artifacts for your site, the above command would push only the locally modified content items to your tenant and afterwards generate a new manifest called new_content which includes only those content items that were modified (and successfully pushed to your tenant).
+
+#### Storing a manifest on Watson Content Hub
+
+Manifests can be stored on Watson Content Hub. The manifest file can be treated as a web asset and pushed to Watson Content Hub. The following command
+
+    wchtools push -w --path /dxconfig/manifests
+
+will push any manifests in the /dxconfig/manifests directory to Watson Content Hub. Any manifests stored like this on Watson Content Hub can then be accessed using the --server-manifest argument.
 
 ### Pulling, pushing, and listing only "ready" artifacts.
 Some artifact types (content items and content assets) support draft versions. A draft version of an artifact is a working copy that will not be published until it is set to ready. For this reason a site developer may not want to include draft versions in a push, pull, or list operation.
@@ -506,21 +527,23 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools pull --dir <some directory>
 
-  Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. To allow for a more granular push of web resource assets, with an option for a path below the <working-directory>/assets/ root path, you can push only a subset of web resource assets. For example, consider a working directory named  c:\work on Windows or ~/work on Linux or Mac, with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , topNav, sideNav.
+  Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. You can specify a more granular folder structure when pushing or pulling web assets, content types, layouts, and layout mappings. By using the --path option, you can specify a path below the <working-directory>/<artifact-type>/ folder. For example, consider a working directory with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , topNav, and sideNav.
 
    - To push only the web assets under a folder called /topNav, you would use
 
-              wchtools push --path /topNav
+              wchtools push -w --path /topNav
 
-   - To push only the style folder that is below the topNav folder, you would use
+   - To pull only the style folder that is below the topNav folder, you would use
 
-             wchtools push --path /topNav/style
+             wchtools pull -w --path /topNav/style
 
-   - To push assets from a specific working directory, use
+   - To push content types from a specific folder, use
 
-            wchtools push --dir <somedirectory>
+            wchtools push -t --path <somefolder>
 
-     This command assumes that the specified directory has an assets/ subtree that contains all assets.
+   - To pull layouts from a specific folder, use
+
+            wchtools push -l --path <somefolder>
 
 #### Granular Options
 
@@ -530,9 +553,9 @@ NOTE:  Granular options such as pushing only one or more artifact types at a tim
 
            wchtools push -act
 
-  Use the following command to push all categories, assets, contents, types and sources from a specific directory. The -I switch pushes even unmodified items.
+  Use the following command to push all categories, assets, contents, types from a specific directory. The -I switch pushes even unmodified items.
 
-           wchtools push -Cacts  --I --dir <some_working_directory>
+           wchtools push -Cact  --I --dir <some_working_directory>
 
 #### Publishing Site Revision and Auto-Publishing
 
@@ -630,6 +653,12 @@ After you disable auto-publishing, you may either invoke a publish manually with
   - Note, the above sample using the "/templates" folder under assets, layouts and layout-mappings is an example for reference only.  You may choose another folder name and multiple subfolder levels if desired.  It is recommended that you keep the folder names and filenames under assets, layouts and layout-mappings,   and the name of the template, layout and layout mapping files similar and similar to the Type name that you are creating these artifacs for,  to make it easier to find when making further edits, and to make it easier for others on your team to understand the relationship between the files quickly and easily, when browsing the local artifacs in an IDE.
 
   - See the Watson Content Hub online documentation for more information on Layout, Layout Mapping syntax and metadata supported, and the Publishing and Rendering documentation, for how these artifacts are combined during a publishing and rendering job, to generate HTML.
+
+#### Clearing the Watson Content Hub content delivery network cache
+
+ The content delivery network caches web artifacts, for performance reasons.  When you push updates to web artifacts with wchtools, you may still see the older cached artifacts for some amount of time, even after the assets are published to the delivery network by WCH.  If you need to invalidate the cache and see the changes immediately, you may use the following wchtools command to clear the CDN cache (invalidate the cache entries).  This results in all artifacts in the cache being cleared, not just the modified artifacts.  This may have performance implications (artifacts that have not changed will also have to be re-cached on the CDN and downloaded again by callers), so the following command should only be used when necessary and not on every push.
+
+             wchtools clear --cache
 
 #### Specifying maximum heap size
   The maximum heap size used for the node process can be specified by setting an environment variable and running an alternate command provided with Watson Content Hub Developer Tools.  An alternate command "wchtools_heap" provides the ability to configure the maximum heap used by node.  To set the maximum heap, set the environment variable WCHTOOLS_MAX_HEAP to a numeric value, specified in megabytes.  For example, to use a 2GB heap, set WCHTOOLS_MAX_HEAP=2048.

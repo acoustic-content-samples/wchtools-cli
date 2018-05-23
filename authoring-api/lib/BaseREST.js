@@ -442,9 +442,16 @@ class BaseREST {
     }
 
     /*
-     * Does this WCH REST API currently support the forceOverride query param?
+     * Does this WCH REST API currently support the forceOverride query param on Update/PUT?
      */
     supportsForceOverride () {
+        return false;
+    }
+
+    /*
+     * Does this WCH REST API currently support the forceOverride query param on Create/POST?
+     */
+    supportsForceOverrideOnCreate () {
         return false;
     }
 

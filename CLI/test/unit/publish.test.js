@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016, 2017
+Copyright IBM Corporation 2016, 2017, 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,11 +50,11 @@ const loginHelper = ToolsApi.getLogin();
 
 const toolsCli = require("../../wchToolsCli");
 
-describe("Test Publishing command", function () {
+describe("Test publish command", function () {
     let stubLogin;
     before(function (done) {
         stubLogin = sinon.stub(loginHelper, "login");
-        stubLogin.resolves("Adam.iem@mailinator.com");
+        stubLogin.resolves("wchuser@wchisgreat.wch");
         done();
     });
 
@@ -72,7 +72,7 @@ describe("Test Publishing command", function () {
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
-                expect (msg).to.contain('foo');
+                expect (msg).to.contain('accepted');
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -86,7 +86,7 @@ describe("Test Publishing command", function () {
             });
     });
 
-    it("check publish with -uv args" , function (done) {
+    it("check publish with -rv args" , function (done) {
         const stubGet = sinon.stub(helper, "createPublishingJob");
         stubGet.resolves({id: 'foo'});
 
@@ -95,7 +95,7 @@ describe("Test Publishing command", function () {
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubGet).to.have.been.calledOnce;
-                expect(msg).to.contain('foo');
+                expect(msg).to.contain('accepted');
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -164,14 +164,11 @@ describe("Test Publishing command", function () {
         const stubGetSR = sinon.stub(srHelper, "getRemoteItem");
         stubGetSR.resolves({id: 'mypublishingSiteRevision', state: 'WAITING'});
 
-        const stubGet = sinon.stub(helper, "getPublishingJob");
-        stubGet.resolves({id: 'mypublishiingjobid', state: 'WAITING'});
-
         let error;
         toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
-                expect(stubGet).to.have.been.calledOnce;
+                expect(stubGetSR).to.have.been.calledOnce;
                 expect(msg).to.contain('WAITING');
             })
             .catch(function (err) {
@@ -181,7 +178,6 @@ describe("Test Publishing command", function () {
             })
             .finally(function () {
                 // Call mocha's done function to indicate that the test is over.
-                stubGet.restore();
                 stubGetSR.restore();
                 done(error);
             });
@@ -189,12 +185,6 @@ describe("Test Publishing command", function () {
 
 
     it("check publish --status without job id" , function (done) {
-        const stubGetJobs = sinon.stub(helper, "getPublishingJobs");
-        stubGetJobs.resolves([{id: 'mypublishiingjobid'}]);
-
-        const stubGet = sinon.stub(helper, "getPublishingJob");
-        stubGet.resolves({id: 'mypublishiingjobid', state: 'SUCCESS'});
-
         const stubGetSR = sinon.stub(srHelper, "getRemoteItem");
         stubGetSR.resolves({id: 'mypublishingSiteRevision', state: 'SUCCESS'});
 
@@ -202,7 +192,7 @@ describe("Test Publishing command", function () {
         toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
-                expect(stubGet).to.have.been.calledOnce;
+                expect(stubGetSR).to.have.been.calledOnce;
                 expect(msg).to.contain('SUCCESS');
             })
             .catch(function (err) {
@@ -212,64 +202,7 @@ describe("Test Publishing command", function () {
             })
             .finally(function () {
                 // Call mocha's done function to indicate that the test is over.
-                stubGet.restore();
-                stubGetJobs.restore();
                 stubGetSR.restore();
-                done(error);
-            });
-    });
-
-    it("check publish --status fails when no publishing jobs found" , function (done) {
-        const stub = sinon.stub(helper, "getPublishingJobs");
-        stub.resolves([]);
-
-        let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
-            .then(function () {
-                // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                error = new Error("The command should have failed.");
-            })
-            .catch(function (err) {
-                // Verify the stub was called once, and the expected error was returned.
-                expect(stub).to.have.been.calledOnce;
-                expect(err.message).to.contain('No publishing jobs found');
-            })
-            .catch(function (err) {
-                // NOTE: A failed expectation from above will be handled here.
-                // Pass the error to the "done" function to indicate a failed test.
-                error = err;
-            })
-            .finally(function () {
-                // Call mocha's done function to indicate that the test is over.
-                stub.restore();
-                done(error);
-            });
-    });
-
-    it("check publish --status fails when getPublishingJobs fails" , function (done) {
-        const PUBLISH_ERROR = "Publishing error expected by unit test.";
-        const stub = sinon.stub(helper, "getPublishingJobs");
-        stub.rejects(PUBLISH_ERROR);
-
-        let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
-            .then(function () {
-                // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                error = new Error("The command should have failed.");
-            })
-            .catch(function (err) {
-                // Verify the stub was called once, and the expected error was returned.
-                expect(stub).to.have.been.calledOnce;
-                expect(err.message).to.contain(PUBLISH_ERROR);
-            })
-            .catch(function (err) {
-                // NOTE: A failed expectation from above will be handled here.
-                // Pass the error to the "done" function to indicate a failed test.
-                error = err;
-            })
-            .finally(function () {
-                // Call mocha's done function to indicate that the test is over.
-                stub.restore();
                 done(error);
             });
     });
@@ -278,18 +211,11 @@ describe("Test Publishing command", function () {
         const stubGetSR = sinon.stub(srHelper, "getRemoteItem");
         stubGetSR.resolves({id: 'mypublishingSiteRevision', state: 'WAITING'});
 
-        const stubGet = sinon.stub(helper, "getPublishingJob");
-        stubGet.resolves({id: 'mypublishingjobid', state: 'WAITING'});
-
-        const stubStatus = sinon.stub(helper, "getPublishingJobStatus");
-        stubStatus.resolves({state: 'WAITING'});
-
         let error;
         toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', '123456', '-v', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
             .then(function (msg) {
                 // The stub should only have been called once, and it should have been before the spy.
-                expect(stubGet).to.have.been.calledOnce;
-                expect(stubStatus).to.have.been.calledOnce;
+                expect(stubGetSR).to.have.been.calledOnce;
                 expect(msg).to.contain('WAITING');
             })
             .catch(function (err) {
@@ -299,8 +225,7 @@ describe("Test Publishing command", function () {
             })
             .finally(function () {
                 // Call mocha's done function to indicate that the test is over.
-                stubGet.restore();
-                stubStatus.restore();
+
                 stubGetSR.restore();
                 done(error);
             });
@@ -327,36 +252,6 @@ describe("Test Publishing command", function () {
             .finally(function () {
                 // Call mocha's done function to indicate that the test is over.
                 stubGetItem.restore();
-                done(error);
-            });
-    });
-
-    it("check publish --status fails when getPublishingJob() fails" , function (done) {
-        const stubGetSR = sinon.stub(srHelper, "getRemoteItem");
-        stubGetSR.resolves({id: 'mypublishingSiteRevision', state: 'SUCCESS'});
-
-        const stubGet = sinon.stub(helper, "getPublishingJob");
-        stubGet.rejects("Error");
-
-        let error;
-        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', 'badjobid', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
-            .then(function () {
-                // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                error = new Error("The publish --status command with bad job id should have failed.");
-            })
-            .catch(function (err) {
-                try {
-                    // The stub should only have been called once, and it should have been before the spy.
-                    expect(stubGet).to.have.been.calledOnce;
-                    expect(err.message).to.contain('Error');
-                } catch (err) {
-                    error = err;
-                }
-            })
-            .finally(function () {
-                // Call mocha's done function to indicate that the test is over.
-                stubGet.restore();
-                stubGetSR.restore();
                 done(error);
             });
     });
@@ -389,4 +284,25 @@ describe("Test Publishing command", function () {
                 done(error);
             });
     });
+
+    it("check publish --status fails when login fails" , function (done) {
+        stubLogin.throws(new Error("Login failed."));
+
+        let error;
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'publish', '--status', 'badjobid', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
+            .then(function () {
+                // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                error = new Error("The publish --status command should have failed with a login failure.");
+            })
+            .catch(function (err) {
+                // The stubs should only have been called once, and it should have been before the spy.
+                expect(err.message).to.contain('Login failed');
+            })
+            .catch(function (err) {
+                error = err;
+            })
+            .finally(function () {
+                done(error);
+            });
+    });    
 });

@@ -73,7 +73,6 @@ describe("Test Render command", function () {
                 expect(stubJob).to.have.been.calledOnce;
                 expect(stubJob.firstCall.args[1].mode).to.equal("UPDATE");
                 expect(stubJob.firstCall.args[1].jobDefinition.profile.enableRendering).to.equal(true);
-                expect (msg).to.contain('foo');
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.
@@ -97,7 +96,6 @@ describe("Test Render command", function () {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubJob).to.have.been.calledOnce;
                 expect(stubJob.firstCall.args[1].mode).to.equal("REBUILD");
-                expect(msg).to.contain('foo');
             })
             .catch(function (err) {
                 // NOTE: A failed expectation from above will be handled here.

@@ -1,0 +1,49 @@
+{
+  "id": "4bc1a3b11e6f887de98fe07fa016a588",
+  "rev": "60-c334d875e27be7ae0f1a73b516587db8",
+  "name": "test1a",
+  "classification": "content-type",
+  "description": "Type used for testing path",
+  "creator": "Adam.iem",
+  "creatorId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "created": "2016-10-21T10:14:21.617Z",
+  "lastModifier": "Adam.iem",
+  "lastModifierId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "lastModified": "2016-10-21T10:35:12.481Z",
+  "status": "draft",
+  "tags": [
+    "string"
+  ],
+  "elements": [
+    {
+      "elementType": "text",
+      "fieldLabel": "Text",
+      "label": "Event title",
+      "key": "heading"
+    },
+    {
+      "elementType": "datetime",
+      "fieldLabel": "Date",
+      "label": "Event date",
+      "key": "date"
+    },
+    {
+      "elementType": "formattedtext",
+      "fieldLabel": "Formatted Text",
+      "label": "Event description",
+      "key": "body"
+    },
+    {
+      "elementType": "formattedtext",
+      "fieldLabel": "Formatted Text",
+      "label": "Event details",
+      "key": "eventDetails"
+    },
+    {
+      "elementType": "formattedtext",
+      "fieldLabel": "Formatted Text",
+      "label": "Event location",
+      "key": "eventLocation"
+    }
+  ]
+}

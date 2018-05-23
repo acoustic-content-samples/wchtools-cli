@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "Erro ao filtrar lista de itens remotos em listModifiedRemoteItemNames",
   "push_error_creating_item": "Erro de push ao criar o item: ",
   "push_error_updating_item": "Erro de push ao atualizar o item: ",
+  "push_warning_ignore_conflict": "Ignorando diferenças não importantes no item enviado por push: %(name)s.",
   "pushed_item_error": "Erro de envio de item por push: ",
   "pushed_item_retry": "Tente novamente enviando por push o item '%(name)s'. Erro: %(message)s",
   "invalid_path": "Caminho inválido %(path)s",
@@ -24,6 +25,7 @@
   "save_item_write_failed_bad_path": "saveItem falhou ao gravar no arquivo %(path)s caminho incorreto",
   "close_stream_failed": "closeStream falhou com o erro: ",
   "error_options_file": "Erro ao ler o arquivo de opções de configuração: %(filename)s. %(error)s",
+  "error_manifest_file": "Erro ao ler arquivo manifest: %(filename)s. %(error)s",
 
   "name_required": "O nome deve ser especificado.",
   "category_exists": "Uma categoria com o nome %(name)s já existe.",
@@ -49,6 +51,9 @@
   "error_set_last_pull_timestamp": "Erro em setLastPullTimestamp: ",
   "error_set_last_push_timestamp": "Erro em setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Erro em getHashesForFile: ",
+  "error_manifest_file_read": "Erro ao ler arquivo manifest %(filename)s: %(error)s",
+  "error_manifest_file_write": "Erro ao gravar o arquivo manifest %(filename)s: %(error)s",
+  "error_manifest_file_does_not_exist": "O arquivo manifest %(filename)s não existe.",
 
   "error_unsupported_endpoint": "O(s) %(service_name)s API não suporta(m) o(s) endpoint(s) %(endpoint)s.",
   "unknown_error": "Erros Desconhecido",
@@ -66,6 +71,7 @@
   "retry_failed_retry": "Uma solicitação (%(id)d) que foi tentada novamente (tentativa %(attempt)d) falhou antes do número máximo de novas tentativas. %(message)s",
   "retry_next_attempt": "Uma solicitação (%(id)d) será tentada novamente (tentativa %(attempt)d) em %(delay)d milissegundos.",
   "retry_success": "Uma solicitação (%(id)d) que foi tentada novamente foi bem-sucedida depois de %(attempt)d tentativas.",
-  "retry_max_attempts": "Uma solicitação (%(id)d) foi tentada novamente o número máximo de vezes."
+  "retry_max_attempts": "Uma solicitação (%(id)d) foi tentada novamente o número máximo de vezes.",
+  "header_value_not_string": "Ignorando o cabeçalho de HTTP %(header)s; o valor fornecido não é uma sequência."
 }
 

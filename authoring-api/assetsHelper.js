@@ -154,11 +154,24 @@ class AssetsHelper extends BaseHelper {
      * @param {Object} opts - The options to be used for the list operation.
      */
     _updateManifest (context, itemList, opts) {
-        const helper = this;
         const manifestList = itemList.filter(function (item) {
             return (item && item.path && item.path !== "/robots.txt" && item.path !== "/sitemap.xml");
         });
-        manifests.updateManifestSection(context, helper.getArtifactName(), manifestList, opts);
+        manifests.updateManifestSection(context, this.getArtifactName(), manifestList, opts);
+    }
+
+    /**
+     * Updates the deletions manifest with results of an asset operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} itemList The list of items to be added to the deletions manifest.
+     * @param {Object} opts - The options to be used for the list operation.
+     */
+    _updateDeletionsManifest (context, itemList, opts) {
+        const manifestList = itemList.filter(function (item) {
+            return (item && item.path && item.path !== "/robots.txt" && item.path !== "/sitemap.xml");
+        });
+        manifests.updateDeletionsManifestSection(context, this.getArtifactName(), manifestList, opts);
     }
 
     /**
@@ -249,7 +262,7 @@ class AssetsHelper extends BaseHelper {
         // Create an array of functions, one function for each item being retrieved.
         const functions = items.map(function (item) {
             return function () {
-                return helper._restApi.getItem(context, item.id, opts);
+                return helper._restApi.getItemByPath(context, item.path, opts);
             };
         });
 
@@ -314,6 +327,60 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Filter the given list of assets before completing the pull operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} assetList The assets to be pulled.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The filtered list of assets.
+     *
+     * @protected
+     */
+    _pullFilter (context, assetList, opts) {
+        const helper = this;
+
+        // Filter the asset list based on the ready and draft options.
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        if (readyOnly) {
+            // Filter out any assets that are not ready.
+            assetList = assetList.filter(function (asset) {
+                return (!asset.status || asset.status === "ready");
+            });
+        } else if (draftOnly) {
+            // Filter out any assets that are not draft.
+            assetList = assetList.filter(function (asset) {
+                return (asset.status === "draft");
+            });
+        }
+
+        // Filter the asset list based on the type of assets specified by the options.
+        if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS) {
+            // Filter out any content assets.
+            assetList = assetList.filter(function (asset) {
+                return (!helper._fsApi.isContentResource(asset));
+            });
+        } else if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_CONTENT_ASSETS) {
+            // Filter out any web assets.
+            assetList = assetList.filter(function (asset) {
+                return (helper._fsApi.isContentResource(asset));
+            });
+        }
+
+        // Filter the asset list based on the path.
+        let filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            filterPath = utils.formatFilterPath(filterPath);
+            assetList = assetList.filter(function (asset) {
+                return (asset.path && asset.path.indexOf(filterPath) === 0);
+            });
+        }
+
+        return assetList;
+    }
+
+    /**
      * Pull the chunk of assets retrieved by the given function.
      *
      * @param {Object} context - The context to be used for the push operation.
@@ -331,58 +398,8 @@ class AssetsHelper extends BaseHelper {
             .then(function (assetList) {
                 const listLength = assetList.length;
 
-                // Filter the asset list based on the ready and draft options.
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if (readyOnly) {
-                    // Filter out any assets that are not ready.
-                    assetList = assetList.filter(function (asset) {
-                        if (!asset.status || asset.status === "ready") {
-                            return asset;
-                        }
-                    });
-                } else if (draftOnly) {
-                    // Filter out any assets that are not draft.
-                    assetList = assetList.filter(function (asset) {
-                        if (asset.status === "draft") {
-                            return asset;
-                        }
-                    });
-                }
-
-                // Filter the asset list based on the type of assets specified by the options.
-                if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS) {
-                    // Filter out any content assets.
-                    assetList = assetList.filter(function (asset) {
-                        if (!helper._fsApi.isContentResource(asset)) {
-                            return asset;
-                        }
-                    });
-                } else if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_CONTENT_ASSETS) {
-                    // Filter out any web assets.
-                    assetList = assetList.filter(function (asset) {
-                        if (helper._fsApi.isContentResource(asset)) {
-                            return asset;
-                        }
-                    });
-                }
-
-                if (opts && opts.filterPath) {
-                    // make sure filter path is correct format
-                    let filterPath = opts.filterPath.replace(/\\/g, '/');
-                    if (filterPath.charAt(0) !== '/') {
-                        filterPath = '/' + filterPath;
-                    }
-                    if (!filterPath.endsWith('/')) {
-                        filterPath = filterPath + '/';
-                    }
-                    assetList = assetList
-                        .filter(function (asset) {
-                            if (asset.path && asset.path.indexOf(filterPath) === 0) {
-                                return asset;
-                            }
-                        });
-                }
+                // Filter the assets before saving them to the local file system.
+                assetList = helper._pullFilter(context, assetList, opts);
 
                 // Throttle the number of assets to be pulled concurrently, using the currently configured limit.
                 const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
@@ -837,7 +854,8 @@ class AssetsHelper extends BaseHelper {
             .then(function (items) {
                 const readyOnly = options.getRelevantOption(context, opts, "filterReady");
                 const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
+                const filterPath = options.getRelevantOption(context, opts, "filterPath");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
                     // Only update the last pull timestamp if there was no filtering and no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
@@ -908,7 +926,8 @@ class AssetsHelper extends BaseHelper {
             .then(function (items) {
                 const readyOnly = options.getRelevantOption(context, opts, "filterReady");
                 const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
+                const filterPath = options.getRelevantOption(context, opts, "filterPath");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
                     // Only update the last pull timestamp if there was no filtering and no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
@@ -947,9 +966,12 @@ class AssetsHelper extends BaseHelper {
         const drafts = [];
         paths = paths.filter(function (path) {
             if (helper._fsApi.isDraftAsset(path)) {
+                // Add the draft asset to the drafts array, and allow it to be filtered from the paths array.
                 drafts.push(path);
+                return false;
             } else {
-                return path;
+                // Keep the ready asset in the paths array.
+                return true;
             }
         });
 
@@ -1655,6 +1677,61 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Filter the given list of assets before completing the list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} assetList The assets to be listed.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The filtered list of assets.
+     *
+     * @protected
+     */
+    _listFilter (context, assetList, opts) {
+        const helper = this;
+
+        // Filter the asset list based on the ready and draft options.
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        if (readyOnly) {
+            // Filter out any assets that are not ready.
+            assetList = assetList.filter(function (asset) {
+                return (!asset.status || asset.status === "ready");
+            });
+        } else if (draftOnly) {
+            // Filter out any assets that are not draft.
+            assetList = assetList.filter(function (asset) {
+                return (asset.status === "draft");
+            });
+        }
+
+        // If web assets only, filter out the content assets.
+        if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS) {
+            assetList = assetList.filter(function (asset) {
+                return (!helper._fsApi.isContentResource(asset));
+            });
+        }
+
+        // If content assets only, filter out the web assets.
+        if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_CONTENT_ASSETS) {
+            assetList = assetList.filter(function (asset) {
+                return (helper._fsApi.isContentResource(asset));
+            });
+        }
+
+        // Get the path used to filter artifacts.
+        let filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            filterPath = utils.formatFilterPath(filterPath);
+            assetList = assetList.filter(function (asset) {
+                return (asset.path && asset.path.indexOf(filterPath) === 0);
+            });
+        }
+
+        return assetList;
+    }
+
+    /**
      * List the chunk of assets retrieved by the given function.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -1672,60 +1749,8 @@ class AssetsHelper extends BaseHelper {
             .then(function (assetList) {
                 const chunkLength = assetList.length;
 
-                // Filter the asset list based on the ready and draft options.
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if (readyOnly) {
-                    // Filter out any assets that are not ready.
-                    assetList = assetList.filter(function (asset) {
-                        if (!asset.status || asset.status === "ready") {
-                            return asset;
-                        }
-                    });
-                } else if (draftOnly) {
-                    // Filter out any assets that are not draft.
-                    assetList = assetList.filter(function (asset) {
-                        if (asset.status === "draft") {
-                            return asset;
-                        }
-                    });
-                }
-
-                // If web assets only, filter out the content assets.
-                if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS) {
-                    assetList = assetList
-                        .filter(function (asset) {
-                            if (!helper._fsApi.isContentResource(asset)) {
-                                return asset;
-                            }
-                        });
-                }
-
-                // If content assets only, filter out the web assets.
-                if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_CONTENT_ASSETS) {
-                    assetList = assetList
-                        .filter(function (asset) {
-                            if (helper._fsApi.isContentResource(asset))
-                                return asset;
-                        });
-                }
-
-                if (opts && opts.filterPath) {
-                    // make sure filter path is correct format
-                    let filterPath = opts.filterPath.replace(/\\/g, '/');
-                    if (filterPath.charAt(0) !== '/') {
-                        filterPath = '/' + filterPath;
-                    }
-                    if (!filterPath.endsWith('/')) {
-                        filterPath = filterPath + '/';
-                    }
-                    assetList = assetList
-                        .filter(function (asset) {
-                            if (asset.path && asset.path.indexOf(filterPath) === 0) {
-                                return asset;
-                            }
-                    });
-                }
+                // Filter the assets before listing them.
+                assetList = helper._listFilter(context, assetList, opts);
 
                 return {length: chunkLength, assets: assetList};
             });
@@ -2143,16 +2168,12 @@ class AssetsHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any assets that are draft.
                     assets = assets.filter(function (asset) {
-                        if (!asset.status || asset.status === "ready") {
-                            return asset;
-                        }
+                        return (!asset.status || asset.status === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any assets that are not draft.
                     assets = assets.filter(function (asset) {
-                        if (asset.status === "draft") {
-                            return asset;
-                        }
+                        return (asset.status === "draft");
                     });
                 }
 
@@ -2213,16 +2234,12 @@ class AssetsHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any assets that are draft.
                     assets = assets.filter(function (asset) {
-                        if (!asset.status || asset.status === "ready") {
-                            return asset;
-                        }
+                        return (!asset.status || asset.status === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any assets that are not draft.
                     assets = assets.filter(function (asset) {
-                        if (asset.status === "draft") {
-                            return asset;
-                        }
+                        return (asset.status === "draft");
                     });
                 }
 
@@ -2358,6 +2375,9 @@ class AssetsHelper extends BaseHelper {
      */
     deleteLocalItem (context, item, opts) {
         const helper = this;
+
+        // Add the item to the deletions manifest, if one was specified.
+        this._updateDeletionsManifest(context, [item], opts);
 
         // Delete the specified item from the local file system.
         return helper._fsApi.deleteAsset(context, item.path, opts)

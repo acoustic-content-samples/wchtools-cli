@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016,2017
+Copyright IBM Corporation 2016,2017,2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ const utils = ToolsApi.getUtils();
 const login = ToolsApi.getLogin();
 const options = ToolsApi.getOptions();
 const Q = require("q");
-const ora = require("ora");
 
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -32,8 +31,6 @@ const ListTypes =                PREFIX + i18n.__('cli_listing_types') + SUFFIX;
 const ListAssets =               PREFIX + i18n.__('cli_listing_assets') + SUFFIX;
 const ListContentItems =         PREFIX + i18n.__('cli_listing_content') + SUFFIX;
 const ListCategories =           PREFIX + i18n.__('cli_listing_categories') + SUFFIX;
-const ListPublishingProfiles =   PREFIX + i18n.__('cli_listing_profiles') + SUFFIX;
-const ListPublishingSources =    PREFIX + i18n.__('cli_listing_sources') + SUFFIX;
 const ListImageProfiles =        PREFIX + i18n.__('cli_listing_image_profiles') + SUFFIX;
 const ListLayouts =              PREFIX + i18n.__('cli_listing_layouts') + SUFFIX;
 const ListLayoutMappings =       PREFIX + i18n.__('cli_listing_layout_mappings') + SUFFIX;
@@ -84,32 +81,11 @@ class ListCommand extends BaseCommand {
         const self = this;
 
         // Make sure the "dir" option can be handled successfully.
-        if (!self.handleDirOption(context)) {
-            return;
-        }
-
-        // Handle the manifest options and the artifact types.
-        if (!self.handleManifestOptions(context) || !self.handleArtifactTypes(context, ["webassets"])) {
-            return;
-        }
-
-        // Make sure the "path" option can be handled successfully.
-        if (!self.handlePathOption()) {
-            return;
-        }
-
-        // Handle the ready and draft options.
-        if (!self.handleReadyDraftOptions()) {
-            return;
-        }
-
-        // Check to see if the initialization process was successful.
-        if (!self.handleInitialization(context)) {
-            return;
-        }
-
-        // Make sure the url has been specified, if login is required for this list command.
-        self.handleUrlOption(context)
+        self.handleDirOption(context)
+            .then(function () {
+                // Make sure the url has been specified, if login is required for this list command.
+                return self.handleUrlOption(context)
+            })
             .then(function () {
                 // Make sure the user name and password have been specified, if login is required for this list command.
                 return self.handleAuthenticationOptions(context);
@@ -117,6 +93,26 @@ class ListCommand extends BaseCommand {
             .then(function () {
                 // Login using the current options, if login is required for this list command.
                 return self.handleLogin(context, self.getApiOptions());
+            })
+            .then(function() {
+                // Handle the manifest options.
+                return self.handleManifestOptions(context);
+            })
+            .then(function () {
+                // Handle the cases of no artifact types, "all" authoring types, and using a manifest.
+                return self.handleArtifactTypes(context, ["webassets"]);
+            })
+            .then(function () {
+                // Make sure the "path" option can be handled successfully.
+                return self.handlePathOption();
+            })
+            .then(function () {
+                // Handle the ready and draft options.
+                return self.handleReadyDraftOptions();
+            })
+            .then(function () {
+                // Check to see if the initialization process was successful.
+                return self.handleInitialization(context);
             })
             .then(function () {
                 // Initialize the list of sites to be used for this command, if necessary.
@@ -371,7 +367,7 @@ class ListCommand extends BaseCommand {
             BaseCommand.displayToConsole(i18n.__("cli_list_started"));
 
             // Start the command line spinner, which gives the user some visual feedback that the command is running.
-            this.spinner = ora();
+            this.spinner = this.getProgram().getSpinner();
             this.spinner.start();
         } else {
             const logger = this.getLogger();
@@ -508,16 +504,6 @@ class ListCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("content")) {
                     return self.handleListPromise(self.listContent(context), results);
-                }
-            })
-            .then(function () {
-                if (self.getCommandLineOption("publishingSources")) {
-                    return self.handleListPromise(self.listSources(context), results);
-                }
-            })
-            .then(function () {
-                if (self.getCommandLineOption("publishingProfiles")) {
-                    return self.handleListPromise(self.listProfiles(context), results);
                 }
             })
             .then(function () {
@@ -848,56 +834,6 @@ class ListCommand extends BaseCommand {
     }
 
     /**
-     * List the "publishing source" artifacts.
-     *
-     * @param {Object} context The API context associated with this list command.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing source" artifacts.
-     */
-    listSources (context) {
-        const helper = ToolsApi.getPublishingSourcesHelper();
-        const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper, context);
-        const sourcesPromise = listFunction(apiOptions);
-        const deferred = Q.defer();
-
-        sourcesPromise
-            .then(function (result) {
-                deferred.resolve({"type": ListPublishingSources, "value": result});
-            })
-            .catch(function (err) {
-                deferred.reject(err);
-            });
-
-        return deferred.promise;
-    }
-
-    /**
-     * List the "publishing profile" artifacts.
-     *
-     * @param {Object} context The API context associated with this list command.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the specified list of "publishing profile" artifacts.
-     */
-    listProfiles (context) {
-        const helper = ToolsApi.getPublishingProfilesHelper();
-        const apiOptions = this.getApiOptions();
-        const listFunction = this.getListFunction(helper, context);
-        const profilesPromise = listFunction(apiOptions);
-        const deferred = Q.defer();
-
-        profilesPromise
-            .then(function (result) {
-                deferred.resolve({"type": ListPublishingProfiles, "value": result});
-            })
-            .catch(function (err) {
-                deferred.reject(err);
-            });
-
-        return deferred.promise;
-    }
-
-    /**
      * List the "publishing site revision" artifacts.
      *
      * @param {Object} context The API context associated with this list command.
@@ -938,8 +874,6 @@ class ListCommand extends BaseCommand {
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
         this.setCommandLineOption("categories", undefined);
-        this.setCommandLineOption("publishingSources", undefined);
-        this.setCommandLineOption("publishingProfiles", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("renditions", undefined);
         this.setCommandLineOption("sites", undefined);
@@ -971,9 +905,7 @@ function listCommand (program) {
         .option('-r --renditions',       i18n.__('cli_list_opt_renditions'))
         .option('-s --sites',            i18n.__('cli_list_opt_sites'))
         .option('-p --pages',            i18n.__('cli_list_opt_pages'))
-        .option('-P --publishing-profiles',i18n.__('cli_list_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_list_opt_site_revisions'))
-        .option('-S --publishing-sources',i18n.__('cli_list_opt_sources'))
         .option('-q --quiet',            i18n.__('cli_list_opt_quiet'))
         .option('-I --ignore-timestamps',i18n.__('cli_list_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_list_opt_all'))

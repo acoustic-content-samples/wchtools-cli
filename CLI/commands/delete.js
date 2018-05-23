@@ -19,13 +19,13 @@ const BaseCommand = require("../lib/baseCommand");
 
 const ToolsApi = require("wchtools-api");
 const options = ToolsApi.getOptions();
+const manifests = ToolsApi.getManifests();
 const utils = ToolsApi.getUtils();
 const login = ToolsApi.getLogin();
 const events = require("events");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
 const Q = require("q");
-const ora = require("ora");
 
 const PREFIX = "========== ";
 const SUFFIX = " ===========";
@@ -40,73 +40,52 @@ class DeleteCommand extends BaseCommand {
         super(program);
     }
 
-    /**
-     * Delete the specified artifact(s).
-     */
-    doDelete () {
-        // Create the context for deleting the specified artifact(s).
-        const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
-        const context = toolsApi.getContext();
+    handleValidation () {
+        const deferred = Q.defer();
+        const self = this;
+        let result = true;
+        let errorMessage;
 
-        // Make sure the "dir" option can be handled successfully.
-        if (!this.handleDirOption(context)) {
-            return;
-        }
-
-        // Handle the manifest options.
-        if (!this.handleManifestOptions(context)) {
-            return;
-        }
-
-        // Make sure the artifact type options are valid.
-        if (!this.handleArtifactTypes(context)) {
-            return;
-        }
-
-        const webassets = this.getCommandLineOption("webassets");
-        const assets = this.getCommandLineOption("assets");
-        const content = this.getCommandLineOption("content");
-        const types = this.getCommandLineOption("types");
-        const layouts = this.getCommandLineOption("layouts");
-        const layoutMappings = this.getCommandLineOption("layoutMappings");
-        const pages = this.getCommandLineOption("pages");
-        const id = this.getCommandLineOption("id");
-        const path = this.getCommandLineOption("path");
-        const named = this.getCommandLineOption("named");
-        const tag = this.getCommandLineOption("tag");
-        const byTypeName = this.getCommandLineOption("byTypeName");
-        const recursive = this.getCommandLineOption("recursive");
-        const all = this.getCommandLineOption("all");
-        const manifest = this.getCommandLineOption("manifest");
-        const pageContent = this.getCommandLineOption("pageContent");
+        const webassets = self.getCommandLineOption("webassets");
+        const assets = self.getCommandLineOption("assets");
+        const content = self.getCommandLineOption("content");
+        const types = self.getCommandLineOption("types");
+        const layouts = self.getCommandLineOption("layouts");
+        const layoutMappings = self.getCommandLineOption("layoutMappings");
+        const pages = self.getCommandLineOption("pages");
+        const id = self.getCommandLineOption("id");
+        const path = self.getCommandLineOption("path");
+        const named = self.getCommandLineOption("named");
+        const tag = self.getCommandLineOption("tag");
+        const byTypeName = self.getCommandLineOption("byTypeName");
+        const recursive = self.getCommandLineOption("recursive");
+        const all = self.getCommandLineOption("all");
+        const manifest = self.getCommandLineOption("manifest");
+        const pageContent = self.getCommandLineOption("pageContent");
         let helper;
 
         // Handle the various validation checks.
         if (manifest) {
             if (all) {
                 // Delete all and delete by manifest are mutually exclusive.
-                this.errorMessage(i18n.__("cli_delete_all_no_manifest"));
-                this.resetCommandLineOptions();
-                return;
+                errorMessage = i18n.__("cli_delete_all_no_manifest");
+                result = false;
             }
         } else if (all) {
-            if (this.getOptionArtifactCount() === 0) {
+            if (self.getOptionArtifactCount() === 0) {
                 // Delete all requires at least one artifact type to be specified.
-                this.errorMessage(i18n.__("cli_delete_all_no_type"));
-                this.resetCommandLineOptions();
-                return;
-            } else if (this.getCommandLineOption("preview")) {
+                errorMessage = i18n.__("cli_delete_all_no_type");
+                result = false;
+            } else if (self.getCommandLineOption("preview")) {
                 // Delete all does not support preview.
-                this.errorMessage(i18n.__("cli_delete_all_no_preview"));
-                this.resetCommandLineOptions();
-                return;
+                errorMessage = i18n.__("cli_delete_all_no_preview");
+                result = false;
             }
         } else if (tag) {
-            if (this.getOptionArtifactCount() === 0) {
+            if (self.getOptionArtifactCount() === 0) {
                 // Delete by tag requires at least one artifact type to be specified.
-                this.errorMessage(i18n.__("cli_delete_no_type"));
-                this.resetCommandLineOptions();
-                return;
+                errorMessage = i18n.__("cli_delete_no_type");
+                result = false;
             } else {
                 // Delete by tag is valid for content items, content types, and content assets.
                 let validCount = 0;
@@ -120,24 +99,22 @@ class DeleteCommand extends BaseCommand {
                     validCount++;
                 }
                 // Must specify one of content, types, or assets; and no other artifact types.
-                if (validCount === 0 || validCount !== this.getOptionArtifactCount()) {
-                    this.errorMessage(i18n.__('cli_delete_by_tag_not_supported'));
-                    this.resetCommandLineOptions();
-                    return;
+                if (validCount === 0 || validCount !== self.getOptionArtifactCount()) {
+                    errorMessage = i18n.__('cli_delete_by_tag_not_supported');
+                    result = false;
                 }
             }
         } else {
-            if (this._optionArtifactCount > 1) {
+            if (self._optionArtifactCount > 1) {
                 // Attempting to delete multiple artifact types.
-                this.errorMessage(i18n.__('cli_delete_only_one_type'));
-                this.resetCommandLineOptions();
-                return;
+                errorMessage = i18n.__('cli_delete_only_one_type');
+                result = false;
             } else if (webassets) {
                 helper = ToolsApi.getAssetsHelper();
-                this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
+                self.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
             } else if (assets) {
                 helper = ToolsApi.getAssetsHelper();
-                this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_CONTENT_ASSETS);
+                self.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_CONTENT_ASSETS);
             } else if (layouts) {
                 helper = ToolsApi.getLayoutsHelper();
             } else if (layoutMappings) {
@@ -150,77 +127,78 @@ class DeleteCommand extends BaseCommand {
                 helper = ToolsApi.getItemTypeHelper();
             }
 
-            if (!helper) {
-                // Must specify one of the supported artifact types.
-                this.errorMessage(i18n.__('cli_delete_no_type'));
-                this.resetCommandLineOptions();
-                return;
-            }
-
-            // Make sure the id or path option (or the deprecated named option) has been specified correctly.
-            if (content && !(id || named || byTypeName)) {
-                this.errorMessage(i18n.__('cli_delete_requires_id_name_bytypename'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (types && !(id || named)) {
-                this.errorMessage(i18n.__('cli_delete_requires_id_name'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (webassets && !(path || named)) {
-                this.errorMessage(i18n.__('cli_delete_path_required'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (assets && !(path || named)) {
-                this.errorMessage(i18n.__('cli_delete_path_tag_required'));
-                this.resetCommandLineOptions();
-                return;
-            } else if ((layouts || layoutMappings || pages) && !(id || path)) {
-                this.errorMessage(i18n.__('cli_delete_no_id_or_path'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (id && path) {
-                this.errorMessage(i18n.__('cli_delete_both_id_and_path'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (id && !helper.supportsDeleteById()) {
-                this.errorMessage(i18n.__('cli_delete_by_id_not_supported'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (path && !helper.supportsDeleteByPath() && !helper.supportsDeleteByPathRecursive()) {
-                this.errorMessage(i18n.__('cli_delete_by_path_not_supported'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (recursive && !helper.supportsDeleteByPathRecursive()) {
-                this.errorMessage(i18n.__('cli_delete_recursive_not_supported'));
-                this.resetCommandLineOptions();
-                return;
-            } else if (pageContent && !pages) {
-                this.errorMessage(i18n.__('cli_delete_page_content_req_pages'));
-                this.resetCommandLineOptions();
-                return;
+            if (result) {
+                if (!helper) {
+                    // Must specify one of the supported artifact types.
+                    errorMessage = i18n.__('cli_delete_no_type');
+                    result = false;
+                } else {
+                    // Make sure the id or path option (or the deprecated named option) has been specified correctly.
+                    if (content && !(id || named || byTypeName)) {
+                        errorMessage = i18n.__('cli_delete_requires_id_name_bytypename');
+                        result = false;
+                    } else if (types && !(id || named)) {
+                        errorMessage = i18n.__('cli_delete_requires_id_name');
+                        result = false;
+                    } else if (webassets && !(path || named)) {
+                        errorMessage = i18n.__('cli_delete_path_required');
+                        result = false;
+                    } else if (assets && !(path || named)) {
+                        errorMessage = i18n.__('cli_delete_path_tag_required');
+                        result = false;
+                    } else if ((layouts || layoutMappings || pages) && !(id || path)) {
+                        errorMessage = i18n.__('cli_delete_no_id_or_path');
+                        result = false;
+                    } else if (id && path) {
+                        errorMessage = i18n.__('cli_delete_both_id_and_path');
+                        result = false;
+                    } else if (id && !helper.supportsDeleteById()) {
+                        errorMessage = i18n.__('cli_delete_by_id_not_supported');
+                        result = false;
+                    } else if (path && !helper.supportsDeleteByPath() && !helper.supportsDeleteByPathRecursive()) {
+                        errorMessage = i18n.__('cli_delete_by_path_not_supported');
+                        result = false;
+                    } else if (recursive && !helper.supportsDeleteByPathRecursive()) {
+                        errorMessage = i18n.__('cli_delete_recursive_not_supported');
+                        result = false;
+                    } else if (pageContent && !pages) {
+                        errorMessage = i18n.__('cli_delete_page_content_req_pages');
+                        result = false;
+                    }
+                }
             }
         }
 
         // If --page-content specified when deleting pages then set flag to delete page content too. Not needed when
         // also deleting content, since pages and content can only be specified together when deleting all artifacts.
         if (pages && pageContent && !content) {
-            this.setApiOption("delete-content", true);
+            self.setApiOption("delete-content", true);
         }
 
-        // Handle the ready and draft options.
-        //if (!this.handleReadyDraftOptions()) {
-        //    return;
-        //}
-
-        // Check to see if the initialization process was successful.
-        if (!this.handleInitialization(context)) {
-            return;
+        if (result) {
+            deferred.resolve();
+        } else {
+            deferred.reject(new Error(errorMessage));
         }
+        return deferred.promise;
+    }
 
-        // Make sure the url option has been specified.
+    /**
+     * Delete the specified artifact(s).
+     */
+    doDelete () {
+        // Create the context for deleting the specified artifact(s).
+        const toolsApi = new ToolsApi({eventEmitter: new events.EventEmitter()});
+        const context = toolsApi.getContext();
         const self = this;
         const logger = self.getLogger();
-        self.handleUrlOption(context)
+
+        // Make sure the "dir" option can be handled successfully.
+        self.handleDirOption(context)
+            .then(function () {
+                // Make sure the url option has been specified.
+                return self.handleUrlOption(context)
+            })
             .then(function () {
                 // Make sure the user name and password have been specified.
                 return self.handleAuthenticationOptions(context);
@@ -229,11 +207,64 @@ class DeleteCommand extends BaseCommand {
                 // Login using the current options.
                 return login.login(context, self.getApiOptions());
             })
+            .then(function() {
+                // Handle the manifest options.
+                return self.handleManifestOptions(context);
+            })
+            .then(function() {
+                // Make sure the artifact type options are valid.
+                return self.handleArtifactTypes(context);
+            })
+            .then(function() {
+                // Validate the options.
+                return self.handleValidation();
+            })
+            .then(function() {
+                // Handle the ready and draft options.
+                return self.handleReadyDraftOptions();
+            })
+            .then(function() {
+                // Check to see if the initialization process was successful.
+                return self.handleInitialization(context);
+            })
             .then(function () {
                 // Initialize the list of remote sites to be used for this command, if necessary.
                 return self.initSites(context, true);
             })
             .then(function () {
+                const webassets = self.getCommandLineOption("webassets");
+                const assets = self.getCommandLineOption("assets");
+                const content = self.getCommandLineOption("content");
+                const types = self.getCommandLineOption("types");
+                const layouts = self.getCommandLineOption("layouts");
+                const layoutMappings = self.getCommandLineOption("layoutMappings");
+                const pages = self.getCommandLineOption("pages");
+                const id = self.getCommandLineOption("id");
+                const path = self.getCommandLineOption("path");
+                const named = self.getCommandLineOption("named");
+                const tag = self.getCommandLineOption("tag");
+                const byTypeName = self.getCommandLineOption("byTypeName");
+                const all = self.getCommandLineOption("all");
+                const manifest = self.getCommandLineOption("manifest");
+                let helper;
+                if (webassets) {
+                    helper = ToolsApi.getAssetsHelper();
+                    self.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
+                } else if (assets) {
+                    helper = ToolsApi.getAssetsHelper();
+                    self.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_CONTENT_ASSETS);
+                } else if (layouts) {
+                    helper = ToolsApi.getLayoutsHelper();
+                } else if (layoutMappings) {
+                    helper = ToolsApi.getLayoutMappingsHelper();
+                } else if (content) {
+                    helper = ToolsApi.getContentHelper();
+                } else if (pages) {
+                    helper = ToolsApi.getPagesHelper();
+                } else if (types) {
+                    helper = ToolsApi.getItemTypeHelper();
+                }
+
                 if (all) {
                     // Handle delete all, which can have multiple artifact types specified.
                     return self.deleteAll(context);
@@ -406,7 +437,10 @@ class DeleteCommand extends BaseCommand {
             // --------------------------------------------------------
             // The specified path did not match any existing artifacts.
             // --------------------------------------------------------
-            self.errorMessage(i18n.__('cli_delete_no_match'));
+            self.warningMessage(i18n.__('cli_delete_no_match'));
+
+            // The warningMessage method does not signify the end of the command, so call successMessage() also.
+            self.successMessage("");
         } else if (self.getCommandLineOption("preview")) {
             // ------------------------------------------------------------
             // Preview the matching artifacts that would have been deleted.
@@ -486,6 +520,41 @@ class DeleteCommand extends BaseCommand {
     }
 
     /**
+     * Deletes the specified item.
+     *
+     * @param {Object} helper The helper to use for deleting the item.
+     * @param {Object} context The API context associated with this delete command.
+     * @param {Object} item The item to delete.
+     * @param {Object} opts The API options to be used for the delete operation.
+     * @returns {Q.Promise<any>} A promise that resolves when the item has been deleted.
+     * @private
+     */
+    _deleteRemoteItem (helper, context, item, opts) {
+        const self = this;
+        const logger = self.getLogger();
+
+        // Delete the specified item and display a success or failure message.
+        return helper.deleteRemoteItem(context, item, opts)
+            .then(function (message) {
+                // Track the number of successful delete operations.
+                self._artifactsCount++;
+
+                // Add a debug entry for the server-generated message. (Not displayed in verbose mode.)
+                logger.debug(message);
+
+                // Add an info entry for the localized success message. (Displayed in verbose mode.)
+                logger.info(i18n.__('cli_delete_success', {"name": item.path || item.name}));
+            })
+            .catch(function (err) {
+                // Track the number of failed delete operations.
+                self._artifactsError++;
+
+                // Add an error entry for the localized failure message. (Displayed in verbose mode.)
+                logger.error(i18n.__("cli_delete_failure", {"name": item.path, "err": err.message}));
+            });
+    }
+
+    /**
      * Delete the specified items.
      *
      * @param {Object} helper The helper to use for deleting items.
@@ -502,7 +571,7 @@ class DeleteCommand extends BaseCommand {
 
         // Start the spinner (progress indicator) if we're not doing verbose output.
         if (!self.getCommandLineOption("verbose")) {
-            self.spinner = ora();
+            self.spinner = self.getProgram().getSpinner();
             self.spinner.start();
         }
 
@@ -510,25 +579,7 @@ class DeleteCommand extends BaseCommand {
         return utils.throttledAll(context, items.map(function (item) {
             // For each item, return a function that returns a promise.
             return function () {
-                // Delete the specified item and display a success or failure message.
-                return helper.deleteRemoteItem(context, item, opts)
-                    .then(function (message) {
-                        // Track the number of successful delete operations.
-                        self._artifactsCount++;
-
-                        // Add a debug entry for the server-generated message. (Not displayed in verbose mode.)
-                        logger.debug(message);
-
-                        // Add an info entry for the localized success message. (Displayed in verbose mode.)
-                        logger.info(i18n.__('cli_delete_success', {"name": item.path || item.name}));
-                    })
-                    .catch(function (err) {
-                        // Track the number of failed delete operations.
-                        self._artifactsError++;
-
-                        // Add an error entry for the localized failure message. (Displayed in verbose mode.)
-                        logger.error(i18n.__("cli_delete_failure", {"name": item.path, "err": err.message}));
-                    });
+                return self._deleteRemoteItem(helper, context, item, opts);
             }
         }), concurrentLimit)
             .then(function () {
@@ -578,7 +629,7 @@ class DeleteCommand extends BaseCommand {
         // Do not display the spinner in quiet mode, verbose mode, or preview mode.
         if (!this.getCommandLineOption("quiet") && !this.getCommandLineOption("verbose") && !this.getCommandLineOption("preview")) {
             // Start the command line spinner to give the user visual feedback when not displaying verbose output.
-            this.spinner = ora();
+            this.spinner = this.getProgram().getSpinner();
             this.spinner.start();
         }
 
@@ -889,7 +940,7 @@ class DeleteCommand extends BaseCommand {
 
         // Start the command line spinner to give the user visual feedback, except when displaying verbose output or previewing.
         if (!this.getCommandLineOption("verbose") && !preview) {
-            this.spinner = ora();
+            this.spinner = this.getProgram().getSpinner();
             this.spinner.start();
         }
 
@@ -963,6 +1014,8 @@ class DeleteCommand extends BaseCommand {
         // Determine whether to continue deleting subsequent artifact types on error.
         const continueOnError = options.getProperty(context, "continueOnError");
 
+        let deferDeleteManifestPath;
+
         self.startDeleteByManifestDisplay()
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
@@ -995,6 +1048,14 @@ class DeleteCommand extends BaseCommand {
                 }
             })
             .then(function () {
+                // If we're using a server manifest and it references itself, we want to delete it last.
+                if (context.serverManifest) {
+                    const manifestPath = manifests.getManifestPath(context, context.readManifestFile, self.getApiOptions());
+                    if (context.readManifest.assets[manifestPath]) {
+                        delete context.readManifest.assets[manifestPath];
+                        deferDeleteManifestPath = manifestPath;
+                    }
+                }
                 if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
                     return self.handleDeletePromise(self.deleteManifestAssets(context), continueOnError);
                 }
@@ -1002,6 +1063,17 @@ class DeleteCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
                     return self.handleDeletePromise(self.deleteManifestImageProfiles(context), continueOnError);
+                }
+            })
+            .then(function () {
+                // Now, delete the server manifest if it referenced itself.
+                if (deferDeleteManifestPath && self._artifactsError === 0) {
+                    if (self.getCommandLineOption("preview")) {
+                        BaseCommand.displayToConsole("    " + deferDeleteManifestPath);
+                    } else {
+                        const helper = ToolsApi.getAssetsHelper();
+                        return self._deleteRemoteItem(helper, context, {path: deferDeleteManifestPath}, self.getApiOptions());
+                    }
                 }
             })
             .then(function () {
@@ -1219,7 +1291,7 @@ class DeleteCommand extends BaseCommand {
 
                     // Start the command line spinner to give the user visual feedback when not displaying verbose output.
                     if (!self.getCommandLineOption("verbose")) {
-                        self.spinner = ora();
+                        self.spinner = self.getProgram().getSpinner();
                         self.spinner.start();
                     }
 
@@ -1642,6 +1714,7 @@ class DeleteCommand extends BaseCommand {
         this.setCommandLineOption("pageContent", undefined);
         this.setCommandLineOption("allAuthoring", undefined);
         this.setCommandLineOption("manifest", undefined);
+        this.setCommandLineOption("serverManifest", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -1673,6 +1746,7 @@ function deleteCommand (program) {
         .option('-P --preview',          i18n.__('cli_delete_opt_preview'))
         .option('-q --quiet',            i18n.__('cli_delete_opt_quiet'))
         .option('--manifest <manifest>', i18n.__('cli_delete_opt_use_manifest'))
+        .option('--server-manifest <manifest>', i18n.__('cli_delete_opt_use_server_manifest'))
         //.option('--ready',               i18n.__('cli_delete_opt_ready'))
         //.option('--draft',               i18n.__('cli_delete_opt_draft'))
         .option('--dir <dir>',           i18n.__('cli_delete_opt_dir', {"product_name": utils.ProductName}))

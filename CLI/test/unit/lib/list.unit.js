@@ -336,7 +336,7 @@ class ListUnitTest extends UnitTest {
 
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.returns(false);
+                stub.rejects(false);
 
                 // Execute the command to push using a manifest.
                 let error;
@@ -542,7 +542,7 @@ class ListUnitTest extends UnitTest {
                 stubList.resolves([itemName1, itemName2, badItem]);
 
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSave = sinon.stub(manifests, "saveManifest");
                 stubSave.throws(new Error("Save manifest error expected by unit test."));
@@ -1173,6 +1173,35 @@ class ListUnitTest extends UnitTest {
                     });
             });
 
+            it("test list local working (path)", function (done) {
+                if (switches !== "-w" && switches !== "--types" && switches !== "--layouts" && switches !== "--layout-mappings") {
+                    return done();
+                }
+
+                const stub = sinon.stub(helper._fsApi, "listNames");
+                stub.resolves([{name: itemName1, id: "foo", path: "/test/" + itemName1}, {name: itemName2, id: "bar", path: "/test/" + itemName2}, {name: badItem, id: undefined, path: "/test/" + badItem}]);
+
+                // Execute the command being tested.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--path", "test", "--ignore-timestamps", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('artifacts listed 3');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test list remote working (all sites)", function (done) {
                 let stubGet;
                 if (switches === "--sites") {
@@ -1340,6 +1369,35 @@ class ListUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("test list remote working (path)", function (done) {
+                if (switches !== "-w" && switches !== "--types" && switches !== "--layouts" && switches !== "--layout-mappings") {
+                    return done();
+                }
+
+                const stub = sinon.stub(helper._restApi, "getItems");
+                stub.resolves([{name: itemName1, id: "foo", path: "/test/" + itemName1}, {name: itemName2, id: "bar", path: "/test/" + itemName2}, {name: badItem, id: undefined, path: "/test/" + badItem}]);
+
+                // Execute the command being tested.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--path", "test", "--ignore-timestamps", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('artifacts listed 3');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -1407,7 +1465,7 @@ class ListUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(err.message).to.contain('Invalid options, path can only be used for web assets.');
+                            expect(err.message).to.contain('Invalid options, path can only be used for web assets, content types, layouts, and layout mappings.');
                         } catch (err) {
                             error = err;
                         }

@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "過濾 listModifiedRemoteItemNames 中的遠端項目清單時發生錯誤",
   "push_error_creating_item": "建立項目時發生推送錯誤：",
   "push_error_updating_item": "更新項目時發生推送錯誤：",
+  "push_warning_ignore_conflict": "忽略推送項目中的不重要差異：%(name)s。",
   "pushed_item_error": "已推送項目錯誤：",
   "pushed_item_retry": "重試推送項目 '%(name)s'。錯誤：%(message)s",
   "invalid_path": "無效的路徑：%(path)s",
@@ -24,6 +25,7 @@
   "save_item_write_failed_bad_path": "saveItem 無法寫入檔案 %(path)s 不正確路徑",
   "close_stream_failed": "由於下列錯誤，closeStream 失敗：",
   "error_options_file": "讀取配置選項檔案：%(filename)s 時，發生錯誤：%(error)s",
+  "error_manifest_file": "讀取資訊清單檔時發生錯誤：%(filename)s。%(error)s",
 
   "name_required": "必須指定名稱。",
   "category_exists": "名稱為 %(name)s 的種類已存在。",
@@ -49,6 +51,9 @@
   "error_set_last_pull_timestamp": "setLastPullTimestamp 中的錯誤：",
   "error_set_last_push_timestamp": "setLastPushTimestamp 中的錯誤：",
   "error_get_hashes_for_file": "getHashesForFile 中的錯誤：",
+  "error_manifest_file_read": "讀取資訊清單檔 %(filename)s 時發生錯誤：%(error)s",
+  "error_manifest_file_write": "寫入資訊清單檔 %(filename)s 時發生錯誤：%(error)s",
+  "error_manifest_file_does_not_exist": "資訊清單檔 %(filename)s 不存在。",
 
   "error_unsupported_endpoint": "%(service_name)s API 不支援 %(endpoint)s 端點。",
   "unknown_error": "不明錯誤",
@@ -66,6 +71,7 @@
   "retry_failed_retry": "重試的要求 (%(id)d)（已嘗試 %(attempt)d 次）在重試次數上限之前失敗。%(message)s",
   "retry_next_attempt": "將在 %(delay)d 毫秒內重試要求 (%(id)d)（已嘗試 %(attempt)d 次）。",
   "retry_success": "重試的要求 (%(id)d) 在 %(attempt)d 次嘗試之後成功。",
-  "retry_max_attempts": "嘗試要求 (%(id)d) 的次數已達上限。"
+  "retry_max_attempts": "嘗試要求 (%(id)d) 的次數已達上限。",
+  "header_value_not_string": "忽略 HTTP 標頭 %(header)s；提供的值不是字串。"
 }
 

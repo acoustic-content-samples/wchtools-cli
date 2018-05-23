@@ -372,7 +372,8 @@ class JSONItemHelper extends BaseHelper {
             .then(function (items) {
                 const readyOnly = options.getRelevantOption(context, opts, "filterReady");
                 const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
+                const filterPath = options.getRelevantOption(context, opts, "filterPath");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
                     hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 const emitter = helper.getEventEmitter(context);
@@ -434,7 +435,8 @@ class JSONItemHelper extends BaseHelper {
             .then(function (items) {
                 const readyOnly = options.getRelevantOption(context, opts, "filterReady");
                 const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !opts.filterPath) {
+                const filterPath = options.getRelevantOption(context, opts, "filterPath");
+                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
                     hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
                 }
                 return items;
@@ -483,16 +485,12 @@ class JSONItemHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any items that are not ready.
                     itemList = itemList.filter(function (item) {
-                        if (!item.status || item.status === "ready") {
-                            return item;
-                        }
+                        return (!item.status || item.status === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any items that are not draft.
                     itemList = itemList.filter(function (item) {
-                        if (item.status === "draft") {
-                            return item;
-                        }
+                        return (item.status === "draft");
                     });
                 }
 
@@ -548,16 +546,12 @@ class JSONItemHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any items that are not ready.
                     itemNames = itemNames.filter(function (item) {
-                        if (!item.status || item.status === "ready") {
-                            return item;
-                        }
+                        return (!item.status || item.status === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any items that are not draft.
                     itemNames = itemNames.filter(function (item) {
-                        if (item.status === "draft") {
-                            return item;
-                        }
+                        return (item.status === "draft");
                     });
                 }
 
@@ -964,7 +958,7 @@ class JSONItemHelper extends BaseHelper {
                             .then(function (remoteItem) {
                                 ignoreConflict.resolve(helper.canIgnoreConflict(context, item, remoteItem, opts));
                             })
-                            .catch(function (err) {
+                            .catch(function (remoteItemErr) {
                                 ignoreConflict.reject(err);
                             });
                     } else {
@@ -1158,6 +1152,48 @@ class JSONItemHelper extends BaseHelper {
         return deferred.promise;
     }
 
+    /**
+     * Filter the given list of items before completing the pull operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} itemList The items to be pulled.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The filtered list of items.
+     *
+     * @protected
+     */
+    _pullFilter (context, itemList, opts) {
+        // Filter the item list based on the ready and draft options.
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        if (readyOnly) {
+            // Filter out any items that are not ready.
+            itemList = itemList.filter(function (item) {
+                return (!item.status || item.status === "ready");
+            });
+        } else if (draftOnly) {
+            // Filter out any items that are not draft.
+            itemList = itemList.filter(function (item) {
+                return (item.status === "draft");
+            });
+        }
+
+        // Filter the list to exclude any items that should not be saved to file.
+        const helper = this;
+        itemList = itemList.filter(function (item) {
+            const canPullItem = helper.canPullItem(item);
+            if (!canPullItem) {
+                // This item cannot be pulled, so add a log entry.
+                helper.getLogger(context).info(i18n.__("cannot_pull_item", {name: helper.getName(item)}));
+            }
+
+            return canPullItem;
+        });
+
+        return itemList;
+    }
+
     _pullItemsChunk (context, listFn, opts) {
         let items = [];
         const deferred = Q.defer();
@@ -1167,35 +1203,8 @@ class JSONItemHelper extends BaseHelper {
                 // Keep track of the original number of items in the chunk.
                 const chunkSize = itemList.length;
 
-                // Filter the item list based on the ready and draft options.
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if (readyOnly) {
-                    // Filter out any items that are not ready.
-                    itemList = itemList.filter(function (item) {
-                        if (!item.status || item.status === "ready") {
-                            return item;
-                        }
-                    });
-                } else if (draftOnly) {
-                    // Filter out any items that are not draft.
-                    itemList = itemList.filter(function (item) {
-                        if (item.status === "draft") {
-                            return item;
-                        }
-                    });
-                }
-
-                // Filter the list to exclude any items that should not be saved to file.
-                itemList = itemList.filter(function (item) {
-                    const canPullItem = helper.canPullItem(item);
-                    if (!canPullItem) {
-                        // This item cannot be pulled, so add a log entry.
-                        helper.getLogger(context).info(i18n.__("cannot_pull_item", {name: helper.getName(item)}));
-                    }
-
-                    return canPullItem;
-                });
+                // Filter the items before saving them to the local file system.
+                itemList = helper._pullFilter(context, itemList, opts);
 
                 const promises = itemList.map(function (item) {
                     // make the emitted object before calling saveItem which prunes important data from the object!
@@ -1217,8 +1226,7 @@ class JSONItemHelper extends BaseHelper {
                             if (promise.state === "fulfilled") {
                                 items.push(promise.value);
                                 manifestList.push(promise.value);
-                            }
-                            else {
+                            } else {
                                 items.push(promise.reason);
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {

@@ -1,0 +1,9 @@
+{
+  "id": "test-layout-1-a",
+  "rev": "20-c334d875e27be7ae0f1a73b516587db4",
+  "name": "Carousel",
+  "classification": "layout",
+  "prerender": false,
+  "template": "carousel-list",
+  "templateType": "angular"
+}

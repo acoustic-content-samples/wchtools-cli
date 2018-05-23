@@ -31,6 +31,7 @@ const layoutsHelper = require('./layoutsHelper').instance;
 const layoutMappingsHelper = require('./layoutMappingsHelper').instance;
 const sitesHelper = require('./sitesHelper').instance;
 const pagesHelper = require('./pagesHelper').instance;
+const edgeConfigHelper = require('./edgeConfigHelper').instance;
 const login = require('./lib/loginREST').instance;
 const utils = require('./lib/utils/utils.js');
 const options = require('./lib/utils/options.js');
@@ -177,6 +178,10 @@ class WchToolsApi {
         return pagesHelper;
     }
 
+    static getEdgeConfigHelper () {
+        return edgeConfigHelper;
+    }
+
     static getRemoteSites (context, opts) {
         // Get the remote sites for the specified context.
         return sitesHelper.getRemoteItems(context, opts);
@@ -249,7 +254,7 @@ class WchToolsApi {
         this.context.eventEmitter.on("pushed-error", pushedErrorListener);
 
         let siteIds = [];
-        WchToolsApi.getLocalSites(context, opts)
+        WchToolsApi.getLocalSites(this.context, opts)
             .then(function (sites) {
                 if (sites) {
                     // Add each local site to the ready list or the draft list.

@@ -933,6 +933,10 @@ class BaseFsApiUnitTest extends UnitTest {
             it("should succeed when getting item names with additional properties", function (done) {
                 self.listNamesAdditionalPropertiesSuccess(fsApi, itemName1, itemName2 , done);
             });
+
+            it("should succeed when listing by path", function (done) {
+                self.listNamesByPath(fsApi, itemName1, itemName2 , done);
+            });
         });
     }
 
@@ -1077,21 +1081,21 @@ class BaseFsApiUnitTest extends UnitTest {
 
         // Set the current working directory to the "valid resources" directory.
         fsApi.listNames(context, {"workingDir": UnitTest.API_PATH + UnitTest.VALID_RESOURCES_DIRECTORY})
-            .then(function (paths) {
+            .then(function (items) {
                 // Verify that the get stub was called once with the lookup URI.
                 expect(stub).to.have.been.calledOnce;
 
                 // Verify that the expected values are returned.
-                expect(paths).to.have.lengthOf(3);
-                if (paths[0].path) {
-                    expect(itemName1).to.contains(paths[0].path);
+                expect(items).to.have.lengthOf(3);
+                if (items[0].path) {
+                    expect(itemName1).to.contains(items[0].path);
                 } else {
-                    expect(itemName1).to.contains(paths[0].id);
+                    expect(itemName1).to.contains(items[0].id);
                 }
-                if (paths[1].path) {
-                    expect(itemName2).to.contains(paths[1].path);
+                if (items[1].path) {
+                    expect(itemName2).to.contains(items[1].path);
                 } else {
-                    expect(itemName2).to.contains(paths[1].id);
+                    expect(itemName2).to.contains(items[1].id);
                 }
             })
             .catch (function (err) {
@@ -1157,6 +1161,11 @@ class BaseFsApiUnitTest extends UnitTest {
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
             });
+    }
+
+    listNamesByPath (fsApi, itemName1, itemName2, done) {
+        // List by path is not available for BaseFS.
+        return done();
     }
 
     testGetItems (fsApi, itemName1, itemName2) {

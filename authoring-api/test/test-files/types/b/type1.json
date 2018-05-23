@@ -1,0 +1,21 @@
+{
+  "name": "ITEM_TYPE_1b",
+  "classification": "content-type",
+  "description": "Client Tooling test type",
+  "status": "ready",
+  "templateMapping": "",
+  "creator": "user",
+  "creationDate": "",
+  "lastModifier": "user",
+  "lastModifiedDate": "",
+  "tags": [
+    "string"
+  ],
+  "schema": {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  },
+  "form": []
+}

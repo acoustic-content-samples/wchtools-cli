@@ -531,6 +531,53 @@ class AssetsFS extends BaseFS {
     }
 
     /**
+     * Filter the given list of file names before completing the list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} files The file names of the assets to be listed.
+     * @param {Object} filter - A filter for the local files.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The filtered list of file names.
+     *
+     * @protected
+     */
+    _listFilter (context, files, filter, opts) {
+        // Filter the assets based on the ignore list.
+        files = files.filter(filter);
+
+        // Filter out the asset metadata files and the hashes file.
+        files = files.filter(function (path) {
+            return (!path.endsWith(ASSET_METADATA_SUFFIX) && !hashes.isHashesFile(path));
+        });
+
+        // When only displaying web assets, filter out the content assets.
+        if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
+            files = files.filter(function (path) {
+                return (!path.startsWith("/" + CONTENT_RESOURCE_DIRECTORY));
+            });
+        }
+
+        // When only displaying content assets, filter out the web assets.
+        if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
+            files = files.filter(function (path) {
+                return (path.startsWith("/" + CONTENT_RESOURCE_DIRECTORY));
+            });
+        }
+
+        // Filter the asset list based on the specified path.
+        let filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            filterPath = utils.formatFilterPath(filterPath);
+            files = files.filter(function (path) {
+                return (path.indexOf(filterPath) === 0);
+            });
+        }
+
+        return files;
+    }
+
+    /**
      * Get a filtered list of file names from the local file system.
      *
      * @param {Object} context The API context to be used by the get operation.
@@ -553,53 +600,16 @@ class AssetsFS extends BaseFS {
                 if (err) {
                     deferred.reject(err);
                 } else {
+                    // All filtering is based on relative path.
                     files = files.map(function (file) {
                         return utils.getRelativePath(assetDir, file);
                     });
 
-                    // this does the ignore for the file on the relative path
-                    files = files.filter(filter);
+                    // Filter the assets before listing them.
+                    files = fsObject._listFilter(context, files, filter, opts);
 
-                    // if web assets only filter out the dxdam resources
-                    if (opts && opts[ASSET_TYPES] === ASSET_TYPES_WEB_ASSETS) {
-                        files = files.filter(function (path) {
-                            if (!path.startsWith("/" + CONTENT_RESOURCE_DIRECTORY)) {
-                                return path;
-                            }
-                        });
-                    }
-
-                    // if content assets only filter out the non dxdam resources
-                    if (opts && opts[ASSET_TYPES] === ASSET_TYPES_CONTENT_ASSETS) {
-                        files = files.filter(function (path) {
-                            if (path.startsWith("/" + CONTENT_RESOURCE_DIRECTORY)) {
-                                return path;
-                            }
-                        });
-                    }
-
-                    files = files.filter(function (path) {
-                        if (!path.endsWith(ASSET_METADATA_SUFFIX) && !hashes.isHashesFile(path)) {
-                            return path;
-                        }
-                    });
-
-                    if (opts && opts.filterPath !== undefined) {
-                        // make sure filter path is correct format
-                        let filterPath = opts.filterPath.replace(/\\/g, '/');
-                        if (filterPath.charAt(0) !== '/') {
-                            filterPath = '/' + filterPath;
-                        }
-                        if (!filterPath.endsWith('/')) {
-                            filterPath = filterPath + '/';
-                        }
-                        files = files.filter(function (path) {
-                            if (path.indexOf(filterPath) === 0) {
-                                return path;
-                            }
-                        });
-                    }
-                    deferred.resolve(files.map(function (file) {
+                    const items = files.map(function (file) {
+                        // For each file name, create a "proxy" item that contains the metadata to be listed.
                         const proxy = {"path": file};
 
                         // Web assets do not have metadata, so only set additional proxy properties for content assets.
@@ -626,7 +636,9 @@ class AssetsFS extends BaseFS {
                         }
 
                         return proxy;
-                    }));
+                    });
+
+                    deferred.resolve(items);
                 }
             });
         } else {
@@ -659,17 +671,17 @@ class AssetsFS extends BaseFS {
                     });
 
                     files = files.filter(function (path) {
-                        if (!hashes.isHashesFile(path)) {
-                            return path;
-                        }
+                        return (!hashes.isHashesFile(path));
                     });
 
-                    deferred.resolve(files.map(function (file) {
+                    const items = files.map(function (file) {
                         return {
                             path: file,
                             id: path.basename(path.dirname(file))
                         };
-                    }));
+                    });
+
+                    deferred.resolve(items);
                 }
             });
         } else {

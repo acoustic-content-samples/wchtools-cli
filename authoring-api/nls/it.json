@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "Errore durante il filtraggio dell'elenco degli elementi remoti in listModifiedRemoteItemNames",
   "push_error_creating_item": "Errore push durante la creazione dell'elemento: ",
   "push_error_updating_item": "Errore push durante l'aggiornamento dell'elemento: ",
+  "push_warning_ignore_conflict": "Si ignoreranno le differenze non importanti nell'elemento sottoposto al push: %(name)s.",
   "pushed_item_error": "Errore dell'elemento sottoposto a push: ",
   "pushed_item_retry": "Ripetere il push dell'elemento '%(name)s'. Errore: %(message)s",
   "invalid_path": "Percorso non valido: %(path)s",
@@ -24,6 +25,7 @@
   "save_item_write_failed_bad_path": "saveItem non è riuscito a scrivere sul file %(path)s, percorso errato",
   "close_stream_failed": "closeStream non riuscito con errore: ",
   "error_options_file": "Errore durante la lettura del file delle opzioni di configurazione: %(filename)s. %(error)s",
+  "error_manifest_file": "Errore durante la lettura del file manifest: %(filename)s. %(error)s",
 
   "name_required": "È necessario specificare il nome.",
   "category_exists": "Una categoria con nome %(name)s esiste già.",
@@ -49,6 +51,9 @@
   "error_set_last_pull_timestamp": "Errore in setLastPullTimestamp: ",
   "error_set_last_push_timestamp": "Errore in setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Errore in getHashesForFile: ",
+  "error_manifest_file_read": "Errore durante la lettura del file manifest %(filename)s: %(error)s",
+  "error_manifest_file_write": "Errore durante la scrittura del file manifest %(filename)s: %(error)s",
+  "error_manifest_file_does_not_exist": "Il file manifest %(filename)s non esiste.",
 
   "error_unsupported_endpoint": "L'API %(service_name)s non supporta l'endpoint %(endpoint)s.",
   "unknown_error": "Errore sconosciuto",
@@ -66,6 +71,7 @@
   "retry_failed_retry": "Una richiesta (%(id)d) ritentata (attempt %(attempt)d) non è riuscita entro il numero massimo di tentativi. %(message)s",
   "retry_next_attempt": "Una richiesta (%(id)d) verrà ritentata (attempt %(attempt)d) in %(delay)d millisecondi.",
   "retry_success": "Una richiesta (%(id)d) ritentata è riuscita dopo %(attempt)d tentativi.",
-  "retry_max_attempts": "Una richiesta (%(id)d) è stata ritentata il numero massimo di volte."
+  "retry_max_attempts": "Una richiesta (%(id)d) è stata ritentata il numero massimo di volte.",
+  "header_value_not_string": "Si ignorerà l'intestazione HTTP %(header)s; il valore fornito non è una stringa."
 }
 

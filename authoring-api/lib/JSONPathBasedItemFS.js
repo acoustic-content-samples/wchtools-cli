@@ -20,7 +20,9 @@ const JSONItemFS = require("./JSONItemFS.js");
 
 const fs = require("fs");
 const Q = require("q");
+const options = require("./utils/options.js");
 const utils = require("./utils/utils.js");
+const hashes = require("./utils/hashes.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const recursiveReadDir = require("recursive-readdir");
 
@@ -114,6 +116,36 @@ class JSONPathBasedItemFS extends JSONItemFS {
     }
 
     /**
+     * Filter the given list of file names before completing the list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} files The file names of the items to be listed.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The filtered list of file names.
+     *
+     * @protected
+     */
+    _listFilter (context, files, opts) {
+        // Filter out the hashes file and any files that do not have the expected file extension.
+        const extension = this.getExtension();
+        files = files.filter(function (file) {
+            return file.endsWith(extension) && !hashes.isHashesFile(file);
+        });
+
+        // Filter the files based on the specified path.
+        let filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            filterPath = utils.formatFilterPath(filterPath);
+            files = files.filter(function (file) {
+                return (file.indexOf(filterPath) === 0);
+            });
+        }
+
+        return files;
+    }
+
+    /**
      * Get a list of all items stored in the working dir.
      *
      * @param {Object} context The API context to be used by the listt operation.
@@ -132,36 +164,40 @@ class JSONPathBasedItemFS extends JSONItemFS {
                     if (err) {
                         reject(err);
                     } else {
-                        const extension = fsObject.getExtension();
-                        const names = files
-                            .filter(function (file) {
-                                return file.endsWith(extension);
-                            })
-                            .map(function (file) {
-                                const proxy = {};
-                                proxy.path = utils.getRelativePath(artifactDir, file);
-                                try {
-                                    const item = JSON.parse(fs.readFileSync(file).toString());
-                                    proxy.id = item.id;
-                                    proxy.name = item.name;
+                        // All filtering is based on relative path.
+                        files = files.map(function (file) {
+                            return utils.getRelativePath(artifactDir, file);
+                        });
 
-                                    // Include any additional properties on the proxy item.
-                                    const additionalProperties = opts["additionalItemProperties"];
-                                    if (additionalProperties) {
-                                        additionalProperties.forEach(function (property) {
-                                            if (item[property]) {
-                                                proxy[property] = item[property];
-                                            }
-                                        });
-                                    }
-                                } catch (err) {
-                                    // we couldn't open the file to read the id/name metadata, log a warning and continue
-                                    utils.logWarnings(context, i18n.__("file_parse_error", {path: file}));
+                        // Filter the assets before listing them.
+                        files = fsObject._listFilter(context, files, opts);
+
+                        const items = files.map(function (file) {
+                            // For each file name, create a "proxy" item that contains the metadata to be listed.
+                            const proxy = {path: file};
+
+                            try {
+                                const item = JSON.parse(fs.readFileSync(artifactDir + file).toString());
+                                proxy.id = item.id;
+                                proxy.name = item.name;
+
+                                // Include any additional properties on the proxy item.
+                                const additionalProperties = opts["additionalItemProperties"];
+                                if (additionalProperties) {
+                                    additionalProperties.forEach(function (property) {
+                                        if (item[property]) {
+                                            proxy[property] = item[property];
+                                        }
+                                    });
                                 }
-                                return proxy;
-                            });
+                            } catch (err) {
+                                // we couldn't open the file to read the id/name metadata, log a warning and continue
+                                utils.logWarnings(context, i18n.__("file_parse_error", {path: file}));
+                            }
+                            return proxy;
+                        });
 
-                        resolve(names);
+                        resolve(items);
                     }
                 });
             } else {

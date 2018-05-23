@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016,2017
+Copyright IBM Corporation 2016,2017,2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ const options = ToolsApi.getOptions();
 const login = ToolsApi.getLogin();
 const events = require("events");
 const Q = require("q");
-const ora = require("ora");
 
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -37,8 +36,6 @@ const PushingContentAssets =        PREFIX + i18n.__('cli_push_pushing_content_a
 const PushingWebAssets =            PREFIX + i18n.__('cli_push_pushing_web_assets') + SUFFIX;
 const PushingContentItems =         PREFIX + i18n.__('cli_push_pushing_content') + SUFFIX;
 const PushingCategories =           PREFIX + i18n.__('cli_push_pushing_categories') + SUFFIX;
-const PushingPublishingSources =    PREFIX + i18n.__('cli_push_pushing_sources') + SUFFIX;
-const PushingPublishingProfiles =   PREFIX + i18n.__('cli_push_pushing_profiles') + SUFFIX;
 const PushingPublishingSiteRevisions = PREFIX + i18n.__('cli_push_pushing_site_revisions') + SUFFIX;
 const PushingImageProfiles =        PREFIX + i18n.__('cli_push_pushing_image_profiles') + SUFFIX;
 const PushingRenditions =           PREFIX + i18n.__('cli_push_pushing_renditions') + SUFFIX;
@@ -73,39 +70,13 @@ class PushCommand extends BaseCommand {
         const context = toolsApi.getContext();
         const self = this;
 
-        // Handle the dir option.
-        if (!self.handleDirOption(context)) {
-            return;
-        }
-
-        // Handle the manifest options.
-        if (!self.handleManifestOptions(context)) {
-            return;
-        }
-
-        // Handle the cases of no artifact types, "all" authoriong types, and using a manifest.
-        if (!self.handleArtifactTypes(context, ["webassets"])) {
-            return;
-        }
-
-        // Make sure the "named" and "path" options can be handled successfully.
-        if (!self.handleNamedOption() || !self.handlePathOption()) {
-            return;
-        }
-
-        // Handle the ready and draft options.
-        if (!self.handleReadyDraftOptions()) {
-            return;
-        }
-
-        // Check to see if the initialization process was successful.
-        if (!self.handleInitialization(context)) {
-            return;
-        }
-
-        // Make sure the url has been specified.
+        // Make sure the "dir" option can be handled successfully.
         let error;
-        self.handleUrlOption(context)
+        self.handleDirOption(context)
+            .then(function() {
+                // Make sure the url has been specified.
+                return self.handleUrlOption(context);
+            })
             .then(function() {
                 // Make sure the user name and password have been specified.
                 return self.handleAuthenticationOptions(context);
@@ -113,6 +84,30 @@ class PushCommand extends BaseCommand {
             .then(function() {
                 // Login using the current options.
                 return login.login(context, self.getApiOptions());
+            })
+            .then(function () {
+                // Handle the manifest options.
+                return self.handleManifestOptions(context);
+            })
+            .then(function () {
+                // Handle the cases of no artifact types, "all" authoring types, and using a manifest.
+                return self.handleArtifactTypes(context, ["webassets"]);
+            })
+            .then(function () {
+                // Make sure the "named" option can be handled successfully.
+                return self.handleNamedOption();
+            })
+            .then(function () {
+                // Make sure the "path" option can be handled successfully.
+                return self.handlePathOption();
+            })
+            .then(function () {
+                // Handle the ready and draft options.
+                return self.handleReadyDraftOptions();
+            })
+            .then(function () {
+                // Check to see if the initialization process was successful.
+                return self.handleInitialization(context);
             })
             .then(function () {
                 // Initialize the list of local sites to be used for this command, if necessary.
@@ -164,7 +159,7 @@ class PushCommand extends BaseCommand {
 
         // Start the spinner (progress indicator) if we're not doing verbose output.
         if (!this.getCommandLineOption("verbose")) {
-            this.spinner = ora();
+            this.spinner = this.getProgram().getSpinner();
             this.spinner.start();
         }
     }
@@ -329,16 +324,6 @@ class PushCommand extends BaseCommand {
                     };
 
                     return pushPagesBySite(context);
-                }
-            })
-            .then(function () {
-                if (self.getCommandLineOption("publishingSources")) {
-                    return self.handlePushPromise(self.pushSources(context), continueOnError);
-                }
-            })
-            .then(function () {
-                if (self.getCommandLineOption("publishingProfiles")) {
-                    return self.handlePushPromise(self.pushProfiles(context), continueOnError);
                 }
             })
             .then(function () {
@@ -974,108 +959,6 @@ class PushCommand extends BaseCommand {
     }
 
     /**
-     * Push the (publishing) source artifacts.
-     *
-     * @param {Object} context The API context to be used for the push operation.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the results of pushing the source artifacts.
-     */
-    pushSources (context) {
-        const helper = ToolsApi.getPublishingSourcesHelper();
-        const emitter = context.eventEmitter;
-        const self = this;
-
-        self.getLogger().info(PushingPublishingSources);
-
-        // The api emits an event when an item is pushed, so we log it for the user.
-        const sourcePushed = function (name) {
-            self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_source_pushed', {name: name}));
-        };
-        emitter.on("pushed", sourcePushed);
-
-        // The api emits an event when there is a push error, so we log it for the user.
-        const sourcePushedError = function (error, name) {
-            self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_source_push_error', {name: name, message: error.message}));
-        };
-        emitter.on("pushed-error", sourcePushedError);
-
-        // If a name is specified, push the named source.
-        // If Ignore-timestamps is specified then push all sources. Otherwise only
-        // push modified sources (which is the default behavior).
-        const apiOptions = this.getApiOptions();
-
-        if (helper.doesDirectoryExist(context, apiOptions)) {
-            this._directoriesCount++;
-        }
-
-        // Return the promise for the results of the push operation.
-        return this.pushItems(context, helper, apiOptions)
-            .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
-            })
-            .finally(function () {
-                emitter.removeListener("pushed", sourcePushed);
-                emitter.removeListener("pushed-error", sourcePushedError);
-            });
-    }
-
-    /**
-     * Push the (publishing) profile artifacts.
-     *
-     * @param {Object} context The API context to be used for the push operation.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the results of pushing the profile artifacts.
-     */
-    pushProfiles (context) {
-        const helper = ToolsApi.getPublishingProfilesHelper();
-        const emitter = context.eventEmitter;
-        const self = this;
-
-        self.getLogger().info(PushingPublishingProfiles);
-
-        // The api emits an event when an item is pushed, so we log it for the user.
-        const profilePushed = function (name) {
-            self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_profile_pushed', {name: name}));
-        };
-        emitter.on("pushed", profilePushed);
-
-        // The api emits an event when there is a push error, so we log it for the user.
-        const profilePushedError = function (error, name) {
-            self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_push_profile_push_error', {name: name, message: error.message}));
-        };
-        emitter.on("pushed-error", profilePushedError);
-
-        // If a name is specified, push the named profile.
-        // If Ignore-timestamps is specified then push all profiles. Otherwise only
-        // push modified profiles (which is the default behavior).
-        const apiOptions = this.getApiOptions();
-
-        if (helper.doesDirectoryExist(context, apiOptions)) {
-            this._directoriesCount++;
-        }
-
-        // Return the promise for the results of the push operation.
-        return this.pushItems(context, helper, apiOptions)
-            .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
-            })
-            .finally(function () {
-                emitter.removeListener("pushed", profilePushed);
-                emitter.removeListener("pushed-error", profilePushedError);
-            });
-    }
-
-    /**
      * Push the (publishing) site revision artifacts.
      *
      * @param {Object} context The API context to be used for the push operation.
@@ -1151,21 +1034,20 @@ class PushCommand extends BaseCommand {
     /**
      * Handle the "named" option specified on the command line.
      *
-     * @returns {boolean} A value of true if the use of the "named" option is valid, otherwise false to indicate that
+     * @returns {Q.Promise} Resolve if the use of the "named" option is valid, reject to indicate that
      *          command execution should not continue.
      */
     handleNamedOption () {
+        const deferred = Q.defer();
         if (this.getCommandLineOption("named")) {
             if (this.getCommandLineOption("ignoreTimestamps")) {
-                this.errorMessage(i18n.__('cli_push_name_and_ignore_timestamps'));
-                this.resetCommandLineOptions();
-                return false;
+                deferred.reject(new Error(i18n.__('cli_push_name_and_ignore_timestamps')));
+                return deferred.promise;
             }
 
             if (this.getCommandLineOption("path")) {
-                this.errorMessage(i18n.__('cli_push_name_and_path'));
-                this.resetCommandLineOptions();
-                return false;
+                deferred.reject(new Error(i18n.__('cli_push_name_and_path')));
+                return deferred.promise;
             }
 
             // The ready and draft options can only be used with the named option for pages.
@@ -1181,27 +1063,25 @@ class PushCommand extends BaseCommand {
 */
             } else {
                 if (this.getCommandLineOption("ready")) {
-                    this.errorMessage(i18n.__('cli_push_name_and_ready'));
-                    this.resetCommandLineOptions();
-                    return false;
+                    deferred.reject(new Error(i18n.__('cli_push_name_and_ready')));
+                    return deferred.promise;
                 }
 /*
                 if (this.getCommandLineOption("draft")) {
-                    this.errorMessage(i18n.__('cli_push_name_and_draft'));
-                    this.resetCommandLineOptions();
-                    return false;
+                    deferred.reject(new Error(i18n.__('cli_push_name_and_draft')));
+                    return deferred.promise;
                 }
 */
             }
 
             if (this.getOptionArtifactCount() !== 1) {
-                this.errorMessage(i18n.__('cli_push_name_one_type'));
-                this.resetCommandLineOptions();
-                return false;
+                deferred.reject(new Error(i18n.__('cli_push_name_one_type')));
+                return deferred.promise;
             }
         }
 
-        return true;
+        deferred.resolve();
+        return deferred.promise;
     }
 
     /**
@@ -1221,8 +1101,6 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("content", undefined);
         this.setCommandLineOption("categories", undefined);
         this.setCommandLineOption("renditions", undefined);
-        this.setCommandLineOption("publishingSources", undefined);
-        this.setCommandLineOption("publishingProfiles", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("named", undefined);
         this.setCommandLineOption("path", undefined);
@@ -1230,6 +1108,7 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("pages", undefined);
         this.setCommandLineOption("createOnly", undefined);
         this.setCommandLineOption("manifest", undefined);
+        this.setCommandLineOption("serverManifest", undefined);
         this.setCommandLineOption("writeManifest", undefined);
 
         super.resetCommandLineOptions();
@@ -1251,9 +1130,7 @@ function pushCommand (program) {
         .option('-r --renditions',       i18n.__('cli_push_opt_renditions'))
         .option('-s --sites',            i18n.__('cli_push_opt_sites'))
         .option('-p --pages',            i18n.__('cli_push_opt_pages'))
-        .option('-P --publishing-profiles',i18n.__('cli_push_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_push_opt_site_revisions'))
-        .option('-S --publishing-sources',i18n.__('cli_push_opt_sources'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-I --ignore-timestamps',i18n.__('cli_push_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_push_opt_all'))
@@ -1264,6 +1141,7 @@ function pushCommand (program) {
         .option('--named <named>',       i18n.__('cli_push_opt_named'))
         .option('--path <path>',         i18n.__('cli_push_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_push_opt_use_manifest'))
+        .option('--server-manifest <manifest>', i18n.__('cli_push_opt_use_server_manifest'))
         .option('--write-manifest <manifest>', i18n.__('cli_push_opt_write_manifest'))
         .option('--dir <dir>',           i18n.__('cli_push_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))

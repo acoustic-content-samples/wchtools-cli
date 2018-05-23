@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "Error al filtrar la lista de elementos remotos en listModifiedRemoteItemNames",
   "push_error_creating_item": "Error de envío al crear el elemento: ",
   "push_error_updating_item": "Error de envío al actualizar el elemento: ",
+  "push_warning_ignore_conflict": "Ignorando diferencias no importantes en el elemento enviado: %(name)s.",
   "pushed_item_error": "Error de elemento enviado: ",
   "pushed_item_retry": "Reintento de enviar el elemento '%(name)s'. Error: %(message)s",
   "invalid_path": "Vía de acceso no válida: %(path)s",
@@ -24,6 +25,7 @@
   "save_item_write_failed_bad_path": "saveItem no ha podido escribir en el archivo %(path)s vía de acceso errónea",
   "close_stream_failed": "closeStream ha fallado con el error: ",
   "error_options_file": "Error al leer el archivo de opciones de configuración: %(filename)s. %(error)s",
+  "error_manifest_file": "Error al leer el archivo de manifiesto: %(filename)s. %(error)s",
 
   "name_required": "Debe especificarse un nombre.",
   "category_exists": "Una categoría con el nombre %(name)s ya existe.",
@@ -49,6 +51,9 @@
   "error_set_last_pull_timestamp": "Error en setLastPullTimestamp: ",
   "error_set_last_push_timestamp": "Error en setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Error en getHashesForFile: ",
+  "error_manifest_file_read": "Error al leer el archivo de manifiesto %(filename)s: %(error)s",
+  "error_manifest_file_write": "Error al escribir el archivo de manifiesto %(filename)s: %(error)s",
+  "error_manifest_file_does_not_exist": "El archivo de manifiesto %(filename)s no existe. ",
 
   "error_unsupported_endpoint": "El %(service_name)s API no soporta el punto final %(endpoint)s.",
   "unknown_error": "Error desconocido",
@@ -66,6 +71,7 @@
   "retry_failed_retry": "Una solicitud (%(id)d) que se ha reintentado (attempt %(attempt)d) ha fallado antes de alcanzar el número máximo de reintentos. %(message)s",
   "retry_next_attempt": "Una solicitud (%(id)d) se reintentará (attempt %(attempt)d) dentro de %(delay)d milisegundos.",
   "retry_success": "Una solicitud (%(id)d) que se ha reintentado ha finalizado correctamente después de %(attempt)d intentos.",
-  "retry_max_attempts": "Una solicitud (%(id)d) se ha reintentado el número máximo de reintentos."
+  "retry_max_attempts": "Una solicitud (%(id)d) se ha reintentado el número máximo de reintentos.",
+  "header_value_not_string": "Ignorando la cabecera HTTP %(header)s; el valor proporcionado no es una serie."
 }
 

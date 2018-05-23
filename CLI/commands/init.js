@@ -151,33 +151,39 @@ class InitCommand extends BaseCommand {
         }
 
         // Check to see if the initialization process was successful.
-        if (!this.handleInitialization(context)) {
-            return;
-        }
+        const self = this;
+        this.handleInitialization(context)
+            .then (function () {
+                // Determine which options will require a command line prompt.
+                const promptSchema = self.getInitPromptSchema(context);
 
-        // Determine which options will require a command line prompt.
-        const promptSchema = this.getInitPromptSchema(context);
-
-        if (promptSchema) {
-            // Handle the case where some options were not specified and will be prompted for.
-            const self = this;
-            const schemaProps = {"properties": promptSchema};
-            prompt.message = '';
-            prompt.delimiter = ' ';
-            prompt.start();
-            prompt.get(schemaProps, function (err, results) {
-                if (err) {
-                    // Reset the command line options and display the error.
-                    self.resetCommandLineOptions();
-                    self.getProgram().errorMessage(i18n.__('cli_init_error', {message: err.toString()}));
+                if (promptSchema) {
+                    // Handle the case where some options were not specified and will be prompted for.
+                    const schemaProps = {"properties": promptSchema};
+                    prompt.message = '';
+                    prompt.delimiter = ' ';
+                    prompt.start();
+                    prompt.get(schemaProps, function (err, results) {
+                        if (err) {
+                            // Reset the command line options and display the error.
+                            self.resetCommandLineOptions();
+                            self.getProgram().errorMessage(i18n.__('cli_init_error', {message: err.toString()}));
+                        } else {
+                            self.updateOptions(context, results);
+                        }
+                    });
                 } else {
-                    self.updateOptions(context, results);
+                    // Handle the case where all options were specified and no prompt is required.
+                    self.updateOptions(context);
                 }
+            })
+            .catch(function (err) {
+                self.errorMessage(err.message);
+            })
+            .finally(function () {
+                // Reset the command line options once the command has completed.
+                self.resetCommandLineOptions();
             });
-        } else {
-            // Handle the case where all options were specified and no prompt is required.
-            this.updateOptions(context);
-        }
     }
 
     /**
