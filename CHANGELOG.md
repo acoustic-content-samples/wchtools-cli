@@ -1,6 +1,6 @@
 # Changelog
 
-### 2.7.1 changes since 2.6.2
+### 2.7.3 changes since 2.6.2
   - Add support for push, pull, and list of Layouts, Mappings and Content Types by path.
   - Add support for creating/updating a deletions manifest when pulling deletions.
   - For the case of deleting the results of a search (--named, --path, --by-type-name), an empty search result will be treated as a warning instead of an error.
