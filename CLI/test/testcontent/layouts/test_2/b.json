@@ -1,0 +1,9 @@
+{
+  "id": "test-layout-2-b",
+  "rev": "50-c334d875e27be7ae0f1a73b516587db7",
+  "name": "Ferris Wheel",
+  "classification": "layout",
+  "prerender": false,
+  "template": "ferris-wheel",
+  "templateType": "angular"
+}

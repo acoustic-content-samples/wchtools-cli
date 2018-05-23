@@ -300,7 +300,7 @@ class DeleteUnitTest extends UnitTest {
 
     testDeleteBySearch (helper, switches, itemName1, searchArg) {
         describe("Deleting items by search for " + searchArg, function () {
-            it("should fail if no matching artifacts", function(done) {
+            it("should succeed (with a warning) if no matching artifacts", function(done) {
                 const stubSearch = sinon.stub(helper, "searchRemote");
                 stubSearch.resolves([]);
 
@@ -308,13 +308,8 @@ class DeleteUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', searchArg, itemName1])
                     .then(function () {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The command should have failed.");
-                    })
-                    .catch(function (err) {
-                        // The stub should only have been called once, and the expected error should have been returned.
+                        // The stub should only have been called once.
                         expect(stubSearch).to.have.been.calledOnce;
-                        expect(err.message).to.contain("no artifacts that match");
                     })
                     .catch(function (err) {
                         error = err;
@@ -1385,7 +1380,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should fail if --all by itself", function (done) {
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", '--all'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", '--all', "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -1405,7 +1400,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should fail if --all specifies --preview", function (done) {
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--preview'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--preview', "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -2153,7 +2148,7 @@ class DeleteUnitTest extends UnitTest {
         describe("CLI-unit-delete-manifest-fail", function () {
             it("fails if both --mainfest and --all are specified", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.returns(true);
+                stub.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2189,7 +2184,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.returns(false);
+                stub.rejects(false);
 
                 // Execute the command to delete using a manifest.
                 let error;
@@ -2217,7 +2212,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("fails if no items in manifest", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 // No types (so no incompatible types).
                 const stubSection = sinon.stub(manifests, "getManifestSection");
@@ -2250,7 +2245,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("fails if incompatible types in manifest", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 // Sites is an incompatible type.
                 const stubSection = sinon.stub(manifests, "getManifestSection");
@@ -2295,7 +2290,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("test delete manifest fails if delete fails and not continue on error", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2349,7 +2344,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("test delete manifest fails if no artifacts deleted", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2401,7 +2396,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("test delete manifest fails if no artifacts deleted, verbose", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2455,7 +2450,7 @@ class DeleteUnitTest extends UnitTest {
         describe("CLI-unit-delete-manifest-succeed", function () {
             it("test delete manifest working", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2506,7 +2501,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("test delete manifest working, verbose", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2554,7 +2549,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("test delete manifest working, preview", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2593,7 +2588,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("test delete working when save manifest fails", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);

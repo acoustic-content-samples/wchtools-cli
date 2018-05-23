@@ -239,7 +239,7 @@ function getError (err, body, response, requestOptions) {
             } else if (response.statusCode >= 500) {
                 error.message = i18n.__("service_error") + i18n.__("please_try", {log_dir: getApiLogPath()});
             } else if ((response.statusCode === 413) && (requestOptions && requestOptions.body)) {
-                requestOptions.body = "..."; 
+                requestOptions.body = "...";
             }
         }
 
@@ -614,6 +614,26 @@ function pathNormalize (filePath) {
 }
 
 /**
+ * Format the specified path so it can be used to filter artifacts.
+ *
+ * @param {String} filterPath The path used to filter artifacts.
+ *
+ * @return {String} The formatted path used to filter artifacts.
+ */
+function formatFilterPath (filterPath) {
+    filterPath = filterPath.replace(/\\/g, '/');
+    if (filterPath.charAt(0) !== '/') {
+        filterPath = '/' + filterPath;
+    }
+
+    if (!filterPath.endsWith('/')) {
+        filterPath = filterPath + '/';
+    }
+
+    return filterPath;
+}
+
+/**
  * Remove parent directories of the given file path, if they are empty.
  *
  * @param {String} basePath The base directory that cannot be deleted.
@@ -622,22 +642,26 @@ function pathNormalize (filePath) {
 function removeEmptyParentDirectories (basePath, filePath) {
     // Start with the parent folder of the specified file.
     let folderPath = path.normalize(path.dirname(filePath));
-    let previousFolderPath;
 
-    // Normalize the base path to make sure comparisons work correctly.
-    basePath = path.normalize(basePath);
+    // Make sure the path exists before reading files.
+    if (fs.existsSync(folderPath)) {
+        let previousFolderPath;
 
-    while ((folderPath !== basePath) && (folderPath !== previousFolderPath)) {
-        // The parent folder is not the base path, so delete it if it is empty.
-        const files = fs.readdirSync(folderPath);
-        if (!files || files.length === 0) {
-            // The folder is now empty, so delete it and move to the parent folder.
-            fs.rmdirSync(folderPath);
-            previousFolderPath = folderPath;
-            folderPath = path.dirname(folderPath);
-        } else {
-            // The folder is not empty, so we're done.
-            break;
+        // Normalize the base path to make sure comparisons work correctly.
+        basePath = path.normalize(basePath);
+
+        while ((folderPath !== basePath) && (folderPath !== previousFolderPath)) {
+            // The parent folder is not the base path, so delete it if it is empty.
+            const files = fs.readdirSync(folderPath);
+            if (!files || files.length === 0) {
+                // The folder is now empty, so delete it and move to the parent folder.
+                fs.rmdirSync(folderPath);
+                previousFolderPath = folderPath;
+                folderPath = path.dirname(folderPath);
+            } else {
+                // The folder is not empty, so we're done.
+                break;
+            }
         }
     }
 };
@@ -851,6 +875,7 @@ const utils = {
     clone: clone,
     compare: compare,
     pathNormalize: pathNormalize,
+    formatFilterPath: formatFilterPath,
     removeEmptyParentDirectories: removeEmptyParentDirectories,
     getUserHome: getUserHome,
     getLogger: getLogger,

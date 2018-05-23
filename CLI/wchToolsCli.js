@@ -27,6 +27,7 @@ const packageJson = require('./package.json');
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
+const spinner = require("ora")();
 
 program.LOG_PATH = process.cwd() + '/.cli-log';
 
@@ -70,6 +71,10 @@ program.on('*', function () {
     program.outputHelp(); // NOSONAR
     program.errorMessage('Unknown Command: ' + program.args.join(' ')); // NOSONAR
 });
+
+program.getSpinner = function(){
+    return spinner;
+}
 
 program.successMessageSave = program.successMessage;
 program.errorMessageSave = program.errorMessage;

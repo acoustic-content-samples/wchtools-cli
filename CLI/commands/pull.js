@@ -25,7 +25,6 @@ const login = ToolsApi.getLogin();
 const events = require("events");
 const prompt = require("prompt");
 const Q = require("q");
-const ora = require("ora");
 
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -41,8 +40,6 @@ const PullingImageProfiles = PREFIX + i18n.__('cli_pull_pulling_image_profiles')
 const PullingContents = PREFIX + i18n.__('cli_pull_pulling_content') + SUFFIX;
 const PullingCategories = PREFIX + i18n.__('cli_pull_pulling_categories') + SUFFIX;
 const PullingRenditions = PREFIX + i18n.__('cli_pull_pulling_renditions') + SUFFIX;
-const PullingPublishingProfiles = PREFIX + i18n.__('cli_pull_pulling_profiles') + SUFFIX;
-const PullingPublishingSources = PREFIX + i18n.__('cli_pull_pulling_sources') + SUFFIX;
 const PullingPublishingSiteRevisions = PREFIX + i18n.__('cli_pull_pulling_site_revisions') + SUFFIX;
 const PullingSites = PREFIX + i18n.__('cli_pull_pulling_sites') + SUFFIX;
 
@@ -94,46 +91,27 @@ class PullCommand extends BaseCommand {
         }
 
         // Handle the various validation checks.
-        if (this.getCommandLineOption("manifest") && this.getCommandLineOption("deletions")) {
+        if ((this.getCommandLineOption("manifest") || this.getCommandLineOption("serverManifest")) && this.getCommandLineOption("deletions")) {
             // Pull by manifest is not compatible with pulling deletions.
             this.errorMessage(i18n.__("cli_pull_manifest_and_deletions"));
             this.resetCommandLineOptions();
             return;
         }
 
+        if (this.getCommandLineOption("writeDeletionsManifest") && !this.getCommandLineOption("deletions")) {
+            // A deletions manifest can only be written when pulling deletions.
+            this.errorMessage(i18n.__("cli_write_deletions_manifest_and_deletions"));
+            this.resetCommandLineOptions();
+            return;
+        }
+
         // Make sure the "dir" option can be handled successfully.
-        if (!self.handleDirOption(context)) {
-            return;
-        }
-
-        // Handle the manifest options.
-        if (!self.handleManifestOptions(context)) {
-            return;
-        }
-
-        // Handle the cases of no artifact types, "all" authoring types, and using a manifest.
-        if (!self.handleArtifactTypes(context, ["webassets"])) {
-            return;
-        }
-
-        // Handle the ready and draft options.
-        if (!self.handleReadyDraftOptions()) {
-            return;
-        }
-
-        // Make sure the "path" option can be handled successfully.
-        if (!self.handlePathOption()) {
-            return;
-        }
-
-        // Check to see if the initialization process was successful.
-        if (!self.handleInitialization(context)) {
-            return;
-        }
-
-        // Make sure the url has been specified.
         let error;
-        self.handleUrlOption(context)
+        self.handleDirOption(context)
+            .then(function () {
+                // Make sure the url has been specified.
+                return self.handleUrlOption(context);
+            })
             .then(function () {
                 // Make sure the user name and password have been specified.
                 return self.handleAuthenticationOptions(context);
@@ -141,6 +119,26 @@ class PullCommand extends BaseCommand {
             .then(function () {
                 // Login using the current options.
                 return login.login(context, self.getApiOptions());
+            })
+            .then(function () {
+                // Handle the manifest options.
+                return self.handleManifestOptions(context);
+            })
+            .then(function () {
+                // Handle the cases of no artifact types, "all" authoring types, and using a manifest.
+                return self.handleArtifactTypes(context, ["webassets"]);
+            })
+            .then(function () {
+                // Make sure the "path" option can be handled successfully.
+                return self.handlePathOption();
+            })
+            .then(function () {
+                // Handle the ready and draft options.
+                return self.handleReadyDraftOptions();
+            })
+            .then(function () {
+                // Check to see if the initialization process was successful.
+                return self.handleInitialization(context);
             })
             .then(function () {
                 // Initialize the list of remote sites to be used for this command, if necessary.
@@ -153,9 +151,12 @@ class PullCommand extends BaseCommand {
                 return self.pullArtifacts(context);
             })
             .then(function () {
-                // Save the results to a manifest, if one was specified.
                 try {
+                    // Save the results to a manifest, if one was specified.
                     ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
+
+                    // Save the deletions to a deletions manifest, if one was specified.
+                    ToolsApi.getManifests().saveDeletionsManifest(context, self.getApiOptions());
                 } catch (err) {
                     // Log the error that occurred while saving the manifest, but do not fail the pull operation.
                     self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
@@ -193,7 +194,7 @@ class PullCommand extends BaseCommand {
 
         // Start the spinner (progress indicator) if we're not doing verbose output.
         if (!this.getCommandLineOption("verbose")) {
-            this.spinner = ora();
+            this.spinner = this.getProgram().getSpinner();
             this.spinner.start();
         }
     }
@@ -293,9 +294,7 @@ class PullCommand extends BaseCommand {
             } else if ( self.getCommandLineOption("categories") ||
                         self.getCommandLineOption("pages") ||
                         self.getCommandLineOption("sites") ||
-                        self.getCommandLineOption("publishingProfiles") ||
                         self.getCommandLineOption("publishingSiteRevisions") ||
-                        self.getCommandLineOption("publishingSources") ||
                         self.getCommandLineOption("layouts") ||
                         self.getCommandLineOption("mappings") ||
                         self.getCommandLineOption("imageProfiles")) {
@@ -391,18 +390,8 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("publishingProfiles")) {
-                    return self.handlePullPromise(self.pullProfiles(context), continueOnError);
-                }
-            })
-            .then(function () {
                 if (self.getCommandLineOption("publishingSiteRevisions")) {
                     return self.handlePullPromise(self.pullSiteRevisions(context), continueOnError);
-                }
-            })
-            .then(function () {
-                if (self.getCommandLineOption("publishingSources")) {
-                    return self.handlePullPromise(self.pullSources(context), continueOnError);
                 }
             })
             .then(function () {
@@ -475,7 +464,7 @@ class PullCommand extends BaseCommand {
 
         // Start the spinner (progress indicator) if we're not doing verbose output.
         if (!self.getCommandLineOption("verbose")) {
-            self.spinner = ora();
+            self.spinner = this.getProgram().getSpinner();
             self.spinner.start();
         }
 
@@ -705,6 +694,12 @@ class PullCommand extends BaseCommand {
                         required: true
                     };
             });
+
+            // Stop the spinner if it's being displayed.
+            if (self.spinner) {
+                self.spinner.stop();
+            }
+
             // After all the prompts have been displayed, execute each of the confirmed delete operations.
             const deferred = Q.defer();
             const schemaProps = {properties: schemaInput};
@@ -1509,144 +1504,6 @@ class PullCommand extends BaseCommand {
     }
 
     /**
-     * Pull the source artifacts.
-     *
-     * @param {Object} context The API context to be used for the pull operation.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the results of pulling the source artifacts.
-     */
-    pullSources (context) {
-        const helper = ToolsApi.getPublishingSourcesHelper();
-        const emitter = context.eventEmitter;
-        const self = this;
-
-        self.getLogger().info(PullingPublishingSources);
-
-        // The API emits an event when an item is pulled, so we log it for the user.
-        const sourcePulled = function (name) {
-            self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_source_pulled', {name: name}));
-        };
-        emitter.on(EVENT_ITEM_PULLED, sourcePulled);
-
-        // The API emits an event when there is an error pulling an item, so we log it for the user.
-        const sourcePulledError = function (error, name) {
-            self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_pull_source_pull_error', {name: name, message: error.message}));
-        };
-        emitter.on(EVENT_ITEM_PULLED_ERROR, sourcePulledError);
-
-        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
-        const itemsToDelete = [];
-        const itemLocalOnly = function (item) {
-            itemsToDelete.push(item);
-        };
-        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
-
-        // Get the API options and start the pull operation.
-        const apiOptions = this.getApiOptions();
-
-        // Return the promise for the results of the pull operation.
-        return this.pullItems(context, helper, apiOptions)
-            .then(function (items) {
-                // Handle any local items that need to be deleted.
-                if (itemsToDelete.length > 0) {
-                    // Delete the local items that do not exist on the server.
-                    const deleteFn = helper.deleteLocalItem.bind(helper);
-                    const promptKey = "cli_pull_source_delete_confirm";
-                    const successKey = "cli_pull_source_deleted";
-                    const errorKey = "cli_pull_source_delete_error";
-                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
-                        .then(function () {
-                            return items;
-                        });
-                } else {
-                    return items;
-                }
-            })
-            .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
-            })
-            .finally(function () {
-                emitter.removeListener(EVENT_ITEM_PULLED, sourcePulled);
-                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, sourcePulledError);
-                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
-            });
-    }
-
-    /**
-     * Pull the publishing profile artifacts.
-     *
-     * @param {Object} context The API context to be used for the pull operation.
-     *
-     * @returns {Q.Promise} A promise that is resolved with the results of pulling the profile artifacts.
-     */
-    pullProfiles (context) {
-        const helper = ToolsApi.getPublishingProfilesHelper();
-        const emitter = context.eventEmitter;
-        const self = this;
-
-        self.getLogger().info(PullingPublishingProfiles);
-
-        // The API emits an event when an item is pulled, so we log it for the user.
-        const profilePulled = function (name) {
-            self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_profile_pulled', {name: name}));
-        };
-        emitter.on(EVENT_ITEM_PULLED, profilePulled);
-
-        // The API emits an event when there is an error pulling an item, so we log it for the user.
-        const profilePulledError = function (error, name) {
-            self._artifactsError++;
-            self.getLogger().error(i18n.__('cli_pull_profile_pull_error', {name: name, message: error.message}));
-        };
-        emitter.on(EVENT_ITEM_PULLED_ERROR, profilePulledError);
-
-        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
-        const itemsToDelete = [];
-        const itemLocalOnly = function (item) {
-            itemsToDelete.push(item);
-        };
-        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
-
-        // Get the API options and start the pull operation.
-        const apiOptions = this.getApiOptions();
-
-        // Return the promise for the results of the pull operation.
-        return this.pullItems(context, helper, apiOptions)
-            .then(function (items) {
-                // Handle any local items that need to be deleted.
-                if (itemsToDelete.length > 0) {
-                    // Delete the local items that do not exist on the server.
-                    const deleteFn = helper.deleteLocalItem.bind(helper);
-                    const promptKey = "cli_pull_profile_delete_confirm";
-                    const successKey = "cli_pull_profile_deleted";
-                    const errorKey = "cli_pull_profile_delete_error";
-                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
-                        .then(function () {
-                            return items;
-                        });
-                } else {
-                    return items;
-                }
-            })
-            .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
-            })
-            .finally(function () {
-                emitter.removeListener(EVENT_ITEM_PULLED, profilePulled);
-                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, profilePulledError);
-                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
-            });
-    }
-
-    /**
      * Pull the publishing site revision artifacts.
      *
      * @param {Object} context The API context to be used for the pull operation.
@@ -1752,8 +1609,6 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("content", undefined);
         this.setCommandLineOption("categories", undefined);
         this.setCommandLineOption("renditions", undefined);
-        this.setCommandLineOption("publishingSources", undefined);
-        this.setCommandLineOption("publishingProfiles", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("sites", undefined);
         this.setCommandLineOption("pages", undefined);
@@ -1762,7 +1617,9 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("byTypeName", undefined);
         this.setCommandLineOption("path", undefined);
         this.setCommandLineOption("manifest", undefined);
+        this.setCommandLineOption("serverManifest", undefined);
         this.setCommandLineOption("writeManifest", undefined);
+        this.setCommandLineOption("writeDeletionsManifest", undefined);
         super.resetCommandLineOptions();
     }
 }
@@ -1783,9 +1640,7 @@ function pullCommand (program) {
         .option('-s --sites',            i18n.__('cli_pull_opt_sites'))
         .option('-p --pages',            i18n.__('cli_pull_opt_pages'))
         .option('-A --all-authoring',    i18n.__('cli_pull_opt_all'))
-        .option('-P --publishing-profiles',i18n.__('cli_pull_opt_profiles'))
         .option('-R --publishing-site-revisions',i18n.__('cli_pull_opt_site_revisions'))
-        .option('-S --publishing-sources',i18n.__('cli_pull_opt_sources'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('-I --ignore-timestamps',i18n.__('cli_pull_opt_ignore_timestamps'))
         .option('--by-type-name <name>', i18n.__('cli_pull_opt_by_type_name'))
@@ -1793,7 +1648,9 @@ function pullCommand (program) {
         .option('-q --quiet',            i18n.__('cli_pull_opt_quiet'))
         .option('--path <path>',         i18n.__('cli_pull_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_pull_opt_use_manifest'))
+        .option('--server-manifest <manifest>', i18n.__('cli_pull_opt_use_server_manifest'))
         .option('--write-manifest <manifest>',i18n.__('cli_pull_opt_write_manifest'))
+        .option('--write-deletions-manifest <manifest>',i18n.__('cli_pull_opt_write_deletions_manifest'))
         .option('--ready',               i18n.__('cli_pull_opt_ready'))
         //.option('--draft',               i18n.__('cli_pull_opt_draft'))
         .option('--dir <dir>',           i18n.__('cli_pull_opt_dir'))

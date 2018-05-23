@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "2.6.2",
+  "version": "2.7.3",
   "keywords": [
     "api",
     "tools"
@@ -35,6 +35,7 @@
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
     "cp": "^0.2.0",
+    "cpr": "^2.0.2",
     "diff": "^3.2.0",
     "istanbul": "^0.4.5",
     "mocha": "^4.0.0",

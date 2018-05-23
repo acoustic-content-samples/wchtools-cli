@@ -662,6 +662,48 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
+            it("test pull ignore-timestamps working (path)", function (done) {
+                if (switches !== "--types" && switches !== "--layouts" && switches !== "--layout-mappings") {
+                    return done();
+                }
+
+                const stubGet = sinon.stub(helper._restApi, "getItems");
+                stubGet.resolves([{name: itemName1, id: "foo", path: "/test/" + itemName1}, {name: itemName2, id: "bar", path: "/test/" + itemName2}, {name: badItem, id: "ack", path: "/test/" + badItem}]);
+
+                const stubSave = sinon.stub(helper._fsApi, "saveItem");
+                stubSave.resolves(undefined);
+
+                const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--path", "test", "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubGet).to.have.been.calledOnce;
+                        expect(stubHashes).to.not.have.been.called;
+                        expect(stubSave).to.have.been.calledThrice;
+                        expect(stubSave.args[0][1].id).to.equal("foo");
+                        expect(stubSave.args[1][1].id).to.equal("bar");
+                        expect(stubSave.args[2][1].id).to.equal("ack");
+                        expect(msg).to.contain('3 artifacts');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubGet.restore();
+                        stubSave.restore();
+                        stubHashes.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test pull deletions --quiet working", function (done) {
                 const pullResources = (switches === '-a') || (switches === '-w');
                 const extension = helper._fsApi.getExtension();
@@ -866,7 +908,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api'])
                     .then(function (msg) {
                         if (switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -1183,7 +1225,7 @@ class PullUnitTest extends UnitTest {
         describe("CLI-unit-pull-manifest-fail", function () {
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.returns(false);
+                stub.rejects(false);
 
                 // Execute the command to pull using a manifest.
                 let error;
@@ -1211,7 +1253,7 @@ class PullUnitTest extends UnitTest {
 
             it("fails if no items in manifest", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 // No types (so no incompatible types).
                 const stubSection = sinon.stub(manifests, "getManifestSection");
@@ -1255,7 +1297,7 @@ class PullUnitTest extends UnitTest {
 
             it("fails if incompatible types in manifest", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 // Sites is an incompatible type.
                 const stubSection = sinon.stub(manifests, "getManifestSection");
@@ -1302,7 +1344,7 @@ class PullUnitTest extends UnitTest {
         describe("CLI-unit-pull-manifest-succeed", function () {
             it("test emitters working", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -1359,7 +1401,7 @@ class PullUnitTest extends UnitTest {
 
             it("succeed even if save mainfest fails", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -1492,6 +1534,27 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
+            it("test fail arg validation when --write-deletions-manifest used without --deletions", function (done) {
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--write-deletions-manifest', 'foo'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error message was returned.
+                        expect(err.message).to.contain('deletions manifest');
+                        expect(err.message).to.contain('--deletions');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test fail arg validation when --image-profiles used with --by-type-name", function (done) {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '-A', '--by-type-name', 'asdf', '--image-profiles'])
@@ -1601,7 +1664,7 @@ class PullUnitTest extends UnitTest {
                 }
 
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--ready", "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -1626,7 +1689,7 @@ class PullUnitTest extends UnitTest {
 
             it("should fail if both ready and manifest specified", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -1664,7 +1727,7 @@ class PullUnitTest extends UnitTest {
                 }
 
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -1695,13 +1758,13 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
-            it("should fail if path specified when not web assets", function (done) {
-                if (switches === "-w") {
+            it("should fail if path specified when not supported", function (done) {
+                if (switches === "-w" || switches === "--types" || switches === "--layouts" || switches === "--layout-mappings") {
                     return done();
                 }
 
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -1717,7 +1780,7 @@ class PullUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        expect(err.message).to.contain("path can only be used for web assets");
+                        expect(err.message).to.contain("path can only be used for web assets, content types, layouts, and layout mappings.");
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

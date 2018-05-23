@@ -14,12 +14,36 @@
   "tags": [
     "string"
   ],
-  "templateMapping": "",
-  "schema": {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "type": "object",
-    "properties": {},
-    "additionalProperties": false
-  },
-  "form": []
+  "elements": [
+    {
+      "elementType": "text",
+      "fieldLabel": "Text",
+      "label": "Event title",
+      "key": "heading"
+    },
+    {
+      "elementType": "datetime",
+      "fieldLabel": "Date",
+      "label": "Event date",
+      "key": "date"
+    },
+    {
+      "elementType": "formattedtext",
+      "fieldLabel": "Formatted Text",
+      "label": "Event description",
+      "key": "body"
+    },
+    {
+      "elementType": "formattedtext",
+      "fieldLabel": "Formatted Text",
+      "label": "Event details",
+      "key": "eventDetails"
+    },
+    {
+      "elementType": "formattedtext",
+      "fieldLabel": "Formatted Text",
+      "label": "Event location",
+      "key": "eventLocation"
+    }
+  ]
 }

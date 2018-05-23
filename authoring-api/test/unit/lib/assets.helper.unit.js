@@ -2036,6 +2036,63 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when pulling assets by path.", function (done) {
+                // Define four simple asset metadata items.
+                const assetMetadata1 = {path: "/foo/bar1.json"};
+                const assetMetadata2 = {path: "/bar/foo1.json"};
+                const assetMetadata3 = {path: "/foo/bar2.json"};
+                const assetMetadata4 = {path: "/bar/foo2.json"};
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stubGet = sinon.stub(assetsREST, "getItems");
+                stubGet.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+
+                // Create an assetsHelper.pullResources stub that returns an empty list.
+                const stubResources = sinon.stub(assetsHelper, "pullResources");
+                stubResources.resolves([]);
+
+                // Create a stub for helper._pullAsset that returns a promise for the asset metadata.
+                const stubPull = sinon.stub(assetsHelper, "_pullAsset");
+                stubPull.onCall(0).resolves(assetMetadata1);
+                stubPull.onCall(1).resolves(assetMetadata3);
+
+                // The stubs and spies should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubResources);
+                self.addTestDouble(stubPull);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullAllItems(context, {assetTypes: assetsHelper.ASSET_TYPES_BOTH, filterPath: "foo"})
+                    .then(function (assets) {
+                        // Verify that the helper returned the expected values.
+                        if (assets) {
+                            expect(assets).to.have.lengthOf(2);
+                            expect(assets[0].path).to.equal(assetMetadata1.path);
+                            expect(assets[1].path).to.equal(assetMetadata3.path);
+                        }
+
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.have.been.calledOnce;
+
+                        // Verify that the pull stub was called twice with the expected path and stream.
+                        expect(stubPull).to.have.been.calledTwice;
+                        expect(stubPull.args[0][1].path).to.equal(assetMetadata1.path);
+                        expect(stubPull.args[1][1].path).to.equal(assetMetadata3.path);
+
+                        expect(stubSetLastPull).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -2555,7 +2612,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // Create a rest.getItem stub that returns a promise for the metadata of an item.
                 const GET_ERROR = "There was an error getting a remote item, as expected by a unit test.";
-                const stubList = sinon.stub(assetsREST, "getItem");
+                const stubList = sinon.stub(assetsREST, "getItemByPath");
                 stubList.onCall(0).resolves(assetMetadata1);
                 stubList.onCall(1).resolves(assetMetadata2);
                 stubList.onCall(2).resolves(UnitTest.DUMMY_METADATA);
@@ -6344,6 +6401,51 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(names).to.have.lengthOf(2);
                         expect(names[0].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
                         expect(names[1].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
+
+                        // Verify that the stub was called once.
+                        expect(stub).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when getting a list of modified remote assets by path succeeds.", function (done) {
+                // List of multiple remote asset names.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const assetMetadataPath2 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT;
+                const assetMetadataPath3 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const assetMetadataPath4 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1 + assetsFS.getExtension());
+                assetMetadata1.path = "/foo/bar1.json";
+                const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2 + assetsFS.getExtension());
+                assetMetadata2.path = "/bar/foo1.json";
+                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3 + assetsFS.getExtension());
+                assetMetadata3.path = "/foo/bar2.json";
+                const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4 + assetsFS.getExtension());
+                assetMetadata4.path = "/bar/foo2.json";
+
+                // Create an assetsREST.getModifiedItems stub that returns a promise for the modified remote asset names.
+                const stub = sinon.stub(assetsREST, "getModifiedItems");
+                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.listModifiedRemoteItemNames(context, [assetsHelper.MODIFIED], {filterPath: "foo"})
+                    .then(function (names) {
+                        // Verify that the helper returned the expected values.
+                        expect(names).to.have.lengthOf(2);
+                        expect(names[0].path).to.contain("/foo/");
+                        expect(names[1].path).to.contain("/foo/");
 
                         // Verify that the stub was called once.
                         expect(stub).to.have.been.calledOnce;

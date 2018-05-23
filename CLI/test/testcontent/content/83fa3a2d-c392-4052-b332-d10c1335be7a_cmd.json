@@ -45,7 +45,8 @@
       }
     },
     "category": {
-      "elementType": "category"
+      "elementType": "category",
+      "categoryIds": ["64fa431d3eb6cad0ba9c4fe6b8bd3839"]
     }
   }
 }

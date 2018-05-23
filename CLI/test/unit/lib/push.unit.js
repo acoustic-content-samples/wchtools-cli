@@ -1188,6 +1188,56 @@ class PushUnitTest extends UnitTest {
                     });
             });
 
+            it("test push ignore-timestamps working (path)", function (done) {
+                if (switches !== "--types" && switches !== "--layouts" && switches !== "--layout-mappings") {
+                    return done();
+                }
+
+                const stubList = sinon.stub(helper._fsApi, "listNames");
+                stubList.resolves([{name: itemName1, id: "foo", path: "/test/" + itemName1}, {name: itemName2, id: "bar", path: "/test/" + itemName2}, {name: badItem, id: undefined, path: "/test/" + badItem}]);
+
+                // Stub the helper.pushAllItems method to return a promise that is resolved after emitting events.
+                const stubPush = sinon.stub(helper, "_pushNameList", function (context) {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pushed", {name: itemName1, id: "foo", path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: "bar", path: itemName2});
+                        emitter.emit("pushed", {name: badItem, id: undefined, path: badItem});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--ready", "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api','-v'])
+                    .then(function (msg) {
+                        // Verify that the stubs were called once, and that the expected number of items were pushed.
+                        expect(stubList).to.have.been.calledOnce;
+                        expect(stubPush).to.have.been.calledOnce;
+                        expect(stubPush.args[0][1]).to.have.lengthOf(3);
+                        expect(stubPush.args[0][1][0].id).to.equal("foo");
+                        expect(stubPush.args[0][1][1].id).to.equal("bar");
+                        expect(stubPush.args[0][1][2].id).to.not.exist;
+                        expect(msg).to.contain('3 artifacts');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the Stubbed methods.
+                        stubList.restore();
+                        stubPush.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test push create-only working", function (done) {
                 // Stub the helper.pushAllItems method to return a promise that is resolved after emitting events.
                 const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
@@ -1272,7 +1322,7 @@ class PushUnitTest extends UnitTest {
         describe("CLI-unit-push-manifest-fail", function () {
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.returns(false);
+                stub.rejects(false);
 
                 // Execute the command to push using a manifest.
                 let error;
@@ -1300,7 +1350,7 @@ class PushUnitTest extends UnitTest {
 
             it("fails if no items in manifest", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 // No types (so no incompatible types).
                 const stubSection = sinon.stub(manifests, "getManifestSection");
@@ -1344,7 +1394,7 @@ class PushUnitTest extends UnitTest {
 
             it("fails if incompatible types in manifest", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 // Sites is an incompatible type.
                 const stubSection = sinon.stub(manifests, "getManifestSection");
@@ -1391,7 +1441,7 @@ class PushUnitTest extends UnitTest {
         describe("CLI-unit-push-manifest-succeed", function () {
             it("test emitters working", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -1449,7 +1499,7 @@ class PushUnitTest extends UnitTest {
 
             it("succeeds when no artifact type specified", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -1533,7 +1583,7 @@ class PushUnitTest extends UnitTest {
 
             it("succeed even if save mainfest fails", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2066,7 +2116,7 @@ class PushUnitTest extends UnitTest {
             it("test fail all and named", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, '--all-authoring','--named','red'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, '--url', 'http://foo.bar/api', '--user', 'foo', '--password', 'password', '--all-authoring','--named','red'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -2088,7 +2138,7 @@ class PushUnitTest extends UnitTest {
             it("test fail named and path param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--named', 'foo', '--path', 'foo'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--url', 'http://foo.bar/api', '--user', 'foo', '--password', 'password', '--named', 'foo', '--path', 'foo'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -2114,7 +2164,7 @@ class PushUnitTest extends UnitTest {
                 }
 
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--named', 'foo', '--ready'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--url', 'http://foo.bar/api', '--user', 'foo', '--password', 'password', '--named', 'foo', '--ready'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -2135,7 +2185,7 @@ class PushUnitTest extends UnitTest {
             it("test fail named and ignore param", function (done) {
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--named', 'foo', '-I', '--path', 'foo'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--url', 'http://foo.bar/api', '--user', 'foo', '--password', 'password', '--named', 'foo', '-I', '--path', 'foo'])
                     .then(function (/*msg*/) {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -2161,7 +2211,7 @@ class PushUnitTest extends UnitTest {
                 }
 
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--ready", "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -2186,7 +2236,7 @@ class PushUnitTest extends UnitTest {
 
             it("should fail if both ready and manifest specified", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
@@ -2224,7 +2274,7 @@ class PushUnitTest extends UnitTest {
                 }
 
                 const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.returns(true);
+                stubInit.resolves(true);
 
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);

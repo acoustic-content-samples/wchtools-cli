@@ -223,6 +223,17 @@ class BaseHelper {
     }
 
     /**
+     * Updates the deletions manifest with results of an operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} itemList The list of items to be added to the deletions manifest.
+     * @param {Object} opts - The options to be used for this operation.
+     */
+    _updateDeletionsManifest (context, itemList, opts) {
+        manifests.updateDeletionsManifestSection(context, this.getArtifactName(), itemList, opts);
+    }
+
+    /**
      * Delete the specified local item.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -233,6 +244,9 @@ class BaseHelper {
      */
     deleteLocalItem (context, item, opts) {
         const helper = this;
+
+        // Add the item to the deletions manifest, if one was specified.
+        helper._updateDeletionsManifest(context, [item], opts);
 
         // Delete the specified item from the local file system.
         return helper._fsApi.deleteItem(context, item, opts)
@@ -956,33 +970,49 @@ class BaseHelper {
     }
 
     /**
+     * Filter the given list of items before completing the list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} itemList The items to be listed.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The filtered list of items.
+     *
+     * @protected
+     */
+    _listFilter (context, itemList, opts) {
+        // Filter the item list based on the ready and draft options.
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        if (readyOnly) {
+            // Filter out any items that are not ready.
+            itemList = itemList.filter(function (item) {
+                return (!item.status || item.status === "ready");
+            });
+        } else if (draftOnly) {
+            // Filter out any items that are not draft.
+            itemList = itemList.filter(function (item) {
+                return (item.status === "draft");
+            });
+        }
+
+        return itemList;
+    }
+
+    /**
      * Protected helper method for iterating over chunks of results
      */
     _listItemChunk (context, listFn, opts) {
+        const helper = this;
+
         // Get the next "chunk".
         return listFn(opts)
             .then(function (itemList) {
                 // Keep track of the original number of items in the chunk.
                 const chunkSize = itemList.length;
 
-                // Filter the item list based on the ready and draft options.
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
-                if (readyOnly) {
-                    // Filter out any items that are not ready.
-                    itemList = itemList.filter(function (item) {
-                        if (!item.status || item.status === "ready") {
-                            return item;
-                        }
-                    });
-                } else if (draftOnly) {
-                    // Filter out any items that are not draft.
-                    itemList = itemList.filter(function (item) {
-                        if (item.status === "draft") {
-                            return item;
-                        }
-                    });
-                }
+                // Filter the items before listing them.
+                itemList = helper._listFilter(context, itemList, opts);
 
                 return {length: chunkSize, items: itemList};
             });

@@ -117,14 +117,14 @@ class BaseHelperUnitTest extends UnitTest {
 
             // Execute any additional tests defined by a subclass. Executing the tests here allows them to be within the
             // same "describe" as the base helper tests, and allows them to leverage the same before and after functions.
-            self.runAdditionalTests(restApi,fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.runAdditionalTests(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
         });
     }
 
     runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
     }
 
-    testSingleton (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testSingleton (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         describe("is a singleton", function () {
             it("should fail if try to create a helper Type", function (done) {
                 let error;
@@ -161,7 +161,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testEventEmitter (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testEventEmitter (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         describe("event emitter", function () {
             it("should call registered functions when an event is emitted.", function () {
                 // Setup several spies to listen for emitted events.
@@ -211,7 +211,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
    }
 
-    testGetVirtualFolderName (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testGetVirtualFolderName (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("getVirtualFolderName", function () {
             it("should get the item folder name from the FS API.", function () {
@@ -236,7 +236,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testGetLocalItem (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testGetLocalItem (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("getLocalItem", function () {
             it("should fail when there is an error getting local item.", function (done) {
@@ -299,7 +299,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testGetLocalItems (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testGetLocalItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("getLocalItems", function () {
             it("should fail when there is an error getting local items.", function (done) {
@@ -505,7 +505,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testCreateRemoteItem (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testCreateRemoteItem (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("createRemoteItem", function () {
             it("should fail when there is an error creating remote items.", function (done) {
@@ -567,7 +567,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testPullItem (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testPullItem (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("pullItem", function () {
             it("should fail when the specified item is not found.", function (done) {
@@ -872,7 +872,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testPullAllItems (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testPullAllItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("pullAllItems", function () {
             it("should fail when there is an error getting remote items.", function (done) {
@@ -1321,10 +1321,90 @@ class BaseHelperUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when getting item names succeeds - path.", function (done) {
+                const pathBased = (type === "types" || type === "layouts" || type === "layout-mappings" || type === "sites/default");
+
+                // Create a rest.getItems stub that returns metadata for the items.
+                const stubGet = sinon.stub(restApi, "getItems");
+                const metadata1 = utils.clone(itemMetadata1);
+                metadata1.path = "/foo/bar1.json";
+                const metadata2 = utils.clone(itemMetadata2);
+                metadata2.path = "/bar/foo1.json";
+                const metadata3 = utils.clone(itemMetadata2);
+                metadata3.path = "/foo/bar2.json";
+                const metadata4 = utils.clone(itemMetadata1);
+                metadata4.path = "/bar/foo2.json";
+                const metadata5 = utils.clone(itemMetadata2);
+                metadata5.path = "/foo/bar3.json";
+                stubGet.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
+
+                // Create a helper.canPullItem stub that return false for some of the items.
+                const stubCan = sinon.stub(helper, "canPullItem");
+                stubCan.returns(true);
+
+                // The saveItem method should only be called for the successfully pulled items.
+                const stubSave = sinon.stub(fsApi, "saveItem");
+                if (pathBased) {
+                    stubSave.onCall(0).resolves(metadata1);
+                    stubSave.onCall(1).resolves(metadata3);
+                    stubSave.onCall(2).resolves(metadata5);
+                } else {
+                    stubSave.onCall(0).resolves(metadata1);
+                    stubSave.onCall(1).resolves(metadata2);
+                    stubSave.onCall(2).resolves(metadata3);
+                    stubSave.onCall(3).resolves(metadata4);
+                    stubSave.onCall(4).resolves(metadata5);
+                }
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubCan);
+                self.addTestDouble(stubSave);
+
+                // Create spies to listen for the "pulled" and "pulled-error" events.
+                const emitter = helper.getEventEmitter(context);
+                const spyPull = sinon.spy();
+                emitter.on("pulled", spyPull);
+                const spyError = sinon.spy();
+                emitter.on("pulled-error", spyError);
+
+                // Call the method being tested.
+                let error;
+                helper.pullAllItems(context, {filterPath: "foo"})
+                    .then(function (items) {
+                        // Verify that the get stub was called once.
+                        expect(stubGet).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
+                        if (pathBased) {
+                            expect(items.length).to.equal(3);
+                            expect(items[0].path).to.contain("/foo/");
+                            expect(items[1].path).to.contain("/foo/");
+                            expect(items[2].path).to.contain("/foo/");
+                        } else {
+                            expect(items.length).to.equal(5);
+                        }
+                        // Verify that the pull spy was called and the error spy was not.
+                        expect(spyPull).to.have.been.called;
+                        expect(spyError).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pulled", spyPull);
+                        emitter.removeListener("pulled-error", spyError);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
-    testPullModifiedItems (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testPullModifiedItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("pullModifiedItems", function () {
             it("should fail when there is an error getting remote items.", function (done) {
@@ -1633,7 +1713,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testPushItem (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testPushItem (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("pushItem", function () {
             it("should fail when getting the local item fails.", function (done) {
@@ -2354,7 +2434,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testPushAllItems (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testPushAllItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("pushAllItems", function () {
             it("should fail when getting the local items fails.", function (done) {
@@ -2770,7 +2850,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testListLocalItemNames (restApi, fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testListLocalItemNames (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("listLocalItemNames", function () {
             it("should fail when getting item names fails.", function (done) {
@@ -2909,7 +2989,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testListRemoteItemNames (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testListRemoteItemNames (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("listRemoteItemNames", function () {
             it("should fail when getting item names fails.", function (done) {
@@ -3085,10 +3165,56 @@ class BaseHelperUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when getting item names succeeds - path.", function (done) {
+                const pathBased = (type === "types" || type === "layouts" || type === "layout-mappings" || type === "sites/default");
+
+                const stub = sinon.stub(restApi, "getItems");
+                const metadata1 = utils.clone(itemMetadata1);
+                metadata1.path = "/foo/bar1.json";
+                const metadata2 = utils.clone(itemMetadata2);
+                metadata2.path = "/bar/foo1.json";
+                const metadata3 = utils.clone(itemMetadata2);
+                metadata3.path = "/foo/bar2.json";
+                const metadata4 = utils.clone(itemMetadata1);
+                metadata4.path = "/bar/foo2.json";
+                const metadata5 = utils.clone(itemMetadata2);
+                metadata5.path = "/foo/bar3.json";
+                stub.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested.
+                let error;
+                helper.listRemoteItemNames(context, {filterPath: "foo"})
+                    .then(function (items) {
+                        // Verify that the stub was called once.
+                        expect(stub).to.be.calledOnce;
+
+                        // Verify that the expected items are returned.
+                        if (pathBased) {
+                            expect(items.length).to.equal(3);
+                            expect(items[0].path).to.contain("/foo/");
+                            expect(items[1].path).to.contain("/foo/");
+                            expect(items[2].path).to.contain("/foo/");
+                        } else {
+                            expect(items.length).to.equal(5);
+                        }
+                    })
+                    .catch(function (err) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("An unexpected Error."  + err);
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
-    testListLocalDeletedNames (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testListLocalDeletedNames (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("listLocalDeletedNames", function () {
             it("should get no items.", function (done) {
@@ -3227,7 +3353,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testListRemoteDeletedNames (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testListRemoteDeletedNames (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("listRemoteDeletedNames", function () {
             it("should get no items.", function (done) {
@@ -3304,7 +3430,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testListModifiedLocalItemNames (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testListModifiedLocalItemNames (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("listLocalModifiedItemNames", function () {
             it("should fail when getting item names fails.", function (done) {
@@ -3494,7 +3620,7 @@ class BaseHelperUnitTest extends UnitTest {
     }
 
 
-    testListModifiedRemoteItemNames (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testListModifiedRemoteItemNames (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("listRemoteModifiedItemNames", function () {
             it("should fail when getting item names fails.", function (done) {
@@ -3778,7 +3904,7 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
-    testDeleteRemoteItems (restApi,fsApi, helper, path1, path2, badPath,type, itemMetadata1, itemMetadata2, badMetadata) {
+    testDeleteRemoteItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
         describe("deleteRemoteItem", function () {
             it("should fail when getting the remote items fails.", function (done) {

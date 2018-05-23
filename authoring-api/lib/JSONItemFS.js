@@ -382,53 +382,54 @@ class JSONItemFS extends BaseFS {
                         reject(err);
                     } else {
                         const extension = fsObject.getExtension();
-                        const names = files
-                            .filter(function (file) {
-                                return file.endsWith(extension);
-                            }).map(function (file) {
-                                const proxy = {};
-                                try {
-                                    // Parse the file and get the id and name properties.
-                                    const item = JSON.parse(fs.readFileSync(virtualFolderPath + file, 'utf8'));
-                                    proxy.id = item.id;
-                                    proxy.name = item.name;
+                        files = files.filter(function (file) {
+                            return file.endsWith(extension);
+                        });
 
-                                    // Include any additional properties on the proxy item.
-                                    const additionalProperties = opts["additionalItemProperties"];
-                                    if (additionalProperties) {
-                                        additionalProperties.forEach(function (property) {
-                                            if (item[property]) {
-                                                proxy[property] = item[property];
-                                            }
-                                        });
-                                    }
-                                } catch (err) {
-                                    // couldn't read the file to obtain the id/name metadata, log a warning and continue
-                                    utils.logWarnings(context, i18n.__("file_parse_error", {path: virtualFolderPath + file}));
+                        const items = files.map(function (file) {
+                            const proxy = {};
+                            try {
+                                // Parse the file and get the id and name properties.
+                                const item = JSON.parse(fs.readFileSync(virtualFolderPath + file, 'utf8'));
+                                proxy.id = item.id;
+                                proxy.name = item.name;
+
+                                // Include any additional properties on the proxy item.
+                                const additionalProperties = opts["additionalItemProperties"];
+                                if (additionalProperties) {
+                                    additionalProperties.forEach(function (property) {
+                                        if (item[property]) {
+                                            proxy[property] = item[property];
+                                        }
+                                    });
                                 }
+                            } catch (err) {
+                                // couldn't read the file to obtain the id/name metadata, log a warning and continue
+                                utils.logWarnings(context, i18n.__("file_parse_error", {path: virtualFolderPath + file}));
+                            }
 
-                                let path;
-                                if (proxy.id) {
-                                    // The file contains the expected metadata, so add a path property.
-                                    path = file.replace(extension, "");
-                                } else {
-                                    // The file does not contain the expected metadata. Leave the id property undefined,
-                                    // so that the returned object is known to be invalid. Add a name property that will
-                                    // allow the file path to be reconstructed by the getFileName method. And add a path
-                                    // property that is the path to the actual file, so it can be displayed correctly.
-                                    proxy.name = file.replace(extension, "");
-                                    path = file;
-                                }
+                            let path;
+                            if (proxy.id) {
+                                // The file contains the expected metadata, so add a path property.
+                                path = file.replace(extension, "");
+                            } else {
+                                // The file does not contain the expected metadata. Leave the id property undefined,
+                                // so that the returned object is known to be invalid. Add a name property that will
+                                // allow the file path to be reconstructed by the getFileName method. And add a path
+                                // property that is the path to the actual file, so it can be displayed correctly.
+                                proxy.name = file.replace(extension, "");
+                                path = file;
+                            }
 
-                                // Only include a path property if it is different than the id.
-                                if (path !== proxy.id) {
-                                    proxy.path = path;
-                                }
+                            // Only include a path property if it is different than the id.
+                            if (path !== proxy.id) {
+                                proxy.path = path;
+                            }
 
-                                return proxy;
-                            });
+                            return proxy;
+                        });
 
-                        resolve(names);
+                        resolve(items);
                     }
                 });
             } else {

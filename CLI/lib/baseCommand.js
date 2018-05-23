@@ -267,53 +267,66 @@ class BaseCommand {
      *
      * @param {Object} context The API context associated with this command.
      *
-     * @returns {boolean} A value of true if the manifests are properly initialized, otherwise false to indicate that
+     * @returns {Q.Promise} A promise that is resolved if the manifests are properly initialized, and rejected to indicate that
      *          command execution should not continue.
      */
     handleManifestOptions (context) {
+        const deferred = Q.defer();
         const opts = this.getApiOptions();
 
-        // Clear out any existing manifest settings.
-        manifests.resetManifests(context, opts);
+        let manifest = this.getCommandLineOption("manifest");
+        const serverManifest = this.getCommandLineOption("serverManifest");
 
-        const manifest = this.getCommandLineOption("manifest");
-        const writeManifest = this.getCommandLineOption("writeManifest");
-
-        if (manifest || writeManifest) {
-            // A manifest option was specified for this operation, so initialize the manifest settings.
-            if (!manifests.initializeManifests(context, manifest, writeManifest, opts)) {
-                // Display an error message to indicate that the specified manifest is not valid.
-                this.errorMessage(i18n.__('cli_manifest_not_valid', {name: manifest}));
-
-                // Reset the command line options.
-                this.resetCommandLineOptions();
-
-                return false;
+        if (manifest && serverManifest) {
+            // Both manifest and serverManifest cannot be supplied.
+            deferred.reject(new Error(i18n.__("cli_manifest_and_server_manifest")));
+        } else {
+            // Copy the serverManifest option to manifest.
+            if (serverManifest) {
+                this.setCommandLineOption("manifest", serverManifest);
+                this.setCommandLineOption("serverManifest", undefined);
+                manifest = serverManifest;
+                context.serverManifest = true;
             }
 
-            // Make sure the manifest is compatible with the tenant tier.
-            if (options.getProperty(context, "tier") === "Base") {
-                // A manifest used with a base tier tenant cannot have sites, pages, layouts, or layout-mappings.
-                const incompatibleSections = ["sites", "pages", "layouts", "layout-mappings"];
+            // Clear out any existing manifest settings.
+            manifests.resetManifests(context, opts);
 
-                // The manifest is incompatible if it contains a section for an incompatible artifact type.
-                const incompatible = incompatibleSections.some(function (section) {
-                    return manifests.getManifestSection(context, section, opts);
+            const writeManifest = this.getCommandLineOption("writeManifest");
+            const writeDeletionsManifest = this.getCommandLineOption("writeDeletionsManifest");
+
+            if (manifest || writeManifest || writeDeletionsManifest) {
+                // A manifest option was specified for this operation, so initialize the manifest settings.
+                manifests.initializeManifests(context, manifest, writeManifest, writeDeletionsManifest, opts).then(function () {
+                    // Make sure the manifest is compatible with the tenant tier.
+                    if (options.getProperty(context, "tier") === "Base") {
+                        // A manifest used with a base tier tenant cannot have sites, pages, layouts, or layout-mappings.
+                        const incompatibleSections = ["sites", "pages", "layouts", "layout-mappings"];
+
+                        // The manifest is incompatible if it contains a section for an incompatible artifact type.
+                        const incompatible = incompatibleSections.some(function (section) {
+                            return manifests.getManifestSection(context, section, opts);
+                        });
+
+                        if (incompatible) {
+                            // Display an error message to indicate that the specified manifest is incompatible.
+                            deferred.reject(new Error(i18n.__('cli_manifest_not_compatible', {name: manifest})));
+                        } else {
+                            deferred.resolve();
+                        }
+                    } else {
+                        deferred.resolve();
+                    }
+                }).catch(function () {
+                    // Display an error message to indicate that the specified manifest is not valid.
+                    deferred.reject(new Error(i18n.__('cli_manifest_not_valid', {name: manifest})));
                 });
-
-                if (incompatible) {
-                    // Display an error message to indicate that the specified manifest is incompatible.
-                    this.errorMessage(i18n.__('cli_manifest_not_compatible', {name: manifest}));
-
-                    // Reset the command line options.
-                    this.resetCommandLineOptions();
-
-                    return false;
-                }
+            } else {
+                deferred.resolve();
             }
         }
 
-        return true;
+        return deferred.promise;
     }
 
     /**
@@ -337,10 +350,14 @@ class BaseCommand {
      * @param {Object} context The API context associated with this command.
      * @param {Array} [defaultArtifactTypes] The artifact types to use if no artifact types have been specified.
      *
-     * @returns {boolean} A value of true if the artifact types were initialized, otherwise false to indicate that
+     * @returns {Q.Promise} Resolve if the artifact types were initialized, otherwise reject to indicate that
      *          command execution should not continue.
      */
     handleArtifactTypes (context, defaultArtifactTypes) {
+        const deferred = Q.defer();
+        let result = true;
+        let errorMessage;
+
         const opts = this.getApiOptions();
         const manifest = this.getCommandLineOption("manifest");
 
@@ -409,93 +426,93 @@ class BaseCommand {
             // Make sure there were artifacts in the manifest.
             if (self._optionArtifactCount === 0) {
                 // Display an error message to indicate that the specified manifest did not contain any artifacts.
-                self.errorMessage(i18n.__('cli_manifest_no_artifacts', {name: manifest}));
+                errorMessage = i18n.__('cli_manifest_no_artifacts', {name: manifest});
+                result = false;
+            }
+        } else {
+            // If all-Authoring was specified, set all authoring artifact types.
+            if (this.getCommandLineOption("allAuthoring")) {
+                this.setCommandLineOption("types", true);
+                this.setCommandLineOption("assets", true);
+                this.setCommandLineOption("webassets", true);
+                this.setCommandLineOption("layouts", true);
+                this.setCommandLineOption("layoutMappings", true);
+                this.setCommandLineOption("content", true);
+                this.setCommandLineOption("categories", true);
+                this.setCommandLineOption("renditions", true);
+                this.setCommandLineOption("imageProfiles", true);
+                this.setCommandLineOption("sites", true);
+                this.setCommandLineOption("pages", true);
+            }
 
-                // Reset the command line options.
-                this.resetCommandLineOptions();
+            // Determine the number of artifact types that have been set.
+            // If no object types were specified, set the default object type(s).
+            if (this.getCommandLineOption("types")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("assets")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("webassets")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("layouts")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("layoutMappings")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("content")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("categories")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("renditions")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("publishingSources")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("publishingProfiles")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("publishingSiteRevisions")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("imageProfiles")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("sites")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("pages")) {
+                this._optionArtifactCount++;
+            }
 
-                return false;
-            } else {
-                return true;
+            // If no object types were specified, set the default object type(s).
+            if (this._optionArtifactCount === 0 && defaultArtifactTypes) {
+                // Output a debug message to indicate that no artifact types were specified.
+                if (this.isDebugEnabled()) {
+                    this.debugMessage("No artifact types were specified. The default types will be used.");
+                }
+
+                // Set the command line option for each of the default artifact types.
+                const self = this;
+                defaultArtifactTypes.forEach(function (type) {
+                    self.setCommandLineOption(type, true);
+                    self._optionArtifactCount++;
+                });
             }
         }
 
-        // If all-Authoring was specified, set all authoring artifact types.
-        if (this.getCommandLineOption("allAuthoring")) {
-            this.setCommandLineOption("types", true);
-            this.setCommandLineOption("assets", true);
-            this.setCommandLineOption("webassets", true);
-            this.setCommandLineOption("layouts", true);
-            this.setCommandLineOption("layoutMappings", true);
-            this.setCommandLineOption("content", true);
-            this.setCommandLineOption("categories", true);
-            this.setCommandLineOption("renditions", true);
-            this.setCommandLineOption("imageProfiles", true);
-            this.setCommandLineOption("sites", true);
-            this.setCommandLineOption("pages", true);
+        if (result) {
+            deferred.resolve();
+        } else {
+            deferred.reject(new Error(errorMessage));
         }
 
-        // Determine the number of artifact types that have been set.
-        // If no object types were specified, set the default object type(s).
-        if (this.getCommandLineOption("types")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("assets")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("webassets")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("layouts")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("layoutMappings")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("content")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("categories")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("renditions")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("publishingSources")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("publishingProfiles")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("publishingSiteRevisions")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("imageProfiles")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("sites")) {
-            this._optionArtifactCount++;
-        }
-        if (this.getCommandLineOption("pages")) {
-            this._optionArtifactCount++;
-        }
-
-        // If no object types were specified, set the default object type(s).
-        if (this._optionArtifactCount === 0 && defaultArtifactTypes) {
-            // Output a debug message to indicate that no artifact types were specified.
-            if (this.isDebugEnabled()) {
-                this.debugMessage("No artifact types were specified. The default types will be used.");
-            }
-
-            // Set the command line option for each of the default artifact types.
-            const self = this;
-            defaultArtifactTypes.forEach(function (type) {
-                self.setCommandLineOption(type, true);
-                self._optionArtifactCount++;
-            });
-        }
-
-        return true;
+        return deferred.promise;
     }
 
     /**
@@ -503,16 +520,18 @@ class BaseCommand {
      *
      * @param {Object} context The API context associated with this command.
      *
-     * @returns {boolean} A value of true if the specified dir option is valid, otherwise false to indicate that command
+     * @returns {Q.Promise} Resolve if the specified dir option is valid, otherwise reject to indicate that command
      *          execution should not continue.
      */
     handleDirOption (context) {
+        const deferred = Q.defer();
         const dir = this.getCommandLineOption("dir");
 
         // If a "dir" option was not specified on the command line, use the current NodeJS working directory.
         if (!dir) {
             this.setApiOption("workingDir", process.cwd());
-            return true;
+            deferred.resolve();
+            return deferred.promise;
         }
 
         // A "dir" option was specified on the command line, so handle it accordingly.
@@ -528,23 +547,13 @@ class BaseCommand {
             if (this._createDir) {
                 if (err.code !== "EEXIST") {
                     // Display an error message to indicate that the specified directory could not be created.
-                    this.errorMessage(i18n.__('cli_could_not_create_dir', {error_code: err.code, dir: dir}));
-
-                    // Reset the command line options.
-                    this.resetCommandLineOptions();
-
-                    // Return a value of false to indicate that command execution should not continue.
-                    return false;
+                    deferred.reject(new Error(i18n.__('cli_could_not_create_dir', {error_code: err.code, dir: dir})));
+                    return deferred.promise;
                 }
             } else {
                 // Display an error message to indicate that the specified directory does not exist.
-                this.errorMessage(i18n.__('cli_dir_does_not_exist', {error_code: err.code, dir: dir}));
-
-                // Reset the command line options.
-                this.resetCommandLineOptions();
-
-                // Return a value of false to indicate that command execution should not continue.
-                return false;
+                deferred.reject(new Error(i18n.__('cli_dir_does_not_exist', {error_code: err.code, dir: dir})));
+                return deferred.promise;
             }
         }
 
@@ -554,7 +563,8 @@ class BaseCommand {
         // Use any options that are defined in that directory.
         options.extendOptionsFromDirectory(context, dir);
 
-        return true;
+        deferred.resolve();
+        return deferred.promise;
     }
 
     /**
@@ -562,10 +572,11 @@ class BaseCommand {
      *
      * @param {Object} context The API context associated with this command.
      *
-     * @returns {boolean} A value of true if the initialization process was successful, otherwise false to indicate that
+     * @returns {Q.Promise} A promise that is resolved if the initialization process was successful, or rejected to indicate that
      *          command execution should not continue.
      */
     handleInitialization (context) {
+        const deferred = Q.defer();
         const errors = ToolsApi.getInitializationErrors(context);
 
         if (errors && errors.length > 0) {
@@ -575,12 +586,13 @@ class BaseCommand {
             // Reset the command line options.
             this.resetCommandLineOptions();
 
-            // Return a value of false to indicate that command execution should not continue.
-            return false;
+            // Reject the promise to indicate that command execution should not continue.
+            deferred.reject();
         } else {
             // No errors occurred during the initialization process.
-            return true;
+            deferred.resolve();
         }
+        return deferred.promise;
     }
 
     /**
@@ -760,60 +772,64 @@ class BaseCommand {
     /**
      * Handle the path option specified on the command line.
      *
-     * @returns {boolean} A value of true if the specified path option is valid, otherwise false to indicate that
+     * @returns {Q.Promise} Resolve if the specified path option is valid, otherwise reject to indicate that
      *          command execution should not continue.
      */
     handlePathOption () {
+        const deferred = Q.defer();
         if (this.getCommandLineOption("path")) {
             // Verify that "path" is only used with the "webassets" option.
-            if (this.getCommandLineOption("webassets")) {
+            if (this.getCommandLineOption("webassets") || this.getCommandLineOption("types") || this.getCommandLineOption("layouts") || this.getCommandLineOption("layoutMappings")) {
                 this.setApiOption("filterPath", this.getCommandLineOption("path"));
+                deferred.resolve();
             } else {
-                this.errorMessage(i18n.__('cli_invalid_path_option'));
-                this.resetCommandLineOptions();
-                return false;
+                deferred.reject(new Error(i18n.__('cli_invalid_path_option')));
             }
+        } else {
+            deferred.resolve();
         }
 
-        return true;
+        return deferred.promise;
     }
 
     /**
      * Handle the ready and draft options specified on the command line.
      *
-     * @returns {boolean} A value of true if the specified ready and draft options are valid, otherwise false to
+     * @returns {Q.Promise} Resolve if the specified ready and draft options are valid, otherwise reject to
      *          indicate that command execution should not continue.
      */
     handleReadyDraftOptions () {
+        const deferred = Q.defer();
         const readyOnly = this.getCommandLineOption("ready");
         //const draftOnly = this.getCommandLineOption("draft");
         const manifest = this.getCommandLineOption("manifest");
         if (readyOnly) {
             /*if (draftOnly) {
                 // Cannot specify both the "ready" and "draft" options.
-                this.errorMessage(i18n.__('cli_ready_and_draft_options'));
-                this.resetCommandLineOptions();
-                return false;
+                const errorMessage = i18n.__('cli_ready_and_draft_options');
+                deferred.reject(new Error(errorMessage));
             } else*/ if (manifest) {
                 // Cannot specify both the "ready" and "manifest" options.
-                this.errorMessage(i18n.__('cli_ready_and_manifest_options'));
-                this.resetCommandLineOptions();
-                return false;
+                const errorMessage = i18n.__('cli_ready_and_manifest_options');
+                deferred.reject(new Error(errorMessage));
             } else {
                 this.setApiOption("filterReady", true);
+                deferred.resolve();
             }
         } /*else if (draftOnly) {
             if (manifest) {
                 // Cannot specify both the "draft" and "manifest" options.
-                this.errorMessage(i18n.__('cli_draft_and_manifest_options'));
-                this.resetCommandLineOptions();
-                return false;
+                const errorMessage = i18n.__('cli_draft_and_manifest_options');
+                deferred.reject(new Error(errorMessage));
             } else {
                 this.setApiOption("filterDraft", true);
+                deferred.resolve();
             }
-        }*/
+        }*/ else {
+            deferred.resolve();
+        }
 
-        return true;
+        return deferred.promise;
     }
 
     /**
@@ -846,10 +862,10 @@ class BaseCommand {
                 getSites(context, this.getApiOptions())
                     .then(function (sites) {
                         // Start with an empty site list, and add any existing sites to be used for this command.
+                        const readySiteIds = [];
+                        const draftSiteIds = [];
                         context.siteList = [];
-                        if (sites) {
-                            const readySiteIds = [];
-                            const draftSiteIds = [];
+                        if (sites && sites.length > 0) {
                             sites.forEach(function (site) {
                                 // Old tenants that do not have a siteStatus property are considered to be "ready".
                                 const siteStatus = site.siteStatus || "ready";
@@ -861,10 +877,21 @@ class BaseCommand {
                                     draftSiteIds.push(site.id);
                                 }
                             });
+                        } else {
+                            // There are no local site artifacts, so just use the defaults.
+                            //if (includeReadySites) {
+                                readySiteIds.push("default");
+                            //}
 
-                            // Create a list of ready and draft site ids, in the order required by this command.
-                            context.siteList = self.createSiteList(readySiteIds, draftSiteIds);
+                            //if (includeDraftSites) {
+                            //    draftSiteIds.push("default:draft");
+                            //}
+
+                            // TODO Do we need a more robust solution when additional sites can be created?
                         }
+
+                        // Create a list of ready and draft site ids, in the order required by this command.
+                        context.siteList = self.createSiteList(readySiteIds, draftSiteIds);
 
                         deferred.resolve();
                     })

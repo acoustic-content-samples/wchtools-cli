@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016, 2017
+Copyright IBM Corporation 2016, 2017, 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -580,7 +580,7 @@ class AssetsREST extends BaseREST {
                 if (updateContentResource) {
                     // Before a PUT, do HEAD request to see if the resource already exists with the same MD5 hash.
                     restObject.getDownloadRequestOptions(context, opts).then(function (headReqOptions) {
-                        headReqOptions.uri = headReqOptions.uri + "/" + resourceId;
+                        headReqOptions.uri = headReqOptions.uri + "/" + resourceId + "?bypass-cache=" + Date.now();
                         request.head(headReqOptions, function(headErr, headRes, headBody) {
                             let sendResource = true;
                             if (headErr) {

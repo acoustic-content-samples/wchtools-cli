@@ -45,7 +45,7 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
     }
 
     run(){
-        super.run(restApi, fsApi,helper,  path1, path2, badPath);
+        super.run(restApi, fsApi, helper,  path1, path2, badPath);
     }
 
     runAdditionalTests (restApi, fsApi, helper, path1, path2/*, badPath, type, itemMetadata1, itemMetadata2, badMetadata*/) {

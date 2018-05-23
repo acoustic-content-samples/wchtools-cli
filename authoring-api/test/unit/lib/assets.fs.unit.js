@@ -29,12 +29,9 @@ const path = require("path");
 const ignore = require('ignore');
 const requireSubvert = require('require-subvert')(__dirname);
 const sinon = require("sinon");
-const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
-const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const fs = require("fs");
-const recursive = require('recursive-readdir');
 const mkdirp = require('mkdirp');
 
 // Require the local module being tested.
@@ -1405,10 +1402,6 @@ class AssetsFsUnitTest extends AssetsUnitTest {
                 error = err;
             })
             .finally(function () {
-                // Restore the subverted functions.
-                // noinspection JSUnresolvedFunction
-                requireSubvert.cleanUp();
-
                 // Reload assetsFS, so that it gets the original version of recursive.
                 assetsFS = require(UnitTest.API_PATH + "lib/assetsFS.js").instance;
 

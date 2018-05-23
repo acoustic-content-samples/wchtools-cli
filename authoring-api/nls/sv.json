@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "Fel vid filtrering av fjärrobjektlista i listModifiedRemoteItemNames",
   "push_error_creating_item": "Push-fel vid skapande av objekt: ",
   "push_error_updating_item": "Push-fel vid uppdatering av objekt: ",
+  "push_warning_ignore_conflict": "Ignorerar oväsentliga skillnader i det skickade objektet: %(name)s.",
   "pushed_item_error": "Push-objektfel: ",
   "pushed_item_retry": "Gör ett nytt försök att skicka objektet '%(name)s'. Fel: %(message)s",
   "invalid_path": "Ogiltig sökväg: %(path)s",
@@ -24,6 +25,7 @@
   "save_item_write_failed_bad_path": "saveItem kunde inte skriva till filen %(path)s, ogiltig sökväg",
   "close_stream_failed": "closeStream misslyckades med fel: ",
   "error_options_file": "Fel vid läsning av konfigurationsalternativfil: %(filename)s. %(error)s",
+  "error_manifest_file": "Fel vid läsning av manifestfilen: %(filename)s. %(error)s",
 
   "name_required": "Namn måste anges.",
   "category_exists": "Det finns redan en kategori med namnet %(name)s.",
@@ -49,16 +51,19 @@
   "error_set_last_pull_timestamp": "Fel i setLastPullTimestamp: ",
   "error_set_last_push_timestamp": "Fel i setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Fel i getHashesForFile: ",
+  "error_manifest_file_read": "Fel vid läsning av manifestfilen %(filename)s: %(error)s",
+  "error_manifest_file_write": "Fel vid skrivning av manifestfilen %(filename)s: %(error)s",
+  "error_manifest_file_does_not_exist": "Manifestfilen %(filename)s finns inte.",
 
   "error_unsupported_endpoint": "%(service_name)s API hanterar inte %(endpoint)s slutpunkt.",
   "unknown_error": "Okänt fel",
-  "service_unavailable": "En IBM Watson Content Hub-tjänst är inte tillgänglig för närvarande. ",
-  "service_error": "En IBM Watson Content Hub-tjänst rapporterar tekniska svårigheter. ",
+  "service_unavailable": "En IBM Watson Content Hub-tjänst är inte tillgänglig för närvarande.  ",
+  "service_error": "En IBM Watson Content Hub-tjänst rapporterar tekniska svårigheter.  ",
   "service_response_error": "En IBM Watson Content Hub-tjänst returnerade felkoden %(code)d och statusmeddelandet: %(message)s",
   "operation_failed": "Åtgärden misslyckades med fel: ",
   "async_parallel_limit_error": "Asynkront parallelLimit-anrop misslyckades med fel: ",
   "async_parallel_limit_results": "Asynkrona parallelLimit-resultat: ",
-  "please_try": "Försök igen senare. Kontakta kundsupport och inkludera logginformationen som är tillgänglig på %(log_dir)s om problemet kvarstår",
+  "please_try": "Försök igen senare.  Kontakta kundsupport och inkludera logginformationen som är tillgänglig på %(log_dir)s om problemet kvarstår",
   "conflict":"Tjänsten påträffade och returnerade ett feltillstånd under bearbetning av begäran för den här artefakten.",
   "login_missing_authn":"Inloggningstjänsten misslyckades med att svara med giltig autentiseringsinformation.",
   "digest_mismatch": "kondensatet %(cli_kondensat) för hämtad tillgång %(asset)s matchar inte serverns kondensat %(server_digest)s.",
@@ -66,6 +71,7 @@
   "retry_failed_retry": "Ett nytt försök att utföra begäran(%(id)d) (omförsök %(attempt)d) misslyckades före det maximala antalet omförsök. %(message)s",
   "retry_next_attempt": "Ett nytt försök att utföra begäran (%(id)d) (försök %(attempt)d) kommer att göras inom %(delay)d millisekunder.",
   "retry_success": "Ett nytt försök att utföra en begäran (%(id)d) lyckades efter %(attempt)d försök.",
-  "retry_max_attempts": "Nya försök att utföra en begäran (%(id)d) har gjorts det maximala antalet gånger."
+  "retry_max_attempts": "Nya försök att utföra en begäran (%(id)d) har gjorts det maximala antalet gånger.",
+  "header_value_not_string": "Ignorerar HTTP-huvudet %(header)s; det angivna värdet är inte en sträng."
 }
 

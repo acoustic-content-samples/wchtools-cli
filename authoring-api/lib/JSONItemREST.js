@@ -34,6 +34,9 @@ class JSONItemREST extends BaseREST {
             .then(function (requestOptions) {
                 const saveRev = item.rev;
                 delete item.rev;
+                if (restObject.supportsForceOverrideOnCreate() && options.getRelevantOption(context, opts, "force-override")) {
+                    requestOptions.uri += "?forceOverride=true";
+                }
                 requestOptions.body = item;
                 utils.logDebugInfo(context, "Creating item with request options: ", undefined, requestOptions);
                 request.post(requestOptions, function (err, res, body) {

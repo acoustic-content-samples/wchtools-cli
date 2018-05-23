@@ -4,6 +4,7 @@
   "error_filtering_remote_items": "Fehler beim Filtern der Liste der fernen Elemente in listModifiedRemoteItemNames",
   "push_error_creating_item": "Fehler in Push-Operation beim Erstellen des Elements: ",
   "push_error_updating_item": "Fehler in Push-Operation beim Aktualisieren des Elements: ",
+  "push_warning_ignore_conflict": "Unwichtige Unterschiede beim mit Push-Operation übertragenen Element werden ignoriert: %(name)s.",
   "pushed_item_error": "Fehler bei mit Push-Operation übertragenem Element: ",
   "pushed_item_retry": "Es wird erneut versucht, das Element '%(name)s' mit Push-Operation zu übertragen. Fehler: %(message)s",
   "invalid_path": "Ungültiger Pfad: %(path)s",
@@ -24,6 +25,7 @@
   "save_item_write_failed_bad_path": "Speichern des Elements beim Schreiben in Datei %(path)s fehlgeschlagen. Fehlerhafter Pfad",
   "close_stream_failed": "closeStream mit Fehler fehlgeschlagen: ",
   "error_options_file": "Fehler beim Lesen der Konfigurationsoptionsdatei: %(filename)s. %(error)s",
+  "error_manifest_file": "Fehler beim Lesen der Manifestdatei: %(filename)s. %(error)s",
 
   "name_required": "Name muss angegeben werden.",
   "category_exists": "Eine Kategorie mit dem Namen %(name)s ist bereits vorhanden.",
@@ -39,7 +41,7 @@
   "update_item_error": "Fehler beim Aktualisieren des Elements %(service_name)s: ",
   "delete_item_error": "Fehler beim Löschen des Elements %(service_name)s: ",
   "delete_rendition_error": "Das Löschen von Wiedergaben wird nicht unterstützt. ID: %(id)s, Optionen: %(opts)s",
-  "delete_renditions_error": "Das Löschen von Wiedergaben wird nicht unterstützt. ",
+  "delete_renditions_error": "Das Löschen von Wiedergaben wird nicht unterstützt.",
   "error_tenant_map": "Fehler in loadTenantMap: ",
   "error_save_hashes": "Fehler in saveHashes: ",
   "error_update_hashes": "Fehler in updateHashes: ",
@@ -49,6 +51,9 @@
   "error_set_last_pull_timestamp": "Fehler in setLastPullTimestamp: ",
   "error_set_last_push_timestamp": "Fehler in setLastPushTimestamp: ",
   "error_get_hashes_for_file": "Fehler in getHashesForFile: ",
+  "error_manifest_file_read": "Fehler beim Lesen der Manifestdatei %(filename)s: %(error)s",
+  "error_manifest_file_write": "Fehler beim Schreiben der Manifestdatei %(filename)s: %(error)s",
+  "error_manifest_file_does_not_exist": "Die Manifestdatei %(filename)s ist nicht vorhanden.",
 
   "error_unsupported_endpoint": "Die API von %(service_name) unterstützt die Endpunkte von %(endpoint) nicht.",
   "unknown_error": "Unbekannter Fehler",
@@ -66,6 +71,7 @@
   "retry_failed_retry": "Die Anforderung (%(id)d), die (attempt %(attempt)d) wiederholt wurde, ist vor der maximalen Anzahl der Wiederholungen fehlgeschlagen. %(message)s",
   "retry_next_attempt": "Die Anforderung (%(id)d), wird (attempt %(attempt)d) in %(delay)d Millisekunden wiederholt.",
   "retry_success": "Die Anforderung (%(id)d), die wiederholt wurde, war nach %(attempt)d Versuchen erfolgreich.",
-  "retry_max_attempts": "Die Anforderung (%(id)d) hat die maximale Anzahl der Wiederholungen erreicht."
+  "retry_max_attempts": "Die Anforderung (%(id)d) hat die maximale Anzahl der Wiederholungen erreicht.",
+  "header_value_not_string": "Der HTTP-Header %(header)s wird ignoriert; der angegebene Wert ist keine Zeichenfolge."
 }
 
