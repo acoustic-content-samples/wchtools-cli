@@ -425,10 +425,12 @@ class AssetsHelper extends BaseHelper {
                             else {
                                 const error = promise.reason;
                                 assets.push(error);
+                                const assetPath = helper._fsApi.getAssetPath(assetList[index]);
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
-                                    emitter.emit("pulled-error", error, helper._fsApi.getAssetPath(assetList[index]));
+                                    emitter.emit("pulled-error", error, assetPath);
                                 }
+                                context.assetErrorPaths.push(assetPath);
                                 context.pullErrorCount++;
                             }
                         });
@@ -598,7 +600,10 @@ class AssetsHelper extends BaseHelper {
                     // Filter the list of resources and return only those that aren't pulled for assets.
                     const basePath = helper._fsApi.getResourcesPath(context, opts);
                     const resourcePath = hashes.getPathForResource(context, basePath, resource.id, opts);
-                    if (!resourcePath) {
+                    const assetPath = '/' + path.relative(helper._fsApi.getAssetsPath(context, opts), basePath + resourcePath);
+                    const assetErrorPaths = context.assetErrorPaths || [];
+                    // Only retrieve a resource if we didn't already have it (in hashes) and it wasn't a failed pull in this command.
+                    if (!resourcePath && assetErrorPaths.indexOf(assetPath) === -1) {
                         return resource;
                     }
                 });
@@ -824,6 +829,7 @@ class AssetsHelper extends BaseHelper {
 
         // Keep track of the error count.
         context.pullErrorCount = 0;
+        context.assetErrorPaths = [];
 
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
@@ -877,6 +883,7 @@ class AssetsHelper extends BaseHelper {
             })
             .finally(function () {
                 delete context.pullErrorCount;
+                delete context.assetErrorPaths;
             });
     }
 
@@ -896,6 +903,7 @@ class AssetsHelper extends BaseHelper {
         const helper = this;
         // Keep track of the error count.
         context.pullErrorCount = 0;
+        context.assetErrorPaths = [];
 
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
@@ -935,6 +943,7 @@ class AssetsHelper extends BaseHelper {
             })
             .finally(function () {
                 delete context.pullErrorCount;
+                delete context.assetErrorPaths;
             });
     }
 

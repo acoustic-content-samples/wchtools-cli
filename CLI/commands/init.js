@@ -19,6 +19,7 @@ limitations under the License.
 const BaseCommand = require("../lib/baseCommand");
 
 const ToolsApi = require("wchtools-api");
+const Q = require("q");
 const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
 const prompt = require("prompt");
@@ -163,15 +164,19 @@ class InitCommand extends BaseCommand {
                     prompt.message = '';
                     prompt.delimiter = ' ';
                     prompt.start();
+                    const deferred = Q.defer();
                     prompt.get(schemaProps, function (err, results) {
                         if (err) {
                             // Reset the command line options and display the error.
                             self.resetCommandLineOptions();
                             self.getProgram().errorMessage(i18n.__('cli_init_error', {message: err.toString()}));
+                            deferred.reject(err);
                         } else {
                             self.updateOptions(context, results);
+                            deferred.resolve();
                         }
                     });
+                    return deferred.promise;
                 } else {
                     // Handle the case where all options were specified and no prompt is required.
                     self.updateOptions(context);
