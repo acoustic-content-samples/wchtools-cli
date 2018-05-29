@@ -805,7 +805,24 @@ class PullCommand extends BaseCommand {
         // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
         const itemsToDelete = [];
         const itemLocalOnly = function (item) {
-            itemsToDelete.push(item);
+            let canDelete = true;
+            // If we're writing a manifest, we don't want to delete it.
+            if (context.writeManifestFile) {
+                const manifestPath = ToolsApi.getManifests().getManifestPath(context, context.writeManifestFile, self.getApiOptions());
+                if (manifestPath === item.path) {
+                    canDelete = false;
+                }
+            }
+            // If we're writing a deletions manifest, we don't want to delete it.
+            if (context.deletionsManifestFile) {
+                const manifestPath = ToolsApi.getManifests().getManifestPath(context, context.deletionsManifestFile, self.getApiOptions());
+                if (manifestPath === item.path) {
+                    canDelete = false;
+                }
+            }
+            if (canDelete) {
+                itemsToDelete.push(item);
+            }
         };
         emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
 

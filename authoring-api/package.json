@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "2.7.3",
+  "version": "2.7.6",
   "keywords": [
     "api",
     "tools"
