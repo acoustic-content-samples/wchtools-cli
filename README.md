@@ -13,14 +13,14 @@ Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/
 
  Pre-Requisite: Before you install the wchtools CLI, you must install NodeJS.
 
-   - For use with the WCH Single Page Application (SPA) Site, Node 6.x is required
-   - For non-site-spa use, Node 4.3 or later may be used.
-   - Early versions of Node 6.x (e.g 6.2) cause an issue with the tooling's use of event emitter, so the most recent version of Node 6.x is recommended, to benefit from both functional and security fixes in NodeJS itself.
+   - Install the latest Node 6.x LTS or Node 8.x LTS version of Node
+     - Note, early versions of 6.x had emitter issues and early versions of both 6.x and 8.x may have security risks, so use the latest point release of 6.x or 8.x available, to ensure you take advantage of available functional and security fixes.
 
- NodeJS is available at the following locations
+ Learn more about installing NodeJS at the following locations
 
-  - IBM version https://developer.ibm.com/node/sdk/v6/
-  - Public open source version https://nodejs.org/en/
+  - https://developer.ibm.com/node/sdk/v6/
+  - https://developer.ibm.com/node/sdk/v8/
+  - https://nodejs.org/en/
 
  You may install the wchtools CLI as a node module directly from the npm registry at https://npmjs.com .   If for some reason you are unable to access the public npm registry, you may download and installing a release from the wchtools-cli git repository releases tab as described below.
 
