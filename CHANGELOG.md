@@ -1,5 +1,10 @@
 # Changelog
 
+### 2.7.6 changes since 2.7.3
+  - Fix a regression in behavior when parsing command arguments for the init command.
+  - Fix a problem when pulling orphaned resources that would cause the creation of a resource on the file system if the pull for the corresponding asset failed due to an intermittent error.
+  - Update the behavior of pull --deletions to avoid deleting an existing manifest file that the process is currently writing to.
+
 ### 2.7.3 changes since 2.6.2
   - Add support for push, pull, and list of Layouts, Mappings and Content Types by path.
   - Add support for creating/updating a deletions manifest when pulling deletions.
