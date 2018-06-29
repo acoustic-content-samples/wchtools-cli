@@ -88,7 +88,7 @@ class PublishingJobsREST extends JSONItemREST {
     cancelPublishingJob (context, id, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        this.getRequestOptions(context, opts)
+        this.getUpdateRequestOptions(context, opts)
             .then(function(requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + id + "/cancel";
                 utils.logDebugInfo(context, 'Canceling publishing job ' + restObject.getServiceName(),undefined,requestOptions);

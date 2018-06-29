@@ -1742,7 +1742,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should succeed for a single artifact", function(done) {
                 const stubGet = sinon.stub(helper, "getRemoteItems");
-                stubGet.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+                stubGet.resolves([{"hierarchicalPath": "/" + itemName1, "path": "/" + itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
 
                 const renditionsHelper = ToolsApi.getRenditionsHelper();
                 const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
@@ -1760,9 +1760,15 @@ class DeleteUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-v', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function (msg) {
-                        // The stub should only have been called once, and the expected message should have been returned.
-                        expect(stubDelete).to.have.been.calledOnce;
-                        expect(msg).to.contain('Deleted 1 artifact');
+                        if (switches === "--pages") {
+                            // The stub should only have been called twice (once for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.been.calledTwice;
+                            expect(msg).to.contain('Deleted 2 artifacts');
+                        } else {
+                            // The stub should only have been called once, and the expected message should have been returned.
+                            expect(stubDelete).to.have.been.calledOnce;
+                            expect(msg).to.contain('Deleted 1 artifact');
+                        }
 
                         // There are no renditions returned from getRemoteItems, so expect that the hashes were removed.
                         expect(stubRemove).to.have.been.calledOnce;
@@ -1786,7 +1792,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should fail when single delete fails", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
+                stubSearch.resolves([{"hierarchicalPath": "/" + itemName1, "path": "/" + itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
 
                 const renditionsHelper = ToolsApi.getRenditionsHelper();
                 const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
@@ -1809,9 +1815,15 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        expect(stubSearch).to.have.been.calledOnce;
-                        expect(stubDelete).to.have.been.calledOnce;
-                        expect(err.message).to.contain('Encountered 1 error while deleting artifacts.');
+                        if (switches === "--pages") {
+                            expect(stubSearch).to.have.been.calledTwice;
+                            expect(stubDelete).to.have.been.calledTwice;
+                            expect(err.message).to.contain('Encountered 2 errors while deleting artifacts.');
+                        } else {
+                            expect(stubSearch).to.have.been.calledOnce;
+                            expect(stubDelete).to.have.been.calledOnce;
+                            expect(err.message).to.contain('Encountered 1 error while deleting artifacts.');
+                        }
 
                         // There were renditions returned from getRemoteItems, so expect that the hashes were not removed.
                         expect(stubRemove).to.not.have.been.called;
@@ -1834,7 +1846,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should succeed when some deletes fail - quiet", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+                stubSearch.resolves([{"hierarchicalPath": "/" + itemName1, "path": itemName1, "id": UnitTest.DUMMY_ID}, {"hierarchicalPath": "/" + itemName1 + "2", "path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"hierarchicalPath": "/" + itemName1 + "3", "path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
 
                 const renditionsHelper = ToolsApi.getRenditionsHelper();
                 const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
@@ -1845,20 +1857,32 @@ class DeleteUnitTest extends UnitTest {
 
                 const DELETE_ERROR = "Delete failure expected by unit test.";
                 const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                stubDelete.onFirstCall().resolves(itemName1);
-                stubDelete.onSecondCall().rejects(DELETE_ERROR);
+                stubDelete.onFirstCall().rejects(DELETE_ERROR);
+                stubDelete.onSecondCall().resolves(itemName1 + "2");
                 stubDelete.onThirdCall().rejects(DELETE_ERROR);
+                stubDelete.onCall(3).resolves(itemName1);
+                stubDelete.onCall(4).rejects(DELETE_ERROR);
+                stubDelete.onCall(5).resolves(itemName1 + "3");
 
                 // Execute the command to delete the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-q'])
                     .then(function (msg) {
-                        // The stub should only have been called once, and the expected message should have been returned.
-                        expect(stubDelete).to.have.been.calledThrice;
-                        expect(msg).to.contain('complete');
-                        expect(msg).to.contain('Deleted 1 artifact');
-                        expect(msg).to.contain('Encountered 2 errors');
-                        expect(msg).to.contain('wchtools-cli.log');
+                        if (switches === "--pages") {
+                            // The stub should have been called six times (three for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(6);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifact');
+                            expect(msg).to.contain('Encountered 3 errors');
+                            expect(msg).to.contain('wchtools-cli.log');
+                        } else {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 1 artifact');
+                            expect(msg).to.contain('Encountered 2 errors');
+                            expect(msg).to.contain('wchtools-cli.log');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1878,7 +1902,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should fail when all deletes fail - quiet", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+                stubSearch.resolves([{"hierarchicalPath": "/" + itemName1, "path": itemName1, "id": UnitTest.DUMMY_ID}, {"hierarchicalPath": "/" + itemName1 + "2", "path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"hierarchicalPath": "/" + itemName1 + "3", "path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
 
                 const renditionsHelper = ToolsApi.getRenditionsHelper();
                 const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
@@ -1892,6 +1916,9 @@ class DeleteUnitTest extends UnitTest {
                 stubDelete.onFirstCall().rejects(DELETE_ERROR);
                 stubDelete.onSecondCall().rejects(DELETE_ERROR);
                 stubDelete.onThirdCall().rejects(DELETE_ERROR);
+                stubDelete.onCall(3).rejects(DELETE_ERROR);
+                stubDelete.onCall(4).rejects(DELETE_ERROR);
+                stubDelete.onCall(5).rejects(DELETE_ERROR);
 
                 // Execute the command to delete the items to the download directory.
                 let error;
@@ -1901,10 +1928,17 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        // The stub should only have been called once, and the expected message should have been returned.
-                        expect(stubDelete).to.have.been.calledThrice;
-                        expect(err.message).to.contain('Encountered 3 errors');
-                        expect(err.message).to.contain('wchtools-cli.log');
+                        if (switches === "--pages") {
+                            // The stub should have been called six times (three for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(6);
+                            expect(err.message).to.contain('Encountered 6 errors');
+                            expect(err.message).to.contain('wchtools-cli.log');
+                        } else {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(err.message).to.contain('Encountered 3 errors');
+                            expect(err.message).to.contain('wchtools-cli.log');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1924,7 +1958,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should fail when all deletes fail - quiet, verbose", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+                stubSearch.resolves([{"hierarchicalPath": "/" + itemName1, "path": itemName1, "id": UnitTest.DUMMY_ID}, {"hierarchicalPath": "/" + itemName1 + "2", "path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"hierarchicalPath": "/" + itemName1 + "3", "path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
 
                 const renditionsHelper = ToolsApi.getRenditionsHelper();
                 const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
@@ -1938,6 +1972,9 @@ class DeleteUnitTest extends UnitTest {
                 stubDelete.onFirstCall().rejects(DELETE_ERROR);
                 stubDelete.onSecondCall().rejects(DELETE_ERROR);
                 stubDelete.onThirdCall().rejects(DELETE_ERROR);
+                stubDelete.onCall(3).rejects(DELETE_ERROR);
+                stubDelete.onCall(4).rejects(DELETE_ERROR);
+                stubDelete.onCall(5).rejects(DELETE_ERROR);
 
                 // Execute the command to delete the items to the download directory.
                 let error;
@@ -1947,9 +1984,15 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        // The stub should only have been called once, and the expected message should have been returned.
-                        expect(stubDelete).to.have.been.calledThrice;
-                        expect(err.message).to.contain('Encountered 3 errors');
+                        if (switches === "--pages") {
+                            // The stub should have been called six times (three for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(6);
+                            expect(err.message).to.contain('Encountered 6 errors');
+                        } else {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(err.message).to.contain('Encountered 3 errors');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1969,7 +2012,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("should succeed for multiple artifacts - quiet", function(done) {
                 const stubSearch = sinon.stub(helper, "getRemoteItems");
-                stubSearch.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID}, {"path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
+                stubSearch.resolves([{"hierarchicalPath": "/" + itemName1, "path": itemName1, "id": UnitTest.DUMMY_ID}, {"hierarchicalPath": "/" + itemName1 + "2", "path": itemName1 + "2", "id": UnitTest.DUMMY_ID + "2"}, {"hierarchicalPath": "/" + itemName1 + "3", "path": itemName1 + "3", "id": UnitTest.DUMMY_ID + "3"}]);
 
                 const renditionsHelper = ToolsApi.getRenditionsHelper();
                 const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
@@ -1985,17 +2028,29 @@ class DeleteUnitTest extends UnitTest {
                 stubDelete.onFirstCall().resolves(itemName1);
                 stubDelete.onSecondCall().resolves(itemName1 + "2");
                 stubDelete.onThirdCall().resolves(itemName1 + "3");
+                stubDelete.onCall(3).resolves(itemName1);
+                stubDelete.onCall(4).resolves(itemName1 + "2");
+                stubDelete.onCall(5).resolves(itemName1 + "3");
 
                 // Execute the command to delete the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function (msg) {
-                        // The stub should only have been called once, and the expected message should have been returned.
-                        expect(stubDelete).to.have.been.calledThrice;
-                        expect(msg).to.contain('complete');
-                        expect(msg).to.contain('Deleted 3 artifacts');
-                        expect(msg).to.not.contain('errors');
-                        expect(msg).to.not.contain('wchtools-cli.log');
+                        if (switches === "--pages") {
+                            // The stub should have been called six times (three for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(6);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 6 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        } else {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -2044,8 +2099,13 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        expect(stub).to.have.been.calledOnce;
-                        expect(err.message).to.contain('Encountered 1 error while deleting artifacts.');
+                        if (switches === "--pages") {
+                            expect(stub).to.have.been.calledTwice;
+                            expect(err.message).to.contain('Encountered 2 errors while deleting artifacts.');
+                        } else {
+                            expect(stub).to.have.been.calledOnce;
+                            expect(err.message).to.contain('Encountered 1 error while deleting artifacts.');
+                        }
                     })
                     .catch(function (err) {
                         error = err;

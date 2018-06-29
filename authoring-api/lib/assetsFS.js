@@ -273,12 +273,22 @@ class AssetsFS extends BaseFS {
             filepath = BaseFS.getValidFileName(asset.path);
         }
 
+        // Add a file name suffix to draft assets.
         if (filepath && asset.status === "draft") {
             const index = filepath.lastIndexOf(".");
+
+            // Determine the file name suffix to be used for this draft artifact. Add "_wchdraft" to differentiate draft
+            // assets from ready assets, and the project id to differentiate it from other draft assets.
+            const projectId = asset["projectId"];
+            const suffix = DRAFT_SUFFIX + (projectId ? "_" + projectId : "");
+
+            // Add the file name suffix to the appropriate position.
             if (index > 0) {
-                filepath = filepath.substring(0, index) + DRAFT_SUFFIX + filepath.substring(index);
+                // Add the file name suffix before the file extension.
+                filepath = filepath.substring(0, index) + suffix + filepath.substring(index);
             } else {
-                filepath += DRAFT_SUFFIX;
+                // Append the file name suffix to the end of the file name.
+                filepath += suffix;
             }
         }
         return filepath;

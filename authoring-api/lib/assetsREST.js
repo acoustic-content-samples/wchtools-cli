@@ -374,7 +374,10 @@ class AssetsREST extends BaseREST {
     }
 
     canIgnoreConflict (context, asset, remoteAsset, opts) {
-        const ignoreKeys = ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing"];
+        const ignoreKeys = {};
+        ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing"].forEach(function (key) {
+            ignoreKeys[key] = undefined;
+        });
 
         const diffs = utils.compare(asset, remoteAsset, ignoreKeys);
         return (diffs.added.length === 0 && diffs.removed.length === 0 && diffs.changed.length === 0);

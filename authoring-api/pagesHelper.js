@@ -73,9 +73,10 @@ class PagesHelper extends JSONPathBasedItemHelper {
      */
     canDeleteItem (item, isDeleteAll, opts) {
         let retVal = super.canDeleteItem(item, isDeleteAll, opts);
-        if (isDeleteAll) {
-            // For a delete all operation, only delete the top-level pages. Child pages will be deleted automatically.
-            retVal = retVal && !item["parentId"];
+        if (retVal && isDeleteAll && item["status"] !== "draft") {
+            // This is a "delete all" operation. Only top-level pages from a ready site should be deleted (child pages
+            // will be deleted automatically.) All pages from a draft site should be deleted (cancel the draft.)
+            retVal = !item["parentId"];
         }
         return retVal;
     }

@@ -386,7 +386,6 @@ class ListCommand extends BaseCommand {
         if (this.getCommandLineOption("quiet")) {
             const logger = this.getLogger();
             logger.info(i18n.__("cli_listing_complete", {count: count}));
-            this.successMessage(i18n.__("cli_listing_complete", {count: count}));
         }
     }
 

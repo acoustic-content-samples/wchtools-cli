@@ -69,7 +69,7 @@ class JSONItemFS extends BaseFS {
     getItemPath (context, item, opts) {
         let relativePath;
         if (typeof item === "string") {
-            relativePath = item;
+            relativePath = BaseFS.getValidFileName(item);
         } else {
             relativePath = this.getFileName(item);
         }

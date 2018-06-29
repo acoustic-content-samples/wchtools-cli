@@ -247,7 +247,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             it("should not append the draft suffix if the asset is not a draft", function (done) {
                 let error;
                 try {
-                    // Call the method being tested and verify that mkdirp was called.
+                    // Call the method being tested and verify the result.
                     const path = assetsFS.getAssetPath({path: "a"});
                     expect(path).to.equal("a");
                 } catch (err) {
@@ -260,7 +260,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             it("should append the draft suffix", function (done) {
                 let error;
                 try {
-                    // Call the method being tested and verify that mkdirp was called.
+                    // Call the method being tested and verify the result.
                     const path = assetsFS.getAssetPath({path: "a", status: "draft"});
                     expect(path).to.equal("a_wchdraft");
                 } catch (err) {
@@ -273,9 +273,35 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             it("should insert the draft suffix", function (done) {
                 let error;
                 try {
-                    // Call the method being tested and verify that mkdirp was called.
+                    // Call the method being tested and verify the result.
                     const path = assetsFS.getAssetPath({path: "a.b", status: "draft"});
                     expect(path).to.equal("a_wchdraft.b");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should append the draft and project suffix", function (done) {
+                let error;
+                try {
+                    // Call the method being tested and verify the result.
+                    const path = assetsFS.getAssetPath({path: "a", status: "draft", projectId: "foo"});
+                    expect(path).to.equal("a_wchdraft_foo");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
+            it("should insert the draft and project suffix", function (done) {
+                let error;
+                try {
+                    // Call the method being tested and verify the result.
+                    const path = assetsFS.getAssetPath({path: "a.b", status: "draft", projectId: "foo"});
+                    expect(path).to.equal("a_wchdraft_foo.b");
                 } catch (err) {
                     error = err;
                 } finally {
