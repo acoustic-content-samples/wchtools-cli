@@ -39,6 +39,9 @@ const prompt = require("prompt");
 
 const DRAFT_OPTION = false;
 
+// TODO When pulling draft sites is supported, the code excluded by this flag should be removed.
+const DRAFT_SITES = false;
+
 let stubRemoteSites;
 
 class PullUnitTest extends UnitTest {
@@ -117,7 +120,7 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('4 artifacts');
@@ -285,7 +288,7 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('4 artifacts');
@@ -337,23 +340,41 @@ class PullUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
-                            // Verify that the stub was called twice, and that the expected message was returned.
-                            expect(stubGet).to.have.been.calledTwice;
-                            expect(stubSave).to.have.been.calledTwice;
-                            expect(stubSave.args[0][1].id).to.equal("foo");
-                            expect(stubSave.args[1][1].id).to.equal("bar");
-                            expect(msg).to.contain('2 artifacts');
+                            if (DRAFT_SITES) {
+                                // Verify that the stub was called twice, and that the expected message was returned.
+                                expect(stubGet).to.have.been.calledTwice;
+                                expect(stubSave).to.have.been.calledTwice;
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(stubSave.args[1][1].id).to.equal("bar");
+                                expect(msg).to.contain('2 artifacts');
+                            } else {
+                                // Verify that the stub was called once, and that the expected message was returned.
+                                expect(stubGet).to.have.been.calledTwice;
+                                expect(stubSave).to.have.been.calledOnce;
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(msg).to.contain('1 artifact');
+                            }
                         } else {
-                            // Verify that the stub was called twice, and that the expected message was returned.
-                            expect(stubGet).to.have.been.calledTwice;
-                            expect(stubSave).to.have.callCount(6);
-                            expect(stubSave.args[0][1].id).to.equal("foo");
-                            expect(stubSave.args[1][1].id).to.equal("bar");
-                            expect(stubSave.args[2][1].id).to.equal("ack");
-                            expect(stubSave.args[3][1].id).to.equal("foo");
-                            expect(stubSave.args[4][1].id).to.equal("bar");
-                            expect(stubSave.args[5][1].id).to.equal("ack");
-                            expect(msg).to.contain('6 artifacts');
+                            if (DRAFT_SITES) {
+                                // Verify that the stub was called twice, and that the expected message was returned.
+                                expect(stubGet).to.have.been.calledTwice;
+                                expect(stubSave).to.have.callCount(6);
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(stubSave.args[1][1].id).to.equal("bar");
+                                expect(stubSave.args[2][1].id).to.equal("ack");
+                                expect(stubSave.args[3][1].id).to.equal("foo");
+                                expect(stubSave.args[4][1].id).to.equal("bar");
+                                expect(stubSave.args[5][1].id).to.equal("ack");
+                                expect(msg).to.contain('6 artifacts');
+                            } else {
+                                // Verify that the stub was called once, and that the expected message was returned.
+                                expect(stubGet).to.have.been.calledOnce;
+                                expect(stubSave).to.have.callCount(3);
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(stubSave.args[1][1].id).to.equal("bar");
+                                expect(stubSave.args[2][1].id).to.equal("ack");
+                                expect(msg).to.contain('3 artifacts');
+                            }
                         }
                     })
                     .catch(function (err) {
@@ -398,23 +419,41 @@ class PullUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stubList).to.have.been.calledOnce;
-                            expect(stubSave).to.have.been.calledTwice;
-                            expect(stubSave.args[0][1].id).to.equal("foo");
-                            expect(stubSave.args[1][1].id).to.equal("bar");
-                            expect(msg).to.contain('2 artifacts');
+                            if (DRAFT_SITES) {
+                                // Verify that the stub was called once, and that the expected message was returned.
+                                expect(stubList).to.have.been.calledOnce;
+                                expect(stubSave).to.have.been.calledTwice;
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(stubSave.args[1][1].id).to.equal("bar");
+                                expect(msg).to.contain('2 artifacts');
+                            } else {
+                                // Verify that the stub was called once, and that the expected message was returned.
+                                expect(stubList).to.have.been.calledOnce;
+                                expect(stubSave).to.have.been.calledOnce;
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(msg).to.contain('1 artifact');
+                            }
                         } else {
-                            // Verify that the stub was called twice, and that the expected message was returned.
-                            expect(stubList).to.have.been.calledTwice;
-                            expect(stubSave).to.have.callCount(6);
-                            expect(stubSave.args[0][1].id).to.equal("foo");
-                            expect(stubSave.args[1][1].id).to.equal("bar");
-                            expect(stubSave.args[2][1].id).to.equal("ack");
-                            expect(stubSave.args[3][1].id).to.equal("foo");
-                            expect(stubSave.args[4][1].id).to.equal("bar");
-                            expect(stubSave.args[5][1].id).to.equal("ack");
-                            expect(msg).to.contain('6 artifacts');
+                            if (DRAFT_SITES) {
+                                // Verify that the stub was called twice, and that the expected message was returned.
+                                expect(stubList).to.have.been.calledTwice;
+                                expect(stubSave).to.have.callCount(6);
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(stubSave.args[1][1].id).to.equal("bar");
+                                expect(stubSave.args[2][1].id).to.equal("ack");
+                                expect(stubSave.args[3][1].id).to.equal("foo");
+                                expect(stubSave.args[4][1].id).to.equal("bar");
+                                expect(stubSave.args[5][1].id).to.equal("ack");
+                                expect(msg).to.contain('6 artifacts');
+                            } else {
+                                // Verify that the stub was called once, and that the expected message was returned.
+                                expect(stubList).to.have.been.calledOnce;
+                                expect(stubSave).to.have.callCount(3);
+                                expect(stubSave.args[0][1].id).to.equal("foo");
+                                expect(stubSave.args[1][1].id).to.equal("bar");
+                                expect(stubSave.args[2][1].id).to.equal("ack");
+                                expect(msg).to.contain('3 artifacts');
+                            }
                         }
                     })
                     .catch(function (err) {
@@ -742,7 +781,7 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('2 artifacts');
@@ -804,7 +843,7 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('2 artifacts');
@@ -855,7 +894,7 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('2 artifacts');
@@ -910,7 +949,7 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api'])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('2 artifacts');
@@ -960,7 +999,7 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('2 artifacts');
@@ -1008,7 +1047,7 @@ class PullUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(err.message).to.contain('6 errors');
@@ -1046,7 +1085,7 @@ class PullUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                         } else {
@@ -1084,7 +1123,7 @@ class PullUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "-I", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                         } else {
@@ -1121,7 +1160,7 @@ class PullUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stubPull).to.have.been.calledTwice;
                             expect(err.message).to.contain('2 errors');

@@ -855,7 +855,10 @@ class BaseCommand {
             } else {
                 // Determine what type of sites to use for this command -- draft, ready, or both.
                 const includeReadySites = this.getCommandLineOption("ready") || !this.getCommandLineOption("draft");
-                const includeDraftSites = this.getCommandLineOption("draft") || !this.getCommandLineOption("ready");
+                const includeDraftSites = (this.getCommandLineOption("draft") || !this.getCommandLineOption("ready")) && this.getCommandLineOption("all");
+
+                // TODO Until the Sites API defects for push and pull of draft pages/sites are fixed, only allow the
+                // TODO draft site to be included for the delete --all command.
 
                 // Get all sites, either local or remote.
                 const getSites = remote ? ToolsApi.getRemoteSites : ToolsApi.getLocalSites;

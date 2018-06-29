@@ -1384,7 +1384,22 @@ class DeleteCommand extends BaseCommand {
         self.startDeleteAllDisplay()
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
-                    return self.handleDeletePromise(self.deleteAllPages(context), continueOnError);
+                    // Get the list of site ids to use for deleting pages.
+                    const siteIds = context.siteList;
+
+                    // Local function to recursively delete pages for one site at a time.
+                    let index = 0;
+                    const deletePagesBySite = function (context) {
+                        if (index < siteIds.length) {
+                            return self.handleDeletePromise(self.deleteAllPages(context, siteIds[index++]), continueOnError)
+                                .then(function () {
+                                    // Delete pages for the next site after the previous site is complete.
+                                    return deletePagesBySite(context);
+                                });
+                        }
+                    };
+
+                    return deletePagesBySite(context);
                 }
             })
             .then(function () {
@@ -1490,7 +1505,13 @@ class DeleteCommand extends BaseCommand {
             messageKey = "cli_deleting_all_web_assets";
         }
 
-        return this.deleteAllItems(context, helper, messageKey, "path");
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
+
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__(messageKey) + SUFFIX);
+
+        return this.deleteAllItems(context, helper, "path", opts);
     }
 
     /**
@@ -1502,8 +1523,13 @@ class DeleteCommand extends BaseCommand {
      */
     deleteAllImageProfiles (context) {
         const helper = ToolsApi.getImageProfilesHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
 
-        return this.deleteAllItems(context, helper, "cli_deleting_all_image_profiles", "name");
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_image_profiles") + SUFFIX);
+
+        return this.deleteAllItems(context, helper, "name", opts);
     }
 
     /**
@@ -1519,8 +1545,13 @@ class DeleteCommand extends BaseCommand {
             return Q.resolve();
         } else {
             const helper = ToolsApi.getLayoutsHelper();
+            const opts = this.getApiOptions();
+            const logger = this.getLogger();
 
-            return this.deleteAllItems(context, helper, "cli_deleting_all_layouts", "name");
+            // Add a banner for the type of artifacts being deleted.
+            logger.info(PREFIX + i18n.__("cli_deleting_all_layouts") + SUFFIX);
+
+            return this.deleteAllItems(context, helper, "name", opts);
         }
     }
 
@@ -1537,8 +1568,13 @@ class DeleteCommand extends BaseCommand {
             return Q.resolve();
         } else {
             const helper = ToolsApi.getLayoutMappingsHelper();
+            const opts = this.getApiOptions();
+            const logger = this.getLogger();
 
-            return this.deleteAllItems(context, helper, "cli_deleting_all_layout_mappings", "name");
+            // Add a banner for the type of artifacts being deleted.
+            logger.info(PREFIX + i18n.__("cli_deleting_all_layout_mappings") + SUFFIX);
+
+            return this.deleteAllItems(context, helper, "name", opts);
         }
     }
 
@@ -1551,8 +1587,13 @@ class DeleteCommand extends BaseCommand {
      */
     deleteAllCategories (context) {
         const helper = ToolsApi.getCategoriesHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
 
-        return this.deleteAllItems(context, helper, "cli_deleting_all_categories", "name");
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_categories") + SUFFIX);
+
+        return this.deleteAllItems(context, helper, "name", opts);
     }
 
     /**
@@ -1564,8 +1605,13 @@ class DeleteCommand extends BaseCommand {
      */
     deleteAllTypes (context) {
         const helper = ToolsApi.getItemTypeHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
 
-        return this.deleteAllItems(context, helper, "cli_delete_all_types", "name");
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_delete_all_types") + SUFFIX);
+
+        return this.deleteAllItems(context, helper, "name", opts);
     }
 
     /**
@@ -1577,36 +1623,43 @@ class DeleteCommand extends BaseCommand {
      */
     deleteAllContent (context) {
         const helper = ToolsApi.getContentHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
 
-        return this.deleteAllItems(context, helper, "cli_deleting_all_content", "name");
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_content") + SUFFIX);
+
+        return this.deleteAllItems(context, helper, "name", opts);
     }
-
 
     /**
      * Delete all "Page" artifacts for a specified site (default only in mvp)
      *
      * @param {Object} context The API context associated with this delete command.
+     * @param {String} siteId The id of the site containing the pages being deleted.
      *
      * @returns {Q.Promise} A promise that is resolved when all page artifacts are deleted.
      */
-    deleteAllPages (context) {
+    deleteAllPages (context, siteId) {
         if (options.getProperty(context, "tier") === "Base") {
             // Pages are not available in a Base tenant, so just return a resolved promise.
             return Q.resolve();
         } else {
             const helper = ToolsApi.getPagesHelper();
+            const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
+            const logger = this.getLogger();
 
-            return this.deleteAllItems(context, helper, "cli_deleting_all_pages", "hierarchicalPath");
+            // Add a banner for the type of artifacts being deleted.
+            logger.info(PREFIX + i18n.__("cli_deleting_all_pages_for_site", {id: siteId}) + SUFFIX);
+
+            return this.deleteAllItems(context, helper, "hierarchicalPath", opts);
         }
     }
 
-    deleteAllItems (context, helper, messageKey, displayField) {
+    deleteAllItems (context, helper, displayField, opts) {
         const self = this;
         const logger = self.getLogger();
         const emitter = context.eventEmitter;
-
-        // Add a banner for the type of artifacts being deleted.
-        logger.info(PREFIX + i18n.__(messageKey) + SUFFIX);
 
         // The api emits an event when an item is deleted, so we log it for the user.
         const itemDeleted = function (item) {
@@ -1629,7 +1682,7 @@ class DeleteCommand extends BaseCommand {
         };
         emitter.on("deleted-error", itemDeletedError);
 
-        return helper.deleteRemoteItems(context, this.getApiOptions())
+        return helper.deleteRemoteItems(context, opts)
             .catch(function (err) {
                 // If the promise is rejected, it means that an error was encountered before the delete process started,
                 // so we need to make sure this error is accounted for.

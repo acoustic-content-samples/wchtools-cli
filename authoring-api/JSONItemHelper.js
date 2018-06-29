@@ -874,7 +874,10 @@ class JSONItemHelper extends BaseHelper {
      * @returns {boolean}
      */
     canIgnoreConflict (context, localItem, remoteItem, opts) {
-        const ignoreKeys = ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing", "hierarchicalPath"];
+        const ignoreKeys = {};
+        ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing", "hierarchicalPath"].forEach(function (key) {
+            ignoreKeys[key] = undefined;
+        });
 
         const diffs = utils.compare(localItem, remoteItem, ignoreKeys);
         return (diffs.added.length === 0 && diffs.removed.length === 0 && diffs.changed.length === 0);

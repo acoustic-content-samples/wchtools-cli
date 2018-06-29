@@ -544,13 +544,14 @@ function clone (obj) {
  * @param root an array of keys representing the nesting level of the objects being compared
  * @param obj1 the first object to compare
  * @param obj2 the second object to compare
- * @param ignoreKeys an array of keys in the objects to ignore
+ * @param ignoreKeys an object representing the hierarchical structure of keys in the objects to ignore
  * @private
  */
 function _compare(diffs, root, obj1, obj2, ignoreKeys) {
     const keys = new Set(Object.keys(obj1).concat(Object.keys(obj2)));
+    ignoreKeys = ignoreKeys || {};
     keys.forEach(function (key) {
-        if (!ignoreKeys.has(key)) {
+        if (!(key in ignoreKeys) || typeof(ignoreKeys[key]) === "object") {
             const child1 = obj1[key];
             const child2 = obj2[key];
 
@@ -571,7 +572,7 @@ function _compare(diffs, root, obj1, obj2, ignoreKeys) {
             if (child1 !== undefined) {
                 if (child2 !== undefined) {
                     if (typeof(child1) === "object" && typeof(child2) === "object") {
-                        _compare(diffs, node, child1, child2, ignoreKeys);
+                        _compare(diffs, node, child1, child2, ignoreKeys[key]);
                     } else {
                         if (child1 !== child2) {
                             diffs.changed.push(diff);
@@ -592,10 +593,9 @@ function _compare(diffs, root, obj1, obj2, ignoreKeys) {
  *
  * @param obj1 the first object to compare
  * @param obj2 the second object to compare
- * @param ignoreKeys an array of keys in the objects to ignore
+ * @param ignoreKeys an object representing the hierarchical structure of keys in the objects to ignore
  */
 function compare(obj1, obj2, ignoreKeys) {
-    ignoreKeys = new Set(ignoreKeys || []);
     const diffs = {
         added: [],
         removed: [],

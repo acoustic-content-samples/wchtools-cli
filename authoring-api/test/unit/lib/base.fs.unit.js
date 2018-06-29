@@ -28,6 +28,7 @@ const sinon = require("sinon");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const mkdirp = require('mkdirp');
+const utils = require(UnitTest.API_PATH + "lib/utils/utils.js");
 const hashes = require(UnitTest.API_PATH + "lib/utils/hashes.js");
 const JSONItemFS = require(UnitTest.API_PATH + "lib/JSONItemFS.js");
 
@@ -622,9 +623,15 @@ class BaseFsApiUnitTest extends UnitTest {
     }
 
     saveItemBadFileName (fsApi, itemName1, itemName2, done) {
+        const stub = sinon.stub(utils, "isValidFilePath");
+        stub.returns(false);
+
+        // The stub should be restored when the test is complete.
+        this.addTestDouble(stub);
+
         // Call the method being tested.
         let error;
-        const INVALID_NAME = "http://foo.com/bar";
+        const INVALID_NAME = "invalid.file.name";
         fsApi.saveItem(context, INVALID_NAME, UnitTest.DUMMY_OPTIONS)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.

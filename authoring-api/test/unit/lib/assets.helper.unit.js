@@ -1274,6 +1274,139 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when pulling a draft asset.", function (done) {
+                // Read the contents of a valid test asset metadata file.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
+                const draftAssetMetadata = utils.clone(UnitTest.getJsonObject(assetMetadataPath1));
+                draftAssetMetadata["status"] = "draft";
+
+                // Create an assetsREST.getItem stub that returns a promise for the metadata of the draft asset.
+                const stubItems = sinon.stub(assetsREST, "getItem");
+                stubItems.resolves(draftAssetMetadata);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG = "unique.id";
+                stream.tag = STREAM_TAG;
+                stubStream.resolves(stream);
+
+                // Create an assetsREST.pullItem stub that return asset metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(draftAssetMetadata);
+                    return d.promise;
+                });
+
+                // Create an assetsFS.saveItem spy to make sure it doesn't get called.
+                const spySave = sinon.spy(assetsFS, "saveItem");
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stubItems);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(spySave);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullItem(context, draftAssetMetadata.id, {offset: 0, limit: 2})
+                    .then(function (asset) {
+                        // Verify that the helper returned the expected value.
+                        expect(diff.diffJson(asset, draftAssetMetadata)).to.have.lengthOf(1);
+
+                        // Verify that all stubs were called once, and with the expected values.
+                        expect(stubItems).to.have.been.calledOnce;
+                        expect(stubStream).to.have.been.calledOnce;
+                        expect(stubPull).to.have.been.calledOnce;
+                        expect(stubUpdateHashes).to.have.been.calledOnce;
+                        expect(stubStream.args[0][1]).contains("_wchdraft");
+                        expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
+
+                        // Verify that the spy was not called.
+                        expect(spySave).to.not.have.been.called;
+
+                        // Verify that the hashes were called as expected.
+                        expect(stubUpdateHashes).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pulling a draft asset that's in a project.", function (done) {
+                // Read the contents of a valid test asset metadata file.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
+                const draftAssetMetadata = utils.clone(UnitTest.getJsonObject(assetMetadataPath1));
+                draftAssetMetadata["status"] = "draft";
+                draftAssetMetadata["projectId"] = "flubber123";
+
+                // Create an assetsREST.getItem stub that returns a promise for the metadata of the draft asset.
+                const stubItems = sinon.stub(assetsREST, "getItem");
+                stubItems.resolves(draftAssetMetadata);
+
+                // Create an assetsFS.getItemWriteStream stub that returns a stream.
+                const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
+                const stream = AssetsUnitTest.DUMMY_PASS_STREAM;
+                const STREAM_TAG = "unique.id";
+                stream.tag = STREAM_TAG;
+                stubStream.resolves(stream);
+
+                // Create an assetsREST.pullItem stub that return asset metadata.
+                const stubPull = sinon.stub(assetsREST, "pullItem", function () {
+                    stream.emit("pipe");
+                    const d = Q.defer();
+                    d.resolve(draftAssetMetadata);
+                    return d.promise;
+                });
+
+                // Create an assetsFS.saveItem spy to make sure it doesn't get called.
+                const spySave = sinon.spy(assetsFS, "saveItem");
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stubItems);
+                self.addTestDouble(stubStream);
+                self.addTestDouble(stubPull);
+                self.addTestDouble(spySave);
+
+                // Call the method being tested.
+                let error;
+                assetsHelper.pullItem(context, draftAssetMetadata.id, {offset: 0, limit: 2})
+                    .then(function (asset) {
+                        // Verify that the helper returned the expected value.
+                        expect(diff.diffJson(asset, draftAssetMetadata)).to.have.lengthOf(1);
+
+                        // Verify that all stubs were called once, and with the expected values.
+                        expect(stubItems).to.have.been.calledOnce;
+                        expect(stubStream).to.have.been.calledOnce;
+                        expect(stubPull).to.have.been.calledOnce;
+                        expect(stubUpdateHashes).to.have.been.calledOnce;
+                        expect(stubStream.args[0][1]).contains("_wchdraft_flubber123");
+                        expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
+
+                        // Verify that the spy was not called.
+                        expect(spySave).to.not.have.been.called;
+
+                        // Verify that the hashes were called as expected.
+                        expect(stubUpdateHashes).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 

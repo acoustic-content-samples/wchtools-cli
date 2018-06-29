@@ -59,7 +59,7 @@ class PagesFS extends JSONPathBasedItemFS {
         if (opts && opts.siteId) {
             siteId = opts.siteId;
         }
-        return "sites/" + siteId;
+        return "sites/" + BaseFS.getValidFileName(siteId);
     }
 
     /**

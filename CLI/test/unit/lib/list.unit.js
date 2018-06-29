@@ -38,6 +38,9 @@ const manifests = ToolsApi.getManifests();
 
 const DRAFT_OPTION = false;
 
+// TODO When pulling draft sites is supported, the code excluded by this flag should be removed.
+const DRAFT_SITES = false;
+
 // Require the local modules that will be stubbed, mocked, and spied.
 const options = require("wchtools-api").getOptions();
 
@@ -174,7 +177,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--dir", "./", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -215,7 +218,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -391,7 +394,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--del", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                         } else {
@@ -448,7 +451,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--quiet", "--server", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                         } else {
@@ -498,7 +501,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -551,7 +554,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--write-manifest", "foo", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the list stub was called twice (once for each site), and that the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -607,7 +610,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -660,7 +663,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -713,7 +716,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -770,7 +773,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "-q", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -814,7 +817,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -823,7 +826,11 @@ class ListUnitTest extends UnitTest {
                             expect(stubList).to.have.been.calledOnce;
                             if (switches.includes("--sites")) {
                                 // Sites filtered to those in context.siteList.
-                                expect(msg).to.contain('artifacts listed 2');
+                                if (DRAFT_SITES) {
+                                    expect(msg).to.contain('artifacts listed 2');
+                                } else {
+                                    expect(msg).to.contain('artifacts listed 1');
+                                }
                             } else {
                                 expect(msg).to.contain('artifacts listed 3');
                             }
@@ -936,7 +943,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stubList).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -945,8 +952,12 @@ class ListUnitTest extends UnitTest {
                             expect(stubList).to.have.been.calledOnce;
                             if (switches.includes("--sites")) {
                                 // Sites filtered to those in context.siteList.
+                                if (DRAFT_SITES) {
+                                    expect(msg).to.contain('artifacts listed 2');
+                                } else {
+                                    expect(msg).to.contain('artifacts listed 1');
+                                }
                                 expect(stubHashes).to.have.been.calledThrice;
-                                expect(msg).to.contain('artifacts listed 2');
                             } else {
                                 expect(msg).to.contain('artifacts listed 3');
                             }
@@ -1080,7 +1091,7 @@ class ListUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ignore-timestamps", "-q", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (switches === "--pages") {
+                        if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
                             expect(msg).to.contain('artifacts listed 6');
@@ -1089,7 +1100,11 @@ class ListUnitTest extends UnitTest {
                             expect(stub).to.have.been.calledOnce;
                             if (switches.includes("--sites")) {
                                 // Sites filtered to those in context.siteList.
-                                expect(msg).to.contain('artifacts listed 2');
+                                if (DRAFT_SITES) {
+                                    expect(msg).to.contain('artifacts listed 2');
+                                } else {
+                                    expect(msg).to.contain('artifacts listed 1');
+                                }
                             } else {
                                 expect(msg).to.contain('artifacts listed 3');
                             }
@@ -1230,13 +1245,27 @@ class ListUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--ignore-timestamps", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         if (switches === "--pages" || switches === "--sites") {
-                            // Verify that the stub was called twice (once for each site), and the expected message was returned.
-                            expect(stubGet).to.have.been.calledTwice;
-                            if (switches.includes("--sites")) {
-                                // Sites filtered to those in context.siteList.
-                                expect(msg).to.contain('artifacts listed 2');
+                            if (DRAFT_SITES) {
+                                // Verify that the stub was called twice (once for each site), and the expected message was returned.
+                                expect(stubGet).to.have.been.calledTwice;
+                                if (switches.includes("--sites")) {
+                                    // Sites filtered to those in context.siteList.
+                                    expect(msg).to.contain('artifacts listed 2');
+                                } else {
+                                    expect(msg).to.contain('artifacts listed 6');
+                                }
                             } else {
-                                expect(msg).to.contain('artifacts listed 6');
+                                if (switches.includes("--sites")) {
+                                    // Verify that the stub was called twice, and the expected message was returned.
+                                    expect(stubGet).to.have.been.calledTwice;
+
+                                    // Sites filtered to those in context.siteList.
+                                    expect(msg).to.contain('artifacts listed 1');
+                                } else {
+                                    // Verify that the stub was called once, and the expected message was returned.
+                                    expect(stubGet).to.have.been.calledOnce;
+                                    expect(msg).to.contain('artifacts listed 3');
+                                }
                             }
                         } else {
                             // Verify that the stubs were called as expected, and the expected message was returned.
