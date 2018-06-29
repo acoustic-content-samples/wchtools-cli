@@ -1,5 +1,9 @@
 # Changelog
 
+### 2.8.2 changes since 2.7.6
+  - Improve delete all to handle all drafts.
+  - Improve preventaion of draft asset collisions.
+
 ### 2.7.6 changes since 2.7.3
   - Fix a regression in behavior when parsing command arguments for the init command.
   - Fix a problem when pulling orphaned resources that would cause the creation of a resource on the file system if the pull for the corresponding asset failed due to an intermittent error.
