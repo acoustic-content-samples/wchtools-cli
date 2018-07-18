@@ -1,0 +1,13 @@
+{
+  "id": "carousel-list",
+  "rev": "3-e1e3d8abccd0bada051c623d299025ad",
+  "name": "Carousel",
+  "classification": "layout",
+  "prerender": false,
+  "thumbnail": {
+    "path": "/dxauth/layoutThumbs/list-carousel_220.svg",
+    "url": "/authoring/v1/resources/509d39a50c8b19d7bbcad38d8ddbec5a_991f3105fd27ed45d65a5b8c127adca6"
+  },
+  "template": "carousel-list",
+  "templateType": "angular"
+}

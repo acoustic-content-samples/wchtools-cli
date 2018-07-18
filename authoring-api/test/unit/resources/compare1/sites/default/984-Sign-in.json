@@ -1,0 +1,15 @@
+{
+  "name": "Sign-in",
+  "segment": "sign-in",
+  "layoutId": "standard-page-hero-2-blocks",
+  "description": "",
+  "contentTypeId": "2af1d22a-fecf-41e1-a808-7301cb37b79f",
+  "title": "Sign-in",
+  "contentId": "fd96297c-591c-419b-97c6-fc91d71213c8",
+  "hideFromNavigation": true,
+  "classification": "page",
+  "contentStatus": "ready",
+  "position": 984,
+  "id": "bd848d78-b7c0-4b39-b1d9-1f679f9e35cb",
+  "rev": "1-ae3cc266fe928a27d44c977985bd4a66"
+}

@@ -117,7 +117,7 @@ function renderCommand (program) {
         .command('render')
         .description(i18n.__('cli_rendering_description'))
         .option('-v --verbose',          i18n.__('cli_opt_verbose'))
-        .option('-r --rebuild',          i18n.__('cli_publishing_opt_rebuild'))
+        .option('-r --rebuild',          i18n.__('cli_rendering_opt_rebuild'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))

@@ -206,6 +206,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             self.testDeleteRemoteAsset();
             self.testSearchRemoteAsset();
             self.testTimestamps();
+            self.testCompare();
         });
     }
 
@@ -8503,6 +8504,155 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }
+            });
+        });
+    }
+
+    testCompare () {
+        const folder1 = UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_1;
+        const folder2 = UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_2;
+        const self = this;
+        describe("compare", function () {
+            it("should succeed when source and target are equal", function (done) {
+                // We need to restore the stub for generateMD5HashFromStream.
+                stubGenerateMD5HashFromStream.restore();
+
+                // Create a spy to listen for the "diff" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyDiff = sinon.spy();
+                emitter.on("diff", spyDiff);
+                const spyAdded = sinon.spy();
+                emitter.on("added", spyAdded);
+                const spyRemoved = sinon.spy();
+                emitter.on("removed", spyRemoved);
+
+                let error;
+                assetsHelper.compare(context, folder1, folder1)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(0);
+                        expect(diffs.totalCount).to.be.equal(8);
+                        expect(spyDiff).to.not.have.been.called;
+                        expect(spyAdded).to.not.have.been.called;
+                        expect(spyRemoved).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("diff", spyDiff);
+                        emitter.removeListener("added", spyAdded);
+                        emitter.removeListener("removed", spyRemoved);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is no emitter", function (done) {
+                // We need to restore the stub for generateMD5HashFromStream.
+                stubGenerateMD5HashFromStream.restore();
+
+                // Remove the event emitter.
+                const emitter = assetsHelper.getEventEmitter(context);
+                delete context.eventEmitter;
+
+                let error;
+                assetsHelper.compare(context, folder1, folder2)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(7);
+                        expect(diffs.totalCount).to.be.equal(10);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the emitter.
+                        context.eventEmitter = emitter;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed comparing using urls", function (done) {
+                const stubListRemoteItemNames = sinon.stub(assetsHelper, "_listRemoteItemNames");
+                stubListRemoteItemNames.resolves([]);
+
+                let error;
+                assetsHelper.compare(context, "http://foo.com/api", "http://foo.com/api")
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(0);
+                        expect(diffs.totalCount).to.be.equal(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubListRemoteItemNames.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed using a manifest list", function (done) {
+                // We need to restore the stub for generateMD5HashFromStream.
+                stubGenerateMD5HashFromStream.restore();
+
+                const stubListRemoteItemNames = sinon.stub(assetsHelper, "getManifestItems", assetsHelper._listLocalItemNames);
+                context.readManifest = {};
+
+                let error;
+                assetsHelper.compare(context, folder1, folder2)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(7);
+                        expect(diffs.totalCount).to.be.equal(10);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubListRemoteItemNames.restore();
+                        delete context.readManifest;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed", function (done) {
+                // We need to restore the stub for generateMD5HashFromStream.
+                stubGenerateMD5HashFromStream.restore();
+
+                // Create a spy to listen for the "diff" events.
+                const emitter = assetsHelper.getEventEmitter(context);
+                const spyDiff = sinon.spy();
+                emitter.on("diff", spyDiff);
+                const spyAdded = sinon.spy();
+                emitter.on("added", spyAdded);
+                const spyRemoved = sinon.spy();
+                emitter.on("removed", spyRemoved);
+
+                let error;
+                assetsHelper.compare(context, folder1, folder2)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(7);
+                        expect(diffs.totalCount).to.be.equal(10);
+                        expect(spyDiff).to.have.callCount(3);
+                        expect(spyAdded).to.have.been.calledTwice;
+                        expect(spyRemoved).to.have.been.calledTwice;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("diff", spyDiff);
+                        emitter.removeListener("added", spyAdded);
+                        emitter.removeListener("removed", spyRemoved);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
             });
         });
     }

@@ -1,0 +1,19 @@
+{
+  "id": "com.ibm.commerce.store.angular-types.child-pim-categories",
+  "rev": "1-32949a30c027ba81faac127bbae952ba",
+  "name": "Child PIM categories",
+  "classification": "content-type",
+  "kind": [
+    "standalone"
+  ],
+  "description": "Dynamically builds a list of child categories using the PIM hierarchy and displays the results as a list. Website user can click image in result and go to page",
+  "status": "ready",
+  "tags": [],
+  "elements": [
+    {
+      "elementType": "text",
+      "label": "Title",
+      "key": "title"
+    }
+  ]
+}

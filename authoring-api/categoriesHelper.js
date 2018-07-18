@@ -51,6 +51,27 @@ class CategoriesHelper extends JSONItemHelper {
     }
 
     /**
+     * Determine whether the given item can be compared.
+     *
+     * @param {Object} item The item to be compared.
+     * @param {Object} opts - The options to be used for the compare operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the item can be compared. A return value of false
+     *                    indicates that the item cannot be compared.
+     *
+     * @override
+     */
+    canCompareItem(item, opts) {
+        let retVal = super.canCompareItem(item, opts);
+        if (retVal) {
+            // Do not include system categories in the compare.
+            retVal = (item && item["permanent"] !== true);
+        }
+
+        return retVal;
+    }
+
+    /**
      *  Determine whether the given item can be pulled.
      *
      *  @param {Object} item The item to be pulled.

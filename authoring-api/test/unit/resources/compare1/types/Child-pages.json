@@ -1,0 +1,19 @@
+{
+  "id": "c7532e99-d428-4314-9088-40f3d8b5ed37",
+  "rev": "1-72ddf9eb08714efb138e0b44cac08bdc",
+  "name": "Child pages",
+  "classification": "content-type",
+  "kind": [
+    "standalone"
+  ],
+  "description": "",
+  "status": "ready",
+  "tags": [],
+  "elements": [
+    {
+      "elementType": "text",
+      "label": "Heading",
+      "key": "heading"
+    }
+  ]
+}

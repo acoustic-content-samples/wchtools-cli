@@ -1,0 +1,59 @@
+{
+  "id": "1aef293a-a06d-439d-ab5e-97901fffaed8",
+  "name": "Collections",
+  "description": "",
+  "typeId": "2af1d22a-fecf-41e1-a808-7301cb37b79f",
+  "tags": [],
+  "status": "ready",
+  "elements": {
+    "banner": {
+      "elementType": "reference",
+      "values": [
+        {
+          "id": "e2b22a41-24be-4c23-9b48-5f53329a28a2",
+          "name": "Collections",
+          "typeId": "com.ibm.commerce.store.angular-types.hero",
+          "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+          "status": "ready"
+        }
+      ]
+    },
+    "sectionOne": {
+      "elementType": "reference",
+      "values": [
+        {
+          "id": "a8c0b675-9ca6-48ab-b337-38d584d42ab2",
+          "name": "Collections' Child pages",
+          "typeId": "c7532e99-d428-4314-9088-40f3d8b5ed37",
+          "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+          "status": "ready"
+        }
+      ]
+    },
+    "sectionTwo": {
+      "elementType": "reference"
+    }
+  },
+  "selectedLayouts": [
+    {
+      "layout": {
+        "id": "standard-page-layout"
+      }
+    }
+  ],
+  "kind": [
+    "page"
+  ],
+  "lastModified": "2018-05-09T16:26:25.753Z",
+  "created": "2018-05-09T16:26:25.753Z",
+  "classification": "content",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "type": "Standard page",
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "rev": "1-abba1dd3a4ee9869d81b43fbc515b1ad"
+}

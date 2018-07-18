@@ -1,0 +1,15 @@
+{
+  "name": "My Account",
+  "segment": "my-account",
+  "layoutId": "standard-page-layout",
+  "description": "",
+  "contentTypeId": "2af1d22a-fecf-41e1-a808-7301cb37b79f",
+  "title": "My Account",
+  "contentId": "1a488dc5-ab43-48e3-bd68-268ac5f7c23a",
+  "hideFromNavigation": true,
+  "classification": "page",
+  "contentStatus": "ready",
+  "position": 983,
+  "id": "62687ad8-2eb9-43ec-9e75-facc869c9387",
+  "rev": "1-40b8620ceeab99bb1e1427880b55374c"
+}

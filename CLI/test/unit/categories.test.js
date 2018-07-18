@@ -37,3 +37,7 @@ listUnitTest.run(helper, '--categories', BASE_NAME + '-1', BASE_NAME + '-2', BAS
 const DeleteUnitTest = require("./lib/delete.unit.js");
 const deleteUnitTest = new DeleteUnitTest();
 deleteUnitTest.run(helper, '-C', BASE_NAME + '-1');
+
+const CompareUnitTest = require("./lib/compare.unit.js");
+const compareUnitTest = new CompareUnitTest();
+compareUnitTest.run(helper, '-C');

@@ -34,3 +34,7 @@ pushUnitTest.run(helper, '--publishing-site-revisions', BASE_NAME + '-1', BASE_N
 const ListUnitTest = require("./lib/list.unit.js");
 const listUnitTest = new ListUnitTest();
 listUnitTest.run(helper, '--publishing-site-revisions', BASE_NAME + '-1', BASE_NAME + '-2', BASE_NAME + '-bad-name');
+
+const CompareUnitTest = require("./lib/compare.unit.js");
+const compareUnitTest = new CompareUnitTest();
+compareUnitTest.run(helper, '--publishing-site-revisions');

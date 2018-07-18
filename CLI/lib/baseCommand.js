@@ -317,9 +317,9 @@ class BaseCommand {
                     } else {
                         deferred.resolve();
                     }
-                }).catch(function () {
+                }).catch(function (err) {
                     // Display an error message to indicate that the specified manifest is not valid.
-                    deferred.reject(new Error(i18n.__('cli_manifest_not_valid', {name: manifest})));
+                    deferred.reject(err);
                 });
             } else {
                 deferred.resolve();
@@ -541,7 +541,9 @@ class BaseCommand {
                 fs.mkdirSync(dir);
             } else {
                 // Make sure the specified directory exists.
-                fs.statSync(dir).isDirectory();
+                if (!fs.statSync(dir).isDirectory()) {
+                    throw new Error(i18n.__('cli_dir_is_not_a_directory', {dir: dir}));
+                }
             }
         } catch (err) {
             if (this._createDir) {
@@ -837,10 +839,11 @@ class BaseCommand {
      *
      * @param {Object} context The API context associated with this command.
      * @param {Boolean} remote A flag that indicates whether to retrieve the remote sites or the local sites.
+     * @param {Object} opts The API options associated with this command.
      *
      * @returns {Q.Promise} A promise that will be resolved once the sites have been initialized.
      */
-    initSites (context, remote) {
+    initSites (context, remote, opts) {
         const deferred = Q.defer();
         const self = this;
 
@@ -862,7 +865,7 @@ class BaseCommand {
 
                 // Get all sites, either local or remote.
                 const getSites = remote ? ToolsApi.getRemoteSites : ToolsApi.getLocalSites;
-                getSites(context, this.getApiOptions())
+                getSites(context, opts)
                     .then(function (sites) {
                         // Start with an empty site list, and add any existing sites to be used for this command.
                         const readySiteIds = [];
@@ -933,6 +936,27 @@ class BaseCommand {
         delete context.siteList;
     }
 
+    /**
+     * Write the output manifests if they have been specified for the command.
+     */
+    saveManifests (context) {
+        // Save the results to a manifest, if one was specified.
+        const savedManifest = ToolsApi.getManifests().saveManifest(context, this.getApiOptions());
+        if (savedManifest) {
+            this.getLogger().info(i18n.__("cli_manifest_saved", {"filename": savedManifest}));
+        }
+
+        // Save the deletions to a deletions manifest, if one was specified.
+        const savedDeletionsManifest = ToolsApi.getManifests().saveDeletionsManifest(context, this.getApiOptions());
+        if (savedDeletionsManifest) {
+            this.getLogger().info(i18n.__("cli_deletions_manifest_saved", {"filename": savedDeletionsManifest}));
+        }
+    }
+
+    generateVerboseOutput () {
+        return this.getCommandLineOption("verbose");
+    }
+
     getLogConfig () {
         // Set up logging for the CLI in the directory where the files exist, and then get the logger.
         const fileAppender = {
@@ -958,7 +982,7 @@ class BaseCommand {
         // Set the level for the categories to 'INFO' to generate verbose output.
         categories.default.level = 'INFO';
         categories[cliLog].level = 'INFO';
-        if (this.getCommandLineOption("verbose")) {
+        if (this.generateVerboseOutput()) {
             // The user has requested verbose output, add the consoleAppender using the name 'cliOut'.
             appenders.cliOut = consoleAppender;
             // Add the cliOut appender to the categories.

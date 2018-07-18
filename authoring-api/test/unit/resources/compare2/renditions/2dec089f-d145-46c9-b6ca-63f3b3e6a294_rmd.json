@@ -1,0 +1,20 @@
+{
+  "scale": 0.7705061082024433,
+  "locationY": 0,
+  "height": 883,
+  "locationX": 60,
+  "id": "2dec089f-d145-46c9-b6ca-63f3b3e6a294",
+  "classification": "rendition",
+  "asset": {
+    "mediaType": "image/jpeg",
+    "height": 1146,
+    "fileName": "livingroom.jpg",
+    "id": "c57f5d3a-09c1-4a3d-b3c5-8698f0a7ad19",
+    "resource": "87be5a87-bb5c-432f-9e12-6bf6b18a3f27",
+    "fileSize": 1498953,
+    "width": 2752
+  },
+  "width": 2000,
+  "created": "2018-05-09T16:25:32.455Z",
+  "rev": "1-03b6abb193eebe91c93123c4199d931e"
+}

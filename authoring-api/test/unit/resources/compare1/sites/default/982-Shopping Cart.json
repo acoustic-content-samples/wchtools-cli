@@ -1,0 +1,15 @@
+{
+  "name": "Shopping cart",
+  "segment": "cart",
+  "layoutId": "standard-page-layout",
+  "description": "",
+  "contentTypeId": "2af1d22a-fecf-41e1-a808-7301cb37b79f",
+  "title": "Shopping cart",
+  "contentId": "232c05a5-0d10-4ffb-ac63-bf84e5844ed0",
+  "hideFromNavigation": true,
+  "classification": "page",
+  "contentStatus": "ready",
+  "position": 982,
+  "id": "20ee8b87-9068-4905-a982-9b2236d26a69",
+  "rev": "1-6975e61ed0132ded803290f30ef6a95e"
+}

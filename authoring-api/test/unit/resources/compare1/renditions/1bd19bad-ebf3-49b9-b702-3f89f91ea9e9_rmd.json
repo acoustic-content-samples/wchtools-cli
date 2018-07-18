@@ -1,0 +1,20 @@
+{
+  "scale": 0.7066817667044167,
+  "locationY": 0,
+  "height": 624,
+  "locationX": 107,
+  "id": "1bd19bad-ebf3-49b9-b702-3f89f91ea9e9",
+  "classification": "rendition",
+  "asset": {
+    "mediaType": "image/jpeg",
+    "height": 883,
+    "fileName": "sustain_header_img1.jpg",
+    "id": "32da9e7e-fcd8-417f-be29-4e570ce69212",
+    "resource": "a2c46261-3985-4953-8f2b-7809d31d322e",
+    "fileSize": 280875,
+    "width": 2000
+  },
+  "width": 1200,
+  "created": "2018-05-09T16:25:31.586Z",
+  "rev": "1-6e920ccd9e16ca1b68c9241af71890e0"
+}

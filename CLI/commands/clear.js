@@ -45,18 +45,18 @@ class ClearCommand extends BaseCommand {
         const helper = ToolsApi.getEdgeConfigHelper();
         const self = this;
 
-        // Check to see if the initialization process was successful.
-        if (!self.handleInitialization(context)) {
-            return;
-        }
         if (!self.getCommandLineOption("cache")) {
             this.errorMessage(i18n.__("cli_clear_requires_cache", {cache: "--cache"}));
             this.resetCommandLineOptions();
             return;
         }
 
-        // Make sure the url option has been specified.
-        self.handleUrlOption(context)
+        // Make sure the initialization process was successful.
+        self.handleInitialization(context)
+            .then(function () {
+                // Make sure the url option has been specified.
+                return self.handleUrlOption(context);
+            })
             .then(function () {
                 // Handle the necessary command line options.
                 return self.handleAuthenticationOptions(context);

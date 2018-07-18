@@ -1,0 +1,29 @@
+{
+  "id": "763cc433-46d8-4a1e-9155-878ae8cf4dbc",
+  "rev": "3-a3d5bd0e2841e7057591dbca77182081",
+  "name": "Profile for banner content",
+  "classification": "image-profile",
+  "description": "Used for images in the slide and hero image content types.",
+  "creator": "kevintap",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "created": "2017-08-10T19:17:39.053Z",
+  "lastModifier": "kevintap",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModified": "2018-05-09T16:21:57.158Z",
+  "dimensions": [
+    {
+      "label": "Banner",
+      "key": "banner",
+      "width": 2000,
+      "height": 833,
+      "description": "Ensures authors do not use images that are too small for the desktop context."
+    },
+    {
+      "label": "Short",
+      "key": "short",
+      "width": 1200,
+      "height": 300,
+      "description": "Used for newsletter signup."
+    }
+  ]
+}

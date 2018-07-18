@@ -61,6 +61,8 @@ class UnitTest {
     static get API_PATH () { return authorApiPath; };
     static get VALID_RESOURCES_DIRECTORY () { return "test/unit/resources/valid" + path.sep; }; // Relative to root.
     static get INVALID_RESOURCES_DIRECTORY () { return "test/unit/resources/invalid" + path.sep; }; // Relative to root.
+    static get COMPARE_RESOURCES_DIRECTORY_1 () { return "test/unit/resources/compare1" + path.sep; }; // Relate to root.
+    static get COMPARE_RESOURCES_DIRECTORY_2 () { return "test/unit/resources/compare2" + path.sep; }; // Relate to root.
 
     // Dummy values to be used when real values are not required.
     static get DUMMY_DIR () { return authorApiPath + "test/unit/dummy" + path.sep; };

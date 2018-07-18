@@ -1,0 +1,30 @@
+{
+  "id": "0e1cd869-ee48-4ef6-ae6d-7be957c84d10",
+  "rev": "3-f9298587486d958d262bf27edd36b4f9",
+  "name": "Size",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creator": "kevintap",
+  "classification": "category",
+  "taxonomy": "f38cf87e-0485-4b38-a0e6-6b9c420efed0",
+  "parent": "f38cf87e-0485-4b38-a0e6-6b9c420efed0",
+  "ancestorIds": [
+    "f38cf87e-0485-4b38-a0e6-6b9c420efed0"
+  ],
+  "namePath": [
+    "Image size and placement",
+    "Size"
+  ],
+  "links": {
+    "taxonomy": {
+      "href": "/authoring/v1/categories/f38cf87e-0485-4b38-a0e6-6b9c420efed0"
+    },
+    "self": {
+      "href": "/authoring/v1/categories/0e1cd869-ee48-4ef6-ae6d-7be957c84d10"
+    },
+    "parent": {
+      "href": "/authoring/v1/categories/f38cf87e-0485-4b38-a0e6-6b9c420efed0"
+    }
+  },
+  "created": "2018-05-09T16:22:02.590Z",
+  "lastModified": "2018-05-09T16:22:02.590Z"
+}

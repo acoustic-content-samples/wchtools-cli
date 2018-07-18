@@ -1,0 +1,34 @@
+{
+  "id": "00ebadb4-b599-47f5-a233-d5e6e055dd06",
+  "rev": "1-3ffa26cc8d4938f5ec50e4b715acfad2",
+  "name": "Hero Image",
+  "classification": "image-profile",
+  "creator": "kevintap",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "created": "2018-02-07T16:59:25.980Z",
+  "lastModifier": "kevintap",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModified": "2018-05-09T16:21:56.954Z",
+  "dimensions": [
+    {
+      "label": "Tall",
+      "key": "tall",
+      "width": 1920,
+      "height": 1146,
+      "description": "Used through out website for heroes and slides"
+    },
+    {
+      "label": "Short",
+      "key": "short",
+      "width": 2000,
+      "height": 883,
+      "description": "Used through out website for heroes and slides"
+    },
+    {
+      "label": "SmallResolution",
+      "key": "smallresolution",
+      "width": 1146,
+      "height": 1146
+    }
+  ]
+}

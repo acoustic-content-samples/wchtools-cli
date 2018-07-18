@@ -1,0 +1,30 @@
+{
+  "id": "7af6cd7a-80de-420e-aa7f-c4bd98f926f9",
+  "rev": "3-357509dd05fa0249ad80743c45d1949e",
+  "name": "By date descending",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creator": "kevintap",
+  "classification": "category",
+  "taxonomy": "52265429-9349-49fe-b35d-f7b71493190e",
+  "parent": "52265429-9349-49fe-b35d-f7b71493190e",
+  "ancestorIds": [
+    "52265429-9349-49fe-b35d-f7b71493190e"
+  ],
+  "namePath": [
+    "List ordering options",
+    "By date descending"
+  ],
+  "links": {
+    "taxonomy": {
+      "href": "/authoring/v1/categories/52265429-9349-49fe-b35d-f7b71493190e"
+    },
+    "self": {
+      "href": "/authoring/v1/categories/7af6cd7a-80de-420e-aa7f-c4bd98f926f9"
+    },
+    "parent": {
+      "href": "/authoring/v1/categories/52265429-9349-49fe-b35d-f7b71493190e"
+    }
+  },
+  "created": "2018-05-09T16:22:02.661Z",
+  "lastModified": "2018-05-09T16:22:02.661Z"
+}

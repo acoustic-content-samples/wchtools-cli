@@ -1,5 +1,9 @@
 # Changelog
 
+### 2.9.2 changes since 2.8.2
+  - New compare command for comparing source and target exports or source export with a target tenant, optionally writing a manifest of updates needed in the target, from the source, along with an optional manifest of items deleted from source that could then be deleted from the target with wchtools delete --manifest
+  - New optional push --publish-now argument, to override a global publishing schedule, when you need to push and publish new web artifacts immediately, to address an issue.
+
 ### 2.8.2 changes since 2.7.6
   - Improve delete all to handle all drafts.
   - Improve preventaion of draft asset collisions.

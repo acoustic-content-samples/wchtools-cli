@@ -1,0 +1,32 @@
+{
+  "id": "7e7692e3-2b9a-41ec-bccf-20c1015aea8a",
+  "rev": "3-527579723aaa504391246d599721bfd2",
+  "name": "Future dates (Events)",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creator": "kevintap",
+  "classification": "category",
+  "taxonomy": "9d47dccc-f940-40de-a978-82815c805701",
+  "parent": "111fd225-b22f-470c-8bfb-425f3f664b52",
+  "ancestorIds": [
+    "9d47dccc-f940-40de-a978-82815c805701",
+    "111fd225-b22f-470c-8bfb-425f3f664b52"
+  ],
+  "namePath": [
+    "Dynamic list criteria",
+    "Date",
+    "Future dates (Events)"
+  ],
+  "links": {
+    "taxonomy": {
+      "href": "/authoring/v1/categories/9d47dccc-f940-40de-a978-82815c805701"
+    },
+    "self": {
+      "href": "/authoring/v1/categories/7e7692e3-2b9a-41ec-bccf-20c1015aea8a"
+    },
+    "parent": {
+      "href": "/authoring/v1/categories/111fd225-b22f-470c-8bfb-425f3f664b52"
+    }
+  },
+  "created": "2018-05-09T16:22:04.498Z",
+  "lastModified": "2018-05-09T16:22:04.498Z"
+}

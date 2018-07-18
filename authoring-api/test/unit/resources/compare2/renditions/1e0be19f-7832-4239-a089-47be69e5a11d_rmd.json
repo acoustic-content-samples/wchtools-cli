@@ -1,0 +1,20 @@
+{
+  "scale": 2,
+  "locationY": 0,
+  "height": 797,
+  "locationX": 0,
+  "id": "1e0be19f-7832-4239-a089-47be69e5a11d",
+  "classification": "rendition",
+  "asset": {
+    "mediaType": "image/jpeg",
+    "height": 797,
+    "fileName": "designtopic_sanctuary_seating_img2.jpg",
+    "id": "b6878326-6e48-48ec-99df-1cdbf3a24234",
+    "resource": "40be263b-3c76-419e-9fa2-dc2014db585a",
+    "fileSize": 589356,
+    "width": 1200
+  },
+  "width": 1200,
+  "created": "2018-05-09T16:25:31.563Z",
+  "rev": "1-edd59d4cbcd6ab5dbf70da6252cd4517"
+}

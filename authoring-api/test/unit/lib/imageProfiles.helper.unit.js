@@ -38,6 +38,9 @@ class ImageProfilesHelperUnitTest extends BaseHelperUnit {
     run(){
         super.run(restApi, fsApi,helper,  path1, path2, badPath );
     }
+    runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
+        this.testCompare(restApi, fsApi, helper, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_1, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_2);
+    }
 }
 
 module.exports = ImageProfilesHelperUnitTest;

@@ -551,7 +551,7 @@ function _compare(diffs, root, obj1, obj2, ignoreKeys) {
     const keys = new Set(Object.keys(obj1).concat(Object.keys(obj2)));
     ignoreKeys = ignoreKeys || {};
     keys.forEach(function (key) {
-        if (!(key in ignoreKeys) || typeof(ignoreKeys[key]) === "object") {
+        if (!(key in ignoreKeys) || typeof(ignoreKeys[key]) === "object" || typeof(ignoreKeys['*']) === "object") {
             const child1 = obj1[key];
             const child2 = obj2[key];
 
@@ -572,7 +572,11 @@ function _compare(diffs, root, obj1, obj2, ignoreKeys) {
             if (child1 !== undefined) {
                 if (child2 !== undefined) {
                     if (typeof(child1) === "object" && typeof(child2) === "object") {
-                        _compare(diffs, node, child1, child2, ignoreKeys[key]);
+                        let childKeys = ignoreKeys[key];
+                        if (!childKeys && typeof(ignoreKeys['*']) === "object") {
+                            childKeys = ignoreKeys['*'];
+                        }
+                        _compare(diffs, node, child1, child2, childKeys);
                     } else {
                         if (child1 !== child2) {
                             diffs.changed.push(diff);

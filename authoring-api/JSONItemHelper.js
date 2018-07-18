@@ -462,6 +462,21 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
+     * Updates the deletions manifest with results of a list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} itemList The list of items to be added to the deletions manifest.
+     * @param {Object} opts - The options to be used for the list operation.
+     */
+    _updateDeletionsManifest (context, itemList, opts) {
+        const helper = this;
+        const manifestList = itemList.filter(function (item) {
+            return helper.canPullItem(item);
+        });
+        manifests.updateDeletionsManifestSection(context, helper.getArtifactName(), manifestList, opts);
+    }
+
+    /**
      * Lists all local items.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -864,6 +879,50 @@ class JSONItemHelper extends BaseHelper {
         return (item && typeof item === "object");
     }
 
+    addIgnoreKeys (ignoreKeys, segments) {
+        const segment = segments.splice(0, 1)[0];
+        if (segments.length > 0) {
+            if (!ignoreKeys[segment]) {
+                ignoreKeys[segment] = {};
+            }
+            this.addIgnoreKeys(ignoreKeys[segment], segments);
+        } else {
+            ignoreKeys[segment] = undefined;
+        }
+    }
+
+    /**
+     * Return a set of extra keys to be ignored for this artifact type.  This should be used to return a list
+     * of synthetic fields per artifact type.
+     *
+     * @return {Array} the names of the JSON elements to be ignored.
+     */
+    getExtraIgnoreKeys() {
+        return [];
+    }
+
+    /**
+     * Return the keys that can be ignored as they can contain unimportant differences in artifacts of this type.
+     *
+     * @returns {Object} the ignore keys for this artifact type.
+     */
+    getIgnoreKeys () {
+        const ignoreKeys = {};
+        ["rev",
+            "created", "creator", "creatorId",
+            "lastModified", "lastModifier", "lastModifierId",
+            "systemModified",
+            "links", "types", "categories", "publishing", "hierarchicalPath"
+        ].forEach(function (key) {
+            ignoreKeys[key] = undefined;
+        });
+        const self = this;
+        self.getExtraIgnoreKeys().forEach(function (key) {
+            self.addIgnoreKeys(ignoreKeys, key.split("/"));
+        });
+        return ignoreKeys;
+    }
+
     /**
      * Determine whether a push conflict between the provided localItem and remoteItem can be ignored.
      *
@@ -874,13 +933,154 @@ class JSONItemHelper extends BaseHelper {
      * @returns {boolean}
      */
     canIgnoreConflict (context, localItem, remoteItem, opts) {
-        const ignoreKeys = {};
-        ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing", "hierarchicalPath"].forEach(function (key) {
-            ignoreKeys[key] = undefined;
-        });
-
-        const diffs = utils.compare(localItem, remoteItem, ignoreKeys);
+        const diffs = utils.compare(localItem, remoteItem, this.getIgnoreKeys());
         return (diffs.added.length === 0 && diffs.removed.length === 0 && diffs.changed.length === 0);
+    }
+
+    /**
+     * Executes a compare operation between two local directories, two tenants, or a local directory and a tenant.
+     *
+     * @param context The API context to be used for this operation.
+     * @param opts The options for this operation.
+     * @returns {*}
+     */
+    compare (context, target, source, opts) {
+        const self = this;
+
+        const targetIsUrl = utils.isValidApiUrl(target);
+        const sourceIsUrl = utils.isValidApiUrl(source);
+
+        const targetOpts = utils.cloneOpts(opts);
+        const sourceOpts = utils.cloneOpts(opts);
+
+        let targetList;
+        let targetGetItem;
+        if (targetIsUrl) {
+            targetOpts["x-ibm-dx-tenant-base-url"] = target;
+            if (context.readManifest) {
+                targetList = self.getManifestItems(context, targetOpts);
+            } else {
+                targetList = self._listRemoteItemNames(context, targetOpts);
+            }
+            targetGetItem = function (context, item, opts) {
+                return self.getRemoteItem(context, item.id, opts);
+            };
+        } else {
+            targetOpts.workingDir = target;
+            if (context.readManifest) {
+                targetList = self.getManifestItems(context, targetOpts);
+            } else {
+                targetList = self._listLocalItemNames(context, targetOpts);
+            }
+            targetGetItem = self.getLocalItem.bind(self);
+        }
+
+        let sourceList;
+        let sourceGetItem;
+        if (sourceIsUrl) {
+            sourceOpts["x-ibm-dx-tenant-base-url"] = source;
+            if (context.readManifest) {
+                sourceList = self.getManifestItems(context, sourceOpts);
+            } else {
+                sourceList = self._listRemoteItemNames(context, sourceOpts);
+            }
+            sourceGetItem = function (context, item, opts) {
+                return self.getRemoteItem(context, item.id, opts);
+            };
+        } else {
+            sourceOpts.workingDir = source;
+            if (context.readManifest) {
+                sourceList = self.getManifestItems(context, sourceOpts);
+            } else {
+                sourceList = self._listLocalItemNames(context, sourceOpts);
+            }
+            sourceGetItem = self.getLocalItem.bind(self);
+        }
+
+        return targetList.then(function (unfilteredTargetItems) {
+            const targetItems = unfilteredTargetItems.filter(function (item) {
+                return self.canCompareItem(item, targetOpts);
+            });
+            return sourceList.then(function (unfilteredSourceItems) {
+                const sourceItems = unfilteredSourceItems.filter(function (item) {
+                    return self.canCompareItem(item, sourceOpts);
+                });
+
+                const targetIds = targetItems.map(function (item) {
+                    return item.id;
+                });
+
+                const sourceIds = sourceItems.map(function (item) {
+                    return item.id;
+                });
+
+                const diffItems = {
+                    diffCount: 0,
+                    totalCount: 0
+                };
+
+                const promises = [];
+                targetItems.forEach(function (targetItem) {
+                    if (sourceIds.indexOf(targetItem.id) === -1) {
+                        // Item exists in target but not source.
+                        self._updateDeletionsManifest(context, [targetItem], opts);
+                        // Increment both the total items counter and diff counter.
+                        diffItems.totalCount++;
+                        diffItems.diffCount++;
+                        const emitter = self.getEventEmitter(context);
+                        if (emitter) {
+                            emitter.emit("removed", {item: targetItem});
+                        }
+                    }
+                });
+
+                sourceItems.forEach(function (sourceItem) {
+                    // Increment the total items counter.
+                    diffItems.totalCount++;
+
+                    if (targetIds.indexOf(sourceItem.id) === -1) {
+                        // Item exists in source but not target.
+                        self._updateManifest(context, [sourceItem], opts);
+                        // Increment the diff counter.
+                        diffItems.diffCount++;
+                        // Emit an event indicating the new item.
+                        const emitter = self.getEventEmitter(context);
+                        if (emitter) {
+                            emitter.emit("added", {item: sourceItem});
+                        }
+                    } else {
+                        const deferredCompare = Q.defer();
+                        promises.push(deferredCompare.promise);
+                        const targetObjectPromise = targetGetItem(context, sourceItem, targetOpts);
+                        const sourceObjectPromise = sourceGetItem(context, sourceItem, sourceOpts);
+                        targetObjectPromise.then(function (targetObject) {
+                            sourceObjectPromise.then(function (sourceObject) {
+                                const compareDiffs = utils.compare(sourceObject, targetObject, self.getIgnoreKeys());
+                                let different = (compareDiffs.added.length > 0 || compareDiffs.changed.length > 0 || compareDiffs.removed.length > 0);
+                                if (different) {
+                                    self._updateManifest(context, [sourceItem], opts);
+                                    // Increment the diff counter.
+                                    diffItems.diffCount++;
+                                    const emitter = self.getEventEmitter(context);
+                                    if (emitter) {
+                                        emitter.emit("diff", {item: sourceItem, diffs: compareDiffs});
+                                    }
+                                }
+                                deferredCompare.resolve(true);
+                            }).catch(function (err) {
+                                deferredCompare.reject(err);
+                            });
+                        }).catch(function (err) {
+                            deferredCompare.reject(err);
+                        });
+                    }
+                });
+
+                return Q.allSettled(promises).then(function () {
+                    return diffItems;
+                });
+            });
+        });
     }
 
     /**

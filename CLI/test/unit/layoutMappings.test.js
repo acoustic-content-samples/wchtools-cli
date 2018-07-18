@@ -37,3 +37,7 @@ listUnitTest.run(helper, '--layout-mappings', BASE_NAME + '-1', BASE_NAME + '-2'
 const DeleteUnitTest = require("./lib/delete.unit.js");
 const deleteUnitTest = new DeleteUnitTest();
 deleteUnitTest.run(helper, '-m', BASE_NAME + '-1');
+
+const CompareUnitTest = require("./lib/compare.unit.js");
+const compareUnitTest = new CompareUnitTest();
+compareUnitTest.run(helper, '-m');

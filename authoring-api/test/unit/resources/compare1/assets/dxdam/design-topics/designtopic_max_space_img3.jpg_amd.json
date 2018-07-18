@@ -1,0 +1,74 @@
+{
+  "rev": "1-3163a00129657dc53d41c861da2682b4",
+  "id": "39b4e865-60a8-4fbf-b2d8-90c034eca449",
+  "name": "designtopic_max_space_img3.jpg",
+  "resource": "51b75318-d100-4dcc-9c5a-1b05574e42cb",
+  "description": "",
+  "altText": "",
+  "path": "/dxdam/design-topics/designtopic_max_space_img3.jpg",
+  "tags": {
+    "values": [
+      "classification:furnishing",
+      "classification:sofa",
+      "classification:seat",
+      "classification:furniture",
+      "classification:upholstery",
+      "classification:love seat",
+      "classification:davenport sofa",
+      "classification:convertible",
+      "classification:sage green color",
+      "classification:beige color"
+    ],
+    "declined": [],
+    "analysis": "pending"
+  },
+  "categoryIds": [],
+  "usageRights": {
+    "categories": []
+  },
+  "status": "ready",
+  "assetType": "image",
+  "fileName": "designtopic_max_space_img3.jpg",
+  "mediaType": "image/jpeg",
+  "fileSize": 466144,
+  "digest": "heVRBk+rQ6czPmP8YcOZxw==",
+  "metadata": {
+    "width": 1200,
+    "height": 797
+  },
+  "lastModified": "2018-05-09T16:22:58.678Z",
+  "created": "2018-05-09T16:22:58.677Z",
+  "classification": "asset",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "cognitive": {
+    "status": "pending"
+  },
+  "renditions": {
+    "default": {
+      "id": "r=51b75318-d100-4dcc-9c5a-1b05574e42cb&a=39b4e865-60a8-4fbf-b2d8-90c034eca449",
+      "source": "/authoring/v1/resources/51b75318-d100-4dcc-9c5a-1b05574e42cb"
+    }
+  },
+  "isManaged": true,
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/39b4e865-60a8-4fbf-b2d8-90c034eca449"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/51b75318-d100-4dcc-9c5a-1b05574e42cb.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/v1/resources/51b75318-d100-4dcc-9c5a-1b05574e42cb?fit=inside%7C220:145"
+    },
+    "retire": {
+      "href": "/authoring/v1/changes/asset/39b4e865-60a8-4fbf-b2d8-90c034eca449/status/retire"
+    }
+  },
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "categories": []
+}

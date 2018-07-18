@@ -29,6 +29,9 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
+const PUBLISH_PRIORITY = "x-ibm-dx-publish-priority";
+const PUBLISH_PRIORITY_NOW = "now";
+
 /**
  * REST object for managing assets on the remote content hub.
  *
@@ -132,11 +135,31 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
+    /*
+     * Override BaseREST.getUpdateRequestOptions to add x-ibm-dx-publish-priority:now header if specified
+     * 
+     * NOTE - this is only used for the Asset POSTing, since Asset PUT needs to determine whether to add forceOverride whereas POST doesn't support that
+     */
+    getUpdateRequestOptions (context, opts) {
+        return super.getUpdateRequestOptions(context, opts)
+            .then((reqOptions) => {
+                if (options.getRelevantOption(context, opts, "publish-now")) {
+                    reqOptions.headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NOW;
+                }
+                const deferred = Q.defer();
+                deferred.resolve(reqOptions);
+                return deferred.promise;
+            });
+    }
+
     getAssetUpdateRequestOptions (context, id, opts) {
         const deferred = Q.defer();
         const restObject = this;
         const headers = BaseREST.getUpdateHeaders(context, opts);
         const forceParam = (options.getRelevantOption(context, opts, "force-override")) ? "?forceOverride=true" : "";
+        if (options.getRelevantOption(context, opts, "publish-now")) {
+            headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NOW;
+        }
 
         this.getRequestURI(context, opts)
             .then(function (uri) {
@@ -373,20 +396,70 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
-    canIgnoreConflict (context, asset, remoteAsset, opts) {
+    /**
+     * Returns a resource stream for the provided resource path.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} resourcePath The path to the resource.
+     * @param {Object} opts The options for the operation.
+     *
+     * @returns {Q.Promise<any>} A promise for the resource stream.
+     */
+    getResourceStream (context, resourcePath, opts) {
+        const deferred = Q.defer();
+
+        // Initialize the request options.
+        this.getDownloadRequestOptions(context, opts)
+            .then(function (reqOptions) {
+                reqOptions.uri = reqOptions.uri + "/" + resourcePath;
+                // Make the request and return the stream.
+                const responseStream = request.get(reqOptions);
+
+                // Check the "response" event to make sure the response was successful.
+                responseStream.on("response", function (response) {
+                    const code = response.statusCode;
+                    if (code >= 400) {
+                        const error = new Error(i18n.__("cannot_get_asset", {path: resourcePath, code: code}));
+                        deferred.reject(error);
+                    } else {
+                        deferred.resolve(response);
+                    }
+                });
+            })
+            .catch (function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+    /**
+     * Return the keys that can be ignored as they can contain unimportant differences in artifacts of this type.
+     *
+     * @returns {Object} the ignore keys for this artifact type.
+     */
+    getIgnoreKeys () {
         const ignoreKeys = {};
-        ["rev", "created", "creator", "creatorId", "lastModified", "lastModifier", "lastModifierId", "systemModified", "links", "types", "categories", "publishing"].forEach(function (key) {
+        ["rev",
+            "created", "creator", "creatorId",
+            "lastModified", "lastModifier", "lastModifierId",
+            "systemModified",
+            "links", "types", "categories", "publishing"
+        ].forEach(function (key) {
             ignoreKeys[key] = undefined;
         });
+        return ignoreKeys;
+    }
 
-        const diffs = utils.compare(asset, remoteAsset, ignoreKeys);
+    canIgnoreConflict (context, asset, remoteAsset, opts) {
+        const diffs = utils.compare(asset, remoteAsset, this.getIgnoreKeys());
         return (diffs.added.length === 0 && diffs.removed.length === 0 && diffs.changed.length === 0);
     }
 
     /*
      * local utility method to do the asset metadata POST, called from multiple places in pushItem
      */
-    _postAssetMetadata (context, reqOptions, deferred, createOnly) {
+    _postAssetMetadata (context, opts, reqOptions, deferred, createOnly) {
         const restObject = this;
         request.post(reqOptions, function (err, res, body) {
             const response = res || {};
@@ -528,7 +601,7 @@ class AssetsREST extends BaseREST {
                                                 reqOptions = utils.clone(reqOptions);
                                                 reqOptions.uri = reqOptions.uri.substring(0, reqOptions.uri.lastIndexOf('/'));
                                                 delete reqOptions.body.rev;
-                                                restObject._postAssetMetadata(context, reqOptions, deferred, createOnly);
+                                                restObject._postAssetMetadata(context, opts, reqOptions, deferred, createOnly);
                                             } else if (response.statusCode === 409) {
                                                 restObject.getItem(context, requestBody.id, opts)
                                                     .then(function (remoteAsset) {
@@ -562,7 +635,7 @@ class AssetsREST extends BaseREST {
                                 restObject.getUpdateRequestOptions(context, opts)
                                     .then(function (reqOptions) {
                                         reqOptions.body = requestBody;
-                                        restObject._postAssetMetadata(context, reqOptions, deferred, createOnly);
+                                        restObject._postAssetMetadata(context, opts, reqOptions, deferred, createOnly);
                                     });
                             }
                         } else if (!isRaw) {
@@ -570,7 +643,7 @@ class AssetsREST extends BaseREST {
                             restObject.getUpdateRequestOptions(context, opts)
                                 .then(function (reqOptions) {
                                     reqOptions.body = requestBody;
-                                    restObject._postAssetMetadata(context, reqOptions, deferred, createOnly);
+                                    restObject._postAssetMetadata(context, opts, reqOptions, deferred, createOnly);
                                 });
                         } else {
                             deferred.resolve(body);

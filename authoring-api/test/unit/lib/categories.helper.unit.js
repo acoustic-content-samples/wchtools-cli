@@ -53,6 +53,7 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
         this.testCanPullItem(helper);
         this.testFilterRetryPushContent(helper);
         this.testPushModifiedCategories(helper, path1, path2);
+        this.testCompare(restApi, fsApi, helper, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_1, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_2);
     }
 
     testCanPushItem (helper) {

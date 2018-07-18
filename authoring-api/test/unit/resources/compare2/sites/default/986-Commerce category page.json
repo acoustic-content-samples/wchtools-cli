@@ -1,0 +1,15 @@
+{
+  "name": "Commerce category page",
+  "hideFromNavigation": true,
+  "segment": "category",
+  "layoutId": "commerce-category-page-layout",
+  "description": "One column page",
+  "contentTypeId": "com.ibm.commerce.store.angular-types.commerce-category-page",
+  "title": "Commerce category page",
+  "contentId": "33b22a34-a48c-478a-a7c0-b064453e49a0",
+  "classification": "page",
+  "contentStatus": "ready",
+  "position": 986,
+  "id": "b6fe54c0-7723-44cc-af63-162455398429",
+  "rev": "1-5b64415d672823092c45d4c744f452e1"
+}

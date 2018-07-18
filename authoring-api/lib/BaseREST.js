@@ -346,11 +346,22 @@ class BaseREST {
     }
 
     getItem (context, id, opts) {
+        return this._getItem(context, id, undefined, opts);
+    }
+
+    _getItem(context, id, queryParams, opts) {
         const restObject = this;
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = requestOptions.uri + "/" + id;
+                if (queryParams) {
+                    let delimiter = "?";
+                    Object.keys(queryParams).forEach(function (key) {
+                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + queryParams[key];
+                        delimiter = "&";
+                    });
+                }
                 request.get(requestOptions, function (err, res, body) {
                     const response = res || {};
                     if (err || response.statusCode !== 200) {

@@ -111,7 +111,7 @@ class PushCommand extends BaseCommand {
             })
             .then(function () {
                 // Initialize the list of local sites to be used for this command, if necessary.
-                return self.initSites(context, false);
+                return self.initSites(context, false, self.getApiOptions());
             })
             .then(function () {
                 // Start the display of the pushed artifacts.
@@ -119,21 +119,23 @@ class PushCommand extends BaseCommand {
 
                 return self.pushArtifacts(context);
             })
-            .then(function () {
-                // Save the results to a manifest, if one was specified.
-                try {
-                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
-                } catch (err) {
-                    // Log the error that occurred while saving the manifest, but do not fail the push operation.
-                    self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
-                }
-            })
             .catch(function (err) {
                 error = err;
             })
             .finally(function () {
                 // End the display of the pushed artifacts.
                 self.endDisplay(error);
+
+                if (!error) {
+                    // Save the results to a manifest, if one was specified.
+                    try {
+                        // Save the manifests.
+                        self.saveManifests(context);
+                    } catch (err) {
+                        // Log the error that occurred while saving the manifest, but do not fail the push operation.
+                        self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                    }
+                }
 
                 // Reset the list of sites used for this command.
                 self.resetSites(context);
@@ -259,6 +261,9 @@ class PushCommand extends BaseCommand {
         }
         if (self.getCommandLineOption("createOnly")) {
             self.setApiOption("createOnly", true);
+        }
+        if (self.getCommandLineOption("publishNow")) {
+            self.setApiOption("publish-now", true);
         }
 
         self.readyToPush()
@@ -1110,6 +1115,7 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("manifest", undefined);
         this.setCommandLineOption("serverManifest", undefined);
         this.setCommandLineOption("writeManifest", undefined);
+        this.setCommandLineOption("publishNow", undefined);
 
         super.resetCommandLineOptions();
     }
@@ -1135,6 +1141,7 @@ function pushCommand (program) {
         .option('-I --ignore-timestamps',i18n.__('cli_push_opt_ignore_timestamps'))
         .option('-A --all-authoring',    i18n.__('cli_push_opt_all'))
         .option('-f --force-override',   i18n.__('cli_push_opt_force_override'))
+        .option('--publish-now',         i18n.__('cli_push_opt_publish_now'))
         .option('--create-only',         i18n.__('cli_push_opt_create_only'))
         .option('--ready',               i18n.__('cli_push_opt_ready'))
         //.option('--draft',               i18n.__('cli_push_opt_draft'))

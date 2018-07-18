@@ -1,0 +1,103 @@
+{
+  "id": "1a25da05-d20b-4bda-bdce-7fc48ff42db8",
+  "name": "Design Discussion",
+  "description": "",
+  "typeId": "f9e7f0b9-f57d-4d91-a257-54a64c1ff52f",
+  "locale": "en",
+  "tags": [
+    "user:stockholm",
+    "user:IBM sample"
+  ],
+  "keywords": [],
+  "status": "ready",
+  "elements": {
+    "imagePlacement": {
+      "elementType": "category",
+      "categoryIds": [
+        "f1b8bf80-7b2a-47d5-8875-08daf1567c12"
+      ],
+      "categories": [
+        "Image size and placement/Placement/Left"
+      ]
+    },
+    "image": {
+      "elementType": "image",
+      "renditions": {
+        "default": {
+          "renditionId": "r=f2ec08ac-ff59-4f07-a364-e9e2ece5c88c&a=d084205d-1a5b-4614-b52b-983dce9cebcc",
+          "source": "/authoring/v1/resources/f2ec08ac-ff59-4f07-a364-e9e2ece5c88c",
+          "width": 1200,
+          "height": 797
+        },
+        "medium": {
+          "renditionId": "409c4abb-9925-4872-9d2e-dafc82963861",
+          "source": "/authoring/v1/resources/f2ec08ac-ff59-4f07-a364-e9e2ece5c88c?resize=602px:400px&crop=600:400;1,0",
+          "width": 600,
+          "height": 400
+        },
+        "small": {
+          "renditionId": "847a2e9d-bf88-410f-867a-c03b054324c4",
+          "source": "/authoring/v1/resources/f2ec08ac-ff59-4f07-a364-e9e2ece5c88c?resize=425px:282px&crop=360:282;32,0",
+          "width": 360,
+          "height": 282
+        },
+        "large": {
+          "renditionId": "d3bfac90-aced-48d8-9e2b-e767f4038063",
+          "source": "/authoring/v1/resources/f2ec08ac-ff59-4f07-a364-e9e2ece5c88c?resize=1200px:797px&crop=1200:797;0,0",
+          "width": 1200,
+          "height": 797
+        }
+      },
+      "asset": {
+        "id": "d084205d-1a5b-4614-b52b-983dce9cebcc",
+        "resourceUri": "/authoring/v1/resources/f2ec08ac-ff59-4f07-a364-e9e2ece5c88c",
+        "fileName": "sustain_article_img1.jpg",
+        "fileSize": 344017,
+        "mediaType": "image/jpeg",
+        "width": 1200,
+        "height": 797
+      }
+    },
+    "imageSize": {
+      "elementType": "category",
+      "categoryIds": [
+        "a18ade37-f9c1-49b1-9632-b27fcedccaa3"
+      ],
+      "categories": [
+        "Image size and placement/Size/Large"
+      ]
+    },
+    "imageCredit": {
+      "elementType": "text",
+      "value": "Stella Austin"
+    },
+    "imageCaption": {
+      "elementType": "text",
+      "value": "Sed cursus ante dapibus diam"
+    }
+  },
+  "selectedLayouts": [
+    {
+      "layout": {
+        "id": "image-with-information-layout"
+      }
+    }
+  ],
+  "kind": [],
+  "lastModified": "2018-05-09T16:26:11.062Z",
+  "created": "2018-05-09T16:26:11.062Z",
+  "classification": "content",
+  "thumbnail": {
+    "id": "d084205d-1a5b-4614-b52b-983dce9cebcc",
+    "url": "/authoring/v1/resources/f2ec08ac-ff59-4f07-a364-e9e2ece5c88c?fit=inside%7C220:145"
+  },
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "type": "Image with information",
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "rev": "1-eeeac05e06c9efddc75ed3608abc9a82"
+}

@@ -229,7 +229,7 @@ class DeleteCommand extends BaseCommand {
             })
             .then(function () {
                 // Initialize the list of remote sites to be used for this command, if necessary.
-                return self.initSites(context, true);
+                return self.initSites(context, true, self.getApiOptions());
             })
             .then(function () {
                 const webassets = self.getCommandLineOption("webassets");
@@ -298,7 +298,8 @@ class DeleteCommand extends BaseCommand {
             .then(function (results) {
                 // Save the results to a manifest, if one was specified.
                 try {
-                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
+                    // Save the manifests.
+                    self.saveManifests(context);
                 } catch (err) {
                     // Log the error that occurred while saving the manifest, but do not fail the delete operation.
                     logger.error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
@@ -1787,8 +1788,7 @@ function deleteCommand (program) {
         .option('-C --categories',       i18n.__('cli_delete_opt_categories'))
         .option('-p --pages',            i18n.__('cli_delete_opt_pages'))
         .option('--page-content',        i18n.__('cli_delete_opt_page_content'))
-        .option('-A --all-authoring',    i18n.__('cli_delete_opt_all'))
-        .option('-v --verbose',          i18n.__('cli_opt_verbose'))
+        .option('-A --all-authoring',    i18n.__('cli_delete_opt_all_authoring'))
         .option('--all',                 i18n.__('cli_delete_opt_all_artifacts'))
         .option('--id <id>',             i18n.__('cli_delete_opt_id'))
         .option('--path <path>',         i18n.__('cli_delete_opt_path'))
@@ -1798,6 +1798,7 @@ function deleteCommand (program) {
         .option('-r --recursive',        i18n.__('cli_delete_opt_recursive'))
         .option('-P --preview',          i18n.__('cli_delete_opt_preview'))
         .option('-q --quiet',            i18n.__('cli_delete_opt_quiet'))
+        .option('-v --verbose',          i18n.__('cli_opt_verbose'))
         .option('--manifest <manifest>', i18n.__('cli_delete_opt_use_manifest'))
         .option('--server-manifest <manifest>', i18n.__('cli_delete_opt_use_server_manifest'))
         //.option('--ready',               i18n.__('cli_delete_opt_ready'))

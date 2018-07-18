@@ -1,0 +1,33 @@
+{
+  "id": "com.ibm.commerce.store.angular-types.commerce-category-page",
+  "rev": "1-964ff614aa84084a91765f7347682e07",
+  "name": "Commerce category page",
+  "classification": "content-type",
+  "kind": [
+    "standalone",
+    "page"
+  ],
+  "description": "One column page",
+  "status": "ready",
+  "tags": [],
+  "elements": [
+    {
+      "elementType": "reference",
+      "label": "Hero",
+      "key": "hero",
+      "allowMultipleValues": true,
+      "minimumValues": 0,
+      "fieldLabel": "Hero",
+      "helpText": "Add content, such as a hero banner, that you want to display at the top of your page."
+    },
+    {
+      "elementType": "reference",
+      "label": "Content section",
+      "key": "contentSection",
+      "allowMultipleValues": true,
+      "minimumValues": 0,
+      "fieldLabel": "Content section",
+      "helpText": "Add more related body content, lists, or images."
+    }
+  ]
+}

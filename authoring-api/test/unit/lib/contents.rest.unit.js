@@ -21,7 +21,7 @@ limitations under the License.
 // Require the super classes for this class.
 const UnitTest = require("./base.unit.js");
 const ContentsUnitTest = require("./contents.unit.js");
-const BaseRestUnit = require("./base.rest.unit.js");
+const BaseRestUnitTest = require("./base.rest.unit.js");
 
 // Require the local module being tested.
 const restApi = require(UnitTest.API_PATH + "lib/contentREST.js").instance;
@@ -31,12 +31,58 @@ const lookupUri =  options.getProperty(UnitTest.DEFAULT_API_CONTEXT, "content", 
 const path1 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_1;
 const path2 = ContentsUnitTest.VALID_CONTENTS_DIRECTORY + ContentsUnitTest.VALID_CONTENT_2;
 
-class ContentsRestUnitTest extends BaseRestUnit {
+// The default API context used for unit tests.
+const context = UnitTest.DEFAULT_API_CONTEXT;
+
+class ContentsRestUnitTest extends BaseRestUnitTest {
     constructor() {
         super();
     }
     run(){
         super.run(restApi, lookupUri, "content", path1, path2);
+        this.testGetUpdateRequestOptions(restApi);
+    }
+
+    testGetUpdateRequestOptions (restApi) {
+
+        describe("getUpdateRequestOptions", function() {
+
+            it("should succeed with valid options", function (done) {
+                UnitTest.restoreOptions(context);
+                const opts = {
+                    "x-ibm-dx-tenant-base-url": "url-1",
+                    "x-ibm-dx-request-id": "test-request-id-suffix",
+                    "x-ibm-dx-foo": "foo",
+                    "x-ibm-dx-bar": 1,
+                    "publish-now": true
+                };
+
+                // Call the method being tested.
+                let error;
+                restApi.getUpdateRequestOptions(context, opts)
+                    .then(function (requestOptions) {
+                        // Verify that the options contain the expected values.
+                        expect(requestOptions.uri).to.contain("url-1");
+                        expect(requestOptions.headers["x-ibm-dx-tenant-base-url"]).to.be.undefined;
+                        expect(requestOptions.headers["x-ibm-dx-request-id"]).to.contain("test-request-id-suffix");
+                        expect(requestOptions.headers["x-ibm-dx-foo"]).to.equal("foo");
+                        expect(requestOptions.headers["x-ibm-dx-bar"]).to.be.undefined;
+                        expect(requestOptions.headers["User-Agent"]).to.not.be.undefined;
+                        expect(requestOptions.headers["x-ibm-dx-publish-priority"]).to.exist;
+                        expect(requestOptions.maxAttempts).to.not.be.undefined;
+                        expect(requestOptions.retryStrategy).to.not.be.undefined;
+                        expect(requestOptions.delayStrategy).to.not.be.undefined;
+                        expect(requestOptions.instanceId).to.not.be.undefined;
+                    })
+                    .catch (function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
     }
 }
 

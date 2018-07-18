@@ -41,3 +41,9 @@ const DeleteUnitTest = require("./lib/delete.unit.js");
 const deleteUnitTest = new DeleteUnitTest();
 deleteUnitTest.run(helper, '-w', BASE_NAME + '-1');
 deleteUnitTest.run(helper, '-a', BASE_NAME + '-1');
+
+const CompareUnitTest = require("./lib/compare.unit.js");
+const compareUnitTest = new CompareUnitTest();
+compareUnitTest.run(helper, '-w');
+compareUnitTest.run(helper, '-a');
+compareUnitTest.run(helper, '-aw');
