@@ -66,9 +66,9 @@ function initializeManifests (context, readManifest, writeManifest, deletionsMan
                     if (fs.existsSync(manifestPath)) {
                         context.readManifest = _readManifest(context, manifestPath, opts);
                     } else {
-                        context.logger.error(i18n.__('error_manifest_file_does_not_exist', {filename: readFilename}));
+                        context.logger.error(i18n.__('error_manifest_file_does_not_exist', {filename: manifestPath}));
                         result = false;
-                        deferred.reject(new Error(i18n.__('error_manifest_file_does_not_exist', {filename: readFilename})));
+                        deferred.reject(new Error(i18n.__('error_manifest_file_does_not_exist', {filename: manifestPath})));
                     }
                 } catch (err) {
                     context.logger.error(i18n.__('error_manifest_file_read', {filename: readManifest, error: err}));
@@ -385,8 +385,11 @@ function updateDeletionsManifestSection (context, artifactName, itemList, opts) 
  *
  * @param context The context object for the operation.
  * @param opts The options object for the operation.
+ *
+ * @return The absolute path where the manifest was written to.
  */
 function saveManifest (context, opts) {
+    let savedManifest;
     const writeFilename = options.getRelevantOption(context, opts, WRITE_MANIFEST_FILE_KEY);
     if (writeFilename) {
         try {
@@ -397,10 +400,12 @@ function saveManifest (context, opts) {
                 mkdirp.sync(dir);
             }
             fs.writeFileSync(manifestPath, contents);
+            savedManifest = manifestPath;
         } catch (err) {
             context.logger.error(i18n.__('error_manifest_file_write', {filename: writeFilename, error: err}));
         }
     }
+    return savedManifest;
 }
 
 /**
@@ -408,8 +413,11 @@ function saveManifest (context, opts) {
  *
  * @param context The context object for the operation.
  * @param opts The options object for the operation.
+ *
+ * @return The absolute path where the deletions manifest was written to.
  */
 function saveDeletionsManifest (context, opts) {
+    let savedManifest;
     const deletionsFilename = options.getRelevantOption(context, opts, DELETIONS_MANIFEST_FILE_KEY);
     if (deletionsFilename) {
         try {
@@ -420,10 +428,12 @@ function saveDeletionsManifest (context, opts) {
                 mkdirp.sync(dir);
             }
             fs.writeFileSync(manifestPath, contents);
+            savedManifest = manifestPath;
         } catch (err) {
             context.logger.error(i18n.__('error_manifest_file_write', {filename: deletionsFilename, error: err}));
         }
     }
+    return savedManifest;
 }
 
 const manifests = {

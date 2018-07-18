@@ -781,6 +781,19 @@ class BaseHelper {
     }
 
     /**
+     *  Determine whether the given item can be compared.
+     *
+     *  @param {Object} item The item to be compared.
+     *  @param {Object} opts - The options to be used for the compare operation.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be compared. A return value of false
+     *                     indicates that the item cannot be compared.
+     */
+    canCompareItem(item, opts) {
+        return (item && typeof item === "object");
+    }
+
+    /**
      *  Determine whether the given item can be deleted.
      *
      *  @param {Object} item The item to be deleted.

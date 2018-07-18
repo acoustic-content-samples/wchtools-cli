@@ -1,0 +1,30 @@
+{
+  "id": "5ff7bec3-9e72-438b-a2e6-26178639b970",
+  "rev": "1-a154a4491f9ade4e91f422ebf01b6594",
+  "name": "Dining Room",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creator": "kevintap",
+  "classification": "category",
+  "taxonomy": "b816e57d-f4ec-4162-9038-ec133472b95e",
+  "parent": "b816e57d-f4ec-4162-9038-ec133472b95e",
+  "ancestorIds": [
+    "b816e57d-f4ec-4162-9038-ec133472b95e"
+  ],
+  "namePath": [
+    "Design Article Type",
+    "Dining Room"
+  ],
+  "links": {
+    "taxonomy": {
+      "href": "/authoring/v1/categories/b816e57d-f4ec-4162-9038-ec133472b95e"
+    },
+    "self": {
+      "href": "/authoring/v1/categories/5ff7bec3-9e72-438b-a2e6-26178639b970"
+    },
+    "parent": {
+      "href": "/authoring/v1/categories/b816e57d-f4ec-4162-9038-ec133472b95e"
+    }
+  },
+  "created": "2018-05-09T16:22:00.807Z",
+  "lastModified": "2018-05-09T16:22:00.807Z"
+}

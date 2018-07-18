@@ -1,0 +1,56 @@
+{
+  "id": "b0b91aad-8a9a-4d46-9aff-e35d004f0a1f",
+  "rev": "3-54352f1f488ed2d874ea4acfb6e920b4",
+  "name": "Author profile",
+  "classification": "content-type",
+  "kind": [
+    "standalone"
+  ],
+  "thumbnail": {
+    "id": "89b59adf-2c26-4b9e-aebf-3cbd13ae9fa7",
+    "path": "/dxdam/type-icons/author_icon_220.png",
+    "url": "/authoring/v1/resources/435ae1e52b023f883952fa183a972d9c"
+  },
+  "contentThumbnail": {
+    "imageElement": "profilePicture",
+    "source": "imageElementOrType"
+  },
+  "description": "",
+  "status": "ready",
+  "tags": [
+    "stockholm",
+    "IBM sample"
+  ],
+  "elements": [
+    {
+      "elementType": "text",
+      "fieldLabel": "Text",
+      "label": "Name",
+      "key": "name"
+    },
+    {
+      "elementType": "text",
+      "label": "Place",
+      "key": "place"
+    },
+    {
+      "elementType": "image",
+      "acceptType": [
+        "jpg",
+        "jpeg",
+        "png",
+        "gif"
+      ],
+      "fieldLabel": "Image",
+      "label": "Profile picture",
+      "key": "profilePicture",
+      "imageProfileId": "046c7734-3fca-4e0b-9233-d5208e767654"
+    },
+    {
+      "elementType": "formattedtext",
+      "fieldLabel": "Formatted Text",
+      "label": "Short bio",
+      "key": "shortBio"
+    }
+  ]
+}

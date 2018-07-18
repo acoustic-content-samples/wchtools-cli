@@ -196,6 +196,12 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
     wchtools push -w --dir <path-to-working-directory>
 
+#### Forcing an immediate publish of updated web assets or content, even when a global publish schedule is set.
+
+  When a global publish schedule is set, by default any web or managed assets or content you push will wait in a pending state on that schedule, prior to publishing your updates.  If you need to immediately publish assets or content (for example, to fix an urgent issue in a web application asset), you may use the optional --publish-now argument to the push command.
+
+    wchtools push -w --dir <path-to-working-directory> --publish-now
+
 ### Pulling all artifact instances and deleting local stale copies
 
 By default a wchtools pull of all or specified artifact types, only pulls new or updated (modified) items, using a by-modified endpoint on each WCH Authoring API.    The wchtools pull -I or --ignore-timestamps  options will pull all artifacts of that type (whether modified or not, but is still additive and update only (it only gets a list of everything that currently exists on the server for each authoring service, and pulls those to the local working directory.  For any artifacts that were pulled previously, but have since been deleted on the server by a business user using the authoring UI, (eg, drafts of content or assets,  or content items no longer needed), you may still have local copies of those artifacts locally, if you had pulled them from WCH prior to their deletion.
@@ -243,6 +249,64 @@ Specifying an artifact type that this option does not currently support, will re
 Since this option works by finding the type by name, retrieving all content by that type and then walking the content to find asset and rendition references, it does not use the WCH "by-modified" APIs which the pull-modified operations rely on.  This results in all artifacts that it finds directly associated with the type being pulled each time you run the command with this option, rather than only those that are created or modified since the last pull by type.   If you then push all artifacts to a second WCH tenant where you had already pushed those same artifacts before, the revision values will be different than the prior push.  In this case, you can use the -f (--force-override) option to push with an override of the revision check, if you encounter revision conflict errors and with to overwrite what was pushed before, in case the artifats had been updated.   As always, it is not recommended to edit the same artifacts across multiple WCH tenancies and then attempt to migrate one to the other, as that may result in conflicts, or overwritten changes.
 
 If you have more complex content types and references, or need to pull other authoring artifacts, then the existing pull all or pull all modified options may be more appropriate for your use cases.
+
+### Comparing a source and target tenant, optionally generating an update and deletion manifest
+
+Some deployment scenarios involve a separate development WCH tenant from the staging and/or production tenant.  In order to compare the WCH artifacts between your two tenants, wchtools provides a command that allows you to compare an export from your source tenant (eg, your source code repository representing the latest state of your tested development tenant) with either the live state of your staging/production tenant, or an export from your target tenant.
+
+The compare command allows you to compare specified artifacts between two locations. The artifacts to compare can be located locally in a working directory or located in the Watson Content Hub.
+
+The compare command can output the results of the compare operation either as verbose output to the console, which includes detailed diffs between the compared artifacts, or it can generate a manifest file that is useful for performing additional actions on the set of artifacts that differ.
+
+The compare command automatically ignores differences in the artifacts that are not meaningful (for example differences in the rev field, created or modified timestamps as well as calculated/synthetic fields).
+
+The compare command requires a --source and --target argument to be provided, which point to the locations of the artifacts to compare.
+
+To compare two local working directories:
+
+    wchtools compare -A --source <working_directory_1> --target <working_directory_2>
+
+To compare two Watson Content Hub tenants:
+
+    wchtools compare -A --source <url_1> --target <url_2>
+
+Or to compare a local working directory with Watson Content Hub:
+
+    wchtools compare -A --source <working_directory> --target <url>
+
+To output the detailed differences to the console, use the --verbose argument:
+
+    wchtools compare -A --source <url_1> --target <url_2> -v
+
+The compare command will optionally generate manifests which represent the complete list of all artifacts that differ between the source and target.
+
+    wchtools compare -A --source <working_directory> --target <url> --write-manifest my_diffs --write-deletions-manifest my_deletions
+
+The resulting my_diffs manifest would contain all of the added and changed artifacts between the compared locations.
+The resulting my_deletions manifest would contain all of the deleted artifacts that exist in the target location but are removed from the source location.
+
+When comparing two directories or a source directory and a target WCH tenant, any manifest files read or written by the compare command will be loaded or saved using the source directory as identified by the --source argument.
+When comparing two Watson Content Hub tenants, any manifest files read or written by the compare command will be loaded or saved using the current working directory where the command is executed from.
+
+##### Limitating the scope of the comparison
+
+In some scenarios, the development tenant may have more artifacts than you want to consider migrating from development to staging/production (eg, additional development-only test artifacts).  To restrict a compare action to only consider a subset of files, the --manifest argument can be used, pointing to a manifest of the total set of artifacts that you want to include in the comparison.   This option requires you to keep an up to date manifest of everything you want considered for migration between the tenants, and is not a default or necessarily commonly used option.
+
+For example:
+
+    wchtools compare -A --source <working_directory> --target <url> --manifest my-complete-site
+
+#### Using the results of compare to synchronize a target environment
+
+The compare command should be used to generate manifests which will contain the list of all artifacts that differ between the source and target.
+
+    wchtools compare -A --source <working_directory> --target <url> --write-manifest my_diffs --write-deletions-manifest my_deletions
+
+The results of a compare can then be used to synchronize the target environment with the source.
+The following push and delete commands will push all of the changes from the source environment into the target environment.
+
+    wchtools push --dir <working_directory> --url <url> --manifest my_diffs
+    wchtools delete --dir <working_directory> --url <url> --manifest my_deletions
 
 ### Delete command (for explicit deletion of server side artifacts)
 

@@ -1,0 +1,73 @@
+{
+  "rev": "1-f5c7d483c2fbe7acdee54507544741d5",
+  "id": "13c342b0-66ee-4dcf-9246-09a3be96175a",
+  "name": "designtopic_clean_design_img3.jpg",
+  "resource": "c1f71942-7f3b-4e73-8c35-3321d18adb08",
+  "description": "",
+  "altText": "",
+  "path": "/dxdam/design-topics/designtopic_clean_design_img3.jpg",
+  "tags": {
+    "values": [
+      "classification:sofa",
+      "classification:seat",
+      "classification:furniture",
+      "classification:sectional furniture",
+      "classification:studio couch",
+      "classification:convertible",
+      "classification:indoors",
+      "classification:sage green color",
+      "classification:charcoal color"
+    ],
+    "declined": [],
+    "analysis": "pending"
+  },
+  "categoryIds": [],
+  "usageRights": {
+    "categories": []
+  },
+  "status": "ready",
+  "assetType": "image",
+  "fileName": "designtopic_clean_design_img3.jpg",
+  "mediaType": "image/jpeg",
+  "fileSize": 254411,
+  "digest": "yqIiT5+XNULzdHD+T1j0tA==",
+  "metadata": {
+    "width": 1200,
+    "height": 797
+  },
+  "lastModified": "2018-05-09T16:22:56.081Z",
+  "created": "2018-05-09T16:22:56.079Z",
+  "classification": "asset",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "cognitive": {
+    "status": "pending"
+  },
+  "renditions": {
+    "default": {
+      "id": "r=c1f71942-7f3b-4e73-8c35-3321d18adb08&a=13c342b0-66ee-4dcf-9246-09a3be96175a",
+      "source": "/authoring/v1/resources/c1f71942-7f3b-4e73-8c35-3321d18adb08"
+    }
+  },
+  "isManaged": true,
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/13c342b0-66ee-4dcf-9246-09a3be96175a"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/c1f71942-7f3b-4e73-8c35-3321d18adb08.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/v1/resources/c1f71942-7f3b-4e73-8c35-3321d18adb08?fit=inside%7C220:145"
+    },
+    "retire": {
+      "href": "/authoring/v1/changes/asset/13c342b0-66ee-4dcf-9246-09a3be96175a/status/retire"
+    }
+  },
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "categories": []
+}

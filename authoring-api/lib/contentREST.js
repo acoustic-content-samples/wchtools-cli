@@ -15,12 +15,17 @@ limitations under the License.
 */
 "use strict";
 
+const Q = require("q");
 const JSONItemREST = require("./JSONItemREST.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
+const options = require("./utils/options.js");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
+
+const PUBLISH_PRIORITY = "x-ibm-dx-publish-priority";
+const PUBLISH_PRIORITY_NOW = "now";
 
 class ContentREST extends JSONItemREST {
 
@@ -36,6 +41,21 @@ class ContentREST extends JSONItemREST {
             this[singleton] = new ContentREST(singletonEnforcer);
         }
         return this[singleton];
+    }
+
+    /*
+     * Override BaseREST.getUpdateRequestOptions to add x-ibm-dx-publish-priority:now header if specified
+     */
+    getUpdateRequestOptions (context, opts) {
+        return super.getUpdateRequestOptions(context, opts)
+            .then((reqOptions) => {
+                if (options.getRelevantOption(context, opts, "publish-now")) {
+                    reqOptions.headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NOW;
+                }
+                const deferred = Q.defer();
+                deferred.resolve(reqOptions);
+                return deferred.promise;
+            });
     }
 
     /*

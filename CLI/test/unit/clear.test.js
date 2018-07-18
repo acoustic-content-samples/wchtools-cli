@@ -87,7 +87,7 @@ describe("Test 'clear' command", function () {
 
     it("check clear with -v arg" , function (done) {
         const stub = sinon.stub(helper, "clearCache");
-        stub.resolves({id: 'foo'});
+        stub.resolves({id: 'foo', estimatedSeconds: 30});
 
         let error;
         toolsCli.parseArgs(['', process.cwd() + '/index.js', 'clear', '--cache', '-v', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
@@ -183,6 +183,27 @@ describe("Test 'clear' command", function () {
                 // Restore the stubbed method.
                 stub.restore();
 
+                // Call mocha's done function to indicate that the test is over.
+                done(error);
+            });
+    });
+
+    it("test fail invalid param", function (done) {
+        // Execute the clear command.
+        let error;
+        toolsCli.parseArgs(['', process.cwd() + '/index.js', 'clear', 'foo'])
+            .then(function () {
+                // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                error = new Error("The command should have failed.");
+            })
+            .catch(function (err) {
+                // Verify that the expected error message was returned.
+                expect(err.message).to.contain("Invalid argument foo");
+            })
+            .catch(function (err) {
+                error = err;
+            })
+            .finally(function () {
                 // Call mocha's done function to indicate that the test is over.
                 done(error);
             });

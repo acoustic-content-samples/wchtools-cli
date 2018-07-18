@@ -1,0 +1,56 @@
+{
+  "id": "424c6387-ecaf-4e7d-a1f5-d8cded716a93",
+  "rev": "1-2c3250a6b0a402cead8016c44847a9f9",
+  "name": "Hero Foreground",
+  "classification": "image-profile",
+  "creator": "kevintap",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "created": "2018-02-07T20:56:32.758Z",
+  "lastModifier": "kevintap",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModified": "2018-05-09T16:21:56.858Z",
+  "dimensions": [
+    {
+      "label": "Product Details",
+      "key": "productDetails",
+      "width": 600,
+      "height": 600,
+      "description": "Used for product detail and chart views for product and category images"
+    },
+    {
+      "label": "Product Cards",
+      "key": "productCards",
+      "width": 350,
+      "height": 350,
+      "description": "Used for product detail and chart views for product and category images"
+    },
+    {
+      "label": "Feature Product",
+      "key": "featureProduct",
+      "width": 550,
+      "height": 550,
+      "description": "Used for product detail and chart views for product and category images"
+    },
+    {
+      "label": "Large Editorial",
+      "key": "largeEditorial",
+      "width": 790,
+      "height": 465,
+      "description": "Uses for feature editorial content"
+    },
+    {
+      "label": "Medium Editorial",
+      "key": "mediumEditorial",
+      "width": 584,
+      "height": 465,
+      "description": "Uses for feature editorial content"
+    },
+    {
+      "label": "Small Editorial",
+      "key": "smallEditorial",
+      "width": 379,
+      "height": 465,
+      "description": "Uses for feature editorial content"
+    }
+  ]
+}

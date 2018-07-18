@@ -137,5 +137,19 @@ class ContentHelper extends JSONItemHelper {
     supportsDeleteById() {
         return true;
     }
+
+    /**
+     * Return a set of extra keys to be ignored for this artifact type.  This should be used to return a list
+     * of synthetic fields per artifact type.
+     *
+     * @return {Array} the names of the JSON elements to be ignored.
+     */
+    getExtraIgnoreKeys() {
+        return ["type", "thumbnail/url",
+            "elements/*/asset/resourceUri", "elements/*/asset/fileSize", "elements/*/asset/fileName", "elements/*/asset/mediaType",
+            "elements/*/categories",
+            "elements/*/value/name", "elements/*/value/creatorId", "elements/*/value/typeId", "elements/*/value/status",
+            "elements/*/values/*/name", "elements/*/values/*/creatorId", "elements/*/values/*/typeId", "elements/*/values/*/status"];
+    }
 }
 module.exports = ContentHelper;

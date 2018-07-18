@@ -1,0 +1,20 @@
+{
+  "id": "046c7734-3fca-4e0b-9233-d5208e767654",
+  "rev": "3-772a60dd5b8760814e856f7601380b35",
+  "name": "Profile for bio pics",
+  "classification": "image-profile",
+  "creator": "kevintap",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "created": "2017-08-15T03:51:14.018Z",
+  "lastModifier": "kevintap",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModified": "2018-05-09T16:21:57.023Z",
+  "dimensions": [
+    {
+      "label": "Close up",
+      "key": "closeUp",
+      "width": 69,
+      "height": 69
+    }
+  ]
+}

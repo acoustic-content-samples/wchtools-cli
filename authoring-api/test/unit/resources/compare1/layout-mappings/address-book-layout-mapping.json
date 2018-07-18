@@ -1,0 +1,24 @@
+{
+  "id": "address-book-layout-mapping",
+  "rev": "1-2ffe58982f38ba43ad2dcf601e92e0eb",
+  "name": "addressBookLayoutMapping",
+  "classification": "layout-mapping",
+  "type": {
+    "id": "com.ibm.commerce.store.angular-types.addressbook",
+    "name": "Address book"
+  },
+  "mappings": [
+    {
+      "defaultLayout": {
+        "id": "address-book-layout",
+        "name": "addressBookLayout"
+      },
+      "layouts": [
+        {
+          "id": "address-book-layout",
+          "name": "addressBookLayout"
+        }
+      ]
+    }
+  ]
+}

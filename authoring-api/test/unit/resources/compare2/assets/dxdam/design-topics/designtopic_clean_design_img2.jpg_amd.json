@@ -1,0 +1,74 @@
+{
+  "rev": "1-127ca6e6167892e6208bb567b01961c2",
+  "id": "dfd0a5e3-3d6e-4c5c-aa7b-c4818e288a04",
+  "name": "designtopic_clean_design_img2.jpg",
+  "resource": "124baae2-87bf-48a3-a4bd-4375d0974e84",
+  "description": "",
+  "altText": "",
+  "path": "/dxdam/design-topics/designtopic_clean_design_img2.jpg",
+  "tags": {
+    "values": [
+      "classification:lamp",
+      "classification:furniture",
+      "classification:furnishing",
+      "classification:sofa",
+      "classification:seat",
+      "classification:studio couch",
+      "classification:convertible",
+      "classification:futon",
+      "classification:alabaster color",
+      "classification:sage green color"
+    ],
+    "declined": [],
+    "analysis": "pending"
+  },
+  "categoryIds": [],
+  "usageRights": {
+    "categories": []
+  },
+  "status": "ready",
+  "assetType": "image",
+  "fileName": "designtopic_clean_design_img2.jpg",
+  "mediaType": "image/jpeg",
+  "fileSize": 295387,
+  "digest": "UVGOR9eime2n/9QMGpJXfw==",
+  "metadata": {
+    "width": 1200,
+    "height": 797
+  },
+  "lastModified": "2018-05-09T16:22:56.020Z",
+  "created": "2018-05-09T16:22:56.019Z",
+  "classification": "asset",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "cognitive": {
+    "status": "pending"
+  },
+  "renditions": {
+    "default": {
+      "id": "r=124baae2-87bf-48a3-a4bd-4375d0974e84&a=dfd0a5e3-3d6e-4c5c-aa7b-c4818e288a04",
+      "source": "/authoring/v1/resources/124baae2-87bf-48a3-a4bd-4375d0974e84"
+    }
+  },
+  "isManaged": true,
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/dfd0a5e3-3d6e-4c5c-aa7b-c4818e288a04"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/124baae2-87bf-48a3-a4bd-4375d0974e84.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/v1/resources/124baae2-87bf-48a3-a4bd-4375d0974e84?fit=inside%7C220:145"
+    },
+    "retire": {
+      "href": "/authoring/v1/changes/asset/dfd0a5e3-3d6e-4c5c-aa7b-c4818e288a04/status/retire"
+    }
+  },
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "categories": []
+}

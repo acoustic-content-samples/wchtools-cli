@@ -4507,6 +4507,141 @@ class BaseHelperUnitTest extends UnitTest {
         });
     }
 
+    testCompare (restApi, fsApi, helper, folder1, folder2) {
+        const self = this;
+        describe("compare", function () {
+            it("should succeed when source and target are equal", function (done) {
+                // Create a spy to listen for the "diff" events.
+                const emitter = helper.getEventEmitter(context);
+                const spyDiff = sinon.spy();
+                emitter.on("diff", spyDiff);
+                const spyAdded = sinon.spy();
+                emitter.on("added", spyAdded);
+                const spyRemoved = sinon.spy();
+                emitter.on("removed", spyRemoved);
+
+                let error;
+                helper.compare(context, folder1, folder1)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(0);
+                        expect(diffs.totalCount).to.be.equal(4);
+                        expect(spyDiff).to.not.have.been.called;
+                        expect(spyAdded).to.not.have.been.called;
+                        expect(spyRemoved).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("diff", spyDiff);
+                        emitter.removeListener("added", spyAdded);
+                        emitter.removeListener("removed", spyRemoved);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when there is no emitter", function (done) {
+                // Remove the event emitter.
+                const emitter = helper.getEventEmitter(context);
+                delete context.eventEmitter;
+
+                let error;
+                helper.compare(context, folder1, folder2)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(3);
+                        expect(diffs.totalCount).to.be.equal(5);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the emitter.
+                        context.eventEmitter = emitter;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed comparing using urls", function (done) {
+                const stubListRemoteItemNames = sinon.stub(helper, "_listRemoteItemNames");
+                stubListRemoteItemNames.resolves([]);
+
+                let error;
+                helper.compare(context, "http://foo.com/api", "http://foo.com/api")
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(0);
+                        expect(diffs.totalCount).to.be.equal(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubListRemoteItemNames.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed using a manifest list", function (done) {
+                const stubListRemoteItemNames = sinon.stub(helper, "getManifestItems", helper._listLocalItemNames);
+                context.readManifest = {};
+
+                let error;
+                helper.compare(context, folder1, folder2)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(3);
+                        expect(diffs.totalCount).to.be.equal(5);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        stubListRemoteItemNames.restore();
+                        delete context.readManifest;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed", function (done) {
+                // Create a spy to listen for the "diff" events.
+                const emitter = helper.getEventEmitter(context);
+                const spyDiff = sinon.spy();
+                emitter.on("diff", spyDiff);
+                const spyAdded = sinon.spy();
+                emitter.on("added", spyAdded);
+                const spyRemoved = sinon.spy();
+                emitter.on("removed", spyRemoved);
+
+                let error;
+                helper.compare(context, folder1, folder2)
+                    .then(function (diffs) {
+                        expect(diffs.diffCount).to.be.equal(3);
+                        expect(diffs.totalCount).to.be.equal(5);
+                        expect(spyDiff).to.have.been.calledOnce;
+                        expect(spyAdded).to.have.been.calledOnce;
+                        expect(spyRemoved).to.have.been.calledOnce;
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("diff", spyDiff);
+                        emitter.removeListener("added", spyAdded);
+                        emitter.removeListener("removed", spyRemoved);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
     testSearchRemote (restApi, helper, path1, path2, badPath) {
         const self = this;
         describe("searchRemote", function () {

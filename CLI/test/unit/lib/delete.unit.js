@@ -1490,7 +1490,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected error should have been returned.
-                        expect(err.message).to.contain('Only one artifact type can be deleted at a time');
+                        expect(err.message).to.contain('requires either the --all or --tag option');
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -2244,7 +2244,7 @@ class DeleteUnitTest extends UnitTest {
 
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.rejects(false);
+                stub.rejects(new Error("Expected failure"));
 
                 // Execute the command to delete using a manifest.
                 let error;
@@ -2255,7 +2255,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the expected message was returned.
-                        expect(err.message).to.contain("could not be read");
+                        expect(err.message).to.contain("Expected failure");
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

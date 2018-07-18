@@ -117,7 +117,7 @@ class ListCommand extends BaseCommand {
             .then(function () {
                 // Initialize the list of sites to be used for this command, if necessary.
                 const remote = Boolean(self.getCommandLineOption("server"));
-                return self.initSites(context, remote);
+                return self.initSites(context, remote, self.getApiOptions());
             })
             .then(function () {
                 // List the modified and new artifacts by default.
@@ -132,14 +132,6 @@ class ListCommand extends BaseCommand {
                 return self.listArtifacts(context);
             })
             .then(function (results) {
-                // Save the results to a manifest, if one was specified.
-                try {
-                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
-                } catch (err) {
-                    // Log the error that occurred while saving the manifest, but do not fail the list operation.
-                    self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
-                }
-
                 // Stop the command line spinner before displaying any output.
                 if (self.spinner) {
                     self.spinner.stop();
@@ -152,20 +144,12 @@ class ListCommand extends BaseCommand {
                     const isString = (typeof result === "string");
                     if (isError || isString) {
                         const msg = isError ? result.heading + ' ' + result.message : result;
-                        if (!self.getCommandLineOption("quiet")) {
-                            BaseCommand.displayToConsole(msg);
-                        } else {
-                            self.getLogger().info(msg);
-                        }
+                        self.getLogger().info(msg);
                     }
                     else {
                         // Display a message for the current type.
                         const msg = result.type;
-                        if (!self.getCommandLineOption("quiet")) {
-                            BaseCommand.displayToConsole(msg);
-                        } else {
-                            self.getLogger().info(msg);
-                        }
+                        self.getLogger().info(msg);
 
                         // Display (or log) the list of items for the current type.
                         const items = result.value;
@@ -214,14 +198,10 @@ class ListCommand extends BaseCommand {
                                 headingDivider += "-";
                             }
                         }
-                        if (!self.getCommandLineOption("quiet")) {
-                            BaseCommand.displayToConsole(headingMsg);
-                            BaseCommand.displayToConsole(headingDivider);
-                        } else {
-                            const logger = self.getLogger();
-                            logger.info(headingMsg);
-                            logger.info(headingDivider);
-                        }
+                        const logger = self.getLogger();
+                        logger.info(headingMsg);
+                        logger.info(headingDivider);
+
                         items.forEach(function (item) {
                             artifactsCount++;
                             let msg = item;
@@ -240,18 +220,23 @@ class ListCommand extends BaseCommand {
                                     msg += item.path;
                                 }
                             }
-                            if (!self.getCommandLineOption("quiet")) {
-                                BaseCommand.displayToConsole(msg);
-                            } else {
-                                const logger = self.getLogger();
-                                logger.info(msg);
-                            }
+                            const logger = self.getLogger();
+                            logger.info(msg);
                         });
                     }
                 });
 
                 // End the display of the list.
                 self.endDisplay(artifactsCount);
+
+                // Save the results to a manifest, if one was specified.
+                try {
+                    // Save the manifests.
+                    self.saveManifests(context);
+                } catch (err) {
+                    // Log the error that occurred while saving the manifest, but do not fail the list operation.
+                    self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                }
             })
             .catch(function (err) {
                 // Stop the command line spinner before displaying any output.
@@ -361,18 +346,18 @@ class ListCommand extends BaseCommand {
      * Start the display for the list of artifacts.
      */
     startDisplay () {
-        // Start the spinner (progress indicator) if we're not doing output.
-        if (!this.getCommandLineOption("quiet")) {
-            // Display the console message that the list is starting.
-            BaseCommand.displayToConsole(i18n.__("cli_list_started"));
+        // Display the console message that the list is starting.
+        BaseCommand.displayToConsole(i18n.__("cli_list_started"));
 
+        // Start the spinner (progress indicator) if we're not doing output.
+        if (this.getCommandLineOption("quiet")) {
             // Start the command line spinner, which gives the user some visual feedback that the command is running.
             this.spinner = this.getProgram().getSpinner();
             this.spinner.start();
-        } else {
-            const logger = this.getLogger();
-            logger.info(i18n.__("cli_list_started"));
         }
+
+        const logger = this.getLogger();
+        logger.info(i18n.__("cli_list_started"));
     }
 
     /**
@@ -383,10 +368,9 @@ class ListCommand extends BaseCommand {
     endDisplay (count) {
         // Display the console message that the list is complete.
         this.successMessage(i18n.__("cli_listing_complete", {count: count}));
-        if (this.getCommandLineOption("quiet")) {
-            const logger = this.getLogger();
-            logger.info(i18n.__("cli_listing_complete", {count: count}));
-        }
+
+        const logger = this.getLogger();
+        logger.info(i18n.__("cli_listing_complete", {count: count}));
     }
 
     /**
@@ -441,13 +425,18 @@ class ListCommand extends BaseCommand {
 
         self.readyToList()
             .then(function () {
-                if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
-                    return self.handleListPromise(self.listAssets(context), results);
+                if (self.getCommandLineOption("imageProfiles")) {
+                    return self.handleListPromise(self.listImageProfiles(context), results);
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("imageProfiles")) {
-                    return self.handleListPromise(self.listImageProfiles(context), results);
+                if (self.getCommandLineOption("categories")) {
+                    return self.handleListPromise(self.listCategories(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("assets") || self.getCommandLineOption("webassets")) {
+                    return self.handleListPromise(self.listAssets(context), results);
                 }
             })
             .then(function() {
@@ -460,14 +449,19 @@ class ListCommand extends BaseCommand {
                     return self.handleListPromise(self.listLayoutMappings(context), results);
                 }
             })
-            .then(function () {
-                if (self.getCommandLineOption("categories")) {
-                    return self.handleListPromise(self.listCategories(context), results);
-                }
-            })
             .then(function() {
                 if (self.getCommandLineOption("renditions")) {
                     return self.handleListPromise(self.listRenditions(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("types")) {
+                    return self.handleListPromise(self.listTypes(context), results);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("content")) {
+                    return self.handleListPromise(self.listContent(context), results);
                 }
             })
             .then(function () {
@@ -493,16 +487,6 @@ class ListCommand extends BaseCommand {
                     };
 
                     return listPagesBySite(context);
-                }
-            })
-            .then(function () {
-                if (self.getCommandLineOption("types")) {
-                    return self.handleListPromise(self.listTypes(context), results);
-                }
-            })
-            .then(function () {
-                if (self.getCommandLineOption("content")) {
-                    return self.handleListPromise(self.listContent(context), results);
                 }
             })
             .then(function () {
@@ -855,6 +839,10 @@ class ListCommand extends BaseCommand {
             });
 
         return deferred.promise;
+    }
+
+    generateVerboseOutput () {
+        return !this.getCommandLineOption("quiet");
     }
 
     /**

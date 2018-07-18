@@ -1,0 +1,32 @@
+{
+  "id": "4e64204b-ac8e-4594-a87a-dc53b563bc59",
+  "rev": "3-f4ff80f65ac5b76b09bcba0f19be3cf7",
+  "name": "MODIFIED: Event",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creator": "kevintap",
+  "classification": "category",
+  "taxonomy": "9d47dccc-f940-40de-a978-82815c805701",
+  "parent": "8a1cca57-4e5b-4d66-b8fa-668490b8e9b1",
+  "ancestorIds": [
+    "9d47dccc-f940-40de-a978-82815c805701",
+    "8a1cca57-4e5b-4d66-b8fa-668490b8e9b1"
+  ],
+  "namePath": [
+    "Dynamic list criteria",
+    "Type",
+    "Event"
+  ],
+  "links": {
+    "taxonomy": {
+      "href": "/authoring/v1/categories/9d47dccc-f940-40de-a978-82815c805701"
+    },
+    "self": {
+      "href": "/authoring/v1/categories/4e64204b-ac8e-4594-a87a-dc53b563bc59"
+    },
+    "parent": {
+      "href": "/authoring/v1/categories/8a1cca57-4e5b-4d66-b8fa-668490b8e9b1"
+    }
+  },
+  "created": "2018-05-09T16:22:04.428Z",
+  "lastModified": "2018-05-09T16:22:04.428Z"
+}

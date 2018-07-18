@@ -1,0 +1,47 @@
+{
+  "id": "com.ibm.commerce.store.angular-types.category-recommendation",
+  "rev": "1-190dac22e4234b843732449b364aa12b",
+  "name": "Category recommendation",
+  "classification": "content-type",
+  "kind": [
+    "standalone"
+  ],
+  "description": "List of categories from the catalog system generated from a rule defined in precision marketing",
+  "status": "ready",
+  "tags": [],
+  "elements": [
+    {
+      "elementType": "text",
+      "label": "Title",
+      "key": "title"
+    },
+    {
+      "elementType": "optionselection",
+      "options": [
+        {
+          "label": "Common e-Marketing Spot",
+          "selection": "common"
+        },
+        {
+          "label": "Page-specific using suffix",
+          "selection": "page-suffix"
+        },
+        {
+          "label": "Page-specific using prefix",
+          "selection": "page-prefix"
+        }
+      ],
+      "label": "E-Marketing spot type",
+      "key": "eSpotType",
+      "helpText": "Choose the type of e-Marketing Spot to use in this content: - Common e-Marketing Spot: All pages that are assigned this content will have the same e-Marketing Spot. - Page-specific e-Marketing Spot: All pages that are assigned this content will have unique e-Marketing Spots.",
+      "required": true
+    },
+    {
+      "elementType": "text",
+      "label": "Name",
+      "key": "eSpotName",
+      "required": true,
+      "minLength": 1
+    }
+  ]
+}

@@ -142,25 +142,13 @@ class PullCommand extends BaseCommand {
             })
             .then(function () {
                 // Initialize the list of remote sites to be used for this command, if necessary.
-                return self.initSites(context, true);
+                return self.initSites(context, true, self.getApiOptions());
             })
             .then(function () {
                 // Start the display of the pulled artifacts.
                 self.startDisplay();
 
                 return self.pullArtifacts(context);
-            })
-            .then(function () {
-                try {
-                    // Save the results to a manifest, if one was specified.
-                    ToolsApi.getManifests().saveManifest(context, self.getApiOptions());
-
-                    // Save the deletions to a deletions manifest, if one was specified.
-                    ToolsApi.getManifests().saveDeletionsManifest(context, self.getApiOptions());
-                } catch (err) {
-                    // Log the error that occurred while saving the manifest, but do not fail the pull operation.
-                    self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
-                }
             })
             .catch(function (err) {
                 // Pass the error through to the endDisplay() method.
@@ -169,6 +157,16 @@ class PullCommand extends BaseCommand {
             .finally(function () {
                 // End the display of the pulled artifacts.
                 self.endDisplay(error);
+
+                if (!error) {
+                    try {
+                        // Save the manifests.
+                        self.saveManifests(context);
+                    } catch (err) {
+                        // Log the error that occurred while saving the manifest, but do not fail the pull operation.
+                        self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                    }
+                }
 
                 // Reset the list of sites used for this command.
                 self.resetSites(context);
@@ -493,14 +491,13 @@ class PullCommand extends BaseCommand {
                         assets.add(e.asset.id);
                     }
                     if (e.renditions) {
-                        for (const renditionKey in e.renditions) {
-                            if (e.renditions.hasOwnProperty(renditionKey)) {
-                                const r = e.renditions[renditionKey].renditionId;
-                                if (r && !EMBEDDED_RENDITION_ID.test(r)){
-                                    renditions.add(r);
-                                }
+                        const renditionKeys = Object.getOwnPropertyNames(e.renditions);
+                        renditionKeys.forEach(function (renditionKey) {
+                            const r = e.renditions[renditionKey].renditionId;
+                            if (r && !EMBEDDED_RENDITION_ID.test(r)){
+                                renditions.add(r);
                             }
-                        }
+                        });
                     }
                     if (e.thumbnail && e.thumbnail.renditionId && !EMBEDDED_RENDITION_ID.test(e.thumbnail.renditionId)) {
                         renditions.add(e.thumbnail.renditionId);

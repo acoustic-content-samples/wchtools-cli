@@ -39,6 +39,7 @@ const assetsREST = AssetsREST.instance;
 const DUMMY_HTML_FILE_NAME = "dummy.html";
 const DUMMY_MD5_HASH = "1234567890";
 const DUMMY_REQUEST_OPTIONS = {"x-ibm-dx-tenant-base-url": "dummy-url"};
+const DUMMY_PUBLISH_NOW_REQUEST_OPTIONS = {"x-ibm-dx-tenant-base-url": "dummy-url", "publish-now":true};
 
 // The default API context used for unit tests.
 const context = UnitTest.DEFAULT_API_CONTEXT;
@@ -320,7 +321,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         describe("getAssetUpdateRequestOptions", function () {
             it("should succeed with a valid ID and options", function (done) {
                 let error;
-                assetsREST.getAssetUpdateRequestOptions(context, UnitTest.DUMMY_ID, DUMMY_REQUEST_OPTIONS)
+                assetsREST.getAssetUpdateRequestOptions(context, UnitTest.DUMMY_ID, DUMMY_PUBLISH_NOW_REQUEST_OPTIONS)
                     .then(function (requestOptions) {
                         expect(requestOptions).to.exist;
                         expect(requestOptions.uri).to.contain("/authoring/v1/assets");
@@ -330,6 +331,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         expect(requestOptions.headers["Accept-Language"]).to.contain("en");
                         expect(requestOptions.headers["Content-Type"]).to.equal("application/json");
                         expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
+                        expect(requestOptions.headers["x-ibm-dx-publish-priority"]).to.exist;
                     })
                     .catch(function (err) {
                         error = err;
@@ -1692,7 +1694,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(context, false, false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
+                assetsREST.pushItem(context, false, false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, DUMMY_PUBLISH_NOW_REQUEST_OPTIONS)
                     .then(function (asset) {
                         expect(stubHead).to.have.callCount(0);
 
@@ -1715,6 +1717,8 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         expect(stubPost.secondCall.args[0].uri).to.contain("/authoring/v1/assets");
                         expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.resource);
                         expect(stubPost.secondCall.args[0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubPost.secondCall.args[0].headers).to.exist;
+                        expect(stubPost.secondCall.args[0].headers["x-ibm-dx-publish-priority"]).to.exist;
 
                         // Verify that the expected value is returned.
                         expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);

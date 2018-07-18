@@ -1,0 +1,24 @@
+{
+  "id": "breadcrumb-layout-mapping",
+  "rev": "1-ee54ef49e84fd70c5f8109c43397adfe",
+  "name": "breadcrumbLayoutMapping",
+  "classification": "layout-mapping",
+  "type": {
+    "id": "com.ibm.commerce.store.angular-types.breadcrumb",
+    "name": "Breadcrumb"
+  },
+  "mappings": [
+    {
+      "defaultLayout": {
+        "id": "breadcrumb-layout",
+        "name": "breadcrumbLayout"
+      },
+      "layouts": [
+        {
+          "id": "breadcrumb-layout",
+          "name": "breadcrumbLayout"
+        }
+      ]
+    }
+  ]
+}

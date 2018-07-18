@@ -42,6 +42,7 @@ class PagesHelperUnitTest extends BaseHelperUnit {
 
     runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
         this.testCanDeleteItem(helper);
+        this.testCompare(restApi, fsApi, helper, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_1, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_2);
     }
 
     testCanDeleteItem (helper) {

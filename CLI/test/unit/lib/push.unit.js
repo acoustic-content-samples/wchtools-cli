@@ -191,8 +191,10 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test generic push working", function (done) {
+                let savedOpts;
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
-                const stub = sinon.stub(helper, "pushModifiedItems", function (context) {
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context, opts) {
+                    savedOpts = opts;
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
@@ -208,8 +210,10 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api", "--publish-now"])
                     .then(function (msg) {
+                        expect(savedOpts).to.exist;
+                        expect(savedOpts["publish-now"]).to.exist;
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                             expect(stub).to.have.been.calledTwice;
@@ -1366,7 +1370,7 @@ class PushUnitTest extends UnitTest {
         describe("CLI-unit-push-manifest-fail", function () {
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.rejects(false);
+                stub.rejects(new Error("Expected failure"));
 
                 // Execute the command to push using a manifest.
                 let error;
@@ -1377,7 +1381,7 @@ class PushUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the expected message was returned.
-                        expect(err.message).to.contain("could not be read");
+                        expect(err.message).to.contain("Expected failure");
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

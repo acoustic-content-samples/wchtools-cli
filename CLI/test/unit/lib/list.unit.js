@@ -339,7 +339,7 @@ class ListUnitTest extends UnitTest {
 
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.rejects(false);
+                stub.rejects(new Error("Expected failure"));
 
                 // Execute the command to push using a manifest.
                 let error;
@@ -350,7 +350,7 @@ class ListUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the expected message was returned.
-                        expect(err.message).to.contain("could not be read");
+                        expect(err.message).to.contain("Expected failure");
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -388,8 +388,6 @@ class ListUnitTest extends UnitTest {
                 const LIST_ERROR = "Error listing artifacts - expected by unit test.";
                 stubList.rejects(LIST_ERROR);
 
-                const spyConsole = sinon.spy(BaseCommand, "displayToConsole");
-
                 // Execute the command to list the items on the server.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--del", "--url", "http://foo.bar/api"])
@@ -402,10 +400,6 @@ class ListUnitTest extends UnitTest {
                             expect(stubList).to.have.been.calledOnce;
                         }
                         expect(msg).to.contain('artifacts listed 0');
-
-                        // Verify that the spy was called once with the expected message.
-                        expect(spyConsole).to.have.been.called;
-                        expect(spyConsole.args[1][0]).to.contain(LIST_ERROR);
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -415,7 +409,6 @@ class ListUnitTest extends UnitTest {
                         // Restore the original methods and values.
                         stubGet.restore();
                         stubList.restore();
-                        spyConsole.restore();
                         process.env.WCHTOOLS_PASSWORD = originalPassword;
 
                         // Call mocha's done function to indicate that the test is over.
@@ -445,8 +438,6 @@ class ListUnitTest extends UnitTest {
                     return deferred.promise;
                 });
 
-                const spyConsole = sinon.spy(BaseCommand, "displayToConsole");
-
                 // Execute the command to list the items on the server.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--quiet", "--server", "--url", "http://foo.bar/api"])
@@ -459,9 +450,6 @@ class ListUnitTest extends UnitTest {
                             expect(stubList).to.have.been.calledOnce;
                         }
                         expect(msg).to.contain('artifacts listed 0');
-
-                        // Verify that the spy was not called.
-                        expect(spyConsole).to.not.have.been.called;
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -471,7 +459,6 @@ class ListUnitTest extends UnitTest {
                         // Restore the original methods and values.
                         stubGet.restore();
                         stubList.restore();
-                        spyConsole.restore();
                         process.env.WCHTOOLS_PASSWORD = originalPassword;
 
                         // Call mocha's done function to indicate that the test is over.

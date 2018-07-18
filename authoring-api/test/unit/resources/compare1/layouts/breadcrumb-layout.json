@@ -1,0 +1,13 @@
+{
+  "id": "breadcrumb-layout",
+  "rev": "1-b616ad3d6f395c43ed43980a5e6207a1",
+  "name": "breadcrumbLayout",
+  "classification": "layout",
+  "prerender": false,
+  "thumbnail": {
+    "path": "/dxauth/layoutThumbs/breadcrumb-layout.jpg",
+    "url": "/authoring/v1/resources/a9b7575381cd03962dbe81e4116c8663_31d25cb039fd99a481413f39ee8b852c"
+  },
+  "template": "breadcrumb-layout",
+  "templateType": "angular"
+}

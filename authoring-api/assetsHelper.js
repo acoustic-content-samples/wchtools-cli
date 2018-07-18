@@ -29,6 +29,7 @@ const utils = require("./lib/utils/utils.js");
 const path = require("path");
 const hashes = require("./lib/utils/hashes.js");
 const manifests = require("./lib/utils/manifests.js");
+const BufferStream = require("./lib/utils/bufferstream.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 /**
@@ -155,7 +156,7 @@ class AssetsHelper extends BaseHelper {
      */
     _updateManifest (context, itemList, opts) {
         const manifestList = itemList.filter(function (item) {
-            return (item && item.path && item.path !== "/robots.txt" && item.path !== "/sitemap.xml");
+            return (item && item.path && item.path !== "/robots.txt" && !item.path.match(/\/sitemap.*\.xml/));
         });
         manifests.updateManifestSection(context, this.getArtifactName(), manifestList, opts);
     }
@@ -169,7 +170,7 @@ class AssetsHelper extends BaseHelper {
      */
     _updateDeletionsManifest (context, itemList, opts) {
         const manifestList = itemList.filter(function (item) {
-            return (item && item.path && item.path !== "/robots.txt" && item.path !== "/sitemap.xml");
+            return (item && item.path && item.path !== "/robots.txt" && !item.path.match(/\/sitemap.*\.xml/));
         });
         manifests.updateDeletionsManifestSection(context, this.getArtifactName(), manifestList, opts);
     }
@@ -1686,6 +1687,286 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Wrapper function to call the REST API getItemByPath, for obtaining the
+     * remote asset metadata for a compare operation.
+     * @param context The API context to be used for this operation.
+     * @param assetPath The asset path to retrieve the metadata for.
+     * @param opts The options for this operation.
+     * @returns {*} The remote asset metadata.
+     * @private
+     */
+    _compareGetRemoteAsset (context, assetPath, opts) {
+        return this._restApi.getItemByPath(context, assetPath, opts);
+    }
+
+    /**
+     * Wrapper function to call the REST API getResourceStream, for obtaining the
+     * remote resource binary data for a compare operation.
+     * @param context The API context to be used for this operation.
+     * @param asset The asset to retrieve the resource stream for.
+     * @param opts The options for this operation.
+     * @returns {*} The remote resource stream.
+     * @private
+     */
+    _compareGetRemoteReadStream (context, asset, opts) {
+        // For a remote asset, we have metadata, use the resource member.
+        return this._restApi.getResourceStream(context, asset.resource, opts);
+    }
+
+    /**
+     * Wrapper function to call the FS API getItem, for obtaining the
+     * local asset metadata for a compare operation. For web assets, there is
+     * no local metadata, so we return a resolved promise with mock metadata.
+     * @param context The API context to be used for this operation.
+     * @param assetPath The asset path to retrieve the metadata for.
+     * @param opts The options for this operation.
+     * @returns {*} The remote asset metadata.
+     * @private
+     */
+    _compareGetLocalAsset (context, assetPath, opts) {
+        // Determine if this is a managed asset or a web asset.
+        if (this._fsApi.isContentResource(assetPath)) {
+            // For managed assets, call the getItem API to get the managed asset metadata.
+            return this._fsApi.getItem(context, assetPath, opts);
+        } else {
+            // For web assets, make a mock metadata with the path attribute.
+            return Q({path: assetPath});
+        }
+    }
+
+    /**
+     * Wrapper function to call the FS API getItemReadStream, for obtaining the
+     * local resource binary data for a compare operation.
+     * @param context The API context to be used for this operation.
+     * @param asset The asset to retrieve the resource stream for.
+     * @param opts The options for this operation.
+     * @returns {*} The remote resource stream.
+     * @private
+     */
+    _compareGetLocalReadStream (context, asset, opts) {
+        // For a local asset, we have no metadata, use the path member.
+        return this._fsApi.getItemReadStream(context, asset.path, opts);
+    }
+
+    /**
+     * Executes a compare operation between two local directories, two tenants, or a local directory and a tenant.
+     *
+     * @param context The API context to be used for this operation.
+     * @param opts The options for this operation.
+     * @returns {*}
+     */
+    compare (context, target, source, opts) {
+        const self = this;
+
+        const targetIsUrl = utils.isValidApiUrl(target);
+        const sourceIsUrl = utils.isValidApiUrl(source);
+
+        const targetOpts = utils.cloneOpts(opts);
+        const sourceOpts = utils.cloneOpts(opts);
+
+        let targetList;
+        let targetGetAsset;
+        let targetGetReadStream;
+        if (targetIsUrl) {
+            targetOpts["x-ibm-dx-tenant-base-url"] = target;
+            if (context.readManifest) {
+                targetList = self.getManifestItems(context, targetOpts);
+            } else {
+                targetList = self._listRemoteItemNames(context, targetOpts);
+            }
+            targetGetAsset = self._compareGetRemoteAsset.bind(self);
+            targetGetReadStream = self._compareGetRemoteReadStream.bind(self);
+        } else {
+            targetOpts.workingDir = target;
+            if (context.readManifest) {
+                targetList = self.getManifestItems(context, targetOpts);
+            } else {
+                targetList = self._listLocalItemNames(context, targetOpts);
+            }
+            targetGetAsset = self._compareGetLocalAsset.bind(self);
+            targetGetReadStream = self._compareGetLocalReadStream.bind(self);
+        }
+
+        let sourceList;
+        let sourceGetAsset;
+        let sourceGetReadStream;
+        if (sourceIsUrl) {
+            sourceOpts["x-ibm-dx-tenant-base-url"] = source;
+            if (context.readManifest) {
+                sourceList = self.getManifestItems(context, sourceOpts);
+            } else {
+                sourceList = self._listRemoteItemNames(context, sourceOpts);
+            }
+            sourceGetAsset = self._compareGetRemoteAsset.bind(self);
+            sourceGetReadStream = self._compareGetRemoteReadStream.bind(self);
+        } else {
+            sourceOpts.workingDir = source;
+            if (context.readManifest) {
+                sourceList = self.getManifestItems(context, sourceOpts);
+            } else {
+                sourceList = self._listLocalItemNames(context, sourceOpts);
+            }
+            sourceGetAsset = self._compareGetLocalAsset.bind(self);
+            sourceGetReadStream = self._compareGetLocalReadStream.bind(self);
+        }
+
+        return targetList.then(function (unfilteredTargetItems) {
+            const targetItems = unfilteredTargetItems.filter(function (item) {
+                return self.canCompareItem(item, targetOpts);
+            });
+            return sourceList.then(function (unfilteredSourceItems) {
+                const sourceItems = unfilteredSourceItems.filter(function (item) {
+                    return self.canCompareItem(item, sourceOpts);
+                });
+
+                const targetPaths = targetItems.map(function (item) {
+                    return item.path;
+                });
+
+                const sourcePaths = sourceItems.map(function (item) {
+                    return item.path;
+                });
+
+                const diffItems = {
+                    diffCount: 0,
+                    totalCount: 0
+                };
+
+                // Construct an array to hold all promises that we will wait for.
+                const promises = [];
+
+                // Iterate all target items to check for deletions.
+                targetItems.forEach(function (targetItem) {
+                    // Check to see if the item exists in the source.
+                    if (sourcePaths.indexOf(targetItem.path) === -1) {
+                        // Item exists in target but not source.
+                        self._updateDeletionsManifest(context, [targetItem], opts);
+                        // Increment both the total items counter and diff counter.
+                        diffItems.totalCount++;
+                        diffItems.diffCount++;
+                        // Emit an event indicating the deleted item.
+                        const emitter = self.getEventEmitter(context);
+                        if (emitter) {
+                            emitter.emit("removed", {item: targetItem});
+                        }
+                    }
+                });
+
+                // Iterate all source items to check for additions and changes.
+                sourceItems.forEach(function (sourceItem) {
+                    // Increment the total items counter.
+                    diffItems.totalCount++;
+
+                    // Check to see if the item exists in the target.
+                    if (targetPaths.indexOf(sourceItem.path) === -1) {
+                        // Item exists in source but not target.
+                        self._updateManifest(context, [sourceItem], opts);
+                        // Increment the diff counter.
+                        diffItems.diffCount++;
+                        // Emit an event indicating the new item.
+                        const emitter = self.getEventEmitter(context);
+                        if (emitter) {
+                            emitter.emit("added", {item: sourceItem});
+                        }
+                    } else {
+                        // Create a new promise to resolve when the compare is complete.
+                        const deferredCompare = Q.defer();
+                        // Push the promise onto the list of promises we will wait for.
+                        promises.push(deferredCompare.promise);
+
+                        targetGetAsset(context, sourceItem.path, targetOpts)
+                            .then(function (targetAsset) {
+                                sourceGetAsset(context, sourceItem.path, sourceOpts)
+                                    .then(function (sourceAsset) {
+                                        let different = false;
+                                        let compareDiffs;
+                                        // Only compare the metadata for content resources.
+                                        if (self._fsApi.isContentResource(sourceItem.path)) {
+                                            compareDiffs = utils.compare(sourceAsset, targetAsset, self._restApi.getIgnoreKeys());
+                                            different = (compareDiffs.added.length > 0 || compareDiffs.changed.length > 0 || compareDiffs.removed.length > 0);
+                                        }
+                                        if (different) {
+                                            const absPath = self._fsApi.getMetadataPath(context, sourceItem.path, sourceOpts);
+                                            const relativePath = path.relative(self._fsApi.getAssetsPath(context, sourceOpts), absPath);
+                                            self._updateManifest(context, [{path: relativePath}], opts);
+
+                                            // Increment the diff counter.
+                                            diffItems.diffCount++;
+                                            // Emit an event indicating the asset difference.
+                                            const emitter = self.getEventEmitter(context);
+                                            if (emitter) {
+                                                emitter.emit("diff", {item: {path: relativePath}, diffs: compareDiffs});
+                                            }
+                                            // Resolve the promise.
+                                            deferredCompare.resolve(true);
+                                        } else {
+                                            // Compare the binary resources.
+                                            // Get the target resource stream.
+                                            targetGetReadStream(context, targetAsset, targetOpts)
+                                                .then(function (targetReadStream) {
+                                                    // Construct the hash of the target resource stream.
+                                                    hashes.generateMD5HashFromStream(targetReadStream).then(function (targetMd5) {
+                                                        // Get the source resource stream.
+                                                        sourceGetReadStream(context, sourceAsset, sourceOpts)
+                                                            .then(function (sourceReadStream) {
+                                                                // Construct the hash of the source resource stream.
+                                                                hashes.generateMD5HashFromStream(sourceReadStream).then(function (sourceMd5) {
+                                                                    if (targetMd5 !== sourceMd5) {
+                                                                        self._updateManifest(context, [sourceItem], opts);
+
+                                                                        // Increment the diff counter.
+                                                                        diffItems.diffCount++;
+                                                                        // Emit an event indicating the asset difference.
+                                                                        const emitter = self.getEventEmitter(context);
+                                                                        if (emitter) {
+                                                                            compareDiffs = {
+                                                                                changed: [
+                                                                                    { node: [""], value1: sourceMd5, value2: targetMd5 }
+                                                                                ]
+                                                                            };
+                                                                            emitter.emit("diff", {item: sourceItem, diffs: compareDiffs});
+                                                                        }
+                                                                    }
+                                                                    // Resolve the promise.
+                                                                    deferredCompare.resolve(true);
+                                                                })
+                                                                .catch(function (err) {
+                                                                    deferredCompare.reject(err);
+                                                                });
+                                                            })
+                                                            .catch(function (err) {
+                                                                deferredCompare.reject(err);
+                                                            });
+                                                        })
+                                                        .catch(function (err) {
+                                                            deferredCompare.reject(err);
+                                                        });
+                                                })
+                                                .catch(function (err) {
+                                                    deferredCompare.reject(err);
+                                                });
+                                        }
+                                    })
+                                    .catch(function (err) {
+                                        deferredCompare.reject(err);
+                                    });
+                            })
+                            .catch(function (err) {
+                                deferredCompare.reject(err);
+                            });
+                    }
+                });
+
+                // Wait for all promises to resolve before returning.
+                return Q.allSettled(promises).then(function () {
+                    // Return the diffItems object with the counts.
+                    return diffItems;
+                });
+            });
+        });
+    }
+
+    /**
      * Filter the given list of assets before completing the list operation.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -2439,6 +2720,27 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Determine whether the given item can be compared.
+     *
+     * @param {Object} item The item to be compared.
+     * @param {Object} opts - The options to be used for the compare operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the item can be compared. A return value of false
+     *                    indicates that the item cannot be compared.
+     *
+     * @override
+     */
+    canCompareItem(item, opts) {
+        let retVal = super.canCompareItem(item, opts);
+        if (retVal) {
+            // Do not include robots.txt or sitemap*.xml in the compare.
+            retVal = (item && item.path && item.path !== "/robots.txt" && !item.path.match(/\/sitemap.*\.xml/));
+        }
+
+        return retVal;
+    }
+
+    /**
      * Determine whether the given item can be deleted.
      *
      * @param {Object} item The item to be deleted.
@@ -2450,7 +2752,7 @@ class AssetsHelper extends BaseHelper {
      *
      * @override
      */
-    canDeleteItem (item, isDeleteAll, opts) {
+    canDeleteItem(item, isDeleteAll, opts) {
         if (isDeleteAll) {
             if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
                 // Filter out any content assets.

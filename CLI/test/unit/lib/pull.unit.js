@@ -45,21 +45,21 @@ const DRAFT_SITES = false;
 let stubRemoteSites;
 
 class PullUnitTest extends UnitTest {
-    constructor () {
+    constructor() {
         super();
     }
 
-    static addRemoteSitesStub () {
+    static addRemoteSitesStub() {
         const sitesHelper = ToolsApi.getSitesHelper();
         stubRemoteSites = sinon.stub(sitesHelper._restApi, "getItems");
         stubRemoteSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
     }
 
-    static restoreRemoteSitesStub () {
+    static restoreRemoteSitesStub() {
         stubRemoteSites.restore();
     }
 
-    run (helper, switches, itemName1, itemName2, badItem) {
+    run(helper, switches, itemName1, itemName2, badItem) {
         const self = this;
         describe("Unit tests for pull  " + switches, function () {
             let stubLogin;
@@ -86,6 +86,7 @@ class PullUnitTest extends UnitTest {
             if (switches === "-A") {
                 // Test the pull all by type name option
                 self.testPullByTypeName(helper, switches, itemName1, itemName2, badItem);
+                self.testPullByTypeName(helper, "-tcar", itemName1, itemName2, badItem);
 
             } else {
                 // Run each of the tests defined in this class.
@@ -96,7 +97,7 @@ class PullUnitTest extends UnitTest {
         });
     }
 
-    testPull (helper, switches, itemName1, itemName2, badItem) {
+    testPull(helper, switches, itemName1, itemName2, badItem) {
         const DOWNLOAD_TARGET = UnitTest.DOWNLOAD_DIR; // Relative to the CLI directory.
         describe("CLI-unit-pulling " + switches, function () {
             it("test emitters working", function (done) {
@@ -118,7 +119,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -146,7 +147,7 @@ class PullUnitTest extends UnitTest {
             });
 
             it("test resource emitters working", function (done) {
-                if (switches !== "-a" ) {
+                if (switches !== "-a") {
                     return done();
                 }
 
@@ -167,7 +168,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -286,7 +287,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -337,7 +338,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
                             if (DRAFT_SITES) {
@@ -416,7 +417,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
                             if (DRAFT_SITES) {
@@ -498,7 +499,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ready", "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ready", "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
                             // Verify that the stub was called twice, and that the expected message was returned.
@@ -555,7 +556,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ready", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ready", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
                             // Verify that the stub was called once, and that the expected message was returned.
@@ -610,7 +611,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--draft", "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--draft", "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
                             // Verify that the stub was called once, and that the expected message was returned.
@@ -667,7 +668,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--draft", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--draft", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
                             // Verify that the stub was called once, and that the expected message was returned.
@@ -717,7 +718,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--path", "test", "--ignore-timestamps", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--path", "test", "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stubGet).to.have.been.calledOnce;
@@ -779,7 +780,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -831,7 +832,7 @@ class PullUnitTest extends UnitTest {
                 const promptRes = {};
                 promptRes[itemName2] = "y";
                 promptRes[itemName2 + "-1"] = "y";
-                stubPrompt.yields(null, promptRes );
+                stubPrompt.yields(null, promptRes);
                 const stubDelete = sinon.stub(helper, "deleteLocalItem");
                 stubDelete.onFirstCall().resolves({name: itemName2, id: undefined, path: itemName2});
                 stubDelete.onSecondCall().resolves({name: itemName2 + "-1", id: itemName2 + "-1", path: itemName2 + "-1"});
@@ -841,7 +842,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -892,7 +893,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -939,7 +940,7 @@ class PullUnitTest extends UnitTest {
                 const promptRes = {};
                 promptRes[itemName2] = "y";
                 promptRes[itemName2 + "-1"] = "y";
-                stubPrompt.yields(null, promptRes );
+                stubPrompt.yields(null, promptRes);
                 const stubDelete = sinon.stub(helper, "deleteLocalItem");
                 stubDelete.rejects("Error deleting local item");
 
@@ -947,7 +948,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function (msg) {
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -997,7 +998,7 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api', '-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (DRAFT_SITES && switches === "--pages") {
                             // Verify that the stub was called twice (once for each site), and that the expected message was returned.
@@ -1226,7 +1227,7 @@ class PullUnitTest extends UnitTest {
             });
 
             it("test pull failure", function (done) {
-                if (switches !== "-a" ) {
+                if (switches !== "-a") {
                     return done();
                 }
 
@@ -1260,11 +1261,11 @@ class PullUnitTest extends UnitTest {
         });
     }
 
-    testPullByManifest (helper, switches, itemName1, itemName2, badItem) {
+    testPullByManifest(helper, switches, itemName1, itemName2, badItem) {
         describe("CLI-unit-pull-manifest-fail", function () {
             it("fails if initializeManifests fails", function (done) {
                 const stub = sinon.stub(manifests, "initializeManifests");
-                stub.rejects(false);
+                stub.rejects(new Error("Expected failure"));
 
                 // Execute the command to pull using a manifest.
                 let error;
@@ -1275,7 +1276,7 @@ class PullUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the expected message was returned.
-                        expect(err.message).to.contain("could not be read");
+                        expect(err.message).to.contain("Expected failure");
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1416,7 +1417,7 @@ class PullUnitTest extends UnitTest {
                             expect(stubPull).to.have.been.calledTwice;
                             expect(msg).to.contain('4 artifacts successfully');
                             expect(msg).to.contain('4 errors');
-                        } else  {
+                        } else {
                             // Verify that the pull stub was called once, and that the expected message was returned.
                             expect(stubPull).to.have.been.calledOnce;
                             expect(msg).to.contain('2 artifacts successfully');
@@ -1505,7 +1506,7 @@ class PullUnitTest extends UnitTest {
         });
     }
 
-    testPullParamFail (helper, switches) {
+    testPullParamFail(helper, switches) {
         describe("CLI-unit-pulling", function () {
             const command = 'pull';
             it("test fail extra param", function (done) {
@@ -1683,7 +1684,7 @@ class PullUnitTest extends UnitTest {
                         expect(stub).to.have.been.calledOnce;
                         expect(err.message).to.contain(INIT_ERROR);
                     })
-                    .catch (function (err) {
+                    .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;
                     })
@@ -1714,7 +1715,7 @@ class PullUnitTest extends UnitTest {
                     .catch(function (err) {
                         expect(err.message).to.contain("cannot specifiy both ready and draft");
                     })
-                    .catch (function (err) {
+                    .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;
                     })
@@ -1746,7 +1747,7 @@ class PullUnitTest extends UnitTest {
                     .catch(function (err) {
                         expect(err.message).to.contain("cannot specifiy both ready and manifest");
                     })
-                    .catch (function (err) {
+                    .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;
                     })
@@ -1784,7 +1785,7 @@ class PullUnitTest extends UnitTest {
                     .catch(function (err) {
                         expect(err.message).to.contain("cannot specifiy both draft and manifest");
                     })
-                    .catch (function (err) {
+                    .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;
                     })
@@ -1821,7 +1822,7 @@ class PullUnitTest extends UnitTest {
                     .catch(function (err) {
                         expect(err.message).to.contain("path can only be used for web assets, content types, layouts, and layout mappings.");
                     })
-                    .catch (function (err) {
+                    .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
                         error = err;
                     })
@@ -1836,9 +1837,115 @@ class PullUnitTest extends UnitTest {
         });
     }
 
-    testPullByTypeName (helper, switches, itemName1, itemName2, badItem) {
+    testPullByTypeName(helper, switches, itemName1, itemName2, badItem) {
         const DOWNLOAD_TARGET = UnitTest.DOWNLOAD_DIR; // Relative to the CLI directory.
         describe("CLI-unit-pulling-by-type-name " + switches, function () {
+            it("should fail if searchRemote fails", function (done) {
+                const SEARCH_ERROR = "An error occurred while searching, as expected by unit test.";
+                const typeSearchStub = sinon.stub(helper, "searchRemote");
+                typeSearchStub.rejects(SEARCH_ERROR);
+
+                const typeItemStub = sinon.stub(helper, "pullItem");
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--by-type-name", "Article", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(typeSearchStub).to.have.been.calledOnce;
+                        expect(typeItemStub).to.not.have.been.called;
+                        expect(err.message).to.contain('1 error');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        typeSearchStub.restore();
+                        typeItemStub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed even if all pullItem calls fail", function (done) {
+                // Stub the helper.searchRemote method to return a promise that is resolved asynchronously.
+                const item = {"id":UnitTest.DUMMY_ID, name: itemName1, "thumbnail":{"id":"thumbnail-asset-id"},
+                    "elements":[{"elementType":"image", "key":"image"}, {"elementType":"reference"}]};
+                const typeSearchStub = sinon.stub(helper, "searchRemote", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        stubDeferred.resolve([item]);
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Stub the helper.pullItem method to reject.
+                const PULL_ERROR = "An error occurred while pulling, as expected by unit test.";
+                const typeItemStub = sinon.stub(helper, "pullItem");
+                typeItemStub.rejects(PULL_ERROR);
+
+                // Stub the contentHelper.searchRemote method to return a promise that is resolved asynchronously.
+                const contentHelper = ToolsApi.getContentHelper();
+                const contentSearchStub = sinon.stub(contentHelper, "searchRemote", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        stubDeferred.resolve([{"id": "content-1"}]);
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Stub the contentHelper.pullItem method to reject.
+                const contentItemStub = sinon.stub(contentHelper, "pullItem");
+                contentItemStub.rejects(PULL_ERROR);
+
+                // Stub the assetsHelper.pullItem method to reject.
+                const assetStub = sinon.stub(ToolsApi.getAssetsHelper(), "pullItem");
+                assetStub.rejects(PULL_ERROR);
+
+                // Stub the renditionsHelper.pullItem method to reject.
+                const renditionsStub = sinon.stub(ToolsApi.getRenditionsHelper(), "pullItem");
+                renditionsStub.rejects(PULL_ERROR);
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--by-type-name", "Article", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (message) {
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(typeSearchStub).to.have.been.calledOnce;
+                        expect(typeItemStub).to.have.been.calledOnce;
+                        expect(contentSearchStub).to.have.been.calledOnce;
+                        expect(contentItemStub).to.have.been.calledOnce;
+                        expect(assetStub).to.not.have.been.called;
+                        expect(renditionsStub).to.not.have.been.called;
+                        expect(message).to.contain('No items pulled');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        typeSearchStub.restore();
+                        typeItemStub.restore();
+                        contentSearchStub.restore();
+                        contentItemStub.restore();
+                        assetStub.restore();
+                        renditionsStub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("test emitters working", function (done) {
                 // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
                 const item = {"id":UnitTest.DUMMY_ID, name: itemName1, "thumbnail":{"id":"thumbnail-asset-id"},
@@ -1847,7 +1954,7 @@ class PullUnitTest extends UnitTest {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        stubDeferred.resolve([item] );
+                        stubDeferred.resolve([item]);
                     }, 0);
                     return stubDeferred.promise;
                 });
@@ -1865,11 +1972,11 @@ class PullUnitTest extends UnitTest {
                 });
                 const contentItem = { "name": "content-1", "id": "content-1", "path": "none",
                     "elements": {
-                        "image":{
-                            "renditions":{"thumbnail":{"renditionId":"asset-thumbnail-rendition-id"}},
-                            "asset": {"id":"content-asset-id"},
+                        "image": {
+                            "renditions": {"thumbnail": {"renditionId": "asset-thumbnail-rendition-id"}},
+                            "asset": {"id": "content-asset-id"},
                         },
-                        "thumbnail": { "renditionId" : "content-thumbnail-rendition-id", "source": "somesource" },
+                        "thumbnail": {"renditionId": "content-thumbnail-rendition-id", "source": "somesource"},
                     }
                 };
                 // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
@@ -1878,7 +1985,7 @@ class PullUnitTest extends UnitTest {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        stubDeferred.resolve([{"id":"content-1"}]);
+                        stubDeferred.resolve([{"id": "content-1"}]);
                     }, 0);
                     return stubDeferred.promise;
                 });
@@ -1886,8 +1993,8 @@ class PullUnitTest extends UnitTest {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pulled", contentItem );
+                        const emitter = contentHelper.getEventEmitter(context);
+                        emitter.emit("pulled", contentItem);
                         emitter.emit("pulled-error", {message: "This content failure was expected by the unit test"}, badItem);
                         emitter.emit("post-process", contentItem);
                         stubDeferred.resolve();
@@ -1899,8 +2006,8 @@ class PullUnitTest extends UnitTest {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pulled", {"id":"asset-id", "path":"/some-asset-path", "name":"some-asset"} );
+                        const emitter = assetHelper.getEventEmitter(context);
+                        emitter.emit("pulled", {"id": "asset-id", "path": "/some-asset-path", "name": "some-asset"});
                         emitter.emit("pulled-error", {message: "This asset failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -1911,8 +2018,12 @@ class PullUnitTest extends UnitTest {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
-                        const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pulled", {"id":"rendition-id", "path":"/some-rendition-path", "name":"some-rendition"} );
+                        const emitter = renditionsHelper.getEventEmitter(context);
+                        emitter.emit("pulled", {
+                            "id": "rendition-id",
+                            "path": "/some-rendition-path",
+                            "name": "some-rendition"
+                        });
                         emitter.emit("pulled-error", {message: "This rendition failure was expected by the unit test"}, badItem);
                         stubDeferred.resolve();
                     }, 0);
@@ -1922,13 +2033,18 @@ class PullUnitTest extends UnitTest {
                 // Execute the command to pull the items to the download directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--by-type-name", "Article", "--dir", downloadTarget,'--user','foo','--password','password', '--url', 'http://foo.bar/api','-v'])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--by-type-name", "Article", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(typeSearchStub).to.have.been.calledOnce;
                         expect(typeItemStub).to.have.been.calledOnce;
                         expect(contentSearchStub).to.have.been.calledOnce;
                         expect(contentItemStub).to.have.been.calledOnce;
+                        expect(assetStub).to.have.been.calledTwice;
+                        expect(assetStub.firstCall.args[1]).to.be.oneOf(["thumbnail-asset-id", "content-asset-id"]);
+                        expect(assetStub.secondCall.args[1]).to.be.oneOf(["thumbnail-asset-id", "content-asset-id"]);
+                        expect(renditionsStub).to.have.been.calledOnce;
+                        expect(renditionsStub.firstCall.args[1]).to.equal("asset-thumbnail-rendition-id");
                         expect(msg).to.contain('artifacts successfully');
                         expect(msg).to.contain('error');
                     })
@@ -1949,6 +2065,284 @@ class PullUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            if (switches === "-A") {
+                it("test emitters working verbose", function (done) {
+                    // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
+                    const item = {"id": UnitTest.DUMMY_ID, name: itemName1};
+                    const typeSearchStub = sinon.stub(helper, "searchRemote", function () {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            stubDeferred.resolve([item]);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const typeItemStub = sinon.stub(helper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", {name: itemName1, id: UnitTest.DUMMY_ID, path: itemName1});
+                            emitter.emit("pulled", {name: itemName1, id: UnitTest.DUMMY_ID});
+                            emitter.emit("pulled-error", {message: "This type failure was expected by the unit test"}, badItem);
+                            emitter.emit("post-process", item);
+                            stubDeferred.resolve(item);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const contentItem = {
+                        "name": "content-1", "id": "content-1", "path": "none",
+                        "elements": {
+                            "image": {
+                                "renditions": {"thumbnail": {"renditionId": "asset-thumbnail-rendition-id"}},
+                                "asset": {"id": "content-asset-id"},
+                            },
+                            "thumbnail": {"renditionId": "content-thumbnail-rendition-id", "source": "somesource"},
+                        }
+                    };
+                    // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
+                    const contentHelper = ToolsApi.getContentHelper();
+                    const contentSearchStub = sinon.stub(contentHelper, "searchRemote", function () {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            stubDeferred.resolve([{"id": "content-1"}]);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const contentItemStub = sinon.stub(contentHelper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = contentHelper.getEventEmitter(context);
+                            emitter.emit("pulled", contentItem);
+                            emitter.emit("pulled-error", {message: "This content failure was expected by the unit test"}, badItem);
+                            emitter.emit("post-process", contentItem);
+
+                            // Do some extra post-processing for different combinations of content information.
+                            const contentNoElements = {"name": "content-2", "id": "content-2", "path": "none"};
+                            emitter.emit("post-process", contentNoElements);
+
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const assetHelper = ToolsApi.getAssetsHelper();
+                    const assetStub = sinon.stub(assetHelper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = assetHelper.getEventEmitter(context);
+                            emitter.emit("pulled", {
+                                "id": "asset-id",
+                                "path": "/some-asset-path",
+                                "name": "some-asset"
+                            });
+                            emitter.emit("pulled-error", {message: "This asset failure was expected by the unit test"}, badItem);
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const renditionsHelper = ToolsApi.getRenditionsHelper();
+                    const renditionsStub = sinon.stub(renditionsHelper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = renditionsHelper.getEventEmitter(context);
+                            emitter.emit("pulled", {
+                                "id": "rendition-id",
+                                "path": "/some-rendition-path",
+                                "name": "some-rendition"
+                            });
+                            emitter.emit("pulled-error", {message: "This rendition failure was expected by the unit test"}, badItem);
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    // Execute the command to pull the items to the download directory.
+                    let error;
+                    const downloadTarget = DOWNLOAD_TARGET;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--by-type-name", "Article", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
+                        .then(function (msg) {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(typeSearchStub).to.have.been.calledOnce;
+                            expect(typeItemStub).to.have.been.calledOnce;
+                            expect(contentSearchStub).to.have.been.calledOnce;
+                            expect(contentItemStub).to.have.been.calledOnce;
+                            expect(assetStub).to.not.have.been.called;
+                            expect(renditionsStub).to.not.have.been.called;
+                            expect(msg).to.contain('artifacts successfully');
+                            expect(msg).to.contain('error');
+                        })
+                        .catch(function (err) {
+                            // Pass the error to the "done" function to indicate a failed test.
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's "pullModifiedItems" method.
+                            typeItemStub.restore();
+                            typeSearchStub.restore();
+                            contentSearchStub.restore();
+                            contentItemStub.restore();
+                            assetStub.restore();
+                            renditionsStub.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+
+                it("test different content post process scenarios", function (done) {
+                    // Stub the helper searchRemote and pullItem methods.
+                    const item = {
+                        "id": UnitTest.DUMMY_ID,
+                        name: itemName1,
+                        "elements": [{"elementType": "image", "key": "image"}]
+                    };
+                    const typeSearchStub = sinon.stub(helper, "searchRemote", function () {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            stubDeferred.resolve([item]);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const typeItemStub = sinon.stub(helper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", {name: itemName1, id: UnitTest.DUMMY_ID, path: itemName1});
+                            emitter.emit("pulled", {name: itemName1, id: UnitTest.DUMMY_ID});
+                            emitter.emit("pulled-error", {message: "This type failure was expected by the unit test"}, badItem);
+                            emitter.emit("post-process", item);
+                            stubDeferred.resolve(item);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const contentItem1 = {
+                        "name": "content-1", "id": "content-1", "path": "none",
+                        "elements": {
+                            "image": {
+                                "renditions": {"thumbnail": {"renditionId": "asset-thumbnail-rendition-id"}},
+                                "thumbnail": {"renditionId": "content-thumbnail-rendition-id", "source": "somesource"}
+                            }
+                        }
+                    };
+                    const contentItem2 = {
+                        "name": "content-2", "id": "content-2", "path": "none",
+                        "elements": {
+                            "image": {
+                                "asset": {"id": "content-asset-id"}
+                            }
+                        }
+                    };
+                    const contentItem3 = {
+                        "name": "content-3", "id": "content-3", "path": "none",
+                        "elements": {
+                            "image": {
+                                "renditions": {"thumbnail": {"renditionId": "r=foo&a=bar"}}
+                            }
+                        }
+                    };
+                    // Stub the helper.pullModifiedItems method to return a promise that is resolved after emitting events.
+                    const contentHelper = ToolsApi.getContentHelper();
+                    const contentSearchStub = sinon.stub(contentHelper, "searchRemote", function () {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            stubDeferred.resolve([{"id": "content-1"}]);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const contentItemStub = sinon.stub(contentHelper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = contentHelper.getEventEmitter(context);
+                            emitter.emit("pulled", contentItem1);
+                            emitter.emit("pulled", contentItem2);
+                            emitter.emit("pulled", contentItem3);
+                            emitter.emit("pulled-error", {message: "This content failure was expected by the unit test"}, badItem);
+                            emitter.emit("post-process", contentItem1);
+                            emitter.emit("post-process", contentItem2);
+                            emitter.emit("post-process", contentItem3);
+
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const assetHelper = ToolsApi.getAssetsHelper();
+                    const assetStub = sinon.stub(assetHelper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = assetHelper.getEventEmitter(context);
+                            emitter.emit("pulled", {
+                                "id": "asset-id",
+                                "path": "/some-asset-path",
+                                "name": "some-asset"
+                            });
+                            emitter.emit("pulled-error", {message: "This asset failure was expected by the unit test"}, badItem);
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                    const renditionsHelper = ToolsApi.getRenditionsHelper();
+                    const renditionsStub = sinon.stub(renditionsHelper, "pullItem", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = renditionsHelper.getEventEmitter(context);
+                            emitter.emit("pulled", {
+                                "id": "rendition-id",
+                                "path": "/some-rendition-path",
+                                "name": "some-rendition"
+                            });
+                            emitter.emit("pulled-error", {message: "This rendition failure was expected by the unit test"}, badItem);
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    // Execute the command to pull the items to the download directory.
+                    let error;
+                    const downloadTarget = DOWNLOAD_TARGET;
+                    toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--by-type-name", "Article", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
+                        .then(function (msg) {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(typeSearchStub).to.have.been.calledOnce;
+                            expect(typeItemStub).to.have.been.calledOnce;
+                            expect(contentSearchStub).to.have.been.calledOnce;
+                            expect(contentItemStub).to.have.been.calledOnce;
+                            expect(assetStub).to.have.been.calledOnce;
+                            expect(assetStub.firstCall.args[1]).to.equal("content-asset-id");
+                            expect(renditionsStub).to.have.been.calledTwice;
+                            expect(renditionsStub.firstCall.args[1]).to.be.oneOf(["asset-thumbnail-rendition-id", "content-thumbnail-rendition-id"]);
+                            expect(renditionsStub.secondCall.args[1]).to.be.oneOf(["asset-thumbnail-rendition-id", "content-thumbnail-rendition-id"]);
+                            expect(msg).to.contain('artifacts successfully');
+                            expect(msg).to.contain('error');
+                        })
+                        .catch(function (err) {
+                            // Pass the error to the "done" function to indicate a failed test.
+                            error = err;
+                        })
+                        .finally(function () {
+                            // Restore the helper's "pullModifiedItems" method.
+                            typeItemStub.restore();
+                            typeSearchStub.restore();
+                            contentSearchStub.restore();
+                            contentItemStub.restore();
+                            assetStub.restore();
+                            renditionsStub.restore();
+
+                            // Call mocha's done function to indicate that the test is over.
+                            done(error);
+                        });
+                });
+            }
         });
     }
 }

@@ -91,6 +91,17 @@ class PagesREST extends JSONPathBasedItemREST {
     }
 
     /*
+     * Override _getItem so we can add the pages specific query param
+     */
+    _getItem(context, id, queryParams, opts) {
+        if (!queryParams) {
+            queryParams = {};
+        }
+        queryParams.include = "hierarchicalPath";
+        return super._getItem(context, id, queryParams, opts);
+    }
+
+    /*
      * Overrideable method for delete URI for the REST object
      * @param {string} uri
      * @return {string} uri, optionally modified, with query parameters

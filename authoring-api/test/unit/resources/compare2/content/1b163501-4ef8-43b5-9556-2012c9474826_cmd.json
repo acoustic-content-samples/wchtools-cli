@@ -1,0 +1,117 @@
+{
+  "id": "1b163501-4ef8-43b5-9556-2012c9474826",
+  "name": "Sustainability in mind",
+  "description": "",
+  "typeId": "bb88eef0-149b-4e1f-a0ed-fd8efd5fa3a4",
+  "tags": [],
+  "status": "ready",
+  "elements": {
+    "heading": {
+      "elementType": "text",
+      "value": "Furniture designed with sustainability in mind"
+    },
+    "author": {
+      "elementType": "text",
+      "value": "Piero Lissoni"
+    },
+    "body": {
+      "elementType": "formattedtext",
+      "values": [
+        "<p>At Stockholm, we pride ourselves on our commitment to sustainability. We focus on protecting our environment &mdash; and our customers &mdash; by using recycled or renewable resources for our furniture.&nbsp;</p>\n",
+        "<p>Many of our designs utilize bamboo. Technically a grass, it grows much quicker than trees, making bamboo an excellent substitute for wood. Bamboo can be re-planted successfully so as not to damage local environments.&nbsp;</p>\n",
+        "<p>Recycled plastics and metals are excellent materials for furniture as well. But it&#39;s important to remember that a product is not necessarily recyclable just because it is made from recycled materials. The majority of our furniture is made from recycled material, but we also offer many products that are certified cradle-to-cradle, or C2C. Products that are cradle-to-cradle certified can be quickly taken apart and recycled when they are no longer useful or suitable for your home.&nbsp;</p>\n",
+        "<p>When you place an order with Stockholm, you have the option to let us recycle your old furniture. If it&#39;s gently used, we can find a home for it at a local thrift shop. And if it&#39;s past its prime but recyclable, we will gladly reuse it for you at no additional cost.&nbsp;</p>"
+      ]
+    },
+    "leadImageCaption": {
+      "elementType": "text"
+    },
+    "date": {
+      "elementType": "datetime",
+      "value": "2017-09-11T04:00:00Z"
+    },
+    "bodyImage": {
+      "elementType": "reference",
+      "values": [
+        {
+          "id": "992dcbd2-152f-4ed5-9e97-808b844ce363",
+          "name": "Environmental Sustainability",
+          "typeId": "f9e7f0b9-f57d-4d91-a257-54a64c1ff52f",
+          "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+          "status": "ready"
+        }
+      ]
+    },
+    "relatedArticles": {
+      "elementType": "reference",
+      "value": {
+        "id": "22774541-8501-4075-a502-5e64be881e73",
+        "name": "Related Sustainability Page dynamic list",
+        "typeId": "84c0e928-6585-4d34-ba02-5ed1b2e4c21c",
+        "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+        "status": "ready"
+      }
+    },
+    "leadImage": {
+      "elementType": "image",
+      "renditions": {
+        "default": {
+          "renditionId": "r=9527b24b-1761-42d3-b489-e9fd44f8973e&a=6aec8e67-184f-4c15-a24d-e8e075c3a542",
+          "source": "/authoring/v1/resources/9527b24b-1761-42d3-b489-e9fd44f8973e",
+          "width": 2000,
+          "height": 883
+        },
+        "card": {
+          "renditionId": "b93132b6-5a58-4ec2-a253-d20de22ad6b5",
+          "source": "/authoring/v1/resources/9527b24b-1761-42d3-b489-e9fd44f8973e?resize=815px:360px&crop=640:360;88,0",
+          "width": 640,
+          "height": 360
+        },
+        "lead": {
+          "renditionId": "d43536b6-beec-44a1-9bf2-1ea906fff145",
+          "source": "/authoring/v1/resources/9527b24b-1761-42d3-b489-e9fd44f8973e?resize=1413px:624px&crop=1200:624;107,0",
+          "width": 1200,
+          "height": 624
+        }
+      },
+      "asset": {
+        "id": "6aec8e67-184f-4c15-a24d-e8e075c3a542",
+        "resourceUri": "/authoring/v1/resources/9527b24b-1761-42d3-b489-e9fd44f8973e",
+        "fileName": "sustain_header_img3.jpg",
+        "fileSize": 383690,
+        "mediaType": "image/jpeg",
+        "width": 2000,
+        "height": 883
+      }
+    },
+    "leadImageCredit": {
+      "elementType": "text"
+    }
+  },
+  "selectedLayouts": [
+    {
+      "layout": {
+        "id": "sustainability-page-left"
+      }
+    }
+  ],
+  "kind": [
+    "page"
+  ],
+  "thumbnail": {
+    "id": "6aec8e67-184f-4c15-a24d-e8e075c3a542",
+    "url": "/authoring/v1/resources/9527b24b-1761-42d3-b489-e9fd44f8973e?fit=inside%7C220:145"
+  },
+  "lastModified": "2018-05-09T16:26:25.982Z",
+  "created": "2018-05-09T16:26:25.982Z",
+  "classification": "content",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "type": "Sustainability page",
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "rev": "1-3979ff4c992f8d141701a2ed6c5c6999"
+}

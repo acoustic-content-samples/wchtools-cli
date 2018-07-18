@@ -162,6 +162,16 @@ class ItemTypesHelper extends JSONPathBasedItemHelper {
     supportsDeleteById() {
         return true;
     }
+
+    /**
+     * Return a set of extra keys to be ignored for this artifact type.  This should be used to return a list
+     * of synthetic fields per artifact type.
+     *
+     * @return {Array} the names of the JSON elements to be ignored.
+     */
+    getExtraIgnoreKeys() {
+        return ["thumbnail/path", "thumbnail/url", "elements/*/restrictTypes/*/name"];
+    }
 }
 
 /**

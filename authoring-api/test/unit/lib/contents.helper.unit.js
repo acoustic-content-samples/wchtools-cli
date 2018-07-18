@@ -47,6 +47,7 @@ class ContentsHelperUnitTest extends BaseHelperUnit {
     runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
         this.testFilterRetryPushContent(helper);
         this.testFilterRetryDeleteContent(helper);
+        this.testCompare(restApi, fsApi, helper, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_1, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_2);
     }
 
     testFilterRetryPushContent (helper) {

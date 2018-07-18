@@ -1,0 +1,74 @@
+{
+  "rev": "1-3e2362c63f4fa8cf06816a00afd660e3",
+  "id": "400a646f-aac2-4190-a400-700a990a3870",
+  "name": "designtopic_clean_design_img1.jpg",
+  "resource": "6777a7e0-9cde-4005-bd2e-97630329eddc",
+  "description": "",
+  "altText": "",
+  "path": "/dxdam/design-topics/designtopic_clean_design_img1.jpg",
+  "tags": {
+    "values": [
+      "classification:sofa",
+      "classification:seat",
+      "classification:furniture",
+      "classification:davenport sofa",
+      "classification:convertible",
+      "classification:studio couch",
+      "classification:couch",
+      "classification:bed",
+      "classification:beige color",
+      "classification:sage green color"
+    ],
+    "declined": [],
+    "analysis": "pending"
+  },
+  "categoryIds": [],
+  "usageRights": {
+    "categories": []
+  },
+  "status": "ready",
+  "assetType": "image",
+  "fileName": "designtopic_clean_design_img1.jpg",
+  "mediaType": "image/jpeg",
+  "fileSize": 472759,
+  "digest": "mQ17OwUW4HApAcrlp6iBsQ==",
+  "metadata": {
+    "width": 1200,
+    "height": 797
+  },
+  "lastModified": "2018-05-09T16:22:56.076Z",
+  "created": "2018-05-09T16:22:56.075Z",
+  "classification": "asset",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "cognitive": {
+    "status": "pending"
+  },
+  "renditions": {
+    "default": {
+      "id": "r=6777a7e0-9cde-4005-bd2e-97630329eddc&a=400a646f-aac2-4190-a400-700a990a3870",
+      "source": "/authoring/v1/resources/6777a7e0-9cde-4005-bd2e-97630329eddc"
+    }
+  },
+  "isManaged": true,
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/400a646f-aac2-4190-a400-700a990a3870"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/6777a7e0-9cde-4005-bd2e-97630329eddc.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/v1/resources/6777a7e0-9cde-4005-bd2e-97630329eddc?fit=inside%7C220:145"
+    },
+    "retire": {
+      "href": "/authoring/v1/changes/asset/400a646f-aac2-4190-a400-700a990a3870/status/retire"
+    }
+  },
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "categories": []
+}

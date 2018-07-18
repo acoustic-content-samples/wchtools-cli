@@ -1,0 +1,20 @@
+{
+  "scale": 1,
+  "locationY": 0,
+  "height": 797,
+  "locationX": 0,
+  "id": "3a9918e7-95bd-4ab5-af03-b8c65d21cac8",
+  "classification": "rendition",
+  "asset": {
+    "mediaType": "image/jpeg",
+    "height": 797,
+    "fileName": "designtopic_max_space_img3.jpg",
+    "id": "39b4e865-60a8-4fbf-b2d8-90c034eca449",
+    "resource": "51b75318-d100-4dcc-9c5a-1b05574e42cb",
+    "fileSize": 466144,
+    "width": 1200
+  },
+  "width": 1200,
+  "created": "2018-05-09T16:25:32.524Z",
+  "rev": "1-77718779b704434e713206e395578310"
+}

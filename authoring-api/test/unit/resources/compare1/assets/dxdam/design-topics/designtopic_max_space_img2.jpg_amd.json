@@ -1,0 +1,74 @@
+{
+  "rev": "1-7dd16435d0988d3579de2f8e9a0127cf",
+  "id": "6292d56c-5369-4db9-bee8-6da8de605ba6",
+  "name": "designtopic_max_space_img2.jpg",
+  "resource": "a01cf5f7-a5a3-464c-b744-da663765801d",
+  "description": "",
+  "altText": "",
+  "path": "/dxdam/design-topics/designtopic_max_space_img2.jpg",
+  "tags": {
+    "values": [
+      "classification:wing chair",
+      "classification:armchair",
+      "classification:chair",
+      "classification:seat",
+      "classification:furniture",
+      "classification:backrest",
+      "classification:support",
+      "classification:furnishing",
+      "classification:charcoal color",
+      "classification:alabaster color"
+    ],
+    "declined": [],
+    "analysis": "pending"
+  },
+  "categoryIds": [],
+  "usageRights": {
+    "categories": []
+  },
+  "status": "ready",
+  "assetType": "image",
+  "fileName": "designtopic_max_space_img2.jpg",
+  "mediaType": "image/jpeg",
+  "fileSize": 344977,
+  "digest": "HtKYDOdBZrc/6HortZG52Q==",
+  "metadata": {
+    "width": 1200,
+    "height": 797
+  },
+  "lastModified": "2018-05-09T16:22:58.164Z",
+  "created": "2018-05-09T16:22:58.163Z",
+  "classification": "asset",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "cognitive": {
+    "status": "pending"
+  },
+  "renditions": {
+    "default": {
+      "id": "r=a01cf5f7-a5a3-464c-b744-da663765801d&a=6292d56c-5369-4db9-bee8-6da8de605ba6",
+      "source": "/authoring/v1/resources/a01cf5f7-a5a3-464c-b744-da663765801d"
+    }
+  },
+  "isManaged": true,
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/6292d56c-5369-4db9-bee8-6da8de605ba6"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/a01cf5f7-a5a3-464c-b744-da663765801d.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/v1/resources/a01cf5f7-a5a3-464c-b744-da663765801d?fit=inside%7C220:145"
+    },
+    "retire": {
+      "href": "/authoring/v1/changes/asset/6292d56c-5369-4db9-bee8-6da8de605ba6/status/retire"
+    }
+  },
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "categories": []
+}

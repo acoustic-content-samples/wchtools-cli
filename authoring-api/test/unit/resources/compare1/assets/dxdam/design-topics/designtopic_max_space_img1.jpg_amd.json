@@ -1,0 +1,73 @@
+{
+  "rev": "1-8ac23be81237ba0014dd13a751042ba9",
+  "id": "7251f03d-008a-4094-8060-a0e368f4a33b",
+  "name": "designtopic_max_space_img1.jpg",
+  "resource": "82177b90-bac3-45aa-93cb-22c7458d165d",
+  "description": "",
+  "altText": "",
+  "path": "/dxdam/design-topics/designtopic_max_space_img1.jpg",
+  "tags": {
+    "values": [
+      "classification:sectional furniture",
+      "classification:furniture",
+      "classification:davenport sofa",
+      "classification:convertible",
+      "classification:sofa",
+      "classification:seat",
+      "classification:living room",
+      "classification:indoors",
+      "classification:sage green color"
+    ],
+    "declined": [],
+    "analysis": "pending"
+  },
+  "categoryIds": [],
+  "usageRights": {
+    "categories": []
+  },
+  "status": "ready",
+  "assetType": "image",
+  "fileName": "designtopic_max_space_img1.jpg",
+  "mediaType": "image/jpeg",
+  "fileSize": 646010,
+  "digest": "Qo0LjuUi7cox+QbSxpr+WQ==",
+  "metadata": {
+    "width": 1200,
+    "height": 797
+  },
+  "lastModified": "2018-05-09T16:22:56.259Z",
+  "created": "2018-05-09T16:22:56.257Z",
+  "classification": "asset",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "cognitive": {
+    "status": "pending"
+  },
+  "renditions": {
+    "default": {
+      "id": "r=82177b90-bac3-45aa-93cb-22c7458d165d&a=7251f03d-008a-4094-8060-a0e368f4a33b",
+      "source": "/authoring/v1/resources/82177b90-bac3-45aa-93cb-22c7458d165d"
+    }
+  },
+  "isManaged": true,
+  "links": {
+    "self": {
+      "href": "/authoring/v1/assets/7251f03d-008a-4094-8060-a0e368f4a33b"
+    },
+    "media": {
+      "href": "/authoring/v1/resources/82177b90-bac3-45aa-93cb-22c7458d165d.jpg"
+    },
+    "thumbnail": {
+      "href": "/authoring/v1/resources/82177b90-bac3-45aa-93cb-22c7458d165d?fit=inside%7C220:145"
+    },
+    "retire": {
+      "href": "/authoring/v1/changes/asset/7251f03d-008a-4094-8060-a0e368f4a33b/status/retire"
+    }
+  },
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "categories": []
+}
