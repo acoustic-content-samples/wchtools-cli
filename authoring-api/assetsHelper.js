@@ -45,9 +45,6 @@ const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
 /**
- * High-level functionality for managing assets on the local file system and through the Content Hub API.
- */
-/**
  * Helper class for asset artifacts.
  *
  * Note: A helper object provides access to both the REST API and the local file system for a single artifact type.
@@ -859,10 +856,9 @@ class AssetsHelper extends BaseHelper {
                 }
             })
             .then(function (items) {
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
                 const filterPath = options.getRelevantOption(context, opts, "filterPath");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
+
+                if ((context.pullErrorCount === 0) && !filterPath) {
                     // Only update the last pull timestamp if there was no filtering and no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
@@ -933,10 +929,9 @@ class AssetsHelper extends BaseHelper {
                 }
             })
             .then(function (items) {
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
                 const filterPath = options.getRelevantOption(context, opts, "filterPath");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
+
+                if ((context.pullErrorCount === 0) && !filterPath) {
                     // Only update the last pull timestamp if there was no filtering and no pull errors.
                     helper._setLastPullTimestamps(context, timestamp, opts);
                 }
@@ -984,9 +979,6 @@ class AssetsHelper extends BaseHelper {
                 return true;
             }
         });
-
-        // Get the timestamp to set before we call the REST API.
-        const timestamp = new Date();
 
         let readyResults;
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
@@ -1046,11 +1038,6 @@ class AssetsHelper extends BaseHelper {
             })
             .then(function (assets) {
                 helper._updateManifest(context, assets, opts);
-                // Keep track of the timestamp of this operation, but only if there was no filtering and no errors.
-                const filterPath = options.getRelevantOption(context, opts, "filterPath");
-                if ((errorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
-                    helper._setLastPushTimestamps(context, timestamp, opts);
-                }
                 return assets;
             })
             .finally(function () {
@@ -1423,9 +1410,6 @@ class AssetsHelper extends BaseHelper {
             context.filterRetryPush = helper.filterRetryPush.bind(this);
         }
 
-        // Get the timestamp to set before we call the REST API.
-        const timestamp = new Date();
-
         // Throttle the number of resources to be pushed concurrently, using the currently configured limit.
         const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", helper.getArtifactName());
         const results = utils.throttledAll(context, paths.map(function (path) {
@@ -1449,13 +1433,6 @@ class AssetsHelper extends BaseHelper {
                         errorCount++;
                     }
                 });
-                return resources;
-            })
-            .then(function (resources) {
-                // Keep track of the timestamp of this operation, but only if there were no errors.
-                if (errorCount === 0) {
-                    hashes.setLastPushTimestamp(context, helper._fsApi.getResourcesPath(context, opts), timestamp, opts);
-                }
                 return resources;
             })
             .finally(function () {
@@ -2306,8 +2283,7 @@ class AssetsHelper extends BaseHelper {
 
         // Recursively call AssetsREST.getModifiedItems() to retrieve the remote assets modified since the last pull.
         const helper = this;
-        const lastPullTimestamps = helper._getLastPullTimestamps(context, opts);
-        const lastPullTimestamp = helper._getTimestamp(lastPullTimestamps, opts);
+        const lastPullTimestamp = helper.getLastPullTimestamp(context, opts);
         return helper._restApi.getModifiedItems(context, lastPullTimestamp, opts)
             .then(function (items) {
                 // Return a promise for the filtered list of remote modified assets.
@@ -2858,100 +2834,157 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
-     * Returns the last pull timestamps, converting from a single timestamp to the new multi-value timestamp format if needed.
+     * Get the last pull timestamp data, converting to the new draft/ready timestamp format if needed.
      *
      * @param {Object} context The API context to be used for this operation.
-     * @param opts
+     * @param {Object} opts The API options to be used for this operation.
      *
-     * @returns {{webAssets: String | Date, contentAssets: String | Date}}
+     * @returns {Object} The timestamp data for the last successful pull operation.
      */
     _getLastPullTimestamps (context, opts) {
         const dir = this._fsApi.getAssetsPath(context, opts);
         const timestamps = hashes.getLastPullTimestamp(context, dir, opts);
-        // create the timestamps object now
-        // we use the webAssets and contentAssets children of the timestamps read from .wchtoolshashes if they exist (new format)
-        // otherwise fall back to copying the old format (a single timestamp) into each field
-        return {
-            webAssets: (timestamps ? (timestamps.webAssets ? timestamps.webAssets : (timestamps.contentAssets ? undefined : timestamps)) : undefined),
-            contentAssets: (timestamps ? (timestamps.contentAssets ? timestamps.contentAssets : (timestamps.webAssets ? undefined : timestamps)) : undefined)
-        };
+
+        if (timestamps) {
+            if (typeof timestamps === "string") {
+                // Convert a single timestamp to the new format. The single timestamp is used for all of the new values.
+                return {
+                    webAssets: {"draft": timestamps, "ready": timestamps},
+                    contentAssets: {"draft": timestamps, "ready": timestamps}
+                };
+            } else {
+                const webAssetsTimestamps = timestamps["webAssets"];
+                if (webAssetsTimestamps) {
+                    if (typeof webAssetsTimestamps === "string") {
+                        // Convert a single web assets timestamp to the new format.
+                        timestamps["webAssets"] = {"draft": webAssetsTimestamps, "ready": webAssetsTimestamps};
+                    }
+                } else {
+                    // Add a webAssets property to the existing timestamp data.
+                    timestamps["webAssets"] = {};
+                }
+
+                const contentAssetsTimestamps = timestamps["contentAssets"];
+                if (contentAssetsTimestamps) {
+                    if (typeof contentAssetsTimestamps === "string") {
+                        // Convert a single content assets timestamp to the new format.
+                        timestamps["contentAssets"] = {
+                            "draft": contentAssetsTimestamps,
+                            "ready": contentAssetsTimestamps
+                        };
+                    }
+                } else {
+                    // Add a contentAssets property to the existing timestamp data.
+                    timestamps["contentAssets"] = {};
+                }
+
+                return timestamps;
+            }
+        } else {
+            // There are no timestamps in the hashes file.
+            return {webAssets: {}, contentAssets: {}};
+        }
     }
 
     /**
-     * Returns the last push timestamps, converting from a single timestap to the new multi-value timestamp format if needed.
+     * Set the last pull timestamp data.
      *
      * @param {Object} context The API context to be used for this operation.
-     * @param opts
-     *
-     * @returns {{webAssets: String | Date, contentAssets: String | Date}}
-     */
-    _getLastPushTimestamps (context, opts) {
-        const dir = this._fsApi.getAssetsPath(context, opts);
-        const timestamps = hashes.getLastPushTimestamp(context, dir, opts);
-        // create the timestamps object now
-        // we use the webAssets and contentAssets children of the timestamps read from .wchtoolshashes if they exist (new format)
-        // otherwise fall back to copying the old format (a single timestamp) into each field
-        return {
-            webAssets: (timestamps ? (timestamps.webAssets ? timestamps.webAssets : (timestamps.contentAssets ? undefined : timestamps)) : undefined),
-            contentAssets: (timestamps ? (timestamps.contentAssets ? timestamps.contentAssets : (timestamps.webAssets ? undefined : timestamps)) : undefined)
-        };
-    }
-
-    /**
-     * Sets the last pull timestamps.
-     *
-     * @param {Object} context The API context to be used for this operation.
-     * @param opts
+     * @param {String} timestamp The API options to be used for this operation.
+     * @param {Object} opts The API options to be used for this operation.
      */
     _setLastPullTimestamps (context, timestamp, opts) {
-        const timestamps = this._getLastPullTimestamps(context, opts);
+        const pullTimestamps = this._getLastPullTimestamps(context, opts);
+
+        // Store separate pull timestamps for draft and ready.
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
         if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
-            timestamps.webAssets = timestamp;
+            if (!draftOnly) {
+                // Store the ready timestamp if the operation is not draft only.
+                pullTimestamps.webAssets.ready = timestamp;
+            }
+            if (!readyOnly) {
+                // Store the draft timestamp if the operation is not ready only.
+                pullTimestamps.webAssets.draft = timestamp;
+            }
         } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
-            timestamps.contentAssets = timestamp;
+            if (!draftOnly) {
+                // Store the ready timestamp if the operation is not draft only.
+                pullTimestamps.contentAssets.ready = timestamp;
+            }
+            if (!readyOnly) {
+                // Store the draft timestamp if the operation is not ready only.
+                pullTimestamps.contentAssets.draft = timestamp;
+            }
         } else {
-            timestamps.webAssets = timestamps.contentAssets = timestamp;
+            if (!draftOnly) {
+                // Store the ready timestamp if the operation is not draft only.
+                pullTimestamps.webAssets.ready = timestamp;
+                pullTimestamps.contentAssets.ready = timestamp;
+            }
+            if (!readyOnly) {
+                // Store the draft timestamp if the operation is not ready only.
+                pullTimestamps.webAssets.draft = timestamp;
+                pullTimestamps.contentAssets.draft = timestamp;
+            }
         }
-        hashes.setLastPullTimestamp(context, this._fsApi.getAssetsPath(context, opts), timestamps, opts);
+
+        hashes.setLastPullTimestamp(context, this._fsApi.getAssetsPath(context, opts), pullTimestamps, opts);
     }
 
     /**
-     * Sets the last push timestamps.
+     * Get the timestamp of the last "similar" pull operation.
      *
      * @param {Object} context The API context to be used for this operation.
-     * @param opts
+     * @param {Object} opts The API options to be used for this operation.
+     *
+     * @returns {String} The timestamp data of the last "similar" pull operation.
      */
-    _setLastPushTimestamps (context, timestamp, opts) {
-        const timestamps = this._getLastPushTimestamps(context, opts);
-        if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
-            timestamps.webAssets = timestamp;
-        } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
-            timestamps.contentAssets = timestamp;
-        } else {
-            timestamps.webAssets = timestamps.contentAssets = timestamp;
-        }
-        hashes.setLastPushTimestamp(context, this._fsApi.getAssetsPath(context, opts), timestamps, opts);
-    }
+    getLastPullTimestamp(context, opts) {
+        const lastPullTimestamps = this._getLastPullTimestamps(context, opts) || {};
+        const webAssetTimestamps = lastPullTimestamps.webAssets || {};
+        const contentAssetTimestamps = lastPullTimestamps.contentAssets || {};
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
 
-    _getTimestamp (timestamps, opts) {
-        const webAssetTimestamp = timestamps.webAssets;
-        const contentAssetTimestamp = timestamps.contentAssets;
-        let timestamp;
         if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
-            timestamp = webAssetTimestamp;
-        } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
-            timestamp = contentAssetTimestamp;
-        } else {
-            // calculate the min of both timestamps
-            const webAssetDate = new Date(webAssetTimestamp);
-            const contentAssetDate = new Date(contentAssetTimestamp);
-            if (webAssetDate.valueOf() < contentAssetDate.valueOf()) {
-                timestamp = webAssetTimestamp;
+            // Get the appropriate web assets timestamp.
+            if (readyOnly) {
+                // A ready-only pull operation will use the ready timestamp.
+                return webAssetTimestamps["ready"];
+            } else if (draftOnly) {
+                // A draft-only pull operation will use the draft timestamp.
+                return webAssetTimestamps["draft"];
             } else {
-                timestamp = contentAssetTimestamp;
+                // A ready-and-draft pull operation will use the older timestamp to make sure all modified items are pulled.
+                return utils.getOldestTimestamp([webAssetTimestamps["draft"], webAssetTimestamps["ready"]]);
+            }
+        } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
+            // Get the appropriate content assets timestamp.
+            if (readyOnly) {
+                // A ready-only pull operation will use the ready timestamp.
+                return contentAssetTimestamps["ready"];
+            } else if (draftOnly) {
+                // A draft-only pull operation will use the draft timestamp.
+                return contentAssetTimestamps["draft"];
+            } else {
+                // A ready-and-draft pull operation will use the older timestamp to make sure all modified items are pulled.
+                return utils.getOldestTimestamp([contentAssetTimestamps["draft"], contentAssetTimestamps["ready"]]);
+            }
+        } else {
+            // Get the appropriate web assets or content assets timestamp.
+            if (readyOnly) {
+                // A ready-only pull operation will use the older ready timestamp.
+                return utils.getOldestTimestamp([webAssetTimestamps["ready"], contentAssetTimestamps["ready"]]);
+            } else if (draftOnly) {
+                // A draft-only pull operation will use the older draft timestamp.
+                return utils.getOldestTimestamp([webAssetTimestamps["draft"], contentAssetTimestamps["draft"]]);
+            } else {
+                // A ready-and-draft pull operation will use the oldest timestamp to make sure all modified items are pulled.
+                return utils.getOldestTimestamp([webAssetTimestamps["draft"], webAssetTimestamps["ready"], contentAssetTimestamps["draft"], contentAssetTimestamps["ready"]]);
             }
         }
-        return timestamp;
     }
 }
 

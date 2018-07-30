@@ -1,5 +1,12 @@
 # Changelog
 
+### 3.0 changes since 2.9
+
+  - NOTE:  The 3.0 major version number upgrade of wchtools has a change in default behavior.
+    - The DEFAULT for pull, push, list and compare has been changed to only operate on "ready" items.
+    - wchtools is commonly used to package up ready applications, sample or otherwise, to be transferred to another WCH tenant (staging to production, or a business partner building an application for a client) and you would typically only want the final (non-draft) ready items to be pulled from the staging tenant and sent to production tenant(s).
+    - To obtain the prior (draft and ready, for content and assets) behavior, you may use the --draft and --ready command line arguments, to the push, pull, compare, and list commands.
+
 ### 2.9.2 changes since 2.8.2
   - New compare command for comparing source and target exports or source export with a target tenant, optionally writing a manifest of updates needed in the target, from the source, along with an optional manifest of items deleted from source that could then be deleted from the target with wchtools delete --manifest
   - New optional push --publish-now argument, to override a global publishing schedule, when you need to push and publish new web artifacts immediately, to address an issue.

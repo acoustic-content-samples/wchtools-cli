@@ -27,6 +27,8 @@ const log4js = require('log4js');
 const ProductVersion = require("../package.json").version;
 const cliLog = "cli" + " " + ProductVersion;
 
+const DRAFT_SITES = false;
+
 class BaseCommand {
     /**
      * Create a BaseCommand object.
@@ -62,6 +64,16 @@ class BaseCommand {
         // The cleanup functions to execute after the command has been completed.
         this._cleanups = [];
     }
+
+    /**
+     * Determine whether draft sites (and pages) are supported.
+     *
+     * @returns {Boolean} A return value of true indicates that draft sites (and pages) are supported. A return value of
+     *                    false indicates that draft sites (and pages) are not supported.
+     */
+    static get DRAFT_SITES() {
+        return DRAFT_SITES;
+    };
 
     /**
      * Get the Commander program object used by this command.
@@ -471,12 +483,6 @@ class BaseCommand {
             if (this.getCommandLineOption("renditions")) {
                 this._optionArtifactCount++;
             }
-            if (this.getCommandLineOption("publishingSources")) {
-                this._optionArtifactCount++;
-            }
-            if (this.getCommandLineOption("publishingProfiles")) {
-                this._optionArtifactCount++;
-            }
             if (this.getCommandLineOption("publishingSiteRevisions")) {
                 this._optionArtifactCount++;
             }
@@ -802,32 +808,36 @@ class BaseCommand {
      */
     handleReadyDraftOptions () {
         const deferred = Q.defer();
-        const readyOnly = this.getCommandLineOption("ready");
-        //const draftOnly = this.getCommandLineOption("draft");
+        const ready = this.getCommandLineOption("ready");
+        const draft = this.getCommandLineOption("draft");
         const manifest = this.getCommandLineOption("manifest");
-        if (readyOnly) {
-            /*if (draftOnly) {
-                // Cannot specify both the "ready" and "draft" options.
-                const errorMessage = i18n.__('cli_ready_and_draft_options');
-                deferred.reject(new Error(errorMessage));
-            } else*/ if (manifest) {
+        if (ready) {
+            if (manifest) {
                 // Cannot specify both the "ready" and "manifest" options.
                 const errorMessage = i18n.__('cli_ready_and_manifest_options');
                 deferred.reject(new Error(errorMessage));
             } else {
-                this.setApiOption("filterReady", true);
+                if (!draft) {
+                    // Ready was specified, draft was not.
+                    this.setApiOption("filterReady", true);
+                }
+
+                // Note: If both ready and draft were specified, no filtering is required.
                 deferred.resolve();
             }
-        } /*else if (draftOnly) {
+        } else if (draft) {
             if (manifest) {
                 // Cannot specify both the "draft" and "manifest" options.
                 const errorMessage = i18n.__('cli_draft_and_manifest_options');
                 deferred.reject(new Error(errorMessage));
             } else {
+                // Draft was specified, ready was not.
                 this.setApiOption("filterDraft", true);
                 deferred.resolve();
             }
-        }*/ else {
+        } else {
+            // If neither ready nor draft is specified, default to ready.
+            this.setApiOption("filterReady", true);
             deferred.resolve();
         }
 
@@ -857,11 +867,9 @@ class BaseCommand {
                 deferred.resolve();
             } else {
                 // Determine what type of sites to use for this command -- draft, ready, or both.
+                // Note that draft sites must always be included for the delete --all command.
                 const includeReadySites = this.getCommandLineOption("ready") || !this.getCommandLineOption("draft");
-                const includeDraftSites = (this.getCommandLineOption("draft") || !this.getCommandLineOption("ready")) && this.getCommandLineOption("all");
-
-                // TODO Until the Sites API defects for push and pull of draft pages/sites are fixed, only allow the
-                // TODO draft site to be included for the delete --all command.
+                const includeDraftSites = (this.getCommandLineOption("draft") && BaseCommand.DRAFT_SITES) || this.getCommandLineOption("all");
 
                 // Get all sites, either local or remote.
                 const getSites = remote ? ToolsApi.getRemoteSites : ToolsApi.getLocalSites;
@@ -885,13 +893,13 @@ class BaseCommand {
                             });
                         } else {
                             // There are no local site artifacts, so just use the defaults.
-                            //if (includeReadySites) {
+                            if (includeReadySites) {
                                 readySiteIds.push("default");
-                            //}
+                            }
 
-                            //if (includeDraftSites) {
-                            //    draftSiteIds.push("default:draft");
-                            //}
+                            if (includeDraftSites) {
+                                draftSiteIds.push("default:draft");
+                            }
 
                             // TODO Do we need a more robust solution when additional sites can be created?
                         }

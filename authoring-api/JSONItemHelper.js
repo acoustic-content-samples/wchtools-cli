@@ -367,14 +367,14 @@ class JSONItemHelper extends BaseHelper {
                 deferred.reject(err);
             });
 
-        // After the promise has been resolved, update the last pull timestamp (but only if there were no errors.)
+        // After the promise has been resolved, update the last pull timestamp.
         return deferred.promise
             .then(function (items) {
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
                 const filterPath = options.getRelevantOption(context, opts, "filterPath");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
-                    hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
+
+                // Only update the last pull timestamp if there were no errors and items are not being filtered by path.
+                if ((context.pullErrorCount === 0) && !filterPath) {
+                    helper._setLastPullTimestamps(context, timestamp, opts);
                 }
                 const emitter = helper.getEventEmitter(context);
                 if (deletions && emitter) {
@@ -430,20 +430,96 @@ class JSONItemHelper extends BaseHelper {
                 deferred.reject(err);
             });
 
-        // After the promise has been resolved, update the last pull timestamp (but only if there were no errors.)
+        // After the promise has been resolved, update the last pull timestamp.
         return deferred.promise
             .then(function (items) {
-                const readyOnly = options.getRelevantOption(context, opts, "filterReady");
-                const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
                 const filterPath = options.getRelevantOption(context, opts, "filterPath");
-                if ((context.pullErrorCount === 0) && !readyOnly && !draftOnly && !filterPath) {
-                    hashes.setLastPullTimestamp(context, helper._fsApi.getDir(context, opts), timestamp, opts);
+
+                // Only update the last pull timestamp if there were no errors and items are not being filtered by path.
+                if ((context.pullErrorCount === 0) && !filterPath) {
+                    helper._setLastPullTimestamps(context, timestamp, opts);
                 }
                 return items;
             })
             .finally(function () {
                 delete context.pullErrorCount;
             });
+    }
+
+    /**
+     * Get the timestamp for the last "similar" pull operation.
+     *
+     * @example "2017-01-16T22:30:05.928Z"
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The API options to be used for this operation.
+     *
+     * @returns {Object} The timestamp for the last "similar" pull operation, or undefined.
+     */
+    getLastPullTimestamp(context, opts) {
+        const timestamps = this._getLastPullTimestamps(context, opts);
+
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        if (readyOnly) {
+            // A ready-only pull operation will use the ready timestamp.
+            return timestamps["ready"];
+        } else if (draftOnly) {
+            // A draft-only pull operation will use the draft timestamp.
+            return timestamps["draft"];
+        } else {
+            // A ready-and-draft pull operation will use the older timestamp to make sure all modified items are pulled.
+            return utils.getOldestTimestamp([timestamps["draft"], timestamps["ready"]]);
+        }
+    }
+
+    /**
+     * Get the timestamp data for the last pull operation, converting to the new draft/ready format if needed.
+     *
+     * @example {"draft": "2017-01-16T22:30:05.928Z", "ready": "2017-01-16T22:30:05.928Z"}
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The API options to be used for this operation.
+     *
+     * @returns {Object} The last pull timestamp data.
+     */
+    _getLastPullTimestamps(context, opts) {
+        const dir = this._fsApi.getDir(context, opts);
+        const timestamps = hashes.getLastPullTimestamp(context, dir, opts);
+
+        if (typeof timestamps === "string") {
+            // Convert from a single timestamp value to the new draft/ready format.
+            return {"draft": timestamps, "ready": timestamps};
+        } else {
+            // Return the existing data, or an empty object if there is no existing data.
+            return timestamps || {};
+        }
+    }
+
+    /**
+     * Set the timestamp data for the last pull operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Date} timestamp The current timestamp to be used.
+     * @param {Object} opts The API options to be used for this operation.
+     */
+    _setLastPullTimestamps(context, timestamp, opts) {
+        const pullTimestamps = this._getLastPullTimestamps(context, opts);
+
+        // Store separate pull timestamps for draft and ready.
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        if (!draftOnly) {
+            // Store the ready timestamp if the operation is not draft only.
+            pullTimestamps["ready"] = timestamp;
+        }
+        if (!readyOnly) {
+            // Store the draft timestamp if the operation is not ready only.
+            pullTimestamps["draft"] = timestamp;
+        }
+
+        const dir = this._fsApi.getDir(context, opts);
+        hashes.setLastPullTimestamp(context, dir, pullTimestamps, opts);
     }
 
     /**
@@ -728,7 +804,7 @@ class JSONItemHelper extends BaseHelper {
     getModifiedRemoteItems (context, flags, opts) {
         const helper = this;
         const dir = helper._fsApi.getPath(context, opts);
-        return helper._restApi.getModifiedItems(context, hashes.getLastPullTimestamp(context, dir, opts), opts)
+        return helper._restApi.getModifiedItems(context, helper.getLastPullTimestamp(context, opts), opts)
             .then(function (items) {
                 const results = items.filter(function (item) {
                     try {
@@ -1356,6 +1432,25 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
+     * Get the status of the given item.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} item The item for which to get the status.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {String} "ready" or "draft".
+     *
+     * @protected
+     */
+    getStatus(context, item, opts) {
+        if (item && item.status && item.status === "draft") {
+            return "draft";
+        } else {
+            return "ready";
+        }
+    }
+
+    /**
      * Filter the given list of items before completing the pull operation.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -1372,13 +1467,15 @@ class JSONItemHelper extends BaseHelper {
         const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
         if (readyOnly) {
             // Filter out any items that are not ready.
+            const self = this;
             itemList = itemList.filter(function (item) {
-                return (!item.status || item.status === "ready");
+                return (self.getStatus(context, item, opts) === "ready");
             });
         } else if (draftOnly) {
             // Filter out any items that are not draft.
+            const self = this;
             itemList = itemList.filter(function (item) {
-                return (item.status === "draft");
+                return (self.getStatus(context, item, opts) === "draft");
             });
         }
 

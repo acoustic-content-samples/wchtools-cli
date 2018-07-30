@@ -1666,7 +1666,7 @@ function pullCommand (program) {
         .option('--write-manifest <manifest>',i18n.__('cli_pull_opt_write_manifest'))
         .option('--write-deletions-manifest <manifest>',i18n.__('cli_pull_opt_write_deletions_manifest'))
         .option('--ready',               i18n.__('cli_pull_opt_ready'))
-        //.option('--draft',               i18n.__('cli_pull_opt_draft'))
+        .option('--draft', i18n.__('cli_pull_opt_draft'))
         .option('--dir <dir>',           i18n.__('cli_pull_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))

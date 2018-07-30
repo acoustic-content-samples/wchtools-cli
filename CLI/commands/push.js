@@ -1071,12 +1071,11 @@ class PushCommand extends BaseCommand {
                     deferred.reject(new Error(i18n.__('cli_push_name_and_ready')));
                     return deferred.promise;
                 }
-/*
+
                 if (this.getCommandLineOption("draft")) {
                     deferred.reject(new Error(i18n.__('cli_push_name_and_draft')));
                     return deferred.promise;
                 }
-*/
             }
 
             if (this.getOptionArtifactCount() !== 1) {
@@ -1144,7 +1143,7 @@ function pushCommand (program) {
         .option('--publish-now',         i18n.__('cli_push_opt_publish_now'))
         .option('--create-only',         i18n.__('cli_push_opt_create_only'))
         .option('--ready',               i18n.__('cli_push_opt_ready'))
-        //.option('--draft',               i18n.__('cli_push_opt_draft'))
+        .option('--draft', i18n.__('cli_push_opt_draft'))
         .option('--named <named>',       i18n.__('cli_push_opt_named'))
         .option('--path <path>',         i18n.__('cli_push_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_push_opt_use_manifest'))

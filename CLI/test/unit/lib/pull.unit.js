@@ -23,24 +23,17 @@ const UnitTest = require("./base.cli.unit.js");
 
 // Require the node modules used in this test file.
 const fs = require("fs");
-const path = require("path");
 const rimraf = require("rimraf");
-const diff = require("diff");
 const Q = require("q");
 const sinon = require("sinon");
 const ToolsApi = require("wchtools-api");
 const hashes = ToolsApi.getHashes();
 const toolsCli = require("../../../wchToolsCli");
-const events = require("events");
+const BaseCommand = require("../../../lib/baseCommand");
 const mkdirp = require("mkdirp");
 const options = ToolsApi.getOptions();
 const manifests = ToolsApi.getManifests();
 const prompt = require("prompt");
-
-const DRAFT_OPTION = false;
-
-// TODO When pulling draft sites is supported, the code excluded by this flag should be removed.
-const DRAFT_SITES = false;
 
 let stubRemoteSites;
 
@@ -121,17 +114,10 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(msg).to.contain('4 artifacts');
-                            expect(msg).to.contain('2 error');
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('2 artifacts');
-                            expect(msg).to.contain('1 error');
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts');
+                        expect(msg).to.contain('1 error');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -289,15 +275,9 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(msg).to.contain('4 artifacts');
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('2 artifacts');
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -312,11 +292,7 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
-            it("test pull ignore-timestamps working (all sites)", function (done) {
-                if (switches !== "--sites" && switches !== "--pages") {
-                    return done();
-                }
-
+            it("test pull ignore-timestamps working (ready items only, by default)", function (done) {
                 let stubGet;
                 if (switches === "--sites") {
                     // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
@@ -327,11 +303,34 @@ class PullUnitTest extends UnitTest {
                     stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
                 } else {
                     stubGet = sinon.stub(helper._restApi, "getItems");
-                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
+                        name: itemName2,
+                        id: "bar",
+                        path: itemName2,
+                        status: "ready"
+                    }, {name: badItem, id: "ack", path: badItem, status: "ready"}]);
                 }
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
                 stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
 
                 const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
 
@@ -341,41 +340,27 @@ class PullUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
-                            if (DRAFT_SITES) {
-                                // Verify that the stub was called twice, and that the expected message was returned.
-                                expect(stubGet).to.have.been.calledTwice;
-                                expect(stubSave).to.have.been.calledTwice;
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(stubSave.args[1][1].id).to.equal("bar");
-                                expect(msg).to.contain('2 artifacts');
-                            } else {
-                                // Verify that the stub was called once, and that the expected message was returned.
-                                expect(stubGet).to.have.been.calledTwice;
-                                expect(stubSave).to.have.been.calledOnce;
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(msg).to.contain('1 artifact');
-                            }
+                            // Verify that the stub was called twice, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledTwice;
+                            expect(stubSave).to.have.been.calledOnce;
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(msg).to.contain('1 artifact');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         } else {
-                            if (DRAFT_SITES) {
-                                // Verify that the stub was called twice, and that the expected message was returned.
-                                expect(stubGet).to.have.been.calledTwice;
-                                expect(stubSave).to.have.callCount(6);
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(stubSave.args[1][1].id).to.equal("bar");
-                                expect(stubSave.args[2][1].id).to.equal("ack");
-                                expect(stubSave.args[3][1].id).to.equal("foo");
-                                expect(stubSave.args[4][1].id).to.equal("bar");
-                                expect(stubSave.args[5][1].id).to.equal("ack");
-                                expect(msg).to.contain('6 artifacts');
-                            } else {
-                                // Verify that the stub was called once, and that the expected message was returned.
-                                expect(stubGet).to.have.been.calledOnce;
-                                expect(stubSave).to.have.callCount(3);
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(stubSave.args[1][1].id).to.equal("bar");
-                                expect(stubSave.args[2][1].id).to.equal("ack");
-                                expect(msg).to.contain('3 artifacts');
-                            }
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(stubSave).to.have.callCount(3);
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(stubSave.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         }
                     })
                     .catch(function (err) {
@@ -387,6 +372,12 @@ class PullUnitTest extends UnitTest {
                         stubGet.restore();
                         stubSave.restore();
                         stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
 
                         // Add the global stub back now  if it was removed earlier.
                         if (switches === "--sites") {
@@ -398,19 +389,38 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
-            it("test pull modified working (all sites)", function (done) {
-                if (switches !== "--sites" && switches !== "--pages") {
-                    return done();
-                }
-
+            it("test pull modified working (ready items only, by default)", function (done) {
                 const stubList = sinon.stub(helper._restApi, "getModifiedItems");
-                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
+                    name: itemName2,
+                    id: "bar",
+                    path: itemName2,
+                    status: "ready"
+                }, {name: badItem, id: "ack", path: badItem, status: "ready"}]);
 
                 const stubModified = sinon.stub(hashes, "isRemoteModified");
                 stubModified.returns(true);
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
                 stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
 
                 const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
 
@@ -420,41 +430,27 @@ class PullUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         if (switches === "--sites") {
-                            if (DRAFT_SITES) {
-                                // Verify that the stub was called once, and that the expected message was returned.
-                                expect(stubList).to.have.been.calledOnce;
-                                expect(stubSave).to.have.been.calledTwice;
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(stubSave.args[1][1].id).to.equal("bar");
-                                expect(msg).to.contain('2 artifacts');
-                            } else {
-                                // Verify that the stub was called once, and that the expected message was returned.
-                                expect(stubList).to.have.been.calledOnce;
-                                expect(stubSave).to.have.been.calledOnce;
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(msg).to.contain('1 artifact');
-                            }
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubSave).to.have.been.calledOnce;
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(msg).to.contain('1 artifact');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         } else {
-                            if (DRAFT_SITES) {
-                                // Verify that the stub was called twice, and that the expected message was returned.
-                                expect(stubList).to.have.been.calledTwice;
-                                expect(stubSave).to.have.callCount(6);
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(stubSave.args[1][1].id).to.equal("bar");
-                                expect(stubSave.args[2][1].id).to.equal("ack");
-                                expect(stubSave.args[3][1].id).to.equal("foo");
-                                expect(stubSave.args[4][1].id).to.equal("bar");
-                                expect(stubSave.args[5][1].id).to.equal("ack");
-                                expect(msg).to.contain('6 artifacts');
-                            } else {
-                                // Verify that the stub was called once, and that the expected message was returned.
-                                expect(stubList).to.have.been.calledOnce;
-                                expect(stubSave).to.have.callCount(3);
-                                expect(stubSave.args[0][1].id).to.equal("foo");
-                                expect(stubSave.args[1][1].id).to.equal("bar");
-                                expect(stubSave.args[2][1].id).to.equal("ack");
-                                expect(msg).to.contain('3 artifacts');
-                            }
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubSave).to.have.callCount(3);
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(stubSave.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         }
                     })
                     .catch(function (err) {
@@ -467,17 +463,241 @@ class PullUnitTest extends UnitTest {
                         stubModified.restore();
                         stubSave.restore();
                         stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
             });
 
-            it("test pull ignore-timestamps working (ready sites)", function (done) {
-                if (switches !== "--sites" && switches !== "--pages") {
+            it("test pull ignore-timestamps working (all items)", function (done) {
+                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
                     return done();
                 }
 
+                let stubGet;
+                if (switches === "--sites") {
+                    // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
+                    // the first time (initSites) then returns the test values the second time (the actual push).
+                    PullUnitTest.restoreRemoteSitesStub();
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {
+                        id: "bar",
+                        siteStatus: "draft"
+                    }]);
+                    stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {
+                        name: itemName2,
+                        id: "bar",
+                        path: itemName2
+                    }, {name: badItem, id: "ack", path: badItem}]);
+                } else {
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
+                        name: itemName2,
+                        id: "bar",
+                        path: itemName2,
+                        status: "draft"
+                    }, {name: badItem, id: "ack", path: badItem, status: "ready"}]);
+                }
+
+                const stubSave = sinon.stub(helper._fsApi, "saveItem");
+                stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
+
+                const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ignore-timestamps", "--ready", "--draft", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        if (switches === "--sites") {
+                            // Verify that the stub was called twice, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledTwice;
+                            expect(stubSave).to.have.been.calledTwice;
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(msg).to.contain('2 artifacts');
+                        } else if (switches === "--pages") {
+                            // Verify that the stub was called twice, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledTwice;
+                            expect(stubSave).to.have.callCount(6);
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(stubSave.args[2][1].id).to.equal("ack");
+                            expect(stubSave.args[3][1].id).to.equal("foo");
+                            expect(stubSave.args[4][1].id).to.equal("bar");
+                            expect(stubSave.args[5][1].id).to.equal("ack");
+                            expect(msg).to.contain('6 artifacts');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
+                        } else {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(stubSave).to.have.callCount(3);
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(stubSave.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubGet.restore();
+                        stubSave.restore();
+                        stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
+
+                        // Add the global stub back now  if it was removed earlier.
+                        if (switches === "--sites") {
+                            PullUnitTest.addRemoteSitesStub();
+                        }
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test pull modified working (all items)", function (done) {
+                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
+                    return done();
+                }
+
+                const stubList = sinon.stub(helper._restApi, "getModifiedItems");
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
+                    name: itemName2,
+                    id: "bar",
+                    path: itemName2,
+                    status: "draft"
+                }, {name: badItem, id: "ack", path: badItem, status: "ready"}]);
+
+                const stubModified = sinon.stub(hashes, "isRemoteModified");
+                stubModified.returns(true);
+
+                const stubSave = sinon.stub(helper._fsApi, "saveItem");
+                stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
+
+                const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
+
+                // Execute the command to pull the items to the download directory.
+                let error;
+                const downloadTarget = DOWNLOAD_TARGET;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--ready", "--draft", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
+                    .then(function (msg) {
+                        if (switches === "--sites") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubSave).to.have.been.calledTwice;
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(msg).to.contain('2 artifacts');
+                        } else if (switches === "--pages") {
+                            // Verify that the stub was called twice, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledTwice;
+                            expect(stubSave).to.have.callCount(6);
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(stubSave.args[2][1].id).to.equal("ack");
+                            expect(stubSave.args[3][1].id).to.equal("foo");
+                            expect(stubSave.args[4][1].id).to.equal("bar");
+                            expect(stubSave.args[5][1].id).to.equal("ack");
+                            expect(msg).to.contain('6 artifacts');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
+                        } else {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubSave).to.have.callCount(3);
+                            expect(stubSave.args[0][1].id).to.equal("foo");
+                            expect(stubSave.args[1][1].id).to.equal("bar");
+                            expect(stubSave.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the stubbed methods.
+                        stubList.restore();
+                        stubModified.restore();
+                        stubSave.restore();
+                        stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test pull ignore-timestamps working (ready items)", function (done) {
                 let stubGet;
                 if (switches === "--sites") {
                     // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
@@ -488,11 +708,34 @@ class PullUnitTest extends UnitTest {
                     stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
                 } else {
                     stubGet = sinon.stub(helper._restApi, "getItems");
-                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
+                        name: itemName2,
+                        id: "bar",
+                        path: itemName2,
+                        status: "ready"
+                    }, {name: badItem, id: "ack", path: badItem, status: "ready"}]);
                 }
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
                 stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
 
                 const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
 
@@ -507,6 +750,14 @@ class PullUnitTest extends UnitTest {
                             expect(stubSave).to.have.been.calledOnce;
                             expect(stubSave.args[0][1].id).to.equal("foo");
                             expect(msg).to.contain('1 artifact');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         } else {
                             // Verify that the stub was called once, and that the expected message was returned.
                             expect(stubGet).to.have.been.calledOnce;
@@ -526,6 +777,12 @@ class PullUnitTest extends UnitTest {
                         stubGet.restore();
                         stubSave.restore();
                         stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
 
                         // Add the global stub back now  if it was removed earlier.
                         if (switches === "--sites") {
@@ -537,19 +794,38 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
-            it("test pull modified working (ready sites)", function (done) {
-                if (switches !== "--sites" && switches !== "--pages") {
-                    return done();
-                }
-
+            it("test pull modified working (ready items)", function (done) {
                 const stubList = sinon.stub(helper._restApi, "getModifiedItems");
-                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
+                    name: itemName2,
+                    id: "bar",
+                    path: itemName2,
+                    status: "ready"
+                }, {name: badItem, id: "ack", path: badItem, status: "ready"}]);
 
                 const stubModified = sinon.stub(hashes, "isRemoteModified");
                 stubModified.returns(true);
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
                 stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
 
                 const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
 
@@ -564,6 +840,14 @@ class PullUnitTest extends UnitTest {
                             expect(stubSave).to.have.been.calledOnce;
                             expect(stubSave.args[0][1].id).to.equal("foo");
                             expect(msg).to.contain('1 artifact');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         } else {
                             // Verify that the stub was called once, and that the expected message was returned.
                             expect(stubList).to.have.been.calledOnce;
@@ -584,27 +868,69 @@ class PullUnitTest extends UnitTest {
                         stubModified.restore();
                         stubSave.restore();
                         stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
             });
 
-            it("test pull ignore-timestamps working (draft sites)", function (done) {
-                // TODO Enable when --draft option is avaiable.
-                if (!DRAFT_OPTION) {
+            it("test pull ignore-timestamps working (draft items)", function (done) {
+                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
                     return done();
                 }
 
-                if (switches !== "--sites" && switches !== "--pages") {
-                    return done();
+                let stubGet;
+                if (switches === "--sites") {
+                    // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
+                    // the first time (initSites) then returns the test values the second time (the actual push).
+                    PullUnitTest.restoreRemoteSitesStub();
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {
+                        id: "bar",
+                        siteStatus: "draft"
+                    }]);
+                    stubGet.onSecondCall().resolves([{
+                        name: itemName1,
+                        id: "foo",
+                        path: itemName1,
+                        siteStatus: "ready"
+                    }, {name: itemName2, id: "bar", path: itemName2, siteStatus: "draft"}]);
+                } else {
+                    stubGet = sinon.stub(helper._restApi, "getItems");
+                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"}, {
+                        name: itemName2,
+                        id: "bar",
+                        path: itemName2,
+                        status: "draft"
+                    }, {name: badItem, id: "ack", path: badItem, status: "draft"}]);
                 }
-
-                const stubList = sinon.stub(helper._restApi, "getItems");
-                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
                 stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
 
                 const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
 
@@ -615,13 +941,21 @@ class PullUnitTest extends UnitTest {
                     .then(function (msg) {
                         if (switches === "--sites") {
                             // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubGet).to.have.been.calledTwice;
                             expect(stubSave).to.have.been.calledOnce;
                             expect(stubSave.args[0][1].id).to.equal("bar");
                             expect(msg).to.contain('1 artifact');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubGet).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         } else {
                             // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubGet).to.have.been.calledOnce;
                             expect(stubSave).to.have.been.calledThrice;
                             expect(stubSave.args[0][1].id).to.equal("foo");
                             expect(stubSave.args[1][1].id).to.equal("bar");
@@ -635,33 +969,76 @@ class PullUnitTest extends UnitTest {
                     })
                     .finally(function () {
                         // Restore the stubbed methods.
-                        stubList.restore();
+                        stubGet.restore();
                         stubSave.restore();
                         stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
+
+                        // Add the global stub back now  if it was removed earlier.
+                        if (switches === "--sites") {
+                            PullUnitTest.addRemoteSitesStub();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
             });
 
-            it("test pull modified working (draft sites)", function (done) {
-                // TODO Enable when --draft option is avaiable.
-                if (!DRAFT_OPTION) {
-                    return done();
-                }
-
-                if (switches !== "--sites" && switches !== "--pages") {
+            it("test pull modified working (draft items)", function (done) {
+                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
                     return done();
                 }
 
                 const stubList = sinon.stub(helper._restApi, "getModifiedItems");
-                stubList.resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
+                if (switches.includes("--sites")) {
+                    stubList.resolves([{
+                        name: itemName1,
+                        id: "foo",
+                        path: itemName1,
+                        siteStatus: "draft"
+                    }, {name: itemName2, id: "bar", path: itemName2, siteStatus: "draft"}, {
+                        name: badItem,
+                        id: "ack",
+                        path: badItem,
+                        siteStatus: "draft"
+                    }]);
+                } else {
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"}, {
+                        name: itemName2,
+                        id: "bar",
+                        path: itemName2,
+                        status: "draft"
+                    }, {name: badItem, id: "ack", path: badItem, status: "draft"}]);
+                }
 
                 const stubModified = sinon.stub(hashes, "isRemoteModified");
                 stubModified.returns(true);
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
                 stubSave.resolves();
+
+                let stubPull;
+                let stubContent;
+                if (switches === "-a" || switches === "-w") {
+                    stubPull = sinon.stub(helper, "_pullAsset", function (context, asset, opts) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = helper.getEventEmitter(context);
+                            emitter.emit("pulled", asset);
+                            stubDeferred.resolve(asset);
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+
+                    stubContent = sinon.stub(helper._fsApi, "isContentResource");
+                    stubContent.returns(switches === "-a");
+                }
 
                 const stubHashes = sinon.stub(hashes, "setLastPullTimestamp");
 
@@ -676,6 +1053,14 @@ class PullUnitTest extends UnitTest {
                             expect(stubSave).to.have.been.calledOnce;
                             expect(stubSave.args[0][1].id).to.equal("bar");
                             expect(msg).to.contain('1 artifact');
+                        } else if (switches === "-a" || switches === "-w") {
+                            // Verify that the stub was called once, and that the expected message was returned.
+                            expect(stubList).to.have.been.calledOnce;
+                            expect(stubPull).to.have.callCount(3);
+                            expect(stubPull.args[0][1].id).to.equal("foo");
+                            expect(stubPull.args[1][1].id).to.equal("bar");
+                            expect(stubPull.args[2][1].id).to.equal("ack");
+                            expect(msg).to.contain('3 artifacts');
                         } else {
                             // Verify that the stub was called once, and that the expected message was returned.
                             expect(stubList).to.have.been.calledOnce;
@@ -696,6 +1081,12 @@ class PullUnitTest extends UnitTest {
                         stubModified.restore();
                         stubSave.restore();
                         stubHashes.restore();
+                        if (stubPull) {
+                            stubPull.restore();
+                        }
+                        if (stubContent) {
+                            stubContent.restore();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -782,17 +1173,11 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(msg).to.contain('2 artifacts');
-                            expect(stubDelete).to.have.callCount(4);
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('1 artifact');
-                            expect(stubDelete).to.have.been.calledTwice;
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubDelete).to.have.been.calledTwice;
+
                         if (stubResource) {
                             expect(stubResource).to.have.been.calledOnce;
                         }
@@ -844,19 +1229,11 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(msg).to.contain('2 artifacts');
-                            expect(stubPrompt).to.have.been.calledTwice;
-                            expect(stubDelete).to.have.callCount(4);
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('1 artifact');
-                            expect(stubPrompt).to.have.been.calledOnce;
-                            expect(stubDelete).to.have.been.calledTwice;
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubPrompt).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledTwice;
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -895,17 +1272,10 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(msg).to.contain('2 artifacts');
-                            expect(stubPrompt).to.have.been.calledTwice;
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('1 artifact');
-                            expect(stubPrompt).to.have.been.calledOnce;
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubPrompt).to.have.been.calledOnce;
                         expect(stubDelete).to.not.have.been.called;
                     })
                     .catch(function (err) {
@@ -950,19 +1320,11 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(msg).to.contain('2 artifacts');
-                            expect(stubPrompt).to.have.been.calledTwice;
-                            expect(stubDelete).to.have.callCount(4);
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('1 artifact');
-                            expect(stubPrompt).to.have.been.calledOnce;
-                            expect(stubDelete).to.have.been.calledTwice;
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubPrompt).to.have.been.calledOnce;
+                        expect(stubDelete).to.have.been.calledTwice;
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1000,17 +1362,10 @@ class PullUnitTest extends UnitTest {
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--deletions", "--quiet", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(msg).to.contain('2 artifacts');
-                            expect(stubDelete).to.have.callCount(4);
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(msg).to.contain('1 artifact');
-                            expect(stubDelete).to.have.been.calledTwice;
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('1 artifact');
+                        expect(stubDelete).to.have.been.calledTwice;
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1048,15 +1403,9 @@ class PullUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                            expect(err.message).to.contain('6 errors');
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                            expect(err.message).to.contain('3 errors');
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(err.message).to.contain('3 errors');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1086,13 +1435,9 @@ class PullUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+
                         expect(msg).to.contain('No items pulled');
                         expect(msg).to.contain('Use the -I option');
                     })
@@ -1124,13 +1469,9 @@ class PullUnitTest extends UnitTest {
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "-I", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stub).to.have.been.calledTwice;
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stub).to.have.been.calledOnce;
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+
                         expect(msg).to.contain('No items to be pulled');
                         expect(msg).to.contain('Pull complete');
                     })
@@ -1161,15 +1502,9 @@ class PullUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        if (DRAFT_SITES && switches === "--pages") {
-                            // Verify that the stub was called twice (once for each site), and that the expected message was returned.
-                            expect(stubPull).to.have.been.calledTwice;
-                            expect(err.message).to.contain('2 errors');
-                        } else {
-                            // Verify that the stub was called once, and that the expected message was returned.
-                            expect(stubPull).to.have.been.calledOnce;
-                            expect(err.message).to.contain('1 error');
-                        }
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stubPull).to.have.been.calledOnce;
+                        expect(err.message).to.contain('1 error');
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -1697,36 +2032,6 @@ class PullUnitTest extends UnitTest {
                     });
             });
 
-            it("should fail if both ready and draft specified", function (done) {
-                // TODO Enable when --draft option is avaiable.
-                if (!DRAFT_OPTION) {
-                    return done();
-                }
-
-                const stubInit = sinon.stub(manifests, "initializeManifests");
-                stubInit.resolves(true);
-
-                let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--ready", "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
-                    .then(function () {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The command should have failed.");
-                    })
-                    .catch(function (err) {
-                        expect(err.message).to.contain("cannot specifiy both ready and draft");
-                    })
-                    .catch(function (err) {
-                        // Pass the error to the "done" function to indicate a failed test.
-                        error = err;
-                    })
-                    .finally(function () {
-                        stubInit.restore();
-
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
             it("should fail if both ready and manifest specified", function (done) {
                 const stubInit = sinon.stub(manifests, "initializeManifests");
                 stubInit.resolves(true);
@@ -1761,11 +2066,6 @@ class PullUnitTest extends UnitTest {
             });
 
             it("should fail if both draft and manifest specified", function (done) {
-                // TODO Enable when --draft option is avaiable.
-                if (!DRAFT_OPTION) {
-                    return done();
-                }
-
                 const stubInit = sinon.stub(manifests, "initializeManifests");
                 stubInit.resolves(true);
 

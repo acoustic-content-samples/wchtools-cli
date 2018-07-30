@@ -832,6 +832,8 @@ function compareCommand (program) {
         .option('-R --publishing-site-revisions',i18n.__('cli_compare_opt_site_revisions'))
         .option('-v --verbose',          i18n.__('cli_compare_opt_verbose'))
         .option('-A --all-authoring',    i18n.__('cli_compare_opt_all'))
+        .option('--ready', i18n.__('cli_compare_opt_ready'))
+        .option('--draft', i18n.__('cli_compare_opt_draft'))
         .option('--manifest <manifest>', i18n.__('cli_compare_opt_use_manifest'))
         .option('--filter-deletions <manifest>', i18n.__('cli_compare_opt_filter_deletions'))
         .option('--write-manifest <manifest>',   i18n.__('cli_compare_opt_write_manifest'))
