@@ -52,6 +52,27 @@ class SitesHelper extends JSONItemHelper {
     }
 
     /**
+     * Get the status of the given item.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} item The item for which to get the status.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {String} "ready" or "draft".
+     *
+     * @protected
+     *
+     * @override
+     */
+    getStatus(context, item, opts) {
+        if (item && item.siteStatus && item.siteStatus === "draft") {
+            return "draft";
+        } else {
+            return "ready";
+        }
+    }
+
+    /**
      * @param {Object} context The API context to be used for this operation.
      * @param {Object} opts - The options to be used for the push operation.
      *

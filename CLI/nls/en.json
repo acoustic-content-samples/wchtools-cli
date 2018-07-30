@@ -12,7 +12,6 @@
   "cli_save_manifest_failure": "An error occurred when trying to save the manifest: %(err)s.",
   "cli_invalid_url_option": "The specified API URL is not valid.",
   "cli_invalid_path_option": "Invalid options, path can only be used for web assets, content types, layouts, and layout mappings.",
-  "cli_ready_and_draft_options" : "Invalid options, cannot specifiy both ready and draft.",
   "cli_ready_and_manifest_options": "Invalid options, cannot specifiy both ready and manifest.",
   "cli_draft_and_manifest_options": "Invalid options, cannot specifiy both draft and manifest.",
   "cli_help_on_commands": "For help on specific commands use wchtools <command> -h",
@@ -336,7 +335,6 @@
   "cli_rendering_job_started": "Starting render request.",
   "cli_rendering_job_created": "Render request was accepted.",
   "cli_rendering_opt_rebuild": "Delete content items from delivery and republish them.  This implicitly triggers a re-rendering of all your content.  A rebuild ignores global publish schedules and the auto publish flag.",
- 
   "cli_publishing_description": "Publish all ready artifacts that have not automatically been published.",
   "cli_publishing_opt_rebuild": "Delete all artifacts from delivery and republish them.  A rebuild ignores global publish schedules and the auto publish flag.",
   "cli_publishing_opt_status":  "Display the current state of the publishing site revision.  Use of an optional id has been deprecated, and will be ignored if specified.",

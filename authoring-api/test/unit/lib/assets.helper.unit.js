@@ -54,8 +54,6 @@ let stubGenerateMD5HashAndID;
 let stubGenerateMD5HashFromStream;
 let stubUpdateHashes;
 let stubUpdateResourceHashes;
-let stubGetLastPush;
-let stubSetLastPush;
 let stubGetLastPull;
 let stubSetLastPull;
 let stubGetMD5ForFile;
@@ -110,13 +108,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubUpdateResourceHashes = sinon.stub(hashes, "updateResourceHashes");
                 stubUpdateResourceHashes.returns(undefined);
                 self.addTestDouble(stubUpdateResourceHashes);
-
-                stubGetLastPush = sinon.stub(hashes, "getLastPushTimestamp");
-                stubGetLastPush.returns(undefined);
-                self.addTestDouble(stubGetLastPush);
-
-                stubSetLastPush = sinon.stub(hashes, "setLastPushTimestamp");
-                self.addTestDouble(stubSetLastPush);
 
                 stubGetLastPull = sinon.stub(hashes, "getLastPullTimestamp");
                 stubGetLastPull.returns(undefined);
@@ -2022,7 +2013,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyPull.args[1][0].path).to.equal(assetsFS.getAssetPath(assetMetadata3));
                         expect(spyError).to.not.have.been.called;
 
-                        expect(stubSetLastPull).to.not.have.been.called;
+                        expect(stubSetLastPull).to.have.been.calledOnce;
 
                         // Verify that the hashes were called as expected.
                         expect(stubUpdateHashes).to.have.callCount(2);
@@ -2148,7 +2139,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyPull.args[1][0].path).to.equal(assetsFS.getAssetPath(assetMetadata4));
                         expect(spyError).to.not.have.been.called;
 
-                        expect(stubSetLastPull).to.not.have.been.called;
+                        expect(stubSetLastPull).to.have.been.calledOnce;
 
                         // Verify that the hashes were called as expected.
                         expect(stubUpdateHashes).to.have.callCount(2);
@@ -3699,9 +3690,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         const streamContent = stubREST.firstCall.args[7].read(65536);
                         expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
 
-                        // Verify that the hashes were called as expected.
-                        expect(stubSetLastPush).to.not.have.been.called;
-
                         expect(stubUpdateHashes).to.have.been.calledOnce;
                         expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HBS_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HBS_1);
@@ -3791,9 +3779,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         const streamContent = stubREST.thirdCall.args[7].read(65536);
                         expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
 
-                        // Verify that the last push timestamp was not called, because we're only pushing one item.
-                        expect(stubSetLastPush).to.not.have.been.called;
-
                         expect(stubUpdateHashes).to.have.been.calledOnce;
                         expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HBS_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HBS_1);
@@ -3881,9 +3866,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubREST.thirdCall.args[6]).to.equal(AssetsUnitTest.ASSET_HBS_1);
                         const streamContent = stubREST.thirdCall.args[7].read(65536);
                         expect(Buffer.compare(streamContent, assetContent)).to.equal(0);
-
-                        // Verify that the last push timestamp was not called.
-                        expect(stubSetLastPush).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.not.have.been.called;
                     })
@@ -4102,9 +4084,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Verify that the save stub was called once.
                         expect(stubSave).to.have.been.calledOnce;
 
-                        // Verify that the hashes were called as expected.
-                        expect(stubSetLastPush).to.not.have.been.called;
-
                         expect(stubUpdateHashes).to.have.been.calledOnce;
                         expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_3);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_3);
@@ -4180,9 +4159,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the save stub was called once.
                         expect(stubSave).to.have.been.calledOnce;
-
-                        // Verify that the hashes were called as expected.
-                        expect(stubSetLastPush).to.not.have.been.called;
 
                         expect(stubUpdateHashes).to.have.been.calledOnce;
                         expect(stubUpdateHashes.args[0][2]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_3);
@@ -4463,9 +4439,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyPushed).to.not.have.been.called;
                         expect(spyError).to.not.have.been.called;
 
-                        // Verify that the hashes were called as expected.
-                        expect(stubSetLastPush).to.not.have.been.called;
-
                         expect(stubUpdateHashes).to.have.callCount(5);
                         expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
@@ -4638,9 +4611,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyPushed.getCall(3).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
                         expect(spyError).to.not.have.been.called;
 
-                        // Verify that the hashes were called as expected.
-                        expect(stubSetLastPush).to.have.been.called;
-
                         expect(stubUpdateHashes).to.have.callCount(4);
                         expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
@@ -4798,9 +4768,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyPushed.getCall(1).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2);
                         expect(spyError).to.not.have.been.called;
 
-                        // Verify that the push timestamp was not called, becuase we're filtering the results.
-                        expect(stubSetLastPush).to.not.have.been.called;
-
                         // Verify that the hashes were called as expected.
                         expect(stubUpdateHashes).to.have.callCount(2);
                         expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_CONTENT_JPG_1);
@@ -4954,9 +4921,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyPushed.getCall(0).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_1_DRAFT);
                         expect(spyPushed.getCall(1).args[0].path).to.equal(AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT);
                         expect(spyError).to.not.have.been.called;
-
-                        // Verify that the push timestamp was not called, becuase we're filtering the results.
-                        expect(stubSetLastPush).to.not.have.been.called;
 
                         // Verify that the hashes were called as expected.
                         expect(stubUpdateHashes).to.have.callCount(2);
@@ -5207,8 +5171,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         expect(stubSetLastPull).to.not.have.been.called;
 
-                        expect(stubSetLastPush).to.not.have.been.called;
-
                         expect(stubUpdateHashes).to.have.been.calledTwice;
                         expect(stubUpdateHashes.firstCall.args[4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.firstCall.args[3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
@@ -5373,9 +5335,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Verify that an MD5 hash was generated.
                         expect(stubGenerateMD5Hash).to.have.been.calledOnce;
 
-                        // Verify that the push timestamp was updated.
-                        expect(stubSetLastPush).to.have.been.calledOnce;
-
                         // Verify that the other stubs were called once with the expected values.
                         expect(stubStream).to.have.been.calledOnce;
                         expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
@@ -5425,9 +5384,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Verify that the push spy and the error spy to not have been called.
                         expect(spyPushed).to.not.have.been.called;
                         expect(spyError).to.not.have.been.called;
-
-                        // Verify that the push timestamp was not updated.
-                        expect(stubSetLastPush).to.not.have.been.called;
                     })
                     .catch(function (err) {
                         error = err;
@@ -5477,9 +5433,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Verify that the push and error spies were not called.
                         expect(spyPushed).to.not.have.been.called;
                         expect(spyError).to.not.have.been.called;
-
-                        // Verify that the push timestamp was not updated.
-                        expect(stubSetLastPush).to.not.have.been.called;
 
                         // Verify that the other stubs were called once with the expected values.
                         expect(stubStream).to.have.been.calledOnce;
@@ -5581,9 +5534,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that an MD5 hash was generated.
                         expect(stubGenerateMD5Hash).to.have.been.calledThrice;
-
-                        // Verify that the push timestamp was updated.
-                        expect(stubSetLastPush).to.have.been.calledOnce;
                     })
                     .catch(function (err) {
                         error = err;
@@ -5680,9 +5630,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that an MD5 hash was generated.
                         expect(stubGenerateMD5Hash).to.have.been.calledThrice;
-
-                        // Verify that the push timestamp was not updated.
-                        expect(stubSetLastPush).to.not.have.been.called;
                     })
                     .catch(function (err) {
                         error = err;
@@ -5777,9 +5724,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that an MD5 hash was generated.
                         expect(stubGenerateMD5Hash).to.have.been.calledTwice;
-
-                        // Verify that the push timestamp was not updated.
-                        expect(stubSetLastPush).to.not.have.been.called;
 
                         // Verify that the other stubs were called once with the expected values.
                         expect(stubStream).to.have.been.calledTwice;
@@ -5883,9 +5827,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that an MD5 hash was generated.
                         expect(stubGenerateMD5Hash).to.have.been.calledTwice;
-
-                        // Verify that the push timestamp was not updated.
-                        expect(stubSetLastPush).to.not.have.been.called;
 
                         // Verify that the other stubs were called once with the expected values.
                         expect(stubStream).to.have.been.calledTwice;
@@ -8088,8 +8029,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 let error;
                 try {
                     const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
-                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
-                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.contentAssets.draft).to.equal(TIMESTAMP);
+                    expect(timestamp.contentAssets.ready).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets.draft).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets.ready).to.equal(TIMESTAMP);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -8109,8 +8052,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 let error;
                 try {
                     const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
-                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
-                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.contentAssets.draft).to.equal(TIMESTAMP);
+                    expect(timestamp.contentAssets.ready).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets.draft).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets.ready).to.equal(TIMESTAMP);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -8131,7 +8076,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 try {
                     const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
                     expect(timestamp.contentAssets).to.be.empty;
-                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets.draft).to.equal(TIMESTAMP);
+                    expect(timestamp.webAssets.ready).to.equal(TIMESTAMP);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -8152,110 +8098,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 try {
                     const timestamp = assetsHelper._getLastPullTimestamps(context, UnitTest.DUMMY_OPTIONS);
                     expect(timestamp.webAssets).to.be.empty;
-                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
-                } catch (err) {
-                    // NOTE: A failed expectation from above will be handled here.
-                    // Pass the error to the "done" function to indicate a failed test.
-                    error = err;
-                } finally {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                }
-            });
-        });
-
-        describe("_getLastPushTimestamps", function () {
-            it("should succeed for no timestamp value", function (done) {
-                // Call the method being tested.
-                let error;
-                try {
-                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
-                    expect(timestamp.contentAssets).to.be.empty;
-                    expect(timestamp.webAssets).to.be.empty;
-                } catch (err) {
-                    // NOTE: A failed expectation from above will be handled here.
-                    // Pass the error to the "done" function to indicate a failed test.
-                    error = err;
-                } finally {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                }
-            });
-
-            it("should succeed for the old timestamp format", function (done) {
-                // Change the hashes.getLastPushTimestamp stub to return the old format.
-                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPush.returns(TIMESTAMP);
-
-                // Call the method being tested.
-                let error;
-                try {
-                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
-                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
-                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
-                } catch (err) {
-                    // NOTE: A failed expectation from above will be handled here.
-                    // Pass the error to the "done" function to indicate a failed test.
-                    error = err;
-                } finally {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                }
-            });
-
-            it("should succeed for the new timestamp format", function (done) {
-                // Change the hashes.getLastPushTimestamp stub to return the new format.
-                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
-
-                // Call the method being tested.
-                let error;
-                try {
-                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
-                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
-                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
-                } catch (err) {
-                    // NOTE: A failed expectation from above will be handled here.
-                    // Pass the error to the "done" function to indicate a failed test.
-                    error = err;
-                } finally {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                }
-            });
-
-            it("should succeed when only web assets value returned", function (done) {
-                // Change the hashes.getLastPushTimestamp stub to return only a webAssets timestamp.
-                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPush.returns({webAssets: TIMESTAMP});
-
-                // Call the method being tested.
-                let error;
-                try {
-                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
-                    expect(timestamp.contentAssets).to.be.empty;
-                    expect(timestamp.webAssets).to.equal(TIMESTAMP);
-                } catch (err) {
-                    // NOTE: A failed expectation from above will be handled here.
-                    // Pass the error to the "done" function to indicate a failed test.
-                    error = err;
-                } finally {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                }
-            });
-
-            it("should succeed when only content assets value returned", function (done) {
-                // Change the hashes.getLastPushTimestamp stub to return only a contentAssets timestamp.
-                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPush.returns({contentAssets: TIMESTAMP});
-
-                // Call the method being tested.
-                let error;
-                try {
-                    const timestamp = assetsHelper._getLastPushTimestamps(context, UnitTest.DUMMY_OPTIONS);
-                    expect(timestamp.webAssets).to.be.empty;
-                    expect(timestamp.contentAssets).to.equal(TIMESTAMP);
+                    expect(timestamp.contentAssets.draft).to.equal(TIMESTAMP);
+                    expect(timestamp.contentAssets.ready).to.equal(TIMESTAMP);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -8268,10 +8112,13 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
         });
 
         describe("_setLastPullTimestamps", function () {
-            it("should set both timestamps when both assets types are specified", function (done) {
+            it("should set all timestamps when both assets types are specified with no draft/ready filtering", function (done) {
                 // Change the hashes.getLastPullTimestamp stub to return a known value.
                 const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPull.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                stubGetLastPull.returns({
+                    webAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP},
+                    contentAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP}
+                });
                 const NEW_TIMESTAMP = new Date();
 
                 // Call the method being tested.
@@ -8279,12 +8126,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 try {
                     assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
                     expect(stubGetLastPull).to.have.been.calledOnce;
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.exist;
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.exist;
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["draft"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["ready"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["draft"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["ready"]).to.equal(NEW_TIMESTAMP);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -8295,22 +8140,27 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 }
             });
 
-            it("should only set the web assets timestamp when the web assets type is specified", function (done) {
+            it("should set only ready timestamps when both assets types are specified with ready filtering", function (done) {
                 // Change the hashes.getLastPullTimestamp stub to return a known value.
                 const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPull.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                stubGetLastPull.returns({
+                    webAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP},
+                    contentAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP}
+                });
                 const NEW_TIMESTAMP = new Date();
 
                 // Call the method being tested.
                 let error;
                 try {
-                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS});
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {
+                        assetTypes: assetsHelper.ASSET_TYPES_BOTH,
+                        filterReady: true
+                    });
                     expect(stubGetLastPull).to.have.been.calledOnce;
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.exist;
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.exist;
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["ready"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["ready"]).to.equal(NEW_TIMESTAMP);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -8321,22 +8171,151 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 }
             });
 
-            it("should only set the content assets timestamp when the content assets type is specified", function (done) {
+            it("should set only draft timestamps when both assets types are specified with draft filtering", function (done) {
                 // Change the hashes.getLastPullTimestamp stub to return a known value.
                 const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPull.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
+                stubGetLastPull.returns({
+                    webAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP},
+                    contentAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP}
+                });
                 const NEW_TIMESTAMP = new Date();
 
                 // Call the method being tested.
                 let error;
                 try {
-                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS});
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {
+                        assetTypes: assetsHelper.ASSET_TYPES_BOTH,
+                        filterDraft: true
+                    });
                     expect(stubGetLastPull).to.have.been.calledOnce;
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.exist;
-                    expect(stubSetLastPull.args[0][2]["webAssets"]).to.equal(TIMESTAMP);
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.exist;
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPull.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["draft"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["ready"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["draft"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["ready"]).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the web assets ready timestamp when the web assets type is specified with ready filtering", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({
+                    webAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP},
+                    contentAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP}
+                });
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {
+                        assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS,
+                        filterReady: true
+                    });
+                    expect(stubGetLastPull).to.have.been.calledOnce;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["ready"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["ready"]).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the web assets draft timestamp when the web assets type is specified with draft filtering", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({
+                    webAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP},
+                    contentAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP}
+                });
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {
+                        assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS,
+                        filterDraft: true
+                    });
+                    expect(stubGetLastPull).to.have.been.calledOnce;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["draft"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["ready"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["ready"]).to.equal(TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the content assets ready timestamp when the content assets type is specified with ready filtering", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({
+                    webAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP},
+                    contentAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP}
+                });
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {
+                        assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS,
+                        filterReady: true
+                    });
+                    expect(stubGetLastPull).to.have.been.calledOnce;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["ready"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["ready"]).to.equal(NEW_TIMESTAMP);
+                } catch (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+
+            it("should only set the content assets draft timestamp when the content assets type is specified with draft filtering", function (done) {
+                // Change the hashes.getLastPullTimestamp stub to return a known value.
+                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
+                stubGetLastPull.returns({
+                    webAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP},
+                    contentAssets: {"draft": TIMESTAMP, "ready": TIMESTAMP}
+                });
+                const NEW_TIMESTAMP = new Date();
+
+                // Call the method being tested.
+                let error;
+                try {
+                    assetsHelper._setLastPullTimestamps(context, NEW_TIMESTAMP, {
+                        assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS,
+                        filterDraft: true
+                    });
+                    expect(stubGetLastPull).to.have.been.calledOnce;
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["draft"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["webAssets"]["ready"]).to.equal(TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["draft"]).to.equal(NEW_TIMESTAMP);
+                    expect(stubSetLastPull.args[0][2]["contentAssets"]["ready"]).to.equal(TIMESTAMP);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
@@ -8348,159 +8327,133 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
         });
 
-        describe("_setLastPushTimestamps", function () {
-            it("should set both timestamps when both assets types are specified", function (done) {
-                // Change the hashes.getLastPushTimestamp stub to return a known value.
-                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
-                const NEW_TIMESTAMP = new Date();
+        describe("getLastPullTimestamp", function () {
+            it("should return the web assets ready timestamp when the web assets type is specified", function (done) {
+                const TIMESTAMP_1 = "1962-11-09T11:38:34.123Z";
+                const TIMESTAMP_2 = "2017-11-28T14:31:00.456Z";
+                const stub = sinon.stub(assetsHelper, "_getLastPullTimestamps");
+                stub.returns({
+                    webAssets: {"draft": TIMESTAMP_1, "ready": TIMESTAMP_2},
+                    contentAssets: {"draft": TIMESTAMP_1, "ready": TIMESTAMP_1}
+                });
 
                 // Call the method being tested.
                 let error;
                 try {
-                    assetsHelper._setLastPushTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
-                    expect(stubGetLastPush).to.have.been.calledOnce;
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.exist;
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.exist;
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                    const timestamp = assetsHelper.getLastPullTimestamp(context, {
+                        assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS,
+                        filterReady: true
+                    });
+                    expect(timestamp).to.equal(TIMESTAMP_2);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 } finally {
+                    stub.restore();
+
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }
             });
 
-            it("should only set the web assets timestamp when the web assets type is specified", function (done) {
-                // Change the hashes.getLastPushTimestamp stub to return the old format.
-                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
-                const NEW_TIMESTAMP = new Date();
+            it("should return the content assets ready timestamp when the content assets type is specified", function (done) {
+                const TIMESTAMP_1 = "1962-11-09T11:38:34.123Z";
+                const TIMESTAMP_2 = "2017-11-28T14:31:00.456Z";
+                const stub = sinon.stub(assetsHelper, "_getLastPullTimestamps");
+                stub.returns({
+                    webAssets: {"draft": TIMESTAMP_1, "ready": TIMESTAMP_1},
+                    contentAssets: {"draft": TIMESTAMP_1, "ready": TIMESTAMP_2}
+                });
 
                 // Call the method being tested.
                 let error;
                 try {
-                    assetsHelper._setLastPushTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS});
-                    expect(stubGetLastPush).to.have.been.calledOnce;
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.exist;
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.equal(NEW_TIMESTAMP);
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.exist;
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.equal(TIMESTAMP);
+                    const timestamp = assetsHelper.getLastPullTimestamp(context, {
+                        assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS,
+                        filterReady: true
+                    });
+                    expect(timestamp).to.equal(TIMESTAMP_2);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 } finally {
+                    stub.restore();
+
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }
             });
 
-            it("should only set the content assets timestamp when the content assets type is specified", function (done) {
-                // Change the hashes.getLastPushTimestamp stub to return the old format.
-                const TIMESTAMP = "2017-05-10T04:36:49.987Z";
-                stubGetLastPush.returns({webAssets: TIMESTAMP, contentAssets: TIMESTAMP});
-                const NEW_TIMESTAMP = new Date();
+            it("should return the web assets draft timestamp when it is before the web assets ready timestamp", function (done) {
+                const TIMESTAMP_1 = "1962-11-09T11:38:34.123Z";
+                const TIMESTAMP_2 = "2017-11-28T14:31:00.456Z";
+                const stub = sinon.stub(assetsHelper, "_getLastPullTimestamps");
+                stub.returns({
+                    webAssets: {"draft": TIMESTAMP_1, "ready": TIMESTAMP_2},
+                    contentAssets: {"draft": TIMESTAMP_2, "ready": TIMESTAMP_2}
+                });
 
                 // Call the method being tested.
                 let error;
                 try {
-                    assetsHelper._setLastPushTimestamps(context, NEW_TIMESTAMP, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS});
-                    expect(stubGetLastPush).to.have.been.calledOnce;
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.exist;
-                    expect(stubSetLastPush.args[0][2]["webAssets"]).to.equal(TIMESTAMP);
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.exist;
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.not.equal(TIMESTAMP);
-                    expect(stubSetLastPush.args[0][2]["contentAssets"]).to.equal(NEW_TIMESTAMP);
+                    const timestamp = assetsHelper.getLastPullTimestamp(context, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS});
+                    expect(timestamp).to.equal(TIMESTAMP_1);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 } finally {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                }
-            });
-        });
+                    stub.restore();
 
-        describe("_getTimestamp", function () {
-            it("should return the web assets timestamp when the web assets type is specified", function (done) {
-                // Call the method being tested.
-                let error;
-                try {
-                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
-                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
-                    const timestamps = {webAssets: TIMESTAMP_BEFORE, contentAssets: TIMESTAMP_AFTER};
-                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_WEB_ASSETS});
-                    expect(timestamp).to.equal(TIMESTAMP_BEFORE);
-                } catch (err) {
-                    // NOTE: A failed expectation from above will be handled here.
-                    // Pass the error to the "done" function to indicate a failed test.
-                    error = err;
-                } finally {
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }
             });
 
-            it("should return the content assets timestamp when the content assets type is specified", function (done) {
+            it("should return the content assets ready timestamp when it is before the content assets draft timestamp", function (done) {
+                const TIMESTAMP_1 = "1962-11-09T11:38:34.123Z";
+                const TIMESTAMP_2 = "2017-11-28T14:31:00.456Z";
+                const stub = sinon.stub(assetsHelper, "_getLastPullTimestamps");
+                stub.returns({
+                    webAssets: {"draft": TIMESTAMP_2, "ready": TIMESTAMP_2},
+                    contentAssets: {"draft": TIMESTAMP_2, "ready": TIMESTAMP_1}
+                });
+
                 // Call the method being tested.
                 let error;
                 try {
-                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
-                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
-                    const timestamps = {webAssets: TIMESTAMP_BEFORE, contentAssets: TIMESTAMP_AFTER};
-                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_CONTENT_ASSETS});
-                    expect(timestamp).to.equal(TIMESTAMP_AFTER);
+                    const timestamp = assetsHelper.getLastPullTimestamp(context, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
+                    expect(timestamp).to.equal(TIMESTAMP_1);
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 } finally {
+                    stub.restore();
+
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }
             });
 
-            it("should return the web assets timestamp when it is before the content assets timestamp", function (done) {
-                // Call the method being tested.
-                let error;
-                try {
-                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
-                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
-                    const timestamps = {webAssets: TIMESTAMP_BEFORE, contentAssets: TIMESTAMP_AFTER};
-                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
-                    expect(timestamp).to.equal(TIMESTAMP_BEFORE);
-                } catch (err) {
-                    // NOTE: A failed expectation from above will be handled here.
-                    // Pass the error to the "done" function to indicate a failed test.
-                    error = err;
-                } finally {
-                    // Call mocha's done function to indicate that the test is over.
-                    done(error);
-                }
-            });
+            it("should return an undefined timestamp when no pull timestamps were saved", function (done) {
+                const stub = sinon.stub(assetsHelper, "_getLastPullTimestamps");
+                stub.returns(undefined);
 
-            it("should return the content assets timestamp when it is before the web assets timestamp", function (done) {
                 // Call the method being tested.
                 let error;
                 try {
-                    const TIMESTAMP_BEFORE = "1962-11-09T11:38:34.123Z";
-                    const TIMESTAMP_AFTER = "2017-11-28T14:31:00.456Z";
-                    const timestamps = {webAssets: TIMESTAMP_AFTER, contentAssets: TIMESTAMP_BEFORE};
-                    const timestamp = assetsHelper._getTimestamp(timestamps, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
-                    expect(timestamp).to.equal(TIMESTAMP_BEFORE);
+                    const timestamp = assetsHelper.getLastPullTimestamp(context, {assetTypes: assetsHelper.ASSET_TYPES_BOTH});
+                    expect(timestamp).to.not.exist;
                 } catch (err) {
                     // NOTE: A failed expectation from above will be handled here.
                     // Pass the error to the "done" function to indicate a failed test.
                     error = err;
                 } finally {
+                    stub.restore();
+
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
                 }

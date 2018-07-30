@@ -830,6 +830,43 @@ function getRelativePath (dir, file) {
 }
 
 /**
+ * Get the oldest timestamp from the given list.
+ *
+ * Note: If any timestamps in the list are undefined, return undefined.
+ *
+ * @param {Array} timestamps The list of timestamps to be compared.
+ *
+ * @returns {String | undefined} The oldest timestamp from the given list, or undefined if any of the timestamps are undefined.
+ */
+function getOldestTimestamp(timestamps) {
+    let oldestTimestamp;
+    let oldestDate;
+
+    for (let i = 0; timestamps && i < timestamps.length; i++) {
+        if (!timestamps[i]) {
+            // The timestamp is undefined, so return undefined.
+            return;
+        }
+
+        // Determine whether the timestamp is older than the current oldest.
+        if (oldestTimestamp) {
+            const date = new Date(timestamps[i]);
+            if (date < oldestDate) {
+                // The timestamp is the oldest for now.
+                oldestTimestamp = timestamps[i];
+                oldestDate = date;
+            }
+        } else {
+            // This is the first timestamp, so it is the oldest for now.
+            oldestTimestamp = timestamps[i];
+            oldestDate = new Date(timestamps[i]);
+        }
+    }
+
+    return oldestTimestamp;
+}
+
+/**
  * Replace all of the original string's occurrences of the find string with the replace string.
  *
  * @param original - The string being processed.
@@ -895,6 +932,7 @@ const utils = {
     retryNetworkErrors: retryNetworkErrors,
     getRelativePath: getRelativePath,
     getHTTPLanguage: getHTTPLanguage,
+    getOldestTimestamp: getOldestTimestamp,
     replaceAll: replaceAll,
     reset: reset,
     getUserAgent: getUserAgent

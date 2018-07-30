@@ -68,7 +68,7 @@ describe("Test Render command", function () {
 
         let error;
         toolsCli.parseArgs(['', process.cwd() + '/index.js', 'render', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
-            .then(function (msg) {
+            .then(function () {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubJob).to.have.been.calledOnce;
                 expect(stubJob.firstCall.args[1].mode).to.equal("UPDATE");
@@ -92,7 +92,7 @@ describe("Test Render command", function () {
 
         let error;
         toolsCli.parseArgs(['', process.cwd() + '/index.js', 'render', '-rv', '--user', 'uname', '--password', 'pwd', '--url', 'http://foo.bar/api'])
-            .then(function (msg) {
+            .then(function () {
                 // The stub should only have been called once, and it should have been before the spy.
                 expect(stubJob).to.have.been.calledOnce;
                 expect(stubJob.firstCall.args[1].mode).to.equal("REBUILD");

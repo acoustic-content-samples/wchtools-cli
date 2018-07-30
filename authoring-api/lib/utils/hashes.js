@@ -760,7 +760,7 @@ function setFilePath (context, basePath, id, filePath, opts) {
 /**
  * Get the timestamp of the last pull for the specified tenant.
  *
- * Example: "2017-01-16T22:30:05.928Z"
+ * @example {"ready": "2017-01-16T22:30:05.928Z"}
  *
  * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
@@ -784,11 +784,11 @@ function getLastPullTimestamp (context, basePath, opts) {
 }
 
 /**
- * Set the timestamp of the last pull for the specified tenant.
+ * Set the timestamp data for the last pull from the specified tenant.
  *
  * @param {Object} context The current API context.
  * @param {String} basePath The path where the hashes file is located.
- * @param {Date | String} timestamp The timestamp of the last pull for the specified tenant.
+ * @param {Object} timestamp The timestamp data for the last pull from the specified tenant.
  * @param {Object} opts The options object that specifies which tenant is being used.
  *
  * @returns {Object} The updated tenant map for the hashes file at the given location, or an empty object.
@@ -811,64 +811,6 @@ function setLastPullTimestamp (context, basePath, timestamp, opts) {
     } catch (err) {
         // Log the error and return the current state of the tenant map.
         utils.logErrors(context, i18n.__("error_set_last_pull_timestamp"), err);
-        return loadTenantMap(context, basePath);
-    }
-}
-
-/**
- * Get the timestamp of the last push for the specified tenant.
- *
- * Example: "2017-01-16T22:30:05.928Z"
- *
- * @param {Object} context The current API context.
- * @param {String} basePath The path where the hashes file is located.
- * @param {Object} opts The options object that specifies which tenant is being used.
- *
- * @returns {String} The timestamp of the last push for the specified tenant.
- *
- * @public
- */
-function getLastPushTimestamp (context, basePath, opts) {
-    // If the context specifies that hashes should not be used, return a null timestamp.
-    if (!options.getRelevantOption(context, opts, "useHashes")) {
-        return null;
-    }
-
-    // Get the tenant metadata from the hashes file at the specified location.
-    const hashMap = loadHashes(context, basePath, opts);
-
-    // Return the pull timestamp for the tenant.
-    return hashMap.lastPushTimestamp;
-}
-
-/**
- * Set the timestamp of the last push for the specified tenant.
- *
- * @param {Object} context The current API context.
- * @param {String} basePath The path where the hashes file is located.
- * @param {Date | String} timestamp The timestamp of the last push for the specified tenant.
- * @param {Object} opts The options object that specifies which tenant is being used.
- *
- * @returns {Object} The updated tenant map for the hashes file at the given location, or an empty object.
- *
- * @public
- */
-function setLastPushTimestamp (context, basePath, timestamp, opts) {
-    // If the context specifies that hashes should not be used, return an empty tenant map.
-    if (!options.getRelevantOption(context, opts, "useHashes")) {
-        return {};
-    }
-
-    try {
-        // Get the tenant metadata from the hashes file at the specified location.
-        const hashMap = loadHashes(context, basePath, opts);
-
-        // Update the tenant metadata with the timestamp value and save it to the hashes file in the specified location.
-        hashMap.lastPushTimestamp = timestamp;
-        return saveHashes(context, basePath, hashMap, opts);
-    } catch (err) {
-        // Log the error and return the current state of the tenant map.
-        utils.logErrors(context, i18n.__("error_set_last_push_timestamp"), err);
         return loadTenantMap(context, basePath);
     }
 }
@@ -1199,8 +1141,6 @@ const hashes = {
     setFilePath: setFilePath,
     getLastPullTimestamp: getLastPullTimestamp,
     setLastPullTimestamp: setLastPullTimestamp,
-    getLastPushTimestamp: getLastPushTimestamp,
-    setLastPushTimestamp: setLastPushTimestamp,
     getMD5ForFile: getMD5ForFile,
     getResourceMD5ForFile: getResourceMD5ForFile,
     getPathForResource: getPathForResource,

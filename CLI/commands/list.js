@@ -898,7 +898,7 @@ function listCommand (program) {
         .option('-A --all-authoring',    i18n.__('cli_list_opt_all'))
         .option('--write-manifest <manifest>',   i18n.__('cli_list_opt_write_manifest'))
         .option('--ready',               i18n.__('cli_list_opt_ready'))
-        //.option('--draft',               i18n.__('cli_list_opt_draft'))
+        .option('--draft', i18n.__('cli_list_opt_draft'))
         .option('--path <path>',         i18n.__('cli_list_opt_path'))
         .option('--dir <dir>',           i18n.__('cli_list_opt_dir'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))

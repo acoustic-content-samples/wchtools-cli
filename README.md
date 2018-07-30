@@ -78,7 +78,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
 ### Getting Started
 
-  After you successfully install the wchtools CLI, initialize the username and the API URL for your Watson Content Hub tenant.   Obtain the API URL from the "Hub Information" dialog, which is available from a drop-down menu off the username on the top navigation bar of the content hub authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
+  After you successfully install the wchtools CLI, initialize the username and the API URL for your Watson Content Hub tenant.   Obtain the API URL from the "Hub Information" dialog, which is available from the "About" flyout menu off the left navigation pane of the Watson Content Hub authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
 
 #### Initializing wchtools with a username and API URL for a non-federated IBM id
 
@@ -288,7 +288,7 @@ The resulting my_deletions manifest would contain all of the deleted artifacts t
 When comparing two directories or a source directory and a target WCH tenant, any manifest files read or written by the compare command will be loaded or saved using the source directory as identified by the --source argument.
 When comparing two Watson Content Hub tenants, any manifest files read or written by the compare command will be loaded or saved using the current working directory where the command is executed from.
 
-##### Limitating the scope of the comparison
+##### Limiting the scope of the comparison
 
 In some scenarios, the development tenant may have more artifacts than you want to consider migrating from development to staging/production (eg, additional development-only test artifacts).  To restrict a compare action to only consider a subset of files, the --manifest argument can be used, pointing to a manifest of the total set of artifacts that you want to include in the comparison.   This option requires you to keep an up to date manifest of everything you want considered for migration between the tenants, and is not a default or necessarily commonly used option.
 
@@ -571,7 +571,7 @@ The manifest created from this command will include all of the ready artifacts i
 
 
 #### Defaults
-  By default, wchtools CLI pushes only the authoring artifacts and web resources that are not modified, since the last successful push or pull.  To push or pull artifacts again whether they are modified or not since the last successful push or pull, use the -I option to Ignore-timestamps.
+  By default, wchtools CLI pushes and pulls only the authoring artifacts and web resources that are "ready" (not draft)), and have been modified since the last successful push or pull.  To push or pull artifacts again whether they are modified or not since the last successful push or pull, use the -I option to Ignore-timestamps. To push or pull "draft" authoring artifacts, use the --draft option.
 
   An initial push of a starter kit or sample package is done to populate the initial authoring artifacts. Those authoring artifacts and successive ones are typically manipulated in the Watson Content Hub web based Authoring UI and not locally on the filesystem. Web resource artifacts such as html, css, js, and handlebars templates are managed and edited externally and pushed to the Watson Content Hub with the wchtools CLI utility. Therefore, the default is to push and pull only web resource artifacts, if no options are specified to the push and pull commands.
 
@@ -583,13 +583,21 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools pull -act
 
-  Use the following command to pull assets, content, and types, ignoring timestamps.  This allows you to pull these artifacts whether they were  modified or not since the last successful pull or push, to or from this working directory.
+  Use the following command to pull assets, content, and types, ignoring timestamps.  This allows you to pull these artifacts whether they were modified or not since the last successful pull or push, to or from this working directory.
 
-    wchtools pull -act --I
+    wchtools pull -act -I
 
   Use the following command to pull to a specific directory.
 
     wchtools pull --dir <some directory>
+
+  Use the following command to pull draft assets and content artifacts.
+
+    wchtools pull -ac --draft
+
+  Use the following command to pull ready AND draft assets and content artifacts.
+
+    wchtools pull -ac --draft --ready
 
   Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. You can specify a more granular folder structure when pushing or pulling web assets, content types, layouts, and layout mappings. By using the --path option, you can specify a path below the <working-directory>/<artifact-type>/ folder. For example, consider a working directory with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , topNav, and sideNav.
 

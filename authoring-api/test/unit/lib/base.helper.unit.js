@@ -1196,14 +1196,19 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubGet = sinon.stub(restApi, "getItems");
                 const readyMetadata1 = utils.clone(itemMetadata1);
                 readyMetadata1.status = "ready";
+                readyMetadata1.siteStatus = "ready";
                 const readyMetadata2 = utils.clone(itemMetadata2);
                 readyMetadata2.status = "ready";
+                readyMetadata2.siteStatus = "ready";
                 const readyMetadata3 = utils.clone(itemMetadata2);
                 readyMetadata3.status = "ready";
+                readyMetadata3.siteStatus = "ready";
                 const draftMetadata1 = utils.clone(itemMetadata1);
                 draftMetadata1.status = "draft";
+                draftMetadata1.siteStatus = "draft";
                 const draftMetadata2 = utils.clone(itemMetadata2);
                 draftMetadata2.status = "draft";
+                draftMetadata2.siteStatus = "draft";
                 stubGet.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
 
                 // Create a helper.canPullItem stub that return false for some of the items.
@@ -1262,14 +1267,19 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubGet = sinon.stub(restApi, "getItems");
                 const readyMetadata1 = utils.clone(itemMetadata1);
                 readyMetadata1.status = "ready";
+                readyMetadata1.siteStatus = "ready";
                 const readyMetadata2 = utils.clone(itemMetadata2);
                 readyMetadata2.status = "ready";
+                readyMetadata2.siteStatus = "ready";
                 const readyMetadata3 = utils.clone(itemMetadata2);
                 readyMetadata3.status = "ready";
+                readyMetadata3.siteStatus = "ready";
                 const draftMetadata1 = utils.clone(itemMetadata1);
                 draftMetadata1.status = "draft";
+                draftMetadata1.siteStatus = "draft";
                 const draftMetadata2 = utils.clone(itemMetadata2);
                 draftMetadata2.status = "draft";
+                draftMetadata2.siteStatus = "draft";
                 stubGet.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
 
                 // Create a helper.canPullItem stub that return false for some of the items.
