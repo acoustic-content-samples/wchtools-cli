@@ -85,33 +85,6 @@ class PublishingJobsREST extends JSONItemREST {
         return this.deleteItem(context, {"id": id}, opts);
     }
 
-    cancelPublishingJob (context, id, opts) {
-        const deferred = Q.defer();
-        const restObject = this;
-        this.getUpdateRequestOptions(context, opts)
-            .then(function(requestOptions) {
-                requestOptions.uri = requestOptions.uri + "/" + id + "/cancel";
-                utils.logDebugInfo(context, 'Canceling publishing job ' + restObject.getServiceName(),undefined,requestOptions);
-                request.put(requestOptions, function (err, res, body) {
-                    const response = res || {};
-                    if (err || response.statusCode < 200 || response.statusCode > 299) {
-                        err = utils.getError(err, body, response, requestOptions);
-                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
-                        utils.logErrors(context, i18n.__("error_cancelling_job" , {id: id}), err);
-                        deferred.reject(err);
-                    } else {
-                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
-                        utils.logDebugInfo(context, 'Canceling publishing job ' + restObject.getServiceName(), response);
-                        deferred.resolve(body);
-                    }
-                });
-            })
-            .catch(function (err){
-                deferred.reject(err);
-            });
-
-        return deferred.promise;
-    }
 }
 
 module.exports = PublishingJobsREST;

@@ -25,7 +25,7 @@
   "save_item_write_failed_bad_path": "saveItem でファイル %(path)s への書き込みに失敗しました。パスが正しくありません",
   "close_stream_failed": "closeStream がエラーで失敗しました: ",
   "error_options_file": "構成オプション・ファイル %(filename)s の読み取り中にエラーが発生しました。 %(error)s",
-  "error_manifest_file": "マニフェスト・ファイル %(filename)s の読み取り中にエラーが発生しました。%(error)s",
+  "error_manifest_file": "マニフェスト・ファイル %(filename)s の読み取り中にエラーが発生しました。 %(error)s",
 
   "name_required": "名前を指定する必要があります。",
   "category_exists": "名前 %(name)s のカテゴリーは既に存在します。",

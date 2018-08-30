@@ -22,8 +22,6 @@ const assetsHelper = require('./assetsHelper.js').instance;
 const contentHelper = require('./contentHelper').instance;
 const categoriesHelper = require('./categoriesHelper').instance;
 const publishingJobsHelper = require('./publishingJobsHelper').instance;
-const publishingSourcesHelper = require('./publishingSourcesHelper').instance;
-const publishingProfilesHelper = require('./publishingProfilesHelper').instance;
 const publishingSiteRevisionsHelper = require('./publishingSiteRevisionsHelper').instance;
 const renditionsHelper = require('./renditionsHelper').instance;
 const imageProfilesHelper = require('./imageProfilesHelper').instance;
@@ -148,14 +146,6 @@ class WchToolsApi {
 
     static getPublishingJobsHelper () {
         return publishingJobsHelper;
-    }
-
-    static getPublishingSourcesHelper () {
-        return publishingSourcesHelper;
-    }
-
-    static getPublishingProfilesHelper () {
-        return publishingProfilesHelper;
     }
 
     static getPublishingSiteRevisionsHelper () {
@@ -316,12 +306,6 @@ class WchToolsApi {
                 return pushPagesBySite();
             })
             .then(function () {
-                return self.handlePromise(self.pushSources(opts));
-            })
-            .then(function () {
-                return self.handlePromise(self.pushProfiles(opts));
-            })
-            .then(function () {
                 return self.handlePromise(self.pushSiteRevisions(opts));
             })
             .then(function () {
@@ -442,22 +426,6 @@ class WchToolsApi {
         const helper = WchToolsApi.getPagesHelper();
         const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
         this.getLogger().info("pushPages complete");
-        return promise;
-    }
-
-    pushSources (opts) {
-        this.getLogger().info("pushSources started");
-        const helper = WchToolsApi.getPublishingSourcesHelper();
-        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
-        this.getLogger().info("pushSources complete");
-        return promise;
-    }
-
-    pushProfiles (opts) {
-        this.getLogger().info("pushProfiles started");
-        const helper = WchToolsApi.getPublishingProfilesHelper();
-        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
-        this.getLogger().info("pushProfiles complete");
         return promise;
     }
 

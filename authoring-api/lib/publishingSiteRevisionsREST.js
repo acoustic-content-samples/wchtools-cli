@@ -15,12 +15,15 @@ limitations under the License.
 */
 "use strict";
 
+const Q = require("q");
 const JSONItemREST = require("./JSONItemREST.js");
 const utils = require("./utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
+
+const DEFAULT = "default";
 
 class PublishingSiteRevisionsREST extends JSONItemREST {
 
@@ -36,6 +39,24 @@ class PublishingSiteRevisionsREST extends JSONItemREST {
             this[singleton] = new PublishingSiteRevisionsREST(singletonEnforcer);
         }
         return this[singleton];
+    }
+
+    /**
+     * getItems - overridden to hardcode a single default site revision until more than one revision is supported
+     * @param context
+     * @param opts
+     * @returns {Q.Promise}
+     */
+    getItems (context, opts) {
+        const deferred = Q.defer();
+        this.getItem(context, DEFAULT, opts)
+            .then(function (item) {
+                deferred.resolve([item]);
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+        return deferred.promise;
     }
 }
 

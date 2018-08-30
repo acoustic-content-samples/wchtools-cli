@@ -65,10 +65,6 @@ class PublishingJobsHelper {
     deletePublishingJob (context, id, opts) {
         return rest.deletePublishingJob(context, id, opts);
     }
-
-    cancelPublishingJob (context, id, opts) {
-        return rest.cancelPublishingJob(context, id, opts);
-    }
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "3.0.4",
+  "version": "3.0.13",
   "keywords": [
     "cli"
   ],

@@ -61,8 +61,10 @@ class BaseRestUnitTest extends UnitTest {
             // Run each of the tests defined in this class.
             self.testSingleton(restApi, lookupUri, restName, itemPath1, itemPath2);
             self.testGetRequestOptions(restApi);
-            self.testGetModifiedItems(restApi, lookupUri, restName, itemPath1, itemPath2);
-            self.testGetItems(restApi, lookupUri, restName, itemPath1, itemPath2);
+            self.testGetModifiedItemsFail(restApi, lookupUri, restName, itemPath1, itemPath2);
+            self.testGetModifiedItemsSuccess(restApi, lookupUri, restName, itemPath1, itemPath2);
+            self.testGetItemsFail(restApi, lookupUri, restName, itemPath1, itemPath2);
+            self.testGetItemsSuccess(restApi, lookupUri, restName, itemPath1, itemPath2);
             self.testGetItem(restApi, lookupUri, restName, itemPath1, itemPath2);
             self.testGetItemByPath(restApi, lookupUri, restName, itemPath1, itemPath2);
             self.testDeleteItem(restApi, lookupUri, restName, itemPath1, itemPath2);
@@ -167,10 +169,10 @@ class BaseRestUnitTest extends UnitTest {
         });
     }
 
-    testGetModifiedItems (restApi, lookupUri, restName, itemPath1, itemPath2) {
+    testGetModifiedItemsFail (restApi, lookupUri, restName, itemPath1, itemPath2) {
         const self = this;
 
-        describe("getModifiedItems", function() {
+        describe("getModifiedItemsFail", function() {
             it("should fail when getting items the fails with an error", function (done) {
                 // Create a stub for the GET requests.
                 const stub = sinon.stub(request, "get");
@@ -250,8 +252,14 @@ class BaseRestUnitTest extends UnitTest {
                         done(error);
                     });
             });
+        });
+    }
 
-            it("should succeed when getting valid items", function (done) {
+    testGetModifiedItemsSuccess (restApi, lookupUri, restName, itemPath1, itemPath2) {
+        const self = this;
+
+        describe("getModifiedItemsSuccess", function() {
+            it("should succeed when getting valid modified items", function (done) {
                 // Create a stub for GET requests
                 const stub = sinon.stub(request, "get");
 
@@ -294,10 +302,10 @@ class BaseRestUnitTest extends UnitTest {
         });
     }
 
-    testGetItems (restApi, lookupUri, restName, itemPath1, itemPath2) {
+    testGetItemsFail (restApi, lookupUri, restName, itemPath1, itemPath2) {
         const self = this;
 
-        describe("getItems", function() {
+        describe("getItemsFail", function() {
             it("should fail when getting request options fails with an error", function (done) {
                 // Create a stub for the GET requests.
                 const stub = sinon.stub(restApi, "getRequestOptions");
@@ -576,7 +584,7 @@ class BaseRestUnitTest extends UnitTest {
                         done(error);
                     });
             });
-
+        
             it("should succeed when the request is retried then succeeds", function (done) {
                 // Create a stub for the underlying GET requests.
                 const stub = sinon.stub(request.Request, "request");
@@ -696,6 +704,13 @@ class BaseRestUnitTest extends UnitTest {
                     });
             });
 
+        });
+    }
+
+    testGetItemsSuccess (restApi, lookupUri, restName, itemPath1, itemPath2) {
+        const self = this;
+      
+        describe("getItemsSucceed", function() {
             it("should succeed when getting valid items", function (done) {
                 // Create a stub for GET requests
                 const stub = sinon.stub(request, "get");

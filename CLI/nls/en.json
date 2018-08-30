@@ -132,7 +132,7 @@
   "cli_pull_layout_mapping_delete_confirm": "Delete the local layout mapping file with path %(name)s and id %(id)s? y/n",
   "cli_pull_layout_mapping_deleted":        "Deleted the local layout mapping file with path %(name)s and id %(id)s",
   "cli_pull_layout_mapping_delete_error":   "Deleting the local layout mapping file with path %(name)s and id %(id)s resulted in the following error: %(message)s.",
-  "cli_pull_site_revision_pulled":"Pulled publishing site revision with id %(name)s",
+  "cli_pull_site_revision_pulled":"Pulled publishing site revision with name %(name)s and id %(id)s",
   "cli_pull_site_revision_pull_error": "Pulling publishing site revision with id %(name)s resulted in the following error: %(message)s.",
   "cli_pull_site_revision_delete_confirm": "Delete the local publishing site revision file with id %(name)s? y/n",
   "cli_pull_site_revision_deleted":     "Deleted the local publishing site revision file with id %(name)s",
@@ -263,7 +263,7 @@
   "cli_push_name_and_ready":      "Invalid options named and ready cannot be used together.",
   "cli_push_name_and_draft":      "Invalid options named and draft cannot be used together.",
   "cli_push_name_one_type":       "Invalid options, named can only be used for a single type.",
-  "cli_push_site_revision_pushed":       "Pushed publishing site revision with id %(name)s",
+  "cli_push_site_revision_pushed":       "Pushed publishing site revision with name %(name)s and id %(id)s",
   "cli_push_site_revision_push_error":   "Pushing publishing site revision with id %(name)s resulted in the following error: %(message)s.",
 
   "cli_push_success": {

@@ -978,9 +978,9 @@ class PushCommand extends BaseCommand {
         self.getLogger().info(PushingPublishingSiteRevisions);
 
         // The api emits an event when an item is pushed, so we log it for the user.
-        const siteRevisionPushed = function (name) {
+        const siteRevisionPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_site_revision_pushed', {name: name}));
+            self.getLogger().info(i18n.__('cli_push_site_revision_pushed', {name: item.name[i18n.locale] || item.name["en"], id: item.id}));
         };
         emitter.on("pushed", siteRevisionPushed);
 

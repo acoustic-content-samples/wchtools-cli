@@ -897,7 +897,7 @@ class BaseCommand {
                                 readySiteIds.push("default");
                             }
 
-                            if (includeDraftSites) {
+                            if (includeDraftSites && BaseCommand.DRAFT_SITES) {
                                 draftSiteIds.push("default:draft");
                             }
 
