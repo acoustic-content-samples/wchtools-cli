@@ -52,7 +52,7 @@
   "error_get_hashes_for_file": "Error en getHashesForFile: ",
   "error_manifest_file_read": "Error al leer el archivo de manifiesto %(filename)s: %(error)s",
   "error_manifest_file_write": "Error al escribir el archivo de manifiesto %(filename)s: %(error)s",
-  "error_manifest_file_does_not_exist": "El archivo de manifiesto %(filename)s no existe. ",
+  "error_manifest_file_does_not_exist": "El archivo de manifiesto %(filename)s no existe.",
 
   "error_unsupported_endpoint": "El %(service_name)s API no soporta el punto final %(endpoint)s.",
   "unknown_error": "Error desconocido",

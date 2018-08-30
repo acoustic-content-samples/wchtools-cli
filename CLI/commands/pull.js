@@ -1532,9 +1532,9 @@ class PullCommand extends BaseCommand {
         self.getLogger().info(PullingPublishingSiteRevisions);
 
         // The API emits an event when an item is pulled, so we log it for the user.
-        const siteRevisionPulled = function (name) {
+        const siteRevisionPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_site_revision_pulled', {name: name}));
+            self.getLogger().info(i18n.__('cli_pull_site_revision_pulled', {name: item.name[i18n.locale] || item.name["en"], id: item.id}));
         };
         emitter.on(EVENT_ITEM_PULLED, siteRevisionPulled);
 

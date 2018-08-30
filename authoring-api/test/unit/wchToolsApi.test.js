@@ -94,27 +94,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             expect(helper).to.be.ok;
             expect(helper).to.have.property("createPublishingJob");
             expect(helper).to.have.property("getPublishingJob");
-            expect(helper).to.have.property("cancelPublishingJob");
-            done();
-        });
-
-        it("getPublishingSourcesHelper", function (done) {
-            const helper = ToolsApi.getPublishingSourcesHelper();
-            expect(helper).to.be.ok;
-            expect(helper.getArtifactName()).to.equal("publishing-sources");
-            expect(helper).to.have.property("getName");
-            expect(helper).to.have.property("pushAllItems");
-            expect(helper).to.have.property("listRemoteDeletedNames");
-            done();
-        });
-
-        it("getPublishingProfilesHelper", function (done) {
-            const helper = ToolsApi.getPublishingProfilesHelper();
-            expect(helper).to.be.ok;
-            expect(helper.getArtifactName()).to.equal("publishing-profiles");
-            expect(helper).to.have.property("getName");
-            expect(helper).to.have.property("canPushItem");
-            expect(helper).to.have.property("getLogger");
             done();
         });
 
@@ -291,10 +270,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
             stubPages.resolves([]);
-            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
-            stubSources.resolves([]);
-            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
-            stubProfiles.resolves([]);
             const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
             stubSiteRevisions.resolves([]);
 
@@ -314,8 +289,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called; // Because there are no local sites.
-                    expect(stubSources).to.have.been.calledOnce;
-                    expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
@@ -338,8 +311,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubSites.restore();
                     stubPages.restore();
-                    stubSources.restore();
-                    stubProfiles.restore();
                     stubSiteRevisions.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -388,10 +359,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
             stubPages.resolves([]);
-            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
-            stubSources.resolves([]);
-            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
-            stubProfiles.resolves([]);
             const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
             stubSiteRevisions.resolves([]);
 
@@ -410,8 +377,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two local sites
-                    expect(stubSources).to.have.been.calledOnce;
-                    expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
@@ -435,8 +400,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubSites.restore();
                     stubPages.restore();
-                    stubSources.restore();
-                    stubProfiles.restore();
                     stubSiteRevisions.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -485,10 +448,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
             stubPages.resolves([]);
-            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
-            stubSources.resolves([]);
-            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
-            stubProfiles.resolves([]);
             const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
             stubSiteRevisions.resolves([]);
 
@@ -507,8 +466,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called; // Because there are no local sites
-                    expect(stubSources).to.have.been.calledOnce;
-                    expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
@@ -532,8 +489,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubSites.restore();
                     stubPages.restore();
-                    stubSources.restore();
-                    stubProfiles.restore();
                     stubSiteRevisions.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -583,10 +538,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
             stubPages.resolves([]);
-            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
-            stubSources.resolves([]);
-            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
-            stubProfiles.resolves([]);
             const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
             stubSiteRevisions.resolves([]);
 
@@ -622,8 +573,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubSites.restore();
                     stubPages.restore();
-                    stubSources.restore();
-                    stubProfiles.restore();
                     stubSiteRevisions.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -671,10 +620,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
             stubPages.resolves([]);
-            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
-            stubSources.resolves([]);
-            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
-            stubProfiles.resolves([]);
             const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
             stubSiteRevisions.resolves([]);
 
@@ -693,8 +638,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called;
-                    expect(stubSources).to.have.been.calledOnce;
-                    expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
@@ -717,8 +660,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubSites.restore();
                     stubPages.restore();
-                    stubSources.restore();
-                    stubProfiles.restore();
                     stubSiteRevisions.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -766,10 +707,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
             stubPages.resolves([]);
-            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushAllItems");
-            stubSources.resolves([]);
-            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushAllItems");
-            stubProfiles.resolves([]);
             const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushAllItems");
             stubSiteRevisions.resolves([]);
 
@@ -801,8 +738,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubSites.restore();
                     stubPages.restore();
-                    stubSources.restore();
-                    stubProfiles.restore();
                     stubSiteRevisions.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -833,10 +768,6 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushModifiedItems");
             stubPages.resolves([]);
-            const stubSources = sinon.stub(ToolsApi.getPublishingSourcesHelper(), "pushModifiedItems");
-            stubSources.resolves([]);
-            const stubProfiles = sinon.stub(ToolsApi.getPublishingProfilesHelper(), "pushModifiedItems");
-            stubProfiles.resolves([]);
             const stubSiteRevisions = sinon.stub(ToolsApi.getPublishingSiteRevisionsHelper(), "pushModifiedItems");
             stubSiteRevisions.resolves([]);
 
@@ -856,8 +787,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called;
-                    expect(stubSources).to.have.been.calledOnce;
-                    expect(stubProfiles).to.have.been.calledOnce;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
@@ -880,8 +809,6 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubSites.restore();
                     stubPages.restore();
-                    stubSources.restore();
-                    stubProfiles.restore();
                     stubSiteRevisions.restore();
 
                     // Call mocha's done function to indicate that the test is over.

@@ -24,7 +24,7 @@
   "save_item_write_failed": "saveItem 無法寫入檔案 %(path)s",
   "save_item_write_failed_bad_path": "saveItem 無法寫入檔案 %(path)s 不正確路徑",
   "close_stream_failed": "由於下列錯誤，closeStream 失敗：",
-  "error_options_file": "讀取配置選項檔案：%(filename)s 時，發生錯誤：%(error)s",
+  "error_options_file": "讀取配置選項檔時發生錯誤：%(filename)s。%(error)s",
   "error_manifest_file": "讀取資訊清單檔時發生錯誤：%(filename)s。%(error)s",
 
   "name_required": "必須指定名稱。",
