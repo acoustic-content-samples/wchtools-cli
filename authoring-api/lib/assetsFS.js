@@ -274,7 +274,7 @@ class AssetsFS extends BaseFS {
         }
 
         // Add a file name suffix to draft assets.
-        if (filepath && asset.status === "draft") {
+        if (filepath && BaseFS.getStatus(asset) === "draft") {
             const index = filepath.lastIndexOf(".");
 
             // Determine the file name suffix to be used for this draft artifact. Add "_wchdraft" to differentiate draft
@@ -669,17 +669,25 @@ class AssetsFS extends BaseFS {
      */
     listResourceNames (context, opts) {
         const deferred = Q.defer();
+        const assetsDir = this.getAssetsPath(context, opts);
         const resourcesDir = this.getResourcesPath(context, opts);
 
-        if (fs.existsSync(resourcesDir)) {
+        if (fs.existsSync(assetsDir) && fs.existsSync(resourcesDir)) {
+            const filter = this.getDefaultIgnoreFilter(context, opts);
+
             recursive(resourcesDir, function (err, files) {
                 if (err) {
                     deferred.reject(err);
                 } else {
+                    // All filtering is based on relative path.
                     files = files.map(function (file) {
                         return utils.getRelativePath(resourcesDir, file);
                     });
 
+                    // Filter the assets based on the ignore list.
+                    files = files.filter(filter);
+
+                    // Now also filter out any hashes file.
                     files = files.filter(function (path) {
                         return (!hashes.isHashesFile(path));
                     });

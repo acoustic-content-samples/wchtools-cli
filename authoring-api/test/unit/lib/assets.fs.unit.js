@@ -2385,6 +2385,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Create a stub for fs.existsSync that will return true.
                 const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
                 stubExists.withArgs(assetsFS.getResourcesPath(context, opts)).returns(true);
 
                 self.addTestDouble(stubExists);
@@ -2438,6 +2439,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
                 // Create a stub for fs.existsSync that will return true.
                 const stubExists = sinon.stub(fs, "existsSync");
+                stubExists.withArgs(assetsFS.getAssetsPath(context, opts)).returns(true);
                 stubExists.withArgs(assetsFS.getResourcesPath(context, opts)).returns(true);
 
                 self.addTestDouble(stubExists);

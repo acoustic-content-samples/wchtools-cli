@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for IBM Watson Content Hub",
-  "version": "3.0.13",
+  "version": "3.1.1",
   "keywords": [
     "api",
     "tools"
@@ -12,7 +12,7 @@
     "url": "https://github.com/ibm-wch/wchtools-cli/issues"
   },
   "engines": {
-    "node": ">=4.1.0"
+    "node": ">=6.13.0"
   },
   "config": {
     "engine-strict": true
@@ -23,12 +23,13 @@
     "deep-extend": "^0.6.0",
     "i18n-2": "^0.6.3",
     "ignore": "^3.3.0",
-    "log4js": "^2.5.2",
+    "log4js": "^3.0.5",
     "mime-types": "^2.1.15",
     "mkdirp": "^0.5.1",
     "q": "^1.5.0",
     "recursive-readdir": "^2.1.1",
-    "requestretry": "^1.12.0",
+    "request": "^2.88.0",
+    "requestretry": "^3.0.0",
     "os-locale": "^2.0.0"
   },
   "devDependencies": {

@@ -204,6 +204,23 @@ class JSONItemFS extends BaseFS {
         return map;
     }
 
+
+    /**
+     * Delete the outdated artifact from the local file system when an artifact has been renamed.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {String} oldFilePath The id of the artifact.
+     * @param {String} newFilePath The (possibly new) filepath of the artifact.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @protected
+     */
+    deleteRenamedFile(context, oldFilePath, newFilePath, opts) {
+        // Delete the old artifact file from the local file system.
+        fs.unlinkSync(oldFilePath);
+        utils.logWarnings(context, i18n.__("deleted_original_file", {old_name: oldFilePath, new_name: newFilePath}));
+    }
+
     /**
      * Handle any necessary cleanup of the local file system when an artifact has been renamed.
      *
@@ -242,15 +259,19 @@ class JSONItemFS extends BaseFS {
                             // Parse the file to get the id property.
                             const item = JSON.parse(fs.readFileSync(localFilePath, 'utf8'));
                             if (item && (item.id === id)) {
-                                // Delete the local file, because it has the same id as the specified file.
-                                fs.unlinkSync(localFilePath);
-                                utils.logWarnings(context, i18n.__("deleted_original_file", {old_name: localFilePath, new_name: filePath}));
+                                // Delete the old artifact file.
+                                fsObject.deleteRenamedFile(context, localFilePath, filePath, opts);
 
                                 // Also delete the parent folder if it is now empty.
                                 utils.removeEmptyParentDirectories(virtualDirectory, localFilePath);
                             }
                         } catch (err) {
-                            // Couldn't read the file, so just ignore it.
+                            // There was a problem reading, renaming, or removing. Add a warning to the log
+                            const message = err.log ? err.log : err.message;
+                            utils.logWarnings(context, i18n.__("error_renaming_item", {
+                                name: localFilePath,
+                                message: message
+                            }));
                         }
                     }
                 });
@@ -366,6 +387,20 @@ class JSONItemFS extends BaseFS {
     }
 
     /**
+     * Determine whether the list of artifacts for this type should always include a path value.
+     *
+     * @param {Object} context The API context to be used by the get operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Boolean} A return value of true indicates that a path value should always be included.
+     *
+     * @protected
+     */
+    alwaysListPath(context, opts) {
+        return false;
+    }
+
+    /**
      * @param {Object} context The API context to be used by the get operation.
      * @param {Object} opts Any override options to be used for this operation.
      *
@@ -421,8 +456,8 @@ class JSONItemFS extends BaseFS {
                                 path = file;
                             }
 
-                            // Only include a path property if it is different than the id.
-                            if (path !== proxy.id) {
+                            // Only include a path property if it is different than the id, or required by the artifact type.
+                            if (fsObject.alwaysListPath(context, opts) || path !== proxy.id) {
                                 proxy.path = path;
                             }
 

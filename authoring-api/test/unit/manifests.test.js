@@ -26,7 +26,7 @@ const assetsREST = require(BaseUnit.API_PATH + "lib/assetsREST.js").instance;
 
 const TEST_MANIFEST_CONTENTS = '{"artifactType":{"an-id": {"id": "an-id", "name": "a-name", "path": "a-path"}}}';
 const ASSETS_MANIFEST_CONTENTS = '{"assets":{"asset-path": {"id": "asset-id", "name": "asset-name", "path": "asset-path"}}}';
-const SITES_MANIFEST_CONTENTS = '{"sites":{"default": {"id": "default", "name": "default"}}}';
+const SITES_MANIFEST_CONTENTS = '{"sites":{"default": {"id": "default", "name": "default", "status": "ready", "contextRoot": "/"}}}';
 const PAGES_MANIFEST_CONTENTS = '{"sites":{"default": {"id": "default", "name": "default", "pages": {"id1": {"id": "id1", "name": "name1", "path": "path1"}, "id2": {"id": "id2", "name": "name2", "path": "path2"}}}, "non-default": {"id": "non-default", "name": "non-default", "pages": {"id1": {"id": "id1", "name": "name1", "path": "path1"}, "id2": {"id": "id2", "name": "name2", "path": "path2"}}}}}';
 
 describe("manifests", function () {
@@ -574,7 +574,7 @@ describe("manifests", function () {
             readStub.returns(SITES_MANIFEST_CONTENTS);
 
             // Specify a non-default site id.
-            opts.siteId = "non-default";
+            opts.siteItem = {id: "non-default"};
 
             let error;
             manifests.initializeManifests(context, "foo", null, null, opts)
@@ -632,7 +632,7 @@ describe("manifests", function () {
             readStub.returns(PAGES_MANIFEST_CONTENTS);
 
             // Specify a non-default site id.
-            opts.siteId = "non-default";
+            opts.siteItem = {id: "non-default"};
 
             let error;
             manifests.initializeManifests(context, "foo", null, null, opts)
@@ -863,6 +863,48 @@ describe("manifests", function () {
                     manifest = options.getRelevantOption(context, opts, "writeManifest");
                     expect(manifest["assets"]["asset-path"].name).to.equal("asset-name");
                     expect(manifest["assets"]["asset-path-2"].name).to.equal("asset-name-2");
+                })
+                .catch(function (err) {
+                    error = err;
+                })
+                .finally(function () {
+                    existsStub.restore();
+                    readStub.restore();
+
+                    done(error);
+                });
+        });
+
+        it("should append the specified site item to an existing sites section", function (done) {
+            // Create an fs.existsSync stub to return true.
+            const existsStub = sinon.stub(fs, "existsSync");
+            existsStub.returns(true);
+
+            // Create an fs.readFileSync stub to return the manifest contents.
+            const readStub = sinon.stub(fs, "readFileSync");
+            readStub.returns(SITES_MANIFEST_CONTENTS);
+
+            let error;
+            manifests.initializeManifests(context, null, "foo", null, opts)
+                .then(function (result) {
+                    let manifest = options.getRelevantOption(context, opts, "writeManifest");
+
+                    expect(manifest["sites"]["default"].id).to.equal("default");
+                    expect(manifest["sites"]["default"].name).to.equal("default");
+                    expect(manifest["sites"]["default"].status).to.equal("ready");
+                    expect(manifest["sites"]["default"].contextRoot).to.equal("/");
+                    expect(manifest["sites"]["default:draft"]).to.not.exist;
+
+                    manifests.updateManifestSection(context, "sites", [{
+                        "id": "sites-id-2",
+                        "name": "sites-name-2",
+                        "status": "draft",
+                        "contextRoot": "foobar"
+                    }], opts);
+
+                    manifest = options.getRelevantOption(context, opts, "writeManifest");
+                    expect(manifest["sites"]["default"].name).to.equal("default");
+                    expect(manifest["sites"]["sites-id-2"].name).to.equal("sites-name-2");
                 })
                 .catch(function (err) {
                     error = err;

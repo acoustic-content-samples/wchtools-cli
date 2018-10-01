@@ -60,6 +60,22 @@ class PagesHelper extends JSONPathBasedItemHelper {
     }
 
     /**
+     * Filter the given list of items using the given path.
+     *
+     * @param {Array} itemList The items to be listed.
+     * @param {String} filterPath The path used to filter items.
+     *
+     * @returns {Array} The filtered list of items.
+     *
+     * @protected
+     */
+    _filterItemsByPath(itemList, filterPath) {
+        return itemList.filter(function (item) {
+            return (item.hierarchicalPath && item.hierarchicalPath.indexOf(filterPath) === 0);
+        });
+    }
+
+    /**
      * Determine whether the given item can be deleted.
      *
      * @param {Object} item The item to be deleted.

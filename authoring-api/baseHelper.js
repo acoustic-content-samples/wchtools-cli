@@ -983,6 +983,25 @@ class BaseHelper {
     }
 
     /**
+     * Get the status of the given item.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} item The item for which to get the status.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {String} "ready" or "draft".
+     *
+     * @protected
+     */
+    getStatus(context, item, opts) {
+        if (item && item.status && item.status === "draft") {
+            return "draft";
+        } else {
+            return "ready";
+        }
+    }
+
+    /**
      * Filter the given list of items before completing the list operation.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -997,15 +1016,16 @@ class BaseHelper {
         // Filter the item list based on the ready and draft options.
         const readyOnly = options.getRelevantOption(context, opts, "filterReady");
         const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        const self = this;
         if (readyOnly) {
             // Filter out any items that are not ready.
             itemList = itemList.filter(function (item) {
-                return (!item.status || item.status === "ready");
+                return (self.getStatus(context, item, opts) === "ready");
             });
         } else if (draftOnly) {
             // Filter out any items that are not draft.
             itemList = itemList.filter(function (item) {
-                return (item.status === "draft");
+                return (self.getStatus(context, item, opts) === "draft");
             });
         }
 

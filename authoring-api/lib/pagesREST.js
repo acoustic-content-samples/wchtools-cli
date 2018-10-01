@@ -41,8 +41,8 @@ class PagesREST extends JSONPathBasedItemREST {
 
     getUriPath (context, opts) {
         let siteId = "default";
-        if (opts && opts.siteId) {
-            siteId = opts.siteId;
+        if (opts && opts.siteItem && opts.siteItem.id) {
+            siteId = opts.siteItem.id;
         }
         return "/authoring/v1/sites/" + siteId + "/pages";
     }

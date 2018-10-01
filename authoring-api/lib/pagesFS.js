@@ -17,6 +17,7 @@ limitations under the License.
 
 const BaseFS = require("./BaseFS.js");
 const JSONPathBasedItemFS = require("./JSONPathBasedItemFS.js");
+const SitesFS = require("./sitesFS.js");
 const fs = require("fs");
 const path = require("path");
 const recursiveReadDir = require("recursive-readdir");
@@ -55,11 +56,11 @@ class PagesFS extends JSONPathBasedItemFS {
      * @override
      */
     getFolderName (context, opts) {
-        let siteId = "default";
-        if (opts && opts.siteId) {
-            siteId = opts.siteId;
+        if (opts && opts.siteItem) {
+            return "sites/" + SitesFS.getSiteContextName(opts.siteItem);
+        } else {
+            return "sites/" + BaseFS.getValidFileName("default");
         }
-        return "sites/" + BaseFS.getValidFileName(siteId);
     }
 
     /**
@@ -92,6 +93,25 @@ class PagesFS extends JSONPathBasedItemFS {
     createLocalFilePathMap (context, opts) {
         // Do not create a map of pages -- renamed pages are handled differently than other path-based items.
         return null;
+    }
+
+    /**
+     * Filter the given list of file names before completing the list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} files The file names of the items to be listed.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The filtered list of file names.
+     *
+     * @protected
+     */
+    _listFilter(context, files, opts) {
+        const pageArtifactFiles = super._listFilter(context, files, opts);
+
+        // TODO Sort the pages by path and position, so that the pages within a folder are listed and pushed in order.
+
+        return pageArtifactFiles;
     }
 
     /**

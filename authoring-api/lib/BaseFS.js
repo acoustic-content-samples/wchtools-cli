@@ -49,6 +49,23 @@ class BaseFS {
     }
 
     /**
+     * Get the status of the given item.
+     *
+     * @param {Object} item The item for which to get the status.
+     *
+     * @returns {String} "ready" or "draft".
+     *
+     * @protected
+     */
+    static getStatus(item) {
+        if (item && item.status && item.status === "draft") {
+            return "draft";
+        } else {
+            return "ready";
+        }
+    }
+
+    /**
      * Get a file name that is valid on all platforms.
      *
      * @param {String} value The property value to be used as a relative file name. This value could be an id, a name,

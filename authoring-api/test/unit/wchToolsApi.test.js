@@ -323,7 +323,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             const context = api.getContext();
 
             const stubLocalSites = sinon.stub(ToolsApi, "getLocalSites");
-            stubLocalSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            stubLocalSites.resolves([{id: "bar", status: "draft"}, {id: "foo", status: "ready"}]);
             const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "pushAllItems", function () {
                 context.eventEmitter.emit("pushed", "imageProfile1");
                 context.eventEmitter.emit("pushed", "imageProfile2");
@@ -888,7 +888,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             context.eventEmitter = new events.EventEmitter();
 
             const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
-            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            stubRemoteSites.resolves([{id: "bar", status: "draft"}, {id: "foo", status: "ready"}]);
             const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
                 context.eventEmitter.emit("deleted", "imageProfile1");
                 context.eventEmitter.emit("deleted", "imageProfile2");
@@ -967,7 +967,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             context.eventEmitter = new events.EventEmitter();
 
             const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
-            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            stubRemoteSites.resolves([{id: "bar", status: "draft"}, {id: "foo", status: "ready"}]);
             const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
                 context.eventEmitter.emit("deleted", "imageProfile1");
                 context.eventEmitter.emit("deleted", "imageProfile2");
@@ -1050,7 +1050,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             const DELETE_ERROR = "Delete failure, expected by unit test.";
 
             const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
-            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            stubRemoteSites.resolves([{id: "bar", status: "draft"}, {id: "foo", status: "ready"}]);
             const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
                 context.eventEmitter.emit("deleted", "imageProfile1");
                 context.eventEmitter.emit("deleted", "imageProfile2");
@@ -1122,7 +1122,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             const DELETE_ERROR = "Delete failure, expected by unit test.";
 
             const stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper(), "getRemoteItems");
-            stubRemoteSites.resolves([{id: "bar", siteStatus: "draft"}, {id: "foo", siteStatus: "ready"}]);
+            stubRemoteSites.resolves([{id: "bar", status: "draft"}, {id: "foo", status: "ready"}]);
             const stubImageProfiles = sinon.stub(ToolsApi.getImageProfilesHelper(), "deleteRemoteItems", function () {
                 context.eventEmitter.emit("deleted", "imageProfile1");
                 context.eventEmitter.emit("deleted", "imageProfile2");

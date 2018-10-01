@@ -153,9 +153,20 @@ class AssetsHelper extends BaseHelper {
      */
     _updateManifest (context, itemList, opts) {
         const manifestList = itemList.filter(function (item) {
-            return (item && item.path && item.path !== "/robots.txt" && !item.path.match(/\/sitemap.*\.xml/));
+            return (item && item.path && !item.path.match(/\/(.*_)?robots.txt/) && !item.path.match(/\/(.*_)?sitemap.*\.xml/));
         });
         manifests.updateManifestSection(context, this.getArtifactName(), manifestList, opts);
+    }
+
+    /**
+     * Updates the resources manifest with results of a resource operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} itemList The list of items to be added to the manifest.
+     * @param {Object} opts - The options to be used for the list operation.
+     */
+    _updateResourceManifest (context, itemList, opts) {
+        manifests.updateManifestSection(context, "resources", itemList, opts);
     }
 
     /**
@@ -167,9 +178,20 @@ class AssetsHelper extends BaseHelper {
      */
     _updateDeletionsManifest (context, itemList, opts) {
         const manifestList = itemList.filter(function (item) {
-            return (item && item.path && item.path !== "/robots.txt" && !item.path.match(/\/sitemap.*\.xml/));
+            return (item && item.path && !item.path.match(/\/(.*_)?robots.txt/) && !item.path.match(/\/(.*_)?sitemap.*\.xml/));
         });
         manifests.updateDeletionsManifestSection(context, this.getArtifactName(), manifestList, opts);
+    }
+
+    /**
+     * Updates the deletions manifest with results of a resource operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} itemList The list of items to be added to the deletions manifest.
+     * @param {Object} opts - The options to be used for the list operation.
+     */
+    _updateResourceDeletionsManifest (context, itemList, opts) {
+        manifests.updateDeletionsManifestSection(context, "resources", itemList, opts);
     }
 
     /**
@@ -325,6 +347,47 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Pull the given resources.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} resources - The resources to be pulled.
+     * @param {Object} opts - The options to be used for this operations.
+     *
+     * @returns {Q.Promise} A promise for the items that were pulled.
+     *
+     * @protected
+     */
+    _pullResourceList (context, resources, opts) {
+        const deferred = Q.defer();
+        const helper = this;
+
+        // Create an array of functions, one function for each item being pulled.
+        const functions = resources.map(function (resource) {
+            return function () {
+                return helper._pullResource(context, resource, opts);
+            };
+        });
+
+        // Pull the resources in the list, throttling the concurrent requests to the defined limit for this artifact type.
+        const concurrentLimit = options.getRelevantOption(context, opts, "concurrent-limit", "resources");
+        utils.throttledAll(context, functions, concurrentLimit)
+            .then(function (promises) {
+                const pulledResources = [];
+                promises.forEach(function (promise) {
+                    if ((promise.state === 'fulfilled') && promise.value) {
+                        pulledResources.push(promise.value);
+                    }
+                });
+
+                // Resolve the promise with the list of pulled resources.
+                deferred.resolve(pulledResources);
+            });
+
+        // Return the promise that will eventually be resolved with the pulled resources.
+        return deferred.promise;
+    }
+
+    /**
      * Filter the given list of assets before completing the pull operation.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -344,12 +407,20 @@ class AssetsHelper extends BaseHelper {
         if (readyOnly) {
             // Filter out any assets that are not ready.
             assetList = assetList.filter(function (asset) {
-                return (!asset.status || asset.status === "ready");
+                const isReady = (helper.getStatus(context, asset, opts) === "ready");
+                if (!isReady) {
+                    context.skippedAssetPaths.push(asset.path);
+                }
+                return isReady;
             });
         } else if (draftOnly) {
             // Filter out any assets that are not draft.
             assetList = assetList.filter(function (asset) {
-                return (asset.status === "draft");
+                const isDraft = (helper.getStatus(context, asset, opts) === "draft");
+                if (!isDraft) {
+                    context.skippedAssetPaths.push(asset.path);
+                }
+                return isDraft;
             });
         }
 
@@ -428,7 +499,7 @@ class AssetsHelper extends BaseHelper {
                                 if (emitter) {
                                     emitter.emit("pulled-error", error, assetPath);
                                 }
-                                context.assetErrorPaths.push(assetPath);
+                                context.skippedAssetPaths.push(assetPath);
                                 context.pullErrorCount++;
                             }
                         });
@@ -571,6 +642,7 @@ class AssetsHelper extends BaseHelper {
                         if (emitter) {
                             emitter.emit("resource-pulled", {"path":relative, "id":resource.id});
                         }
+                        asset.relative = relative;
                         return asset;
                     });
             });
@@ -599,9 +671,9 @@ class AssetsHelper extends BaseHelper {
                     const basePath = helper._fsApi.getResourcesPath(context, opts);
                     const resourcePath = hashes.getPathForResource(context, basePath, resource.id, opts);
                     const assetPath = '/' + path.relative(helper._fsApi.getAssetsPath(context, opts), basePath + resourcePath);
-                    const assetErrorPaths = context.assetErrorPaths || [];
+                    const skippedAssetPaths = context.skippedAssetPaths || [];
                     // Only retrieve a resource if we didn't already have it (in hashes) and it wasn't a failed pull in this command.
-                    if (!resourcePath && assetErrorPaths.indexOf(assetPath) === -1) {
+                    if (!resourcePath && skippedAssetPaths.indexOf(assetPath) === -1 && !assetPath.match(/\/(.*_)?robots.txt/) && !assetPath.match(/\/(.*_)?sitemap.*\.xml/)) {
                         return resource;
                     }
                 });
@@ -620,10 +692,12 @@ class AssetsHelper extends BaseHelper {
                     .then(function (promises) {
                         // Return a list of results - resource id for a fulfilled promise, error for a rejected promise.
                         const resources = [];
+                        const manifestList = [];
                         promises.forEach(function (promise, index) {
                             if (promise.state === "fulfilled") {
                                 const resource = promise.value;
                                 resources.push(resource);
+                                manifestList.push({ id: resource.id, path: resource.relative });
                             }
                             else {
                                 const error = promise.reason;
@@ -635,6 +709,9 @@ class AssetsHelper extends BaseHelper {
                                 context.pullErrorCount++;
                             }
                         });
+
+                        // Append the resulting resources to the manifest if writing/updating a manifest.
+                        helper._updateResourceManifest(context, manifestList, opts);
 
                         // Return the number of resources processed (either success or failure) and an array of pulled resources.
                         return {length: listLength, resources: resources};
@@ -779,6 +856,38 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * Get the resource items from the current manifest.
+     *
+     * @param {Object} context The API context to be used by the operation.
+     * @param {Object} opts - The options to be used to get the items.
+     *
+     * @returns {Q.Promise} A promise to get the resource items from the current manifest.
+     *
+     * @resolves {Array} The resource items from the current manifest, or an empty array.
+     */
+    getManifestResourceItems (context, opts) {
+        const items = [];
+        const section = manifests.getManifestSection(context, "resources", opts);
+
+        if (section) {
+            // The section has a property for each item, the key is the item id.
+            const keys = Object.keys(section);
+
+            // Add an item for each id in the section.
+            keys.forEach(function (key) {
+                // Make sure the item is valid (contains at least a path).
+                if (section[key].path) {
+                    // Clone the item, so that the original is not modified.
+                    items.push(utils.clone(section[key]));
+                }
+            });
+        }
+
+        // Return a promise resolved with the manifest items for this helper, if there are any.
+        return Q(items);
+    }
+
+    /**
      * Pull the items in the current manifest from the remote content hub to the local file system.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -799,6 +908,17 @@ class AssetsHelper extends BaseHelper {
             .then(function (items) {
                 // Pull the asset resources for the items in the manifest.
                 return helper._pullItemList(context, items, opts);
+            })
+            .then(function (items) {
+                return helper.getManifestResourceItems(context, opts)
+                    .then(function (resourceList) {
+                        // Pull the resources in the manifest.
+                        return helper._pullResourceList(context, resourceList, opts)
+                            .then(function (resources) {
+                                // Finally return the items pulled (not the resources).
+                                return items;
+                            });
+                    });
             });
     }
 
@@ -827,7 +947,7 @@ class AssetsHelper extends BaseHelper {
 
         // Keep track of the error count.
         context.pullErrorCount = 0;
-        context.assetErrorPaths = [];
+        context.skippedAssetPaths = [];
 
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
@@ -880,7 +1000,7 @@ class AssetsHelper extends BaseHelper {
             })
             .finally(function () {
                 delete context.pullErrorCount;
-                delete context.assetErrorPaths;
+                delete context.skippedAssetPaths;
             });
     }
 
@@ -900,7 +1020,7 @@ class AssetsHelper extends BaseHelper {
         const helper = this;
         // Keep track of the error count.
         context.pullErrorCount = 0;
-        context.assetErrorPaths = [];
+        context.skippedAssetPaths = [];
 
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
@@ -939,7 +1059,7 @@ class AssetsHelper extends BaseHelper {
             })
             .finally(function () {
                 delete context.pullErrorCount;
-                delete context.assetErrorPaths;
+                delete context.skippedAssetPaths;
             });
     }
 
@@ -1316,7 +1436,8 @@ class AssetsHelper extends BaseHelper {
                         // Push the resource to the content hub.
                         helper._restApi.pushItem(context, true, true, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
                             .then(function (resource) {
-                                errorInfo = {id: resource.id || resourceId, path: resourcePath};
+                                const newResource = {id: resource.id || resourceId, path: resourcePath};
+                                errorInfo = newResource;
 
                                 // Once the resource file has been saved, resolve the top-level promise.
                                 /* istanbul ignore next */
@@ -1324,16 +1445,16 @@ class AssetsHelper extends BaseHelper {
                                     // Also wait for the stream to close before resolving the top-level promise.
                                     streamClosed.promise
                                         .then(function () {
-                                            deferred.resolve(resource);
+                                            deferred.resolve(newResource);
                                         });
                                 } else {
-                                    deferred.resolve(resource);
+                                    deferred.resolve(newResource);
                                 }
 
                                 // The push succeeded so emit a "resource-pushed" event.
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
-                                    emitter.emit("resource-pushed", {id: resource.id || resourceId, path: resourcePath});
+                                    emitter.emit("resource-pushed", newResource);
                                 }
                             })
                             .catch(function (err) {
@@ -1435,6 +1556,10 @@ class AssetsHelper extends BaseHelper {
                 });
                 return resources;
             })
+            .then(function (resources) {
+                helper._updateResourceManifest(context, resources, opts);
+                return resources;
+            })
             .finally(function () {
                 // Once the promise has been settled, remove the retry push state from the context.
                 delete context.retryPush;
@@ -1489,6 +1614,16 @@ class AssetsHelper extends BaseHelper {
             .then(function (assets) {
                 // Push each asset in the manifest, using the path property.
                 return helper._pushNameList(context, assets.map(asset => asset.path), opts);
+            })
+            .then(function (assets) {
+                return helper.getManifestResourceItems(context, opts)
+                    .then(function (resourceList) {
+                        return helper._pushResourceList(context, resourceList, opts)
+                            .then(function (resources) {
+                                // Finally, return the assets (not the resources).
+                                return assets;
+                            });
+                    });
             });
     }
 
@@ -1725,6 +1860,11 @@ class AssetsHelper extends BaseHelper {
         return this._fsApi.getItemReadStream(context, asset.path, opts);
     }
 
+    _compareGetLocalResourceReadStream (context, resource, opts) {
+        // For a local resource, we have no metadata, use the path member.
+        return this._fsApi.getResourceReadStream(context, resource.path, opts);
+    }
+
     /**
      * Executes a compare operation between two local directories, two tenants, or a local directory and a tenant.
      *
@@ -1744,47 +1884,63 @@ class AssetsHelper extends BaseHelper {
         let targetList;
         let targetGetAsset;
         let targetGetReadStream;
+        let targetResourceList;
+        let targetGetResourceReadStream;
         if (targetIsUrl) {
             targetOpts["x-ibm-dx-tenant-base-url"] = target;
             if (context.readManifest) {
                 targetList = self.getManifestItems(context, targetOpts);
+                targetResourceList = self.getManifestResourceItems(context, targetOpts);
             } else {
                 targetList = self._listRemoteItemNames(context, targetOpts);
+                targetResourceList = self._listRemoteResources(context, targetOpts);
             }
             targetGetAsset = self._compareGetRemoteAsset.bind(self);
             targetGetReadStream = self._compareGetRemoteReadStream.bind(self);
+            targetGetResourceReadStream = self._compareGetRemoteReadStream.bind(self);
         } else {
             targetOpts.workingDir = target;
             if (context.readManifest) {
                 targetList = self.getManifestItems(context, targetOpts);
+                targetResourceList = self.getManifestResourceItems(context, targetOpts);
             } else {
                 targetList = self._listLocalItemNames(context, targetOpts);
+                targetResourceList = self.listLocalResourceNames(context, targetOpts);
             }
             targetGetAsset = self._compareGetLocalAsset.bind(self);
             targetGetReadStream = self._compareGetLocalReadStream.bind(self);
+            targetGetResourceReadStream = self._compareGetLocalResourceReadStream.bind(self);
         }
 
         let sourceList;
         let sourceGetAsset;
         let sourceGetReadStream;
+        let sourceResourceList;
+        let sourceGetResourceReadStream;
         if (sourceIsUrl) {
             sourceOpts["x-ibm-dx-tenant-base-url"] = source;
             if (context.readManifest) {
                 sourceList = self.getManifestItems(context, sourceOpts);
+                sourceResourceList = self.getManifestResourceItems(context, sourceOpts);
             } else {
                 sourceList = self._listRemoteItemNames(context, sourceOpts);
+                sourceResourceList = self._listRemoteResources(context, sourceOpts);
             }
             sourceGetAsset = self._compareGetRemoteAsset.bind(self);
             sourceGetReadStream = self._compareGetRemoteReadStream.bind(self);
+            sourceGetResourceReadStream = self._compareGetRemoteReadStream.bind(self);
         } else {
             sourceOpts.workingDir = source;
             if (context.readManifest) {
                 sourceList = self.getManifestItems(context, sourceOpts);
+                sourceResourceList = self.getManifestResourceItems(context, sourceOpts);
             } else {
                 sourceList = self._listLocalItemNames(context, sourceOpts);
+                sourceResourceList = self.listLocalResourceNames(context, sourceOpts);
             }
             sourceGetAsset = self._compareGetLocalAsset.bind(self);
             sourceGetReadStream = self._compareGetLocalReadStream.bind(self);
+            sourceGetResourceReadStream = self._compareGetLocalResourceReadStream.bind(self);
         }
 
         return targetList.then(function (unfilteredTargetItems) {
@@ -1812,6 +1968,10 @@ class AssetsHelper extends BaseHelper {
                 // Construct an array to hold all promises that we will wait for.
                 const promises = [];
 
+                // Track all of the resource Ids that we process.
+                const allTargetResourceIds = [];
+                const allSourceResourceIds = [];
+
                 // Iterate all target items to check for deletions.
                 targetItems.forEach(function (targetItem) {
                     // Check to see if the item exists in the source.
@@ -1824,7 +1984,7 @@ class AssetsHelper extends BaseHelper {
                         // Emit an event indicating the deleted item.
                         const emitter = self.getEventEmitter(context);
                         if (emitter) {
-                            emitter.emit("removed", {item: targetItem});
+                            emitter.emit("removed", {artifactName: self.getArtifactName(), item: targetItem});
                         }
                     }
                 });
@@ -1843,7 +2003,7 @@ class AssetsHelper extends BaseHelper {
                         // Emit an event indicating the new item.
                         const emitter = self.getEventEmitter(context);
                         if (emitter) {
-                            emitter.emit("added", {item: sourceItem});
+                            emitter.emit("added", {artifactName: self.getArtifactName(), item: sourceItem});
                         }
                     } else {
                         // Create a new promise to resolve when the compare is complete.
@@ -1855,6 +2015,10 @@ class AssetsHelper extends BaseHelper {
                             .then(function (targetAsset) {
                                 sourceGetAsset(context, sourceItem.path, sourceOpts)
                                     .then(function (sourceAsset) {
+
+                                        allTargetResourceIds.push(targetAsset.resource);
+                                        allSourceResourceIds.push(sourceAsset.resource);
+
                                         let different = false;
                                         let compareDiffs;
                                         // Only compare the metadata for content resources.
@@ -1872,7 +2036,7 @@ class AssetsHelper extends BaseHelper {
                                             // Emit an event indicating the asset difference.
                                             const emitter = self.getEventEmitter(context);
                                             if (emitter) {
-                                                emitter.emit("diff", {item: {path: relativePath}, diffs: compareDiffs});
+                                                emitter.emit("diff", {artifactName: self.getArtifactName(), item: {path: relativePath}, diffs: compareDiffs});
                                             }
                                             // Resolve the promise.
                                             deferredCompare.resolve(true);
@@ -1901,43 +2065,177 @@ class AssetsHelper extends BaseHelper {
                                                                                     { node: [""], value1: sourceMd5, value2: targetMd5 }
                                                                                 ]
                                                                             };
-                                                                            emitter.emit("diff", {item: sourceItem, diffs: compareDiffs});
+                                                                            emitter.emit("diff", {artifactName: self.getArtifactName(), item: sourceItem, diffs: compareDiffs});
                                                                         }
                                                                     }
                                                                     // Resolve the promise.
                                                                     deferredCompare.resolve(true);
                                                                 })
                                                                 .catch(function (err) {
+                                                                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                                                     deferredCompare.reject(err);
                                                                 });
                                                             })
                                                             .catch(function (err) {
+                                                                utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                                                 deferredCompare.reject(err);
                                                             });
                                                         })
                                                         .catch(function (err) {
+                                                            utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                                             deferredCompare.reject(err);
                                                         });
                                                 })
                                                 .catch(function (err) {
+                                                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                                     deferredCompare.reject(err);
                                                 });
                                         }
                                     })
                                     .catch(function (err) {
+                                        utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                         deferredCompare.reject(err);
                                     });
                             })
                             .catch(function (err) {
+                                utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                 deferredCompare.reject(err);
                             });
                     }
                 });
 
-                // Wait for all promises to resolve before returning.
+                // Wait for all promises to resolve before continuing.
                 return Q.allSettled(promises).then(function () {
-                    // Return the diffItems object with the counts.
-                    return diffItems;
+                    const resourcePromises = [];
+
+                    if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
+                        return diffItems;
+                    } else {
+                        return targetResourceList.then(function (targetResources) {
+                            const targetResourceFiltered = targetResources.filter(function (resource) {
+                                return allTargetResourceIds.indexOf(resource.id) === -1;
+                            });
+                            return sourceResourceList.then(function (sourceResources) {
+                                const sourceResourceFiltered = sourceResources.filter(function (resource) {
+                                    return allSourceResourceIds.indexOf(resource.id) === -1;
+                                });
+
+                                const targetResourceIds = targetResourceFiltered.map(function (resource) {
+                                    return resource.id;
+                                });
+                                const sourceResourceIds = sourceResourceFiltered.map(function (resource) {
+                                    return resource.id;
+                                });
+
+                                targetResourceFiltered.forEach(function (targetResource) {
+                                    // Check to see if the item exists in the source.
+                                    if (sourceResourceIds.indexOf(targetResource.id) === -1) {
+                                        // Item exists in target but not source.
+                                        self._updateResourceDeletionsManifest(context, [targetResource], opts);
+                                        // Increment both the total items counter and diff counter.
+                                        diffItems.totalCount++;
+                                        diffItems.diffCount++;
+                                        // Emit an event indicating the deleted item.
+                                        const emitter = self.getEventEmitter(context);
+                                        if (emitter) {
+                                            emitter.emit("removed", {artifactName: "resources", item: targetResource});
+                                        }
+                                    }
+                                });
+                                sourceResourceFiltered.forEach(function (sourceResource) {
+                                    // Increment the total items counter.
+                                    diffItems.totalCount++;
+
+                                    // Check to see if the item exists in the target.
+                                    if (targetResourceIds.indexOf(sourceResource.id) === -1) {
+                                        // Item exists in source but not target.
+                                        self._updateResourceManifest(context, [sourceResource], opts);
+                                        // Increment the diff counter.
+                                        diffItems.diffCount++;
+                                        // Emit an event indicating the new item.
+                                        const emitter = self.getEventEmitter(context);
+                                        if (emitter) {
+                                            emitter.emit("added", {artifactName: "resources", item: sourceResource});
+                                        }
+                                    } else {
+                                        const resourceDeferred = Q.defer();
+                                        resourcePromises.push(resourceDeferred);
+
+                                        // Compare the binary resources.
+                                        // Get the target resource stream.
+                                        const resourcePath = hashes.getPathForResource(context, self._fsApi.getResourcesPath(context, targetOpts), sourceResource.id, targetOpts);
+                                        targetGetResourceReadStream(context, {
+                                            path: resourcePath,
+                                            resource: sourceResource.id
+                                        }, targetOpts)
+                                            .then(function (targetReadStream) {
+                                                // Construct the hash of the target resource stream.
+                                                hashes.generateMD5HashFromStream(targetReadStream).then(function (targetMd5) {
+                                                    // Get the source resource stream.
+                                                    sourceGetResourceReadStream(context, {
+                                                        path: sourceResource.path,
+                                                        resource: sourceResource.id
+                                                    }, sourceOpts)
+                                                        .then(function (sourceReadStream) {
+                                                            // Construct the hash of the source resource stream.
+                                                            hashes.generateMD5HashFromStream(sourceReadStream).then(function (sourceMd5) {
+                                                                if (targetMd5 !== sourceMd5) {
+                                                                    self._updateResourceManifest(context, [sourceResource], opts);
+
+                                                                    // Increment the diff counter.
+                                                                    diffItems.diffCount++;
+                                                                    // Emit an event indicating the resource difference.
+                                                                    const emitter = self.getEventEmitter(context);
+                                                                    if (emitter) {
+                                                                        const compareDiffs = {
+                                                                            changed: [
+                                                                                {
+                                                                                    node: [""],
+                                                                                    value1: sourceMd5,
+                                                                                    value2: targetMd5
+                                                                                }
+                                                                            ]
+                                                                        };
+                                                                        emitter.emit("diff", {
+                                                                            artifactName: "resources",
+                                                                            item: sourceResource,
+                                                                            diffs: compareDiffs
+                                                                        });
+                                                                    }
+                                                                }
+                                                                // Resolve the promise.
+                                                                resourceDeferred.resolve(true);
+                                                            })
+                                                                .catch(function (err) {
+                                                                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                                                                    resourceDeferred.reject(err);
+                                                                });
+                                                        })
+                                                        .catch(function (err) {
+                                                            utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                                                            resourceDeferred.reject(err);
+                                                        });
+                                                })
+                                                    .catch(function (err) {
+                                                        utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                                                        resourceDeferred.reject(err);
+                                                    });
+                                            })
+                                            .catch(function (err) {
+                                                utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                                                resourceDeferred.reject(err);
+                                            });
+                                    }
+                                });
+
+                                // Wait for all resource promises to resolve before returning.
+                                return Q.allSettled(resourcePromises).then(function () {
+                                    // Return the diffItems object with the counts.
+                                    return diffItems;
+                                });
+                            });
+                        });
+                    }
                 });
             });
         });
@@ -1963,12 +2261,12 @@ class AssetsHelper extends BaseHelper {
         if (readyOnly) {
             // Filter out any assets that are not ready.
             assetList = assetList.filter(function (asset) {
-                return (!asset.status || asset.status === "ready");
+                return (helper.getStatus(context, asset, opts) === "ready");
             });
         } else if (draftOnly) {
             // Filter out any assets that are not draft.
             assetList = assetList.filter(function (asset) {
-                return (asset.status === "draft");
+                return (helper.getStatus(context, asset, opts) === "draft");
             });
         }
 
@@ -2269,6 +2567,90 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
+     * List the chunk of resources retrieved by the given function.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Function} listFn - A function that returns a promise for a chunk of remote resources to be listed.
+     * @param {Object} opts - The options to be used for the list operations.
+     *
+     * @returns {Q.Promise} A promise for information about the resources that were listed.
+     *
+     * @private
+     */
+    _listResourceChunk (context, listFn, opts) {
+        // Get the next "chunk" of resources.
+        return listFn(opts)
+            .then(function (resourceList) {
+                const chunkLength = resourceList.length;
+
+                return {length: chunkLength, resources: resourceList};
+            });
+    }
+
+    /**
+     * Recursive function to list subsequent chunks of resources retrieved by the given function.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Function} listFn - A function that returns a promise for a chunk of remote resources to be listed.
+     * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* resources listed.
+     * @param {Array} results - The accumulated results.
+     * @param {Object} listInfo - The number of resources listed and an array of listed resources.
+     * @param {Object} opts - The options to be used for the list operations.
+     *
+     * @private
+     */
+    _recurseResourceList (context, listFn, deferred, results, listInfo, opts) {
+        // Add the resources listed in the most recent chunk to the existing results.
+        results = results.concat(listInfo.resources);
+
+        const currentChunkSize = listInfo.length;
+        const maxChunkSize = options.getRelevantOption(context, opts, "limit", "resources");
+        if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
+            // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
+            // with the accumulated results.
+            deferred.resolve(results);
+        } else {
+            // The current chunk is a full chunk, so there may be more resources to retrieve.
+            const helper = this;
+
+            // Increase the offset so that the next chunk of resources will be retrieved.
+            const offset = options.getRelevantOption(context, opts, "offset", "resources");
+            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
+
+            // List the next chunk of resources from the content hub.
+            helper._listResourceChunk(context, listFn, opts)
+                .then(function (listInfo) {
+                    helper._recurseResourceList(context, listFn, deferred, results, listInfo, opts);
+                });
+        }
+    }
+
+    _listRemoteResources (context, opts) {
+        // Create the deferred to be used for recursively retrieving resources.
+        const deferred = Q.defer();
+
+        // Recursively call AssetsREST.getResourceList() to retrieve all of the remote resources.
+        const listFn = this._restApi.getResourceList.bind(this._restApi, context);
+
+        // Get the first chunk of remote resources, and then recursively retrieve any additional chunks.
+        const helper = this;
+        helper._listResourceChunk(context, listFn, opts)
+            .then(function (listInfo) {
+                // Pass an empty array for results to indicate that we retrieved the first chunk. The deferred will be
+                // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
+                // deferred, so we have to handle that explicitly.
+                helper._recurseResourceList(context, listFn, deferred, [], listInfo, opts);
+            })
+            .catch(function (err) {
+                // If the list function's promise is rejected, propagate that to the deferred that was returned.
+                deferred.reject(err);
+            });
+
+        // Return the deferred promise chain.
+        return deferred.promise;
+    }
+
+    /**
      * Get a list of the assets that have been modified on the content hub.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -2422,10 +2804,15 @@ class AssetsHelper extends BaseHelper {
     _listLocalItemNames (context, opts) {
         const readyOnly = options.getRelevantOption(context, opts, "filterReady");
         const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        const helper = this;
 
         if (readyOnly || draftOnly) {
             // Make sure the proxy items contain the status (only exists on content assets).
-            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+            opts = utils.cloneOpts(opts);
+            if (!opts["additionalItemProperties"]) {
+                opts["additionalItemProperties"] = [];
+            }
+            opts["additionalItemProperties"].push("status");
         }
 
         return this._fsApi.listNames(context, null, opts)
@@ -2434,12 +2821,12 @@ class AssetsHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any assets that are draft.
                     assets = assets.filter(function (asset) {
-                        return (!asset.status || asset.status === "ready");
+                        return (helper.getStatus(context, asset, opts) === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any assets that are not draft.
                     assets = assets.filter(function (asset) {
-                        return (asset.status === "draft");
+                        return (helper.getStatus(context, asset, opts) === "draft");
                     });
                 }
 
@@ -2483,7 +2870,11 @@ class AssetsHelper extends BaseHelper {
 
         if (readyOnly || draftOnly) {
             // Make sure the proxy items contain the status (only exists on content assets).
-            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+            opts = utils.cloneOpts(opts);
+            if (!opts["additionalItemProperties"]) {
+                opts["additionalItemProperties"] = [];
+            }
+            opts["additionalItemProperties"].push("status");
         }
 
         const helper = this;
@@ -2500,12 +2891,12 @@ class AssetsHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any assets that are draft.
                     assets = assets.filter(function (asset) {
-                        return (!asset.status || asset.status === "ready");
+                        return (helper.getStatus(context, asset, opts) === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any assets that are not draft.
                     assets = assets.filter(function (asset) {
-                        return (asset.status === "draft");
+                        return (helper.getStatus(context, asset, opts) === "draft");
                     });
                 }
 
@@ -2709,8 +3100,8 @@ class AssetsHelper extends BaseHelper {
     canCompareItem(item, opts) {
         let retVal = super.canCompareItem(item, opts);
         if (retVal) {
-            // Do not include robots.txt or sitemap*.xml in the compare.
-            retVal = (item && item.path && item.path !== "/robots.txt" && !item.path.match(/\/sitemap.*\.xml/));
+            // Do not include robots.txt or *sitemap*.xml in the compare.
+            retVal = (item && item.path && !item.path.match(/\/(.*_)?robots.txt/) && !item.path.match(/\/(.*_)?sitemap.*\.xml/));
         }
 
         return retVal;

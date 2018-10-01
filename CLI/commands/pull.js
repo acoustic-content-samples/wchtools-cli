@@ -23,6 +23,8 @@ const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
 const login = ToolsApi.getLogin();
 const events = require("events");
+const fs = require("fs");
+const rimraf = require("rimraf");
 const prompt = require("prompt");
 const Q = require("q");
 
@@ -72,8 +74,9 @@ class PullCommand extends BaseCommand {
         this._modified = true;
     }
 
-    static _getPagesDisplayHeader (siteId) {
-        return PREFIX + i18n.__('cli_pull_pulling_pages_for_site', {id: siteId}) + SUFFIX;
+    static _getPagesDisplayHeader(siteItem) {
+        const contextName = ToolsApi.getSitesHelper().getSiteContextName(siteItem);
+        return PREFIX + i18n.__('cli_pull_pulling_pages_for_site', {id: contextName}) + SUFFIX;
     }
 
     /**
@@ -364,20 +367,21 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function () {
-                if (self.getCommandLineOption("sites") && !self.isBaseTier(context)) {
+                // Note that if we are pulling pages, we also need to pull the sites artifacts.
+                if ((self.getCommandLineOption("sites") || self.getCommandLineOption("pages")) && !self.isBaseTier(context)) {
                     return self.handlePullPromise(self.pullSites(context), continueOnError);
                 }
             })
             .then(function () {
                 if (self.getCommandLineOption("pages") && !self.isBaseTier(context)) {
-                    // Get the list of site ids to use for pulling pages.
-                    const siteIds = context.siteList;
+                    // Get the list of site items to use for pulling pages.
+                    const siteItems = context.siteList;
 
                     // Local function to recursively pull pages for one site at a time.
                     let index = 0;
                     const pullPagesBySite = function (context) {
-                        if (index < siteIds.length) {
-                            return self.handlePullPromise(self.pullPages(context, siteIds[index++]), continueOnError)
+                        if (index < siteItems.length) {
+                            return self.handlePullPromise(self.pullPages(context, siteItems[index++]), continueOnError)
                                 .then(function () {
                                     return pullPagesBySite(context);
                                 });
@@ -645,19 +649,23 @@ class PullCommand extends BaseCommand {
     }
 
     /**
+     * Delete the specified local items using the specified delete function.
      *
      * @param {Object} context The API context associated with this pull command.
-     * @param {Function} deleteFn
-     * @param {Array} items
-     * @param {String} promptKey
-     * @param {String} successKey
-     * @param {String} errorKey
-     * @param {Object} opts
+     * @param {Function} deleteFn The function to use when deleting a local item.
+     * @param {Array} items The items to be deleted.
+     * @param {String} promptKey The key for the prompt string to use for each item.
+     * @param {String} successKey The key for the string to display when an item is successfully deleted.
+     * @param {String} errorKey The key for the string to display when an item cannot be deleted.
+     * @param {Object} opts The opts associated with this pull command.
+     *
+     * @return {Q.Promise} A promise that resolves with the list of deleted items.
      */
     deleteLocalItems (context, deleteFn, items, promptKey, successKey, errorKey, opts) {
         // Delete the local items that do not exist on the server.
         const self = this;
         const logger = self.getLogger();
+        const deletedItems = [];
 
         if (self.getCommandLineOption("quiet")) {
             // Do not prompt for deletions if the quiet option was specified.
@@ -668,6 +676,7 @@ class PullCommand extends BaseCommand {
                     .then(function () {
                         const successEntry = i18n.__(item.id ? successKey : "cli_pull_invalid_file_deleted", item);
                         logger.info(successEntry);
+                        deletedItems.push(item);
                     })
                     .catch(function (err) {
                         const errorEntry = i18n.__(item.id ? errorKey : "cli_pull_invalid_file_delete_error", {path: item.path, message: err.message});
@@ -679,7 +688,11 @@ class PullCommand extends BaseCommand {
             });
 
             // Return a promise that is resolved when all delete promises have been settled.
-            return Q.allSettled(promises);
+            return Q.allSettled(promises)
+                .then(function () {
+                    // Resolve the promise with the list of deleted items.
+                    return deletedItems;
+                });
         } else {
             // Prompt to delete each item that only exists locally.
             const schemaInput = {};
@@ -717,6 +730,7 @@ class PullCommand extends BaseCommand {
                             .then(function () {
                                 const successEntry = i18n.__(item.id ? successKey : "cli_pull_invalid_file_deleted", item);
                                 logger.info(successEntry);
+                                deletedItems.push(item);
                             })
                             .catch(function (err) {
                                 const errorEntry = i18n.__(item.id ? errorKey : "cli_pull_invalid_file_delete_error", {path: item.path, message: err.message});
@@ -730,10 +744,12 @@ class PullCommand extends BaseCommand {
                     // Resolve the returned promise when all delete promises have been settled.
                     Q.allSettled(promises)
                         .then(function () {
-                            deferred.resolve();
+                            // Resolve the promise with the list of deleted items.
+                            deferred.resolve(deletedItems);
                         });
                 } else {
-                    deferred.resolve();
+                    // Return the empty list.
+                    deferred.resolve(deletedItems);
                 }
             });
 
@@ -1390,7 +1406,11 @@ class PullCommand extends BaseCommand {
         // The API emits an event when an item is pulled, so we log it for the user.
         const artifactPulled = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_pull_site_pulled_2', item));
+            if (item.contextRoot) {
+                self.getLogger().info(i18n.__('cli_pull_site_pulled', item));
+            } else {
+                self.getLogger().info(i18n.__('cli_pull_site_pulled_2', item));
+            }
         };
         emitter.on(EVENT_ITEM_PULLED, artifactPulled);
 
@@ -1422,7 +1442,35 @@ class PullCommand extends BaseCommand {
                     const successKey = "cli_pull_site_deleted";
                     const errorKey = "cli_pull_site_delete_error";
                     return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
-                        .then(function () {
+                        .then(function (deletedItems) {
+                            // Delete the pages folder for each site that was deleted. This is done here instead of the
+                            // pullPages method for two reasons. 1) The pullPages method is only called for the sites in
+                            // the context site list. However, a site being deleted will not be contained in the context
+                            // site list for this pull operation, because the site does not exist on the server. 2) This
+                            // pull operation may not be pulling pages, but the pages folder should still be deleted for
+                            // any site that is being deleted.
+                            deletedItems.forEach(function (site) {
+                                const siteContextName = helper.getSiteContextName(site);
+                                const folderName = helper._fsApi.getPath(context, apiOptions) + siteContextName;
+
+                                if (fs.existsSync(folderName)) {
+                                    try {
+                                        // Delete the specified folder.
+                                        rimraf.sync(folderName);
+
+                                        // Add a log entry for the deleted foldr.
+                                        const successMessage = i18n.__("cli_pull_site_folder_deleted", {folder: siteContextName});
+                                        self.getLogger().info(successMessage);
+                                    } catch (err) {
+                                        const errorMessage = i18n.__("cli_pull_site_folder_delete_error", {
+                                            folder: siteContextName,
+                                            message: err.message
+                                        });
+                                        self.getLogger().error(errorMessage);
+                                    }
+                                }
+                            });
+
                             return items;
                         });
                 } else {
@@ -1447,17 +1495,17 @@ class PullCommand extends BaseCommand {
      * Pull the pages for the specified site.
      *
      * @param {Object} context The API context to be used for the pull operation.
-     * @param {String} siteId The id of the site.
+     * @param {String} siteItem The site for which to pull pages.
      *
      * @returns {Q.Promise} A promise that is resolved with the results of pulling the artifacts.
      */
-    pullPages (context, siteId) {
+    pullPages(context, siteItem) {
         const helper = ToolsApi.getPagesHelper();
         const emitter = context.eventEmitter;
-        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteItem: siteItem});
         const self = this;
 
-        const displayHeader = PullCommand._getPagesDisplayHeader(siteId);
+        const displayHeader = PullCommand._getPagesDisplayHeader(siteItem);
         self.getLogger().info(displayHeader);
 
         // The API emits an event when an item is pulled, so we log it for the user.
@@ -1592,6 +1640,8 @@ class PullCommand extends BaseCommand {
      * @param {Object} context The API context to be used for the pull operation.
      * @param {Object} helper The helper to be used for the pull operation.
      * @param {Object} opts - The options to be used for the pull operation.
+     *
+     * @return {Q.Promise} A promise that is resolved with the results of pulling the artifacts.
      */
     pullItems (context, helper, opts) {
         if (this.getCommandLineOption("manifest")) {

@@ -2,6 +2,7 @@
   "singleton_construct_error": "An instance of singleton class %(classname)s cannot be constructed",
   "create_local_item_error": "Error in createLocalItem: ",
   "error_filtering_remote_items": "Error filtering remote item list in listModifiedRemoteItemNames",
+  "error_renaming_item": "There was an error while renaming the local file '%(name)s'. Error: %(message)s",
   "push_error_creating_item": "Push error creating item: ",
   "push_error_updating_item": "Push error updating item: ",
   "push_warning_ignore_conflict": "Ignoring unimportant differences in pushed item: %(name)s.",
@@ -12,6 +13,7 @@
   "remote_asset_not_found": "Remote asset not found: ",
   "cannot_push_item": "Item '%(name)s' could not be pushed.",
   "cannot_pull_item": "Item '%(name)s' could not be pulled.",
+  "compare_error_loading_item": "Error loading item for compare: ",
 
   "deleted_original_file": "Deleted original file: %(old_name)s new file: %(new_name)s",
   "file_parse_error": "Unable to parse file: %(path)s",

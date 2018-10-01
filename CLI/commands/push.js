@@ -57,8 +57,9 @@ class PushCommand extends BaseCommand {
         this._directoriesCount = 0;
     }
 
-    static _getPagesDisplayHeader (siteId) {
-        return PREFIX + i18n.__('cli_push_pushing_pages_for_site', {id: siteId}) + SUFFIX;
+    static _getPagesDisplayHeader(siteItem) {
+        const contextName = ToolsApi.getSitesHelper().getSiteContextName(siteItem);
+        return PREFIX + i18n.__('cli_push_pushing_pages_for_site', {id: contextName}) + SUFFIX;
     }
 
     /**
@@ -314,14 +315,14 @@ class PushCommand extends BaseCommand {
             })
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
-                    // Get the list of site ids to use for pushing pages.
-                    const siteIds = context.siteList;
+                    // Get the list of sites to use for pushing pages.
+                    const siteItems = context.siteList;
 
                     // Local function to recursively push pages for one site at a time.
                     let index = 0;
                     const pushPagesBySite = function (context) {
-                        if (index < siteIds.length) {
-                            return self.handlePushPromise(self.pushPages(context, siteIds[index++]), continueOnError)
+                        if (index < siteItems.length) {
+                            return self.handlePushPromise(self.pushPages(context, siteItems[index++]), continueOnError)
                                 .then(function () {
                                     return pushPagesBySite(context);
                                 });
@@ -859,17 +860,17 @@ class PushCommand extends BaseCommand {
      * Push the pages for the specified site.
      *
      * @param {Object} context The API context to be used for the push operation.
-     * @param {String} siteId The id of the site containing the pages being pushed.
+     * @param {String} siteItem The site containing the pages being pushed.
      *
      * @returns {Q.Promise} A promise that is resolved with the results of pushing the artifacts.
      */
-    pushPages (context, siteId) {
+    pushPages(context, siteItem) {
         const helper = ToolsApi.getPagesHelper();
         const emitter = context.eventEmitter;
-        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteItem: siteItem});
         const self = this;
 
-        const displayHeader = PushCommand._getPagesDisplayHeader(siteId);
+        const displayHeader = PushCommand._getPagesDisplayHeader(siteItem);
         self.getLogger().info(displayHeader);
 
         // The api emits an event when an item is pushed, so we log it for the user.
@@ -925,7 +926,11 @@ class PushCommand extends BaseCommand {
         // The api emits an event when an item is pushed, so we log it for the user.
         const artifactPushed = function (item) {
             self._artifactsCount++;
-            self.getLogger().info(i18n.__('cli_push_site_pushed_2', item));
+            if (item.contextRoot) {
+                self.getLogger().info(i18n.__('cli_push_site_pushed', item));
+            } else {
+                self.getLogger().info(i18n.__('cli_push_site_pushed_2', item));
+            }
         };
         emitter.on("pushed", artifactPushed);
 

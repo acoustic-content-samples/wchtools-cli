@@ -1540,7 +1540,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                const opts = {"asset": {"id": "test", "rev": "test"}, createOnly: true};
+                const opts = {"asset": {"id": "test", "rev": "test", "resource": assetMetadata.resource, "path": "/" + AssetsUnitTest.ASSET_JPG_1}, createOnly: true};
                 assetsREST.pushItem(context, false, false, false, assetMetadata.resource, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, opts)
                     .then(function (asset) {
                         expect(stubHead).to.have.callCount(1);

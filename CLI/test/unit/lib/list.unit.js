@@ -46,7 +46,7 @@ class ListUnitTest extends UnitTest {
     static addRemoteSitesStub () {
         const sitesHelper = ToolsApi.getSitesHelper();
         stubRemoteSites = sinon.stub(sitesHelper._restApi, "getItems");
-        stubRemoteSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+        stubRemoteSites.resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
     }
 
     static restoreRemoteSitesStub () {
@@ -56,7 +56,7 @@ class ListUnitTest extends UnitTest {
     static addLocalSitesStub () {
         const sitesHelper = ToolsApi.getSitesHelper();
         stubLocalSites = sinon.stub(sitesHelper._fsApi, "getItems");
-        stubLocalSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+        stubLocalSites.resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
     }
 
     static restoreLocalSitesStub () {
@@ -770,10 +770,6 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list local modified working (all items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._fsApi, "listNames");
                 stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
                     name: itemName2,
@@ -856,25 +852,14 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list local modified working (draft items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._fsApi, "listNames");
                 if (switches.includes("--sites")) {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft"}]);
                 } else {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "ready"
-                    }, {name: badItem, id: "ack", path: badItem, status: "draft"}]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "ready"},
+                        {name: badItem, id: "ack", path: badItem, status: "draft"}]);
                 }
 
                 const stubHashes = sinon.stub(hashes, "isLocalModified");
@@ -960,10 +945,6 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list remote modified working (all items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._restApi, "getModifiedItems");
                 stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
                     name: itemName2,
@@ -1072,25 +1053,14 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list remote modified working (draft items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._restApi, "getModifiedItems");
                 if (switches.includes("--sites")) {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft"}]);
                 } else {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "ready"
-                    }, {name: badItem, id: "ack", path: badItem, status: "draft"}]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "ready"},
+                        {name: badItem, id: "ack", path: badItem, status: "draft"}]);
                 }
 
                 const stubHashes = sinon.stub(hashes, "isRemoteModified");
@@ -1142,12 +1112,9 @@ class ListUnitTest extends UnitTest {
         describe("CLI-unit-listing", function() {
             it("test list local working (ready items only, by default)", function (done) {
                 const stub = sinon.stub(helper._fsApi, "listNames");
-                stub.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
-                    name: itemName2,
-                    id: "bar",
-                    path: itemName2,
-                    status: "ready"
-                }, {name: badItem, id: undefined, path: badItem, status: "draft"}]);
+                stub.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"},
+                    {name: itemName2, id: "bar", path: itemName2, status: "ready"},
+                    {name: badItem, id: undefined, path: badItem, status: "draft"}]);
 
                 // Execute the command to list the items to the download directory.
                 let error;
@@ -1176,10 +1143,6 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list local working (all items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stub = sinon.stub(helper._fsApi, "listNames");
                 stub.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
                     name: itemName2,
@@ -1255,10 +1218,6 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list local working (draft items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stub = sinon.stub(helper._fsApi, "listNames");
                 if (switches.includes("--sites")) {
                     stub.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
@@ -1338,7 +1297,7 @@ class ListUnitTest extends UnitTest {
                     // the first time (initSites) then returns the test values the second time (the actual list).
                     ListUnitTest.restoreRemoteSitesStub();
                     stubGet = sinon.stub(helper._restApi, "getItems");
-                    stubGet.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+                    stubGet.onFirstCall().resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
                     stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
                 } else {
                     stubGet = sinon.stub(helper._restApi, "getItems");
@@ -1397,19 +1356,15 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list remote working (all items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 let stubGet;
                 if (switches === "--sites") {
                     // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
                     // the first time (initSites) then returns the test values the second time (the actual list).
                     ListUnitTest.restoreRemoteSitesStub();
                     stubGet = sinon.stub(helper._restApi, "getItems");
-                    stubGet.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {
+                    stubGet.onFirstCall().resolves([{id: "foo", status: "ready"}, {
                         id: "bar",
-                        siteStatus: "draft"
+                        status: "draft"
                     }]);
                     stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {
                         name: itemName2,
@@ -1482,7 +1437,7 @@ class ListUnitTest extends UnitTest {
                     // the first time (initSites) then returns the test values the second time (the actual list).
                     ListUnitTest.restoreRemoteSitesStub();
                     stubGet = sinon.stub(helper._restApi, "getItems");
-                    stubGet.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+                    stubGet.onFirstCall().resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
                     stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {name: itemName2, id: "bar", path: itemName2}, {name: badItem, id: "ack", path: badItem}]);
                 } else {
                     stubGet = sinon.stub(helper._restApi, "getItems");
@@ -1539,34 +1494,29 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test list remote working (draft items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 let stubList;
                 if (switches.includes("--sites")) {
                     // Remove the global stub and create a local SitesREST.getItems stub that returns the standard sites
                     // the first time (initSites) then returns the test values the second time (the actual list).
                     ListUnitTest.restoreRemoteSitesStub();
                     stubList = sinon.stub(helper._restApi, "getItems");
-                    stubList.onFirstCall().resolves([{id: "foo", siteStatus: "ready"}, {
+                    stubList.onFirstCall().resolves([{id: "foo", status: "ready"}, {
                         id: "bar",
-                        siteStatus: "draft"
+                        status: "draft"
                     }]);
                     stubList.onSecondCall().resolves([{
                         name: itemName1,
                         id: "foo",
                         path: itemName1,
-                        status: "ready"
-                    }, {name: itemName2, id: "bar", path: itemName2, status: "draft"}]);
+                        status: "ready",
+                        contextRoot: "root1"
+                    },
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft", contextRoot: "root2"}]);
                 } else {
                     stubList = sinon.stub(helper._restApi, "getItems");
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }, {name: badItem, id: "ack", path: badItem, status: "draft"}]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft"},
+                        {name: badItem, id: "ack", path: badItem, status: "draft"}]);
                 }
 
                 let stubContentResource;
@@ -1703,7 +1653,7 @@ class ListUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(err.message).to.contain('Invalid options, path can only be used for web assets, content types, layouts, and layout mappings.');
+                            expect(err.message).to.contain('Invalid options, path can only be used for web assets, content types, layouts, layout mappings, and pages.');
                         } catch (err) {
                             error = err;
                         }

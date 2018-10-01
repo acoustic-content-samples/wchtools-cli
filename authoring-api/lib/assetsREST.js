@@ -461,6 +461,7 @@ class AssetsREST extends BaseREST {
      */
     _postAssetMetadata (context, opts, reqOptions, deferred, createOnly) {
         const restObject = this;
+        utils.logDebugInfo(context, "_postAssetMetadata request", undefined, reqOptions);
         request.post(reqOptions, function (err, res, body) {
             const response = res || {};
             if (err || response.statusCode >= 400) {
@@ -495,6 +496,7 @@ class AssetsREST extends BaseREST {
                 });
             } else {
                 BaseREST.logRetryInfo(context, reqOptions, response.attempts);
+                utils.logDebugInfo(context, "_postAssetMetadata response", response, undefined);
                 deferred.resolve(body);
             }
         });
@@ -504,6 +506,7 @@ class AssetsREST extends BaseREST {
      * Push the specified asset.
      *
      * @param {Object} context The API context to be used for this operation.
+     * @param isOrphanedResource - flag indicating if the resource is an orphaned content resource
      * @param isContentResource - flag indicating if the resource is a content resource
      * @param replaceContentResource - flag indicating if a content resource should be replaced
      * @param resourceId
@@ -513,7 +516,7 @@ class AssetsREST extends BaseREST {
      * @param length
      * @param opts
      */
-    pushItem (context, isRaw, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
+    pushItem (context, isOrphanedResource, isContentResource, replaceContentResource, resourceId, resourceMd5, pathname, stream, length, opts) {
         const restObject = this;
 
         // Make sure the path name starts with a leading slash.
@@ -572,19 +575,18 @@ class AssetsREST extends BaseREST {
 
                         let doUpdate;
                         let requestBody;
-                        if (opts && opts.asset && !createOnly) {
+                        if (opts && opts.asset) {
                             // A (managed) asset object was passed in, so use that asset for the update request.
                             requestBody = opts.asset;
-                            doUpdate = true;
-                        } else {
-                            // Construct a minimal asset to be used for the create request.
-                            requestBody = {resource: resourceMetadata.id, path: pathname};
-                            doUpdate = false;
 
-                            if (opts && opts.asset && opts.asset.id) {
-                                // A (managed) asset object was passed in, so use the asset id for the create request.
-                                requestBody.id = opts.asset.id;
-                            }
+                            // For managed assets, doUpdate is set based on the createOnly flag.
+                            doUpdate = !createOnly;
+                        } else {
+                            // No asset metadata was provided, construct a minimal asset to be used for the create request.
+                            requestBody = {resource: resourceMetadata.id, path: pathname};
+
+                            // We always just create new asset metadata for Fernando web assets.
+                            doUpdate = false;
                         }
 
                         if (doUpdate) {
@@ -638,7 +640,7 @@ class AssetsREST extends BaseREST {
                                         restObject._postAssetMetadata(context, opts, reqOptions, deferred, createOnly);
                                     });
                             }
-                        } else if (!isRaw) {
+                        } else if (!isOrphanedResource) {
                             // Creating new asset metadata. Fernando web asset or create-only.
                             restObject.getUpdateRequestOptions(context, opts)
                                 .then(function (reqOptions) {
@@ -646,6 +648,7 @@ class AssetsREST extends BaseREST {
                                     restObject._postAssetMetadata(context, opts, reqOptions, deferred, createOnly);
                                 });
                         } else {
+                            // This is an orphaned resource, there is no content metadata so just resolve
                             deferred.resolve(body);
                         }
                     }

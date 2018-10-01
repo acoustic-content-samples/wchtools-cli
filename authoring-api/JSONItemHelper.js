@@ -190,7 +190,11 @@ class JSONItemHelper extends BaseHelper {
                 if (!err.emitted && !err.retry) {
                     const emitter = helper.getEventEmitter(context);
                     if (emitter) {
-                        emitter.emit("pushed-error", err, errorInfo);
+                        emitter.emit("pushed-error", err, {
+                            id: errorInfo["id"],
+                            name: errorInfo["name"],
+                            path: (errorInfo["path"] || name["path"] || name)
+                        });
                     }
                 }
                 throw err;
@@ -564,10 +568,15 @@ class JSONItemHelper extends BaseHelper {
     _listLocalItemNames (context, opts) {
         const readyOnly = options.getRelevantOption(context, opts, "filterReady");
         const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        const helper = this;
 
         if (readyOnly || draftOnly) {
-            // Make sure the proxy items contain the status (only exists on content assets).
-            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+            // Make sure the proxy items contain the status.
+            opts = utils.cloneOpts(opts);
+            if (!opts["additionalItemProperties"]) {
+                opts["additionalItemProperties"] = [];
+            }
+            opts["additionalItemProperties"].push("status");
         }
 
         return this._fsApi.listNames(context, opts)
@@ -576,12 +585,12 @@ class JSONItemHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any items that are not ready.
                     itemList = itemList.filter(function (item) {
-                        return (!item.status || item.status === "ready");
+                        return (helper.getStatus(context, item, opts) === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any items that are not draft.
                     itemList = itemList.filter(function (item) {
-                        return (item.status === "draft");
+                        return (helper.getStatus(context, item, opts) === "draft");
                     });
                 }
 
@@ -627,7 +636,11 @@ class JSONItemHelper extends BaseHelper {
 
         if (readyOnly || draftOnly) {
             // Make sure the proxy items contain the status.
-            opts = utils.cloneOpts(opts, {"additionalItemProperties": ["status"]});
+            opts = utils.cloneOpts(opts);
+            if (!opts["additionalItemProperties"]) {
+                opts["additionalItemProperties"] = [];
+            }
+            opts["additionalItemProperties"].push("status");
         }
 
         const dir = fsObject.getPath(context, opts);
@@ -637,12 +650,12 @@ class JSONItemHelper extends BaseHelper {
                 if (readyOnly) {
                     // Filter out any items that are not ready.
                     itemNames = itemNames.filter(function (item) {
-                        return (!item.status || item.status === "ready");
+                        return (helper.getStatus(context, item, opts) === "ready");
                     });
                 } else if (draftOnly) {
                     // Filter out any items that are not draft.
                     itemNames = itemNames.filter(function (item) {
-                        return (item.status === "draft");
+                        return (helper.getStatus(context, item, opts) === "draft");
                     });
                 }
 
@@ -1018,6 +1031,7 @@ class JSONItemHelper extends BaseHelper {
      *
      * @param context The API context to be used for this operation.
      * @param opts The options for this operation.
+     *
      * @returns {*}
      */
     compare (context, target, source, opts) {
@@ -1029,134 +1043,184 @@ class JSONItemHelper extends BaseHelper {
         const targetOpts = utils.cloneOpts(opts);
         const sourceOpts = utils.cloneOpts(opts);
 
-        let targetList;
-        let targetGetItem;
+        let targetListFunction;
+        let targetGetItemFunction;
         if (targetIsUrl) {
             targetOpts["x-ibm-dx-tenant-base-url"] = target;
             if (context.readManifest) {
-                targetList = self.getManifestItems(context, targetOpts);
+                targetListFunction = function () {
+                    return self.getManifestItems(context, targetOpts);
+                }
             } else {
-                targetList = self._listRemoteItemNames(context, targetOpts);
+                targetListFunction = function () {
+                    return self._listRemoteItemNames(context, targetOpts)
+                        .catch(function () {
+                            // Could not get the remote items, so return an empty list.
+                            return Q([]);
+                        });
+                }
             }
-            targetGetItem = function (context, item, opts) {
-                return self.getRemoteItem(context, item.id, opts);
+            targetGetItemFunction = function (item) {
+                return self.getRemoteItem(context, item.id, targetOpts);
             };
         } else {
             targetOpts.workingDir = target;
             if (context.readManifest) {
-                targetList = self.getManifestItems(context, targetOpts);
+                targetListFunction = function () {
+                    return self.getManifestItems(context, targetOpts);
+                }
             } else {
-                targetList = self._listLocalItemNames(context, targetOpts);
+                targetListFunction = function () {
+                    return self._listLocalItemNames(context, targetOpts);
+                }
             }
-            targetGetItem = self.getLocalItem.bind(self);
+            targetGetItemFunction = function (item) {
+                return self.getLocalItem(context, item, targetOpts);
+            }
         }
 
-        let sourceList;
-        let sourceGetItem;
+        let sourceListFunction;
+        let sourceGetItemFunction;
         if (sourceIsUrl) {
             sourceOpts["x-ibm-dx-tenant-base-url"] = source;
             if (context.readManifest) {
-                sourceList = self.getManifestItems(context, sourceOpts);
+                sourceListFunction = function () {
+                    return self.getManifestItems(context, sourceOpts);
+                }
             } else {
-                sourceList = self._listRemoteItemNames(context, sourceOpts);
+                sourceListFunction = function () {
+                    return self._listRemoteItemNames(context, sourceOpts)
+                        .catch(function () {
+                            // Could not get the remote items, so return an empty list.
+                            return Q([]);
+                        });
+                }
             }
-            sourceGetItem = function (context, item, opts) {
-                return self.getRemoteItem(context, item.id, opts);
+            sourceGetItemFunction = function (item) {
+                return self.getRemoteItem(context, item.id, sourceOpts);
             };
         } else {
             sourceOpts.workingDir = source;
             if (context.readManifest) {
-                sourceList = self.getManifestItems(context, sourceOpts);
+                sourceListFunction = function () {
+                    return self.getManifestItems(context, sourceOpts);
+                }
             } else {
-                sourceList = self._listLocalItemNames(context, sourceOpts);
+                sourceListFunction = function () {
+                    return self._listLocalItemNames(context, sourceOpts);
+                }
             }
-            sourceGetItem = self.getLocalItem.bind(self);
+            sourceGetItemFunction = function (item) {
+                return self.getLocalItem(context, item, sourceOpts);
+            }
         }
 
-        return targetList.then(function (unfilteredTargetItems) {
-            const targetItems = unfilteredTargetItems.filter(function (item) {
-                return self.canCompareItem(item, targetOpts);
-            });
-            return sourceList.then(function (unfilteredSourceItems) {
-                const sourceItems = unfilteredSourceItems.filter(function (item) {
-                    return self.canCompareItem(item, sourceOpts);
+        const emitter = self.getEventEmitter(context);
+
+        return targetListFunction()
+            .then(function (unfilteredTargetItems) {
+                const targetItems = unfilteredTargetItems.filter(function (item) {
+                    return self.canCompareItem(item, targetOpts);
                 });
-
-                const targetIds = targetItems.map(function (item) {
-                    return item.id;
-                });
-
-                const sourceIds = sourceItems.map(function (item) {
-                    return item.id;
-                });
-
-                const diffItems = {
-                    diffCount: 0,
-                    totalCount: 0
-                };
-
-                const promises = [];
-                targetItems.forEach(function (targetItem) {
-                    if (sourceIds.indexOf(targetItem.id) === -1) {
-                        // Item exists in target but not source.
-                        self._updateDeletionsManifest(context, [targetItem], opts);
-                        // Increment both the total items counter and diff counter.
-                        diffItems.totalCount++;
-                        diffItems.diffCount++;
-                        const emitter = self.getEventEmitter(context);
-                        if (emitter) {
-                            emitter.emit("removed", {item: targetItem});
-                        }
-                    }
-                });
-
-                sourceItems.forEach(function (sourceItem) {
-                    // Increment the total items counter.
-                    diffItems.totalCount++;
-
-                    if (targetIds.indexOf(sourceItem.id) === -1) {
-                        // Item exists in source but not target.
-                        self._updateManifest(context, [sourceItem], opts);
-                        // Increment the diff counter.
-                        diffItems.diffCount++;
-                        // Emit an event indicating the new item.
-                        const emitter = self.getEventEmitter(context);
-                        if (emitter) {
-                            emitter.emit("added", {item: sourceItem});
-                        }
-                    } else {
-                        const deferredCompare = Q.defer();
-                        promises.push(deferredCompare.promise);
-                        const targetObjectPromise = targetGetItem(context, sourceItem, targetOpts);
-                        const sourceObjectPromise = sourceGetItem(context, sourceItem, sourceOpts);
-                        targetObjectPromise.then(function (targetObject) {
-                            sourceObjectPromise.then(function (sourceObject) {
-                                const compareDiffs = utils.compare(sourceObject, targetObject, self.getIgnoreKeys());
-                                let different = (compareDiffs.added.length > 0 || compareDiffs.changed.length > 0 || compareDiffs.removed.length > 0);
-                                if (different) {
-                                    self._updateManifest(context, [sourceItem], opts);
-                                    // Increment the diff counter.
-                                    diffItems.diffCount++;
-                                    const emitter = self.getEventEmitter(context);
-                                    if (emitter) {
-                                        emitter.emit("diff", {item: sourceItem, diffs: compareDiffs});
-                                    }
-                                }
-                                deferredCompare.resolve(true);
-                            }).catch(function (err) {
-                                deferredCompare.reject(err);
-                            });
-                        }).catch(function (err) {
-                            deferredCompare.reject(err);
+                return sourceListFunction()
+                    .then(function (unfilteredSourceItems) {
+                        const sourceItems = unfilteredSourceItems.filter(function (item) {
+                            return self.canCompareItem(item, sourceOpts);
                         });
-                    }
-                });
 
-                return Q.allSettled(promises).then(function () {
-                    return diffItems;
-                });
+                        const targetIds = targetItems.map(function (item) {
+                            return item.id;
+                        });
+
+                        const sourceIds = sourceItems.map(function (item) {
+                            return item.id;
+                        });
+
+                        const diffItems = {
+                            diffCount: 0,
+                            totalCount: 0
+                        };
+
+                        const promises = [];
+                        targetItems.forEach(function (targetItem) {
+                            if (sourceIds.indexOf(targetItem.id) === -1) {
+                                // Item exists in target but not source. From source perspective, it has been removed.
+                                self._updateDeletionsManifest(context, [targetItem], opts);
+
+                                // Increment both the total items counter and diff counter.
+                                diffItems.totalCount++;
+                                diffItems.diffCount++;
+
+                                // Emit a "removed" event for the target item.
+                                if (emitter) {
+                                    emitter.emit("removed", {artifactName: self.getArtifactName(), item: targetItem});
+                                }
+                            }
+                        });
+
+                        const ignoreKeys = self.getIgnoreKeys();
+                        sourceItems.forEach(function (sourceItem) {
+                            if (targetIds.indexOf(sourceItem.id) === -1) {
+                                // Item exists in source but not target. From source perspective, it has been added.
+                                self._updateManifest(context, [sourceItem], opts);
+
+                                // Increment both the total items counter and diff counter.
+                                diffItems.totalCount++;
+                                diffItems.diffCount++;
+
+                                // Emit an "added" event for the source item.
+                                if (emitter) {
+                                    emitter.emit("added", {artifactName: self.getArtifactName(), item: sourceItem});
+                               }
+                            } else {
+                                // Item exists in both source and target.
+                                const deferredCompare = Q.defer();
+                                promises.push(deferredCompare.promise);
+
+                                // Increment the total items counter.
+                                diffItems.totalCount++;
+
+                                targetGetItemFunction(sourceItem)
+                                    .then(function (targetObject) {
+                                        sourceGetItemFunction(sourceItem)
+                                            .then(function (sourceObject) {
+                                                const diffs = utils.compare(sourceObject, targetObject, ignoreKeys);
+                                                if (diffs.added.length > 0 || diffs.changed.length > 0 || diffs.removed.length > 0) {
+                                                    // The items are different.
+                                                    self._updateManifest(context, [sourceItem], opts);
+
+                                                    // Increment the diff counter.
+                                                    diffItems.diffCount++;
+
+                                                    // Emit a "diff" event for the source item.
+                                                    if (emitter) {
+                                                        emitter.emit("diff", {
+                                                            artifactName: self.getArtifactName(),
+                                                            item: sourceItem,
+                                                            diffs: diffs
+                                                        });
+                                                    }
+                                                }
+                                                deferredCompare.resolve(true);
+                                            })
+                                            .catch(function (err) {
+                                                utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                                                deferredCompare.reject(err);
+                                            });
+                                    })
+                                    .catch(function (err) {
+                                        utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                                        deferredCompare.reject(err);
+                                    });
+                            }
+                        });
+
+                        return Q.allSettled(promises)
+                            .then(function () {
+                                return diffItems;
+                            });
+                    });
             });
-        });
     }
 
     /**
@@ -1332,7 +1396,10 @@ class JSONItemHelper extends BaseHelper {
 
                                 // Log a warning that the push of this item will be retried.
                                 const error = item[BaseHelper.RETRY_PUSH_ITEM_ERROR];
-                                utils.logWarnings(context, i18n.__("pushed_item_retry", {name: name, message: error.log ? error.log : error.message}));
+                                utils.logWarnings(context, i18n.__("pushed_item_retry", {
+                                    name: name.id || name,
+                                    message: error.log ? error.log : error.message
+                                }));
                             });
 
                             // Initialize the retry values and then push the items in the list.
@@ -1432,25 +1499,6 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
-     * Get the status of the given item.
-     *
-     * @param {Object} context The API context to be used for this operation.
-     * @param {Object} item The item for which to get the status.
-     * @param {Object} opts The options to be used for this operations.
-     *
-     * @returns {String} "ready" or "draft".
-     *
-     * @protected
-     */
-    getStatus(context, item, opts) {
-        if (item && item.status && item.status === "draft") {
-            return "draft";
-        } else {
-            return "ready";
-        }
-    }
-
-    /**
      * Filter the given list of items before completing the pull operation.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -1465,22 +1513,20 @@ class JSONItemHelper extends BaseHelper {
         // Filter the item list based on the ready and draft options.
         const readyOnly = options.getRelevantOption(context, opts, "filterReady");
         const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        const helper = this;
         if (readyOnly) {
             // Filter out any items that are not ready.
-            const self = this;
             itemList = itemList.filter(function (item) {
-                return (self.getStatus(context, item, opts) === "ready");
+                return (helper.getStatus(context, item, opts) === "ready");
             });
         } else if (draftOnly) {
             // Filter out any items that are not draft.
-            const self = this;
             itemList = itemList.filter(function (item) {
-                return (self.getStatus(context, item, opts) === "draft");
+                return (helper.getStatus(context, item, opts) === "draft");
             });
         }
 
         // Filter the list to exclude any items that should not be saved to file.
-        const helper = this;
         itemList = itemList.filter(function (item) {
             const canPullItem = helper.canPullItem(item);
             if (!canPullItem) {

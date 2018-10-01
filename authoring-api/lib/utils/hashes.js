@@ -333,7 +333,12 @@ function updateBaseUrls (context, hashMap, opts) {
 function exitHandler(context) {
     // Iterate each basePath that is in the context.hashes object and save it.
     Object.keys(context.hashes).forEach(function (basePath) {
-        writeHashes(basePath, context.hashes[basePath]);
+        try {
+            writeHashes(basePath, context.hashes[basePath]);
+        } catch (err) {
+            // Log the error and return the current state of the tenant map.
+            utils.logErrors(context, i18n.__("error_save_hashes"), err);
+        }
     });
 }
 
@@ -351,7 +356,15 @@ function writeHashes (basePath, tenantMap) {
 
         // Write the modified tenant map to the hashes file.
         const hashesFilename = getHashesFilename(basePath);
-        fs.writeFileSync(hashesFilename, contents);
+        // Write to a temporary file first
+        fs.writeFileSync(hashesFilename + ".tmp", contents);
+        // Now delete the original hashes file
+        if (fs.existsSync(hashesFilename)) {
+            fs.unlinkSync(hashesFilename);
+        }
+        // Finally rename the temporary file to the correct name
+        fs.renameSync(hashesFilename + ".tmp", hashesFilename);
+
         // Reset the update count to 0 and the last update timestamp to now.
         tenantMap.updateCount = 0;
         tenantMap.updateTS = Date.now();

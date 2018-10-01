@@ -438,9 +438,9 @@ class BaseRestUnitTest extends UnitTest {
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
 
-                // Call the method being tested, using short delay value so the unit test doesn't timeout..
+                // Call the method being tested, using short delay value so the unit test doesn't timeout.
                 let error;
-                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteItem: {id: "foo"}};
                 restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
@@ -480,7 +480,7 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                const opts = {retryMaxAttempts: 1, retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                const opts = {retryMaxAttempts: 1, retryMinTimeout: 10, retryMaxTimeout: 100, siteItem: {id: "foo"}};
                 restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
@@ -521,7 +521,7 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteItem: {id: "foo"}};
                 restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
@@ -561,7 +561,7 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteItem: {id: "foo"}};
                 restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
@@ -584,7 +584,7 @@ class BaseRestUnitTest extends UnitTest {
                         done(error);
                     });
             });
-        
+
             it("should succeed when the request is retried then succeeds", function (done) {
                 // Create a stub for the underlying GET requests.
                 const stub = sinon.stub(request.Request, "request");
@@ -601,7 +601,7 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteItem: {id: "foo"}};
                 restApi.getItems(context, opts)
                     .then(function () {
                         // Verify that the stub was called once with the lookup URI and once with the asset URI.
@@ -638,7 +638,14 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, retryFactor: 0, retryRandomize: true, retryStatusCodes: otherCodes, siteId: "foo"};
+                const opts = {
+                    retryMinTimeout: 10,
+                    retryMaxTimeout: 100,
+                    retryFactor: 0,
+                    retryRandomize: true,
+                    retryStatusCodes: otherCodes,
+                    siteItem: {id: "foo"}
+                };
                 restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
@@ -679,7 +686,7 @@ class BaseRestUnitTest extends UnitTest {
 
                 // Call the method being tested, using short delay value so the unit test doesn't timeout..
                 let error;
-                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteId: "foo"};
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteItem: {id: "foo"}};
                 restApi.getItems(context, opts)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
@@ -709,7 +716,7 @@ class BaseRestUnitTest extends UnitTest {
 
     testGetItemsSuccess (restApi, lookupUri, restName, itemPath1, itemPath2) {
         const self = this;
-      
+
         describe("getItemsSucceed", function() {
             it("should succeed when getting valid items", function (done) {
                 // Create a stub for GET requests
