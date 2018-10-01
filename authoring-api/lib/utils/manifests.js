@@ -27,9 +27,10 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const MANIFEST_FILE_SPACING = "  ";
 const ASSETS_ARTIFACT_TYPE = "assets";
+const RESOURCES_ARTIFACT_TYPE = "resources";
 const PAGES_ARTIFACT_TYPE = "pages";
 const SITES_ARTIFACT_TYPE = "sites";
-const SITE_ID_KEY = "siteId";
+const SITE_ITEM_KEY = "siteItem";
 const DEFAULT_SITE_ID = "default";
 const MANIFEST_MODE_APPEND = "append";
 const MANIFEST_MODE_REPLACE = "replace";
@@ -241,7 +242,7 @@ function _pullManifest (context, manifestPath, opts) {
 
 /**
  * Returns a section of the in-memory manifest from the context.  Handles returning the
- * nested pages section of the current site (specified via siteId).
+ * nested pages section of the current site (specified via opts.siteItem).
  *
  * @param context The context object for the operation.
  * @param manifestRoot The root object of the manifest.
@@ -261,9 +262,17 @@ function _getManifestSection (context, manifestRoot, artifactName, okToCreate, o
             return;
         }
 
-        const siteId = options.getRelevantOption(context, opts, SITE_ID_KEY) || DEFAULT_SITE_ID;
+        const siteItem = options.getRelevantOption(context, opts, SITE_ITEM_KEY);
+        const siteId = (siteItem && siteItem.id) ? siteItem.id : DEFAULT_SITE_ID;
         if (!sitesSection[siteId] && okToCreate) {
-            sitesSection[siteId] = {};
+            // Operations that use pages from a manifest will always require the page's site metadata. So add
+            // the site metadata now, in case the site itself is not explicitly added to the manifest later.
+            sitesSection[siteId] = {
+                id: siteId,
+                name: siteItem.name,
+                contextRoot: siteItem.contextRoot,
+                status: siteItem.status
+            };
         }
         root = sitesSection[siteId] || {};
     }
@@ -299,13 +308,22 @@ function appendManifestSection (context, manifest, artifactName, itemList, opts)
     if (itemList) {
         const section = _getManifestSection(context, manifest, artifactName, true, opts);
 
+        let keyField = "id";
+        if (artifactName === ASSETS_ARTIFACT_TYPE || artifactName === RESOURCES_ARTIFACT_TYPE) {
+            keyField = "path";
+        }
         itemList.forEach(function (item) {
-            let keyField = "id";
-            if (artifactName === ASSETS_ARTIFACT_TYPE) {
-                keyField = "path";
-            }
             if (item[keyField]) {
-                section[item[keyField]] = { id: item.id, name: item.name, path: item.path || item.hierarchicalPath };
+                if (artifactName === SITES_ARTIFACT_TYPE) {
+                    section[item[keyField]] = {
+                        id: item.id,
+                        name: item.name,
+                        contextRoot: item.contextRoot,
+                        status: item.status 
+                    };
+                } else {
+                    section[item[keyField]] = {id: item.id, name: item.name, path: item.path || item.hierarchicalPath};
+                }
             } else {
                 context.logger.debug("skipping item with no key field", keyField, item);
             }

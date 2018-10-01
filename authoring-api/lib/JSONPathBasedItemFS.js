@@ -169,7 +169,7 @@ class JSONPathBasedItemFS extends JSONItemFS {
                             return utils.getRelativePath(artifactDir, file);
                         });
 
-                        // Filter the assets before listing them.
+                        // Filter the artifacts before listing them.
                         files = fsObject._listFilter(context, files, opts);
 
                         const items = files.map(function (file) {

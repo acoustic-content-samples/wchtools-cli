@@ -50,7 +50,7 @@ class CompareUnitTest extends UnitTest {
 
     static addRemoteSitesStub () {
         stubRemoteSites = sinon.stub(ToolsApi.getSitesHelper()._restApi, "getItems");
-        stubRemoteSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+        stubRemoteSites.resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
     }
 
     static restoreRemoteSitesStub () {
@@ -59,7 +59,7 @@ class CompareUnitTest extends UnitTest {
 
     static addLocalSitesStub () {
         stubLocalSites = sinon.stub(ToolsApi.getSitesHelper()._fsApi, "getItems");
-        stubLocalSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+        stubLocalSites.resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
     }
 
     static restoreLocalSitesStub () {

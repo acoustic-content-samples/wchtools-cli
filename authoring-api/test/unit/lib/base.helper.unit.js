@@ -1196,19 +1196,14 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubGet = sinon.stub(restApi, "getItems");
                 const readyMetadata1 = utils.clone(itemMetadata1);
                 readyMetadata1.status = "ready";
-                readyMetadata1.siteStatus = "ready";
                 const readyMetadata2 = utils.clone(itemMetadata2);
                 readyMetadata2.status = "ready";
-                readyMetadata2.siteStatus = "ready";
                 const readyMetadata3 = utils.clone(itemMetadata2);
                 readyMetadata3.status = "ready";
-                readyMetadata3.siteStatus = "ready";
                 const draftMetadata1 = utils.clone(itemMetadata1);
                 draftMetadata1.status = "draft";
-                draftMetadata1.siteStatus = "draft";
                 const draftMetadata2 = utils.clone(itemMetadata2);
                 draftMetadata2.status = "draft";
-                draftMetadata2.siteStatus = "draft";
                 stubGet.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
 
                 // Create a helper.canPullItem stub that return false for some of the items.
@@ -1267,19 +1262,14 @@ class BaseHelperUnitTest extends UnitTest {
                 const stubGet = sinon.stub(restApi, "getItems");
                 const readyMetadata1 = utils.clone(itemMetadata1);
                 readyMetadata1.status = "ready";
-                readyMetadata1.siteStatus = "ready";
                 const readyMetadata2 = utils.clone(itemMetadata2);
                 readyMetadata2.status = "ready";
-                readyMetadata2.siteStatus = "ready";
                 const readyMetadata3 = utils.clone(itemMetadata2);
                 readyMetadata3.status = "ready";
-                readyMetadata3.siteStatus = "ready";
                 const draftMetadata1 = utils.clone(itemMetadata1);
                 draftMetadata1.status = "draft";
-                draftMetadata1.siteStatus = "draft";
                 const draftMetadata2 = utils.clone(itemMetadata2);
                 draftMetadata2.status = "draft";
-                draftMetadata2.siteStatus = "draft";
                 stubGet.resolves([readyMetadata1, readyMetadata2, readyMetadata3, draftMetadata1, draftMetadata2]);
 
                 // Create a helper.canPullItem stub that return false for some of the items.
@@ -1338,15 +1328,23 @@ class BaseHelperUnitTest extends UnitTest {
                 // Create a rest.getItems stub that returns metadata for the items.
                 const stubGet = sinon.stub(restApi, "getItems");
                 const metadata1 = utils.clone(itemMetadata1);
-                metadata1.path = "/foo/bar1.json";
                 const metadata2 = utils.clone(itemMetadata2);
-                metadata2.path = "/bar/foo1.json";
                 const metadata3 = utils.clone(itemMetadata2);
-                metadata3.path = "/foo/bar2.json";
                 const metadata4 = utils.clone(itemMetadata1);
-                metadata4.path = "/bar/foo2.json";
                 const metadata5 = utils.clone(itemMetadata2);
-                metadata5.path = "/foo/bar3.json";
+                if (type === "sites/default") {
+                    metadata1.hierarchicalPath = "/foo/bar1.json";
+                    metadata2.hierarchicalPath = "/bar/foo1.json";
+                    metadata3.hierarchicalPath = "/foo/bar2.json";
+                    metadata4.hierarchicalPath = "/bar/foo2.json";
+                    metadata5.hierarchicalPath = "/foo/bar3.json";
+                } else {
+                    metadata1.path = "/foo/bar1.json";
+                    metadata2.path = "/bar/foo1.json";
+                    metadata3.path = "/foo/bar2.json";
+                    metadata4.path = "/bar/foo2.json";
+                    metadata5.path = "/foo/bar3.json";
+                }
                 stubGet.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
 
                 // Create a helper.canPullItem stub that return false for some of the items.
@@ -1389,9 +1387,15 @@ class BaseHelperUnitTest extends UnitTest {
                         // Verify that the expected items are returned.
                         if (pathBased) {
                             expect(items.length).to.equal(3);
-                            expect(items[0].path).to.contain("/foo/");
-                            expect(items[1].path).to.contain("/foo/");
-                            expect(items[2].path).to.contain("/foo/");
+                            if (type === "sites/default") {
+                                expect(items[0].hierarchicalPath).to.contain("/foo/");
+                                expect(items[1].hierarchicalPath).to.contain("/foo/");
+                                expect(items[2].hierarchicalPath).to.contain("/foo/");
+                            } else {
+                                expect(items[0].path).to.contain("/foo/");
+                                expect(items[1].path).to.contain("/foo/");
+                                expect(items[2].path).to.contain("/foo/");
+                            }
                         } else {
                             expect(items.length).to.equal(5);
                         }
@@ -3181,15 +3185,23 @@ class BaseHelperUnitTest extends UnitTest {
 
                 const stub = sinon.stub(restApi, "getItems");
                 const metadata1 = utils.clone(itemMetadata1);
-                metadata1.path = "/foo/bar1.json";
                 const metadata2 = utils.clone(itemMetadata2);
-                metadata2.path = "/bar/foo1.json";
                 const metadata3 = utils.clone(itemMetadata2);
-                metadata3.path = "/foo/bar2.json";
                 const metadata4 = utils.clone(itemMetadata1);
-                metadata4.path = "/bar/foo2.json";
                 const metadata5 = utils.clone(itemMetadata2);
-                metadata5.path = "/foo/bar3.json";
+                if (type === "sites/default") {
+                    metadata1.hierarchicalPath = "/foo/bar1.json";
+                    metadata2.hierarchicalPath = "/bar/foo1.json";
+                    metadata3.hierarchicalPath = "/foo/bar2.json";
+                    metadata4.hierarchicalPath = "/bar/foo2.json";
+                    metadata5.hierarchicalPath = "/foo/bar3.json";
+                } else {
+                    metadata1.path = "/foo/bar1.json";
+                    metadata2.path = "/bar/foo1.json";
+                    metadata3.path = "/foo/bar2.json";
+                    metadata4.path = "/bar/foo2.json";
+                    metadata5.path = "/foo/bar3.json";
+                }
                 stub.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
 
                 // The stub should be restored when the test is complete.

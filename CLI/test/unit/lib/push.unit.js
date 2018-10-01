@@ -48,7 +48,7 @@ class PushUnitTest extends UnitTest {
 
     static addLocalSitesStub () {
         stubLocalSites = sinon.stub(sitesHelper._fsApi, "getItems");
-        stubLocalSites.resolves([{id: "foo", siteStatus: "ready"}, {id: "bar", siteStatus: "draft"}]);
+        stubLocalSites.resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
     }
 
     static restoreLocalSitesStub () {
@@ -259,7 +259,7 @@ class PushUnitTest extends UnitTest {
                     });
             });
 
-            it("test push no sites", function (done) {
+            it("test push ready -- no sites", function (done) {
                 if (switches !== "--sites") {
                     return done();
                 }
@@ -285,7 +285,60 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "-I", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "-I", "--ready", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error was specified.
+                        expect(err.message).to.contain("does not contain any directories or items to be pushed");
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the local stub then add the original stub again.
+                        stubGet.restore();
+                        PushUnitTest.addLocalSitesStub();
+
+                        // Restore the helper's methods.
+                        stub.restore();
+                        stubExist.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test push draft -- no sites", function (done) {
+                if (switches !== "--sites") {
+                    return done();
+                }
+
+                // Restore the global stub and create our own.
+                PushUnitTest.restoreLocalSitesStub();
+                const stubGet = sinon.stub(sitesHelper._fsApi, "getItems");
+                stubGet.resolves(undefined);
+
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushAllItems", function () {
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Stub the helper.doesDirectoryExist method to return false.
+                const stubExist = sinon.stub(helper, "doesDirectoryExist");
+                stubExist.returns(false);
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "-I", "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The command should have failed.");
@@ -514,7 +567,7 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test successful push of named draft page", function (done) {
-                if (!BaseCommand.DRAFT_SITES || switches !== "--pages") {
+                if (switches !== "--pages") {
                     return done();
                 }
 
@@ -552,7 +605,7 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test successful push of named ready and draft page", function (done) {
-                if (!BaseCommand.DRAFT_SITES || switches !== "--pages") {
+                if (switches !== "--pages") {
                     return done();
                 }
 
@@ -805,7 +858,7 @@ class PushUnitTest extends UnitTest {
                                 expect(stubPush.args[0][1][0].id).to.equal("foo");
                                 expect(stubPush.args[0][1][1].id).to.not.exist;
                                 if (switches === "--pages") {
-                                    expect(stubPush.args[0][2].siteId).to.equal("foo");
+                                    expect(stubPush.args[0][2].siteItem.id).to.equal("foo");
                                 }
                             }
                             expect(msg).to.contain('2 artifacts');
@@ -911,10 +964,6 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test push ignore-timestamps working (all items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._fsApi, "listNames");
                 if (switches.includes("--sites")) {
                     stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
@@ -974,11 +1023,11 @@ class PushUnitTest extends UnitTest {
                             expect(stubPush.args[0][1][0].id).to.equal("foo");
                             expect(stubPush.args[0][1][1].id).to.equal("bar");
                             expect(stubPush.args[0][1][2].id).to.not.exist;
-                            expect(stubPush.args[0][2].siteId).to.equal("foo");
+                            expect(stubPush.args[0][2].siteItem.id).to.equal("foo");
                             expect(stubPush.args[1][1][0].id).to.equal("foo");
                             expect(stubPush.args[1][1][1].id).to.equal("bar");
                             expect(stubPush.args[1][1][2].id).to.not.exist;
-                            expect(stubPush.args[1][2].siteId).to.equal("bar");
+                            expect(stubPush.args[1][2].siteItem.id).to.equal("bar");
                             expect(msg).to.contain('6 artifacts');
                         } else {
                             // Verify that the stubs were called once, and that the expected number of items were pushed.
@@ -1012,10 +1061,6 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test push modified working (all items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._fsApi, "listNames");
                 if (switches.includes("--sites")) {
                     stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
@@ -1164,7 +1209,7 @@ class PushUnitTest extends UnitTest {
                                 expect(stubPush.args[0][1][1].id).to.equal("bar");
                                 expect(stubPush.args[0][1][2].id).to.not.exist;
                                 if (switches === "--pages") {
-                                    expect(stubPush.args[0][2].siteId).to.equal("foo");
+                                    expect(stubPush.args[0][2].siteItem.id).to.equal("foo");
                                 }
                             }
                             expect(msg).to.contain('3 artifacts');
@@ -1270,25 +1315,14 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test push ignore-timestamps working (draft items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._fsApi, "listNames");
                 if (switches.includes("--sites")) {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft"}]);
                 } else {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }, {name: badItem, id: undefined, path: badItem, status: "draft"}]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft"},
+                        {name: badItem, id: undefined, path: badItem, status: "draft"}]);
                 }
 
                 // Stub the helper._pushNameList method to return a promise that is resolved after emitting events.
@@ -1333,7 +1367,7 @@ class PushUnitTest extends UnitTest {
                                 expect(stubPush.args[0][1][1].id).to.equal("bar");
                                 expect(stubPush.args[0][1][2].id).to.not.exist;
                                 if (switches === "--pages") {
-                                    expect(stubPush.args[0][2].siteId).to.equal("bar");
+                                    expect(stubPush.args[0][2].siteItem.id).to.equal("bar");
                                 }
                             }
                             expect(msg).to.contain('3 artifacts');
@@ -1354,25 +1388,14 @@ class PushUnitTest extends UnitTest {
             });
 
             it("test push modified working (draft items)", function (done) {
-                if (!BaseCommand.DRAFT_SITES && (switches.includes("--sites") || switches.includes("--pages"))) {
-                    return done();
-                }
-
                 const stubList = sinon.stub(helper._fsApi, "listNames");
                 if (switches.includes("--sites")) {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft"}]);
                 } else {
-                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }, {name: badItem, id: undefined, path: badItem, status: "draft"}]);
+                    stubList.resolves([{name: itemName1, id: "foo", path: itemName1, status: "draft"},
+                        {name: itemName2, id: "bar", path: itemName2, status: "draft"},
+                        {name: badItem, id: undefined, path: badItem, status: "draft"}]);
                 }
 
                 const stubHashes = sinon.stub(hashes, "isLocalModified");
@@ -2394,6 +2417,31 @@ class PushUnitTest extends UnitTest {
                     .catch(function (err) {
                         // Verify that the expected error message was returned.
                         expect(err.message).to.equal('Invalid options named and ready cannot be used together.');
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test fail named and draft param", function (done) {
+                if (switches === "--pages") {
+                    // The named and draft options can be specified together for pages.
+                    return done();
+                }
+
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, '--url', 'http://foo.bar/api', '--user', 'foo', '--password', 'password', '--named', 'foo', '--draft'])
+                    .then(function (/*msg*/) {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error message was returned.
+                        expect(err.message).to.equal('Invalid options named and draft cannot be used together.');
                     })
                     .catch(function (err) {
                         error = err;

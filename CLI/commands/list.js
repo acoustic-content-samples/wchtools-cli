@@ -48,15 +48,17 @@ class ListCommand extends BaseCommand {
         super(program);
     }
 
-    static _getPagesDisplayHeader (siteId) {
-        return PREFIX + i18n.__('cli_listing_pages_for_site', {id: siteId}) + SUFFIX;
+    static _getPagesDisplayHeader(siteItem) {
+        const contextName = ToolsApi.getSitesHelper().getSiteContextName(siteItem);
+        return PREFIX + i18n.__('cli_listing_pages_for_site', {id: contextName}) + SUFFIX;
     }
 
     _calculateTabs (maxLength, str) {
-        const TAB_LENGTH = 8;
+        const TAB_LENGTH = 1;
+        const SEPARATOR_SPACES = 3;
         let tabs = '';
-        for (let i = 0; i <= Math.trunc(maxLength / TAB_LENGTH) - Math.trunc(str.length / TAB_LENGTH); i++) {
-            tabs += '\t';
+        for (let i = 0; i <= Math.trunc(maxLength / TAB_LENGTH) - Math.trunc(str.length / TAB_LENGTH) + SEPARATOR_SPACES - 1; i++) {
+            tabs += ' ';
         }
         return tabs;
     }
@@ -156,6 +158,7 @@ class ListCommand extends BaseCommand {
                         let maxId = 0;
                         let maxName = 0;
                         let maxPath = 0;
+                        let maxContextRoot = 0;
                         items.forEach(function (item) {
                             if (item.id) {
                                 maxId = Math.max(maxId, item.id.length);
@@ -166,11 +169,15 @@ class ListCommand extends BaseCommand {
                             if (item.path) {
                                 maxPath = Math.max(maxPath, item.path.length);
                             }
+                            if (item.contextRoot) {
+                                maxContextRoot = Math.max(maxContextRoot, item.contextRoot.length);
+                            }
                         });
                         let headingMsg = "";
                         let headingDivider = "";
                         if (maxId > 0) {
                             const ID_HEADING = i18n.__('cli_list_id_heading');
+                            maxId = Math.max(maxId, ID_HEADING.length);
                             headingMsg += ID_HEADING;
                             headingMsg += self._calculateTabs(maxId, ID_HEADING);
                             let dividerSegment = "";
@@ -182,6 +189,7 @@ class ListCommand extends BaseCommand {
                         }
                         if (maxName > 0) {
                             const NAME_HEADING = i18n.__('cli_list_name_heading');
+                            maxName = Math.max(maxName, NAME_HEADING.length);
                             headingMsg += NAME_HEADING;
                             headingMsg += self._calculateTabs(maxName, NAME_HEADING);
                             let dividerSegment = "";
@@ -193,8 +201,21 @@ class ListCommand extends BaseCommand {
                         }
                         if (maxPath > 0) {
                             const PATH_HEADING = i18n.__('cli_list_path_heading');
+                            maxPath = Math.max(maxPath, PATH_HEADING.length);
                             headingMsg += PATH_HEADING;
+                            headingMsg += self._calculateTabs(maxPath, PATH_HEADING);
+                            let dividerSegment = "";
                             for (let i = 0; i < maxPath; i++) {
+                                dividerSegment += "-";
+                            }
+                            headingDivider += dividerSegment;
+                            headingDivider += self._calculateTabs(maxPath, dividerSegment);
+                        }
+                        if (maxContextRoot > 0) {
+                            const CONTEXT_ROOT_HEADING = i18n.__('cli_list_context_root_heading');
+                            maxContextRoot = Math.max(maxContextRoot, CONTEXT_ROOT_HEADING.length);
+                            headingMsg += CONTEXT_ROOT_HEADING;
+                            for (let i = 0; i < maxContextRoot; i++) {
                                 headingDivider += "-";
                             }
                         }
@@ -205,7 +226,7 @@ class ListCommand extends BaseCommand {
                         items.forEach(function (item) {
                             artifactsCount++;
                             let msg = item;
-                            if (item.id || item.name || item.path) {
+                            if (item.id || item.name || item.path || item.contextRoot) {
                                 if (item.id) {
                                     msg = item.id;
                                     msg += self._calculateTabs(maxId, item.id);
@@ -218,6 +239,10 @@ class ListCommand extends BaseCommand {
                                 }
                                 if (item.path) {
                                     msg += item.path;
+                                    msg += self._calculateTabs(maxPath, item.path);
+                                }
+                                if (item.contextRoot) {
+                                    msg += item.contextRoot;
                                 }
                             }
                             const logger = self.getLogger();
@@ -471,14 +496,14 @@ class ListCommand extends BaseCommand {
             })
             .then(function () {
                 if (self.getCommandLineOption("pages") && !self.isBaseTier(context)) {
-                    // Get the list of site ids to use for listing pages.
-                    const siteIds = context.siteList;
+                    // Get the list of site items to use for listing pages.
+                    const siteItems = context.siteList;
 
                     // Local function to recursively list pages for one site at a time.
                     let index = 0;
                     const listPagesBySite = function (context) {
-                        if (index < siteIds.length) {
-                            return self.handleListPromise(self.listPages(context, siteIds[index++]), results)
+                        if (index < siteItems.length) {
+                            return self.handleListPromise(self.listPages(context, siteItems[index++]), results)
                                 .then(function () {
                                     // List pages for the next site after the previous site is complete.
                                     return listPagesBySite(context);
@@ -790,23 +815,23 @@ class ListCommand extends BaseCommand {
 
 
     /**
-     * List the page node artifacts for a specified site (default only in mvp)
+     * List the page node artifacts for a specified site
      *
      * @param {Object} context The API context associated with this list command.
-     * @param {String} siteId The id of the site containing the pages being listed.
+     * @param {String} siteItem The site containing the pages being listed.
      *
      * @returns {Q.Promise} A promise that is resolved with the specified list
      */
-    listPages (context, siteId) {
+    listPages(context, siteItem) {
         const helper = ToolsApi.getPagesHelper();
-        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteItem: siteItem});
         const listFunction = this.getListFunction(helper, context);
         const listPromise = listFunction(opts);
         const deferred = Q.defer();
 
         listPromise
             .then(function (result) {
-                const displayHeader = ListCommand._getPagesDisplayHeader(siteId);
+                const displayHeader = ListCommand._getPagesDisplayHeader(siteItem);
                 deferred.resolve({"type": displayHeader, "value": result});
             })
             .catch(function (err) {

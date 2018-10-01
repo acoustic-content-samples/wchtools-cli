@@ -1,5 +1,12 @@
 # Changelog
 
+### 3.1 changes since 3.0
+
+  - Add latent support for push, pull, list, and compare of multiple sites. The artifact file name for a non-default site is based on the contextRoot property of the site. The artifact file name for a draft site is further qualifed by appending the site's project id, or "draft" if the site is not part of a project.
+  - Add support for push, pull, and list of pages by path. This is the same as the existing functionality for web assets, types, layouts, and layout mappings.
+  - Add support for push, pull, list, and compare of orphaned resources.
+  - Fix a bug with the creation of minimal asset metadata when run with the createOnly option.
+
 ### 3.0 changes since 2.9
 
   - NOTE:  The 3.0 major version number upgrade of wchtools has a change in default behavior.

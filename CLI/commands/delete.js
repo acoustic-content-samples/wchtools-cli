@@ -184,6 +184,21 @@ class DeleteCommand extends BaseCommand {
     }
 
     /**
+     * Determine whether this command should include draft sites.
+     *
+     * @returns {Boolean} A return value of true indicates that this command should include draft sites. A return value
+     *                    of false indicates that this command should not include draft sites.
+     */
+    includeDraftSites() {
+        let retVal = super.includeDraftSites();
+        if (this.getCommandLineOption("all")) {
+            // Always include draft sites for the delete --all command.
+            retVal = true;
+        }
+        return retVal;
+    }
+
+    /**
      * Delete the specified artifact(s).
      */
     doDelete () {
@@ -461,8 +476,9 @@ class DeleteCommand extends BaseCommand {
                     self.successMessage(i18n.__('cli_delete_success', {name: item[displayField]}));
                 })
                 .catch(function (err) {
-                    logger.error(err);
-                    self.errorMessage(i18n.__("cli_delete_failure", {"name": item[displayField], "err": err.message}));
+                    const message = i18n.__("cli_delete_failure", {"name": item[displayField], "err": err.message});
+                    logger.error(message);
+                    self.errorMessage(message);
                 });
         } else if (self.getCommandLineOption("quiet")) {
             // --------------------------------------------
@@ -1385,14 +1401,14 @@ class DeleteCommand extends BaseCommand {
         self.startDeleteAllDisplay()
             .then(function () {
                 if (self.getCommandLineOption("pages")) {
-                    // Get the list of site ids to use for deleting pages.
-                    const siteIds = context.siteList;
+                    // Get the list of site items to use for deleting pages.
+                    const siteItems = context.siteList;
 
                     // Local function to recursively delete pages for one site at a time.
                     let index = 0;
                     const deletePagesBySite = function (context) {
-                        if (index < siteIds.length) {
-                            return self.handleDeletePromise(self.deleteAllPages(context, siteIds[index++]), continueOnError)
+                        if (index < siteItems.length) {
+                            return self.handleDeletePromise(self.deleteAllPages(context, siteItems[index++]), continueOnError)
                                 .then(function () {
                                     // Delete pages for the next site after the previous site is complete.
                                     return deletePagesBySite(context);
@@ -1401,6 +1417,11 @@ class DeleteCommand extends BaseCommand {
                     };
 
                     return deletePagesBySite(context);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("sites")) {
+                    return self.handleDeletePromise(self.deleteAllSites(context), continueOnError);
                 }
             })
             .then(function () {
@@ -1512,7 +1533,12 @@ class DeleteCommand extends BaseCommand {
         // Add a banner for the type of artifacts being deleted.
         logger.info(PREFIX + i18n.__(messageKey) + SUFFIX);
 
-        return this.deleteAllItems(context, helper, "path", opts);
+        // Display the path field for deleted assets.
+        const getDisplayName = function (item) {
+            return item["path"]
+        };
+
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
@@ -1530,7 +1556,12 @@ class DeleteCommand extends BaseCommand {
         // Add a banner for the type of artifacts being deleted.
         logger.info(PREFIX + i18n.__("cli_deleting_all_image_profiles") + SUFFIX);
 
-        return this.deleteAllItems(context, helper, "name", opts);
+        // Display the name field for deleted image profiles.
+        const getDisplayName = function (item) {
+            return item["name"]
+        };
+
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
@@ -1552,7 +1583,12 @@ class DeleteCommand extends BaseCommand {
             // Add a banner for the type of artifacts being deleted.
             logger.info(PREFIX + i18n.__("cli_deleting_all_layouts") + SUFFIX);
 
-            return this.deleteAllItems(context, helper, "name", opts);
+            // Display the name field for deleted layouts.
+            const getDisplayName = function (item) {
+                return item["name"]
+            };
+
+            return this.deleteAllItems(context, helper, getDisplayName, opts);
         }
     }
 
@@ -1575,7 +1611,12 @@ class DeleteCommand extends BaseCommand {
             // Add a banner for the type of artifacts being deleted.
             logger.info(PREFIX + i18n.__("cli_deleting_all_layout_mappings") + SUFFIX);
 
-            return this.deleteAllItems(context, helper, "name", opts);
+            // Display the name field for deleted layout mappings.
+            const getDisplayName = function (item) {
+                return item["name"]
+            };
+
+            return this.deleteAllItems(context, helper, getDisplayName, opts);
         }
     }
 
@@ -1594,7 +1635,12 @@ class DeleteCommand extends BaseCommand {
         // Add a banner for the type of artifacts being deleted.
         logger.info(PREFIX + i18n.__("cli_deleting_all_categories") + SUFFIX);
 
-        return this.deleteAllItems(context, helper, "name", opts);
+        // Display the name field for deleted categories.
+        const getDisplayName = function (item) {
+            return item["name"]
+        };
+
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
@@ -1612,7 +1658,12 @@ class DeleteCommand extends BaseCommand {
         // Add a banner for the type of artifacts being deleted.
         logger.info(PREFIX + i18n.__("cli_delete_all_types") + SUFFIX);
 
-        return this.deleteAllItems(context, helper, "name", opts);
+        // Display the name field for deleted content types.
+        const getDisplayName = function (item) {
+            return item["name"]
+        };
+
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
@@ -1630,34 +1681,73 @@ class DeleteCommand extends BaseCommand {
         // Add a banner for the type of artifacts being deleted.
         logger.info(PREFIX + i18n.__("cli_deleting_all_content") + SUFFIX);
 
-        return this.deleteAllItems(context, helper, "name", opts);
+        // Display the name field for deleted content items.
+        const getDisplayName = function (item) {
+            return item["name"]
+        };
+
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
-     * Delete all "Page" artifacts for a specified site (default only in mvp)
+     * Delete all "Site" artifacts for a specified site
      *
      * @param {Object} context The API context associated with this delete command.
-     * @param {String} siteId The id of the site containing the pages being deleted.
+     *
+     * @returns {Q.Promise} A promise that is resolved when all site artifacts are deleted.
+     */
+    deleteAllSites(context) {
+        if (options.getProperty(context, "tier") === "Base") {
+            // Sites are not available in a Base tenant, so just return a resolved promise.
+            return Q.resolve();
+        } else {
+            const helper = ToolsApi.getSitesHelper();
+            const opts = this.getApiOptions();
+            const logger = this.getLogger();
+
+            // Add a banner for the type of artifacts being deleted.
+            logger.info(PREFIX + i18n.__("cli_deleting_all_sites") + SUFFIX);
+
+            // Display the context name for deleted sites.
+            const getDisplayName = function (item) {
+                return helper.getSiteContextName(item)
+            };
+
+            return this.deleteAllItems(context, helper, getDisplayName, opts);
+        }
+    }
+
+    /**
+     * Delete all "Page" artifacts for a specified site
+     *
+     * @param {Object} context The API context associated with this delete command.
+     * @param {String} siteItem The site containing the pages being deleted.
      *
      * @returns {Q.Promise} A promise that is resolved when all page artifacts are deleted.
      */
-    deleteAllPages (context, siteId) {
+    deleteAllPages(context, siteItem) {
         if (options.getProperty(context, "tier") === "Base") {
             // Pages are not available in a Base tenant, so just return a resolved promise.
             return Q.resolve();
         } else {
             const helper = ToolsApi.getPagesHelper();
-            const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
+            const opts = utils.cloneOpts(this.getApiOptions(), {siteItem: siteItem});
             const logger = this.getLogger();
 
             // Add a banner for the type of artifacts being deleted.
-            logger.info(PREFIX + i18n.__("cli_deleting_all_pages_for_site", {id: siteId}) + SUFFIX);
+            const contextName = ToolsApi.getSitesHelper().getSiteContextName(siteItem);
+            logger.info(PREFIX + i18n.__("cli_deleting_all_pages_for_site", {id: contextName}) + SUFFIX);
 
-            return this.deleteAllItems(context, helper, "hierarchicalPath", opts);
+            // Display the hierarchicalPath field for deleted pages.
+            const getDisplayName = function (item) {
+                return item["hierarchicalPath"]
+            };
+
+            return this.deleteAllItems(context, helper, getDisplayName, opts);
         }
     }
 
-    deleteAllItems (context, helper, displayField, opts) {
+    deleteAllItems(context, helper, getDisplayName, opts) {
         const self = this;
         const logger = self.getLogger();
         const emitter = context.eventEmitter;
@@ -1665,21 +1755,21 @@ class DeleteCommand extends BaseCommand {
         // The api emits an event when an item is deleted, so we log it for the user.
         const itemDeleted = function (item) {
             self._artifactsCount++;
-            logger.info(i18n.__("cli_delete_all_item_success", {name: item[displayField]}));
+            logger.info(i18n.__("cli_delete_all_item_success", {name: getDisplayName(item)}));
         };
         emitter.on("deleted", itemDeleted);
 
         // The api emits an event when an item to be deleted cannot be found, so we log it for the user.
         const itemDeletedIgnored = function (item) {
             self._artifactsCount++;
-            logger.info(i18n.__("cli_delete_item_ignored", {name: item[displayField]}));
+            logger.info(i18n.__("cli_delete_item_ignored", {name: getDisplayName(item)}));
         };
         emitter.on("deleted-ignored", itemDeletedIgnored);
 
         // The api emits an event when there is a delete error, so we log it for the user.
         const itemDeletedError = function (error, item) {
             self._artifactsError++;
-            logger.error(i18n.__("cli_delete_all_item_failure", {name: item[displayField], err: error.message}));
+            logger.error(i18n.__("cli_delete_all_item_failure", {name: getDisplayName(item), err: error.message}));
         };
         emitter.on("deleted-error", itemDeletedError);
 
@@ -1723,19 +1813,19 @@ class DeleteCommand extends BaseCommand {
     }
 
     /**
-     * Create a site list to be used for this command, based on the given lists of ready and draft site ids.
+     * Create a site list to be used for this command, based on the given lists of ready and draft sites.
      *
-     * @param {Array} readySiteIds The list of ready site ids to be used for this command.
-     * @param {Array} draftSiteIds The list of draft site ids to be used for this command.
+     * @param {Array} readySites The list of ready sites to be used for this command.
+     * @param {Array} draftSites The list of draft sites to be used for this command.
      *
      * @return {Array} A site list to be used for this command.
      *
      * @override
      */
-    createSiteList (readySiteIds, draftSiteIds) {
+    createSiteList(readySites, draftSites) {
         // For delete, handle the draft sites before the ready sites. With this ordering, draft pages will be deleted
         // before ready pages. (A ready page cannot be deleted if there is a draft page that refers to it.)
-        return draftSiteIds.concat(readySiteIds);
+        return draftSites.concat(readySites);
     }
 
     /**

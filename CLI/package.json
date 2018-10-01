@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "3.0.13",
+  "version": "3.1.1",
   "keywords": [
     "cli"
   ],
@@ -11,7 +11,7 @@
     "url": "https://github.com/ibm-wch/wchtools-cli/issues"
   },
   "engines": {
-    "node": ">=4.1.0"
+    "node": ">=6.13.0"
   },
   "config": {
     "engine-strict": true
@@ -26,10 +26,11 @@
     "colors": "^1.1.2",
     "commander": "^2.9.0",
     "wchtools-api": "../authoring-api",
-    "log4js": "^2.5.2",
+    "log4js": "^3.0.5",
     "ora": "^1.2.0",
     "prompt": "^1.0.0",
     "q": "^1.5.0",
+    "rimraf": "^2.6.1",
     "update-notifier": "^2.1.0"
   },
   "devDependencies": {
@@ -40,8 +41,7 @@
     "diff": "^3.2.0",
     "istanbul": "^0.4.5",
     "mkdirp": "^0.5.1",
-    "request": "^2.81.0",
-    "rimraf": "^2.6.1",
+    "request": "^2.88.0",
     "sinon": "^1.10.3",
     "sinon-as-promised": "^4.0.3",
     "sinon-chai": "^2.10.0",

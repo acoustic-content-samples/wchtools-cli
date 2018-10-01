@@ -57,13 +57,29 @@ class JSONPathBasedItemHelper extends JSONItemHelper {
     }
 
     /**
+     * Filter the given list of items using the given path.
+     *
+     * @param {Array} itemList The items to be listed.
+     * @param {String} filterPath The path used to filter items.
+     *
+     * @returns {Array} The filtered list of items.
+     *
+     * @protected
+     */
+    _filterItemsByPath(itemList, filterPath) {
+        return itemList.filter(function (item) {
+            return (item.path && item.path.indexOf(filterPath) === 0);
+        });
+    }
+
+    /**
      * Filter the given list of items before completing the list operation.
      *
      * @param {Object} context The API context to be used for this operation.
      * @param {Array} itemList The items to be listed.
      * @param {Object} opts The options to be used for this operations.
      *
-     * @returns {Array} The filtered list of assets.
+     * @returns {Array} The filtered list of items.
      *
      * @protected
      */
@@ -75,9 +91,7 @@ class JSONPathBasedItemHelper extends JSONItemHelper {
         let filterPath = options.getRelevantOption(context, opts, "filterPath");
         if (filterPath) {
             filterPath = utils.formatFilterPath(filterPath);
-            itemList = itemList.filter(function (item) {
-                return (item.path && item.path.indexOf(filterPath) === 0);
-            });
+            itemList = this._filterItemsByPath(itemList, filterPath);
         }
 
         return itemList;
@@ -102,9 +116,7 @@ class JSONPathBasedItemHelper extends JSONItemHelper {
         let filterPath = options.getRelevantOption(context, opts, "filterPath");
         if (filterPath) {
             filterPath = utils.formatFilterPath(filterPath);
-            itemList = itemList.filter(function (item) {
-                return (item.path && item.path.indexOf(filterPath) === 0);
-            });
+            itemList = this._filterItemsByPath(itemList, filterPath);
         }
 
         return itemList;

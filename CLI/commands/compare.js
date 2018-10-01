@@ -32,6 +32,7 @@ const PREFIX = "========== ";
 const SUFFIX = " ===========";
 const CompareTypes =                PREFIX + i18n.__('cli_compare_types') + SUFFIX;
 const CompareAssets =               PREFIX + i18n.__('cli_compare_assets') + SUFFIX;
+const CompareResources =            PREFIX + i18n.__('cli_compare_resources') + SUFFIX;
 const CompareContentItems =         PREFIX + i18n.__('cli_compare_content') + SUFFIX;
 const CompareCategories =           PREFIX + i18n.__('cli_compare_categories') + SUFFIX;
 const CompareImageProfiles =        PREFIX + i18n.__('cli_compare_image_profiles') + SUFFIX;
@@ -56,8 +57,9 @@ class CompareCommand extends BaseCommand {
         super(program);
     }
 
-    static _getPagesDisplayHeader (siteId) {
-        return PREFIX + i18n.__('cli_compare_pages_for_site', {id: siteId}) + SUFFIX;
+    static _getPagesDisplayHeader(siteItem) {
+        const contextName = ToolsApi.getSitesHelper().getSiteContextName(siteItem);
+        return PREFIX + i18n.__('cli_compare_pages_for_site', {id: contextName}) + SUFFIX;
     }
 
     handleTargetSourceOptions (context) {
@@ -120,7 +122,9 @@ class CompareCommand extends BaseCommand {
      */
     initSitesForCompare (context) {
         const self = this;
-        const siteList = new Set();
+
+        // Create a combined list of sites for the source and target.
+        const siteList = [];
 
         // Obtain the list of sites for the source.
         const remote = utils.isValidApiUrl(self.getSource());
@@ -132,9 +136,13 @@ class CompareCommand extends BaseCommand {
         }
         return self.initSites(context, remote, sourceOpts)
             .then(function () {
-                context.siteList.forEach(function (siteId) {
-                    siteList.add(siteId);
+                // Add the source sites to the combined list.
+                context.siteList.forEach(function (siteItem) {
+                    siteList.push(siteItem);
                 });
+
+                // Delete the context site list, so that the target list is not filtered using the source list.
+                delete context.siteList;
 
                 // Obtain the list of sites for the target.
                 const remote = utils.isValidApiUrl(self.getTarget());
@@ -147,10 +155,21 @@ class CompareCommand extends BaseCommand {
                 return self.initSites(context, remote, targetOpts);
             })
             .then(function () {
-                context.siteList.forEach(function (siteId) {
-                    siteList.add(siteId);
+                // Add the target sites to the combined list.
+                context.siteList.forEach(function (siteItem) {
+                    // Determine whether the tartget site already exists in the combined list.
+                    const exists = siteList.some(function (site) {
+                        return site.id === siteItem.id
+                    });
+
+                    // Add the target site to the combined list if it isn't already in the list.
+                    if (!exists) {
+                        siteList.push(siteItem);
+                    }
                 });
-                context.siteList = Array.from(siteList);
+
+                // Set the context site list to the combined list of source and target sites.
+                context.siteList = siteList;
             });
     }
 
@@ -459,13 +478,13 @@ class CompareCommand extends BaseCommand {
             .then(function () {
                 if (self.getCommandLineOption("pages") && !self.isBaseTier(context)) {
                     // Get the list of site ids to use for comparing pages.
-                    const siteIds = context.siteList;
+                    const siteItems = context.siteList;
 
                     // Local function to recursively compare pages for one site at a time.
                     let index = 0;
                     const comparePagesBySite = function (context) {
-                        if (index < siteIds.length) {
-                            return self.handleComparePromise(self.comparePages(context, siteIds[index++]), results)
+                        if (index < siteItems.length) {
+                            return self.handleComparePromise(self.comparePages(context, siteItems[index++]), results)
                                 .then(function () {
                                     // Compare pages for the next site after the previous site is complete.
                                     return comparePagesBySite(context);
@@ -514,14 +533,30 @@ class CompareCommand extends BaseCommand {
     /**
      * Registers the event emitter listeners for difference events.
      */
-    registerEmitterListeners (context, diffMessage, addedMessage, removedMessage) {
+    registerEmitterListeners (context) {
+        const serviceToMessageKey = {
+            "types": "type",
+            "assets": "asset",
+            "resources": "resource",
+            "layouts": "layout",
+            "layout-mappings": "layout_mapping",
+            "image-profiles": "image_profile",
+            "content": "content",
+            "categories": "category",
+            "renditions": "rendition",
+            "site-revisions": "site_revision",
+            "sites": "site",
+            "pages": "page"
+        };
+
         const emitter = context.eventEmitter;
         const self = this;
         const verbose = this.getCommandLineOption("verbose");
 
         // The API emits an event when an item is different, so we display it for the user.
         const artifactDiff = function (diff) {
-            const message = i18n.__(diffMessage, {id: diff.item.path||diff.item.name||diff.item.id});
+            const messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_diff";
+            const message = i18n.__(messageKey, {id: diff.item.path||diff.item.name||diff.item.id});
             self.getLogger().info(message);
             if (verbose) {
                 if (diff.diffs) {
@@ -556,14 +591,16 @@ class CompareCommand extends BaseCommand {
 
         // The API emits an event when an item is added, so we display it for the user.
         const artifactAdded = function (diff) {
-            const message = i18n.__(addedMessage, {id: diff.item.path||diff.item.name||diff.item.id});
+            const messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_added";
+            const message = i18n.__(messageKey, {id: diff.item.path||diff.item.name||diff.item.id});
             self.getLogger().info(message);
         };
         emitter.on(EVENT_ITEM_ADDED, artifactAdded);
 
         // The API emits an event when an item is removed, so we display it for the user.
         const artifactRemoved = function (diff) {
-            const message = i18n.__(removedMessage, {id: diff.item.path||diff.item.name||diff.item.id});
+            const messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_removed";
+            const message = i18n.__(messageKey, {id: diff.item.path||diff.item.name||diff.item.id});
             self.getLogger().info(message);
         };
         emitter.on(EVENT_ITEM_REMOVED, artifactRemoved);
@@ -584,18 +621,15 @@ class CompareCommand extends BaseCommand {
      *
      * @param {Object} context The API context associated with this compare command.
      * @param {Object} helper The Helper object for this compare.
-     * @param {String} diffMessageKey The NLS message key for differences.
-     * @param {String} addedMessageKey The NLS message key for added items.
-     * @param {String} removedMessageKey The NLS message key for removed items.
      * @param {String} headingMessage The message to use for the heading of this section.
      * @param {Object} opts The options for this action.
      *
      * @returns {Q.Promise} A promise that is resolved with the compare result for the specified artifacts.
      */
-    compareArtifactsImpl (context, helper, diffMessageKey, addedMessageKey, removedMessageKey, headingMessage, opts) {
+    compareArtifactsImpl (context, helper, headingMessage, opts) {
         const self = this;
 
-        this.registerEmitterListeners(context, diffMessageKey, addedMessageKey, removedMessageKey);
+        this.registerEmitterListeners(context);
 
         const target = this.getTarget();
         const source = this.getSource();
@@ -646,7 +680,7 @@ class CompareCommand extends BaseCommand {
         } else {
             this.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_WEB_ASSETS);
         }
-        return this.compareArtifactsImpl(context, helper, "cli_compare_asset_diff", "cli_compare_asset_added", "cli_compare_asset_removed", CompareAssets, opts);
+        return this.compareArtifactsImpl(context, helper, CompareAssets, opts);
     }
 
     /**
@@ -659,7 +693,7 @@ class CompareCommand extends BaseCommand {
     compareImageProfiles (context) {
         const helper = ToolsApi.getImageProfilesHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_image_profile_diff", "cli_compare_image_profile_added", "cli_compare_image_profile_removed", CompareImageProfiles, opts);
+        return this.compareArtifactsImpl(context, helper, CompareImageProfiles, opts);
     }
 
     /**
@@ -672,7 +706,7 @@ class CompareCommand extends BaseCommand {
     compareLayouts (context) {
         const helper = ToolsApi.getLayoutsHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_layout_diff", "cli_compare_layout_added", "cli_compare_layout_removed", CompareLayouts, opts);
+        return this.compareArtifactsImpl(context, helper, CompareLayouts, opts);
     }
 
     /**
@@ -685,7 +719,7 @@ class CompareCommand extends BaseCommand {
     compareLayoutMappings (context) {
         const helper = ToolsApi.getLayoutMappingsHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_layout_mapping_diff", "cli_compare_layout_mapping_added", "cli_compare_layout_mapping_removed", CompareLayoutMappings, opts);
+        return this.compareArtifactsImpl(context, helper, CompareLayoutMappings, opts);
     }
 
     /**
@@ -698,7 +732,7 @@ class CompareCommand extends BaseCommand {
     compareCategories (context) {
         const helper = ToolsApi.getCategoriesHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_category_diff", "cli_compare_category_added", "cli_compare_category_removed", CompareCategories, opts);
+        return this.compareArtifactsImpl(context, helper, CompareCategories, opts);
     }
 
     /**
@@ -711,7 +745,7 @@ class CompareCommand extends BaseCommand {
     compareRenditions (context) {
         const helper = ToolsApi.getRenditionsHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_rendition_diff", "cli_compare_rendition_added", "cli_compare_rendition_removed", CompareRenditions, opts);
+        return this.compareArtifactsImpl(context, helper, CompareRenditions, opts);
     }
 
     /**
@@ -724,7 +758,7 @@ class CompareCommand extends BaseCommand {
     compareTypes (context) {
         const helper = ToolsApi.getItemTypeHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_type_diff", "cli_compare_type_added", "cli_compare_type_removed", CompareTypes, opts);
+        return this.compareArtifactsImpl(context, helper, CompareTypes, opts);
     }
 
     /**
@@ -737,7 +771,7 @@ class CompareCommand extends BaseCommand {
     compareContent (context) {
         const helper = ToolsApi.getContentHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_content_diff", "cli_compare_content_added", "cli_compare_content_removed", CompareContentItems, opts);
+        return this.compareArtifactsImpl(context, helper, CompareContentItems, opts);
     }
 
     /**
@@ -750,23 +784,23 @@ class CompareCommand extends BaseCommand {
     compareSites (context) {
         const helper = ToolsApi.getSitesHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_site_diff", "cli_compare_site_added", "cli_compare_site_removed", CompareSites, opts);
+        return this.compareArtifactsImpl(context, helper, CompareSites, opts);
     }
 
 
     /**
-     * Compare the page node artifacts for a specified site (default only in mvp)
+     * Compare the page node artifacts for a specified site
      *
      * @param {Object} context The API context associated with this compare command.
-     * @param {String} siteId The id of the site containing the pages being compared.
+     * @param {String} siteItem The site containing the pages being compared.
      *
      * @returns {Q.Promise} A promise that is resolved with the specified list
      */
-    comparePages (context, siteId) {
+    comparePages(context, siteItem) {
         const helper = ToolsApi.getPagesHelper();
-        const opts = utils.cloneOpts(this.getApiOptions(), {siteId: siteId});
-        const displayHeader = CompareCommand._getPagesDisplayHeader(siteId);
-        return this.compareArtifactsImpl(context, helper, "cli_compare_page_diff", "cli_compare_page_added", "cli_compare_page_removed", displayHeader, opts);
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteItem: siteItem});
+        const displayHeader = CompareCommand._getPagesDisplayHeader(siteItem);
+        return this.compareArtifactsImpl(context, helper, displayHeader, opts);
     }
 
     /**
@@ -779,7 +813,7 @@ class CompareCommand extends BaseCommand {
     compareSiteRevisions (context) {
         const helper = ToolsApi.getPublishingSiteRevisionsHelper();
         const opts = this.getApiOptions();
-        return this.compareArtifactsImpl(context, helper, "cli_compare_site_revision_diff", "cli_compare_site_revision_added", "cli_compare_site_revision_removed", ComparePublishingSiteRevisions, opts);
+        return this.compareArtifactsImpl(context, helper, ComparePublishingSiteRevisions, opts);
     }
 
     /**

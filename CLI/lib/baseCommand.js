@@ -27,8 +27,6 @@ const log4js = require('log4js');
 const ProductVersion = require("../package.json").version;
 const cliLog = "cli" + " " + ProductVersion;
 
-const DRAFT_SITES = false;
-
 class BaseCommand {
     /**
      * Create a BaseCommand object.
@@ -64,16 +62,6 @@ class BaseCommand {
         // The cleanup functions to execute after the command has been completed.
         this._cleanups = [];
     }
-
-    /**
-     * Determine whether draft sites (and pages) are supported.
-     *
-     * @returns {Boolean} A return value of true indicates that draft sites (and pages) are supported. A return value of
-     *                    false indicates that draft sites (and pages) are not supported.
-     */
-    static get DRAFT_SITES() {
-        return DRAFT_SITES;
-    };
 
     /**
      * Get the Commander program object used by this command.
@@ -342,17 +330,30 @@ class BaseCommand {
     }
 
     /**
-     * Get an array of the manifest's site ids to use for this command.
+     * Get an array of the manifest's site items to use for this command.
      *
      * @param {Object} context The API context associated with this command.
      *
-     * @returns {Array} An array of the manifest's site ids to use for this command, or undefined.
+     * @returns {Array} An array of the manifest's site items to use for this command, or undefined.
      */
-    getManifestSiteIds (context) {
+    getManifestSiteItems(context) {
         const sitesSection = manifests.getManifestSection(context, "sites", this.getApiOptions());
         if (sitesSection) {
-            // The sites section has a property for each site, named by the site id.
-            return Object.keys(sitesSection);
+            // The sites section has a property for each site, keyed by the site id.
+            const siteIds = Object.keys(sitesSection);
+            if (siteIds && siteIds.length > 0) {
+                return siteIds.map(function (id) {
+                    // Create a proxy item for the array, to prune the pages property.
+                    const item = sitesSection[id];
+
+                    return {
+                        id: item.id,
+                        name: item.name,
+                        contextRoot: item.contextRoot,
+                        status: item.status
+                    };
+                });
+            }
         }
     }
 
@@ -404,21 +405,21 @@ class BaseCommand {
             });
 
             // Set any artifact types that exist in the manifest.
-            let siteIds;
+            let siteItems;
             artifactTypes.forEach(function (artifactType) {
                 let hasSection = false;
 
                 // Sites and pages are handled separately so that a page section can be found for each site.
                 if (artifactType.section === "sites") {
-                    siteIds = self.getManifestSiteIds(context);
-                    if (siteIds) {
+                    siteItems = self.getManifestSiteItems(context);
+                    if (siteItems) {
                         hasSection = true;
                     }
                 } else if (artifactType.section === "pages") {
-                    // Iterate over the site ids to see if any have a pages section.
-                    hasSection = siteIds && siteIds.some(function (siteId) {
-                        // Set the siteId property so the manifest logic knows which site to use.
-                        return manifests.getManifestSection(context, "pages", utils.cloneOpts(opts, {siteId: siteId}));
+                    // Iterate over the site items to see if any have a pages section.
+                    hasSection = siteItems && siteItems.some(function (siteItem) {
+                        // Set the siteItem property so the manifest logic knows which site to use.
+                        return manifests.getManifestSection(context, "pages", utils.cloneOpts(opts, {siteItem: siteItem}));
                     });
                 } else if (manifests.getManifestSection(context, artifactType.section, opts)) {
                     hasSection = true;
@@ -786,8 +787,8 @@ class BaseCommand {
     handlePathOption () {
         const deferred = Q.defer();
         if (this.getCommandLineOption("path")) {
-            // Verify that "path" is only used with the "webassets" option.
-            if (this.getCommandLineOption("webassets") || this.getCommandLineOption("types") || this.getCommandLineOption("layouts") || this.getCommandLineOption("layoutMappings")) {
+            // Verify that "path" is only used with artifact types that support a path.
+            if (this.getCommandLineOption("webassets") || this.getCommandLineOption("types") || this.getCommandLineOption("layouts") || this.getCommandLineOption("layoutMappings") || this.getCommandLineOption("pages")) {
                 this.setApiOption("filterPath", this.getCommandLineOption("path"));
                 deferred.resolve();
             } else {
@@ -845,6 +846,36 @@ class BaseCommand {
     }
 
     /**
+     * Determine whether this command should include ready sites.
+     *
+     * @returns {Boolean} A return value of true indicates that this command should include ready sites. A return value
+     *                    of false indicates that this command should not include ready sites.
+     */
+    includeReadySites() {
+        let retVal = false;
+        if (this.getCommandLineOption("ready") || !this.getCommandLineOption("draft")) {
+            // Include ready sites by default.
+            retVal = true;
+        }
+        return retVal;
+    }
+
+    /**
+     * Determine whether this command should include draft sites.
+     *
+     * @returns {Boolean} A return value of true indicates that this command should include draft sites. A return value
+     *                    of false indicates that this command should not include draft sites.
+     */
+    includeDraftSites() {
+        let retVal = false;
+        if (this.getCommandLineOption("draft")) {
+            // Only include draft sites if the draft option has been specified.
+            retVal = true;
+        }
+        return retVal;
+    }
+
+    /**
      * Initialize the list of sites to be used for this command, if necessary.
      *
      * @param {Object} context The API context associated with this command.
@@ -861,51 +892,78 @@ class BaseCommand {
         if (!this.isBaseTier(context) && (this.getCommandLineOption("sites") || this.getCommandLineOption("pages"))) {
             if (this.getCommandLineOption("manifest")) {
                 // Use the sites defined by the manifest.
-                context.siteList = self.getManifestSiteIds(context);
+                const sites = self.getManifestSiteItems(context);
+                const readySites = [];
+                const draftSites = [];
+                if (sites && sites.length > 0) {
+                    const sitesHelper = ToolsApi.getSitesHelper();
+                    sites.forEach(function (site) {
+                        // Add the site to the ready or draft list.
+                        const status = sitesHelper.getStatus(context, site, opts);
+                        if (status === "ready") {
+                            // The ready site should be handled by this command.
+                            readySites.push(site);
+                        } else if (status === "draft") {
+                            // The draft site should be handled by this command.
+                            draftSites.push(site);
+                        }
+                    });
+                }
+
+                // Create a list of ready and draft sites, in the order required by this command.
+                context.siteList = self.createSiteList(readySites, draftSites);
 
                 // The site list has been set synchronously, so go ahead and resolve the promise.
                 deferred.resolve();
             } else {
-                // Determine what type of sites to use for this command -- draft, ready, or both.
-                // Note that draft sites must always be included for the delete --all command.
-                const includeReadySites = this.getCommandLineOption("ready") || !this.getCommandLineOption("draft");
-                const includeDraftSites = (this.getCommandLineOption("draft") && BaseCommand.DRAFT_SITES) || this.getCommandLineOption("all");
+                // Determine which sites to use for this command (draft, ready, or both).
+                const includeReadySites = this.includeReadySites();
+                const includeDraftSites = this.includeDraftSites();
 
                 // Get all sites, either local or remote.
                 const getSites = remote ? ToolsApi.getRemoteSites : ToolsApi.getLocalSites;
                 getSites(context, opts)
                     .then(function (sites) {
-                        // Start with an empty site list, and add any existing sites to be used for this command.
-                        const readySiteIds = [];
-                        const draftSiteIds = [];
-                        context.siteList = [];
+                        // Add any existing sites to be used for this command to the context site list.
+                        const readySites = [];
+                        const draftSites = [];
                         if (sites && sites.length > 0) {
+                            const sitesHelper = ToolsApi.getSitesHelper();
                             sites.forEach(function (site) {
-                                // Old tenants that do not have a siteStatus property are considered to be "ready".
-                                const siteStatus = site.siteStatus || "ready";
-                                if (includeReadySites && (siteStatus === "ready")) {
+                                // Create separate lists of ready sites and draft sites. Note
+                                // that a site with no status property is considered "ready".
+                                const status = sitesHelper.getStatus(context, site, opts);
+                                if (includeReadySites && (status === "ready")) {
                                     // The ready site should be handled by this command.
-                                    readySiteIds.push(site.id);
-                                } else if (includeDraftSites && (siteStatus === "draft")) {
+                                    readySites.push(site);
+                                } else if (includeDraftSites && (status === "draft")) {
                                     // The draft site should be handled by this command.
-                                    draftSiteIds.push(site.id);
+                                    draftSites.push(site);
                                 }
                             });
                         } else {
-                            // There are no local site artifacts, so just use the defaults.
-                            if (includeReadySites) {
-                                readySiteIds.push("default");
+                            // There are no site artifacts in the list. This situation can occur if 1) the sites API
+                            // returned an empty list of sites, or 2) there are no local site artifacts.
+                            if (remote) {
+                                // The sites API returned an empty list of sites. This will happen for older versions of
+                                // the sites API that do not support multisites. In that case, it's reasonable to assume
+                                // that there is a single "default" site.
+                                // FUTURE This logic is only used for compatibility, and can be removed at some point.
+                                readySites.push({id: "default"});
+                            } else {
+                                // There are no local site artifacts. An older tooling version may have pulled pages but
+                                // may not have pulled sites. Newer multisite versions of tooling will always pull sites
+                                // when pages are pulled, which should mostly avoid the case of no local site artifacts.
+                                // For compatibility with local artifacts pulled by older versions of tooling, fall back
+                                // to using the default site.
+                                if (includeReadySites) {
+                                    readySites.push({id: "default"});
+                                }
                             }
-
-                            if (includeDraftSites && BaseCommand.DRAFT_SITES) {
-                                draftSiteIds.push("default:draft");
-                            }
-
-                            // TODO Do we need a more robust solution when additional sites can be created?
                         }
 
                         // Create a list of ready and draft site ids, in the order required by this command.
-                        context.siteList = self.createSiteList(readySiteIds, draftSiteIds);
+                        context.siteList = self.createSiteList(readySites, draftSites);
 
                         deferred.resolve();
                     })
@@ -923,16 +981,16 @@ class BaseCommand {
     }
 
     /**
-     * Create a site list to be used for this command, based on the given lists of ready and draft site ids.
+     * Create a site list to be used for this command, based on the given lists of ready and draft sites.
      *
-     * @param {Array} readySiteIds The list of ready site ids to be used for this command.
-     * @param {Array} draftSiteIds The list of draft site ids to be used for this command.
+     * @param {Array} readySites The list of ready sites to be used for this command.
+     * @param {Array} draftSites The list of draft sites to be used for this command.
      *
      * @return {Array} A site list to be used for this command.
      */
-    createSiteList (readySiteIds, draftSiteIds) {
+    createSiteList(readySites, draftSites) {
         // By default, handle the ready sites before the draft sites.
-        return readySiteIds.concat(draftSiteIds);
+        return readySites.concat(draftSites);
     }
 
     /**

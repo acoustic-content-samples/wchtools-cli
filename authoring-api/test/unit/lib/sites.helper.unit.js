@@ -52,14 +52,14 @@ class SitesHelperUnitTest extends BaseHelperUnitTest {
         describe("_pushNameList", function () {
             it("should sort the local items, ready items followed by draft items.", function (done) {
                 const names = ["draft4", "ready4", "draft3", "ready3", "draft2" ,"draft1", "ready2", "ready1",];
-                const metadataDraft1 = {id: "draft1", name: "draft1", siteStatus: "draft"};
-                const metadataDraft2 = {id: "draft2", name: "draft2", siteStatus: "draft"};
-                const metadataDraft3 = {id: "draft3", name: "draft3", siteStatus: "draft"};
-                const metadataDraft4 = {id: "draft4", name: "draft4", siteStatus: "draft"};
-                const metadataReady1 = {id: "ready1", name: "ready1", siteStatus: "ready"};
-                const metadataReady2 = {id: "ready2", name: "ready2", siteStatus: "ready"};
-                const metadataReady3 = {id: "ready3", name: "ready3", siteStatus: "ready"};
-                const metadataReady4 = {id: "ready4", name: "ready4", siteStatus: "ready"};
+                const metadataDraft1 = {id: "draft1", name: "draft1", status: "draft"};
+                const metadataDraft2 = {id: "draft2", name: "draft2", status: "draft"};
+                const metadataDraft3 = {id: "draft3", name: "draft3", status: "draft"};
+                const metadataDraft4 = {id: "draft4", name: "draft4", status: "draft"};
+                const metadataReady1 = {id: "ready1", name: "ready1", status: "ready"};
+                const metadataReady2 = {id: "ready2", name: "ready2", status: "ready"};
+                const metadataReady3 = {id: "ready3", name: "ready3", status: "ready"};
+                const metadataReady4 = {id: "ready4", name: "ready4", status: "ready"};
 
                 // Create a helper.listNames stub that returns a list of items.
                 const stubGet = sinon.stub(helper, "getLocalItem");

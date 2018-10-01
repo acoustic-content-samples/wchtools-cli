@@ -237,31 +237,33 @@ class WchToolsApi {
             }
             errors.push(error);
         };
-        if (!this.context.eventEmitter) {
-            this.context.eventEmitter = new events.EventEmitter();
-        }
-        this.context.eventEmitter.on("pushed", pushedListener);
-        this.context.eventEmitter.on("pushed-error", pushedErrorListener);
 
-        let siteIds = [];
-        WchToolsApi.getLocalSites(this.context, opts)
+        const context = this.context;
+        if (!context.eventEmitter) {
+            context.eventEmitter = new events.EventEmitter();
+        }
+        context.eventEmitter.on("pushed", pushedListener);
+        context.eventEmitter.on("pushed-error", pushedErrorListener);
+
+        let siteItems = [];
+        WchToolsApi.getLocalSites(context, opts)
             .then(function (sites) {
                 if (sites) {
                     // Add each local site to the ready list or the draft list.
-                    const readySiteIds = [];
-                    const draftSiteIds = [];
+                    const readySites = [];
+                    const draftSites = [];
                     sites.forEach(function (site) {
-                        if (site.siteStatus === "draft") {
+                        if (sitesHelper.getStatus(context, site, opts) === "draft") {
                             // Add draft site to the draft list.
-                            draftSiteIds.push(site.id);
+                            draftSites.push(site);
                         } else {
                             // Add ready site to the ready list.
-                            readySiteIds.push(site.id);
+                            readySites.push(site);
                         }
                     });
 
                     // A draft page always refers to a ready page, so push the ready pages before the draft pages.
-                    siteIds = readySiteIds.concat(draftSiteIds);
+                    siteItems = readySites.concat(draftSites);
                 }
             })
             .then(function () {
@@ -295,8 +297,8 @@ class WchToolsApi {
                 // Local function to recursively push pages for one site at a time.
                 let index = 0;
                 const pushPagesBySite = function () {
-                    if (index < siteIds.length) {
-                        return self.handlePromise(self.pushPages(utils.cloneOpts(opts, {siteId: siteIds[index++]})))
+                    if (index < siteItems.length) {
+                        return self.handlePromise(self.pushPages(utils.cloneOpts(opts, {siteItem: siteItems[index++]})))
                             .then(function () {
                                 return pushPagesBySite();
                             });
@@ -321,8 +323,8 @@ class WchToolsApi {
                 deferred.reject(err);
             })
             .finally(function () {
-                self.context.eventEmitter.removeListener("pushed", pushedListener);
-                self.context.eventEmitter.removeListener("pushed-error", pushedErrorListener);
+                context.eventEmitter.removeListener("pushed", pushedListener);
+                context.eventEmitter.removeListener("pushed-error", pushedErrorListener);
             });
 
         return deferred.promise;
@@ -459,39 +461,40 @@ class WchToolsApi {
             errors.push(error);
         };
 
-        if (!this.context.eventEmitter) {
-            this.context.eventEmitter = new events.EventEmitter();
+        const context = this.context;
+        if (!context.eventEmitter) {
+            context.eventEmitter = new events.EventEmitter();
         }
-        this.context.eventEmitter.on("deleted", deletedListener);
-        this.context.eventEmitter.on("deleted-error", deleteErrorListener);
+        context.eventEmitter.on("deleted", deletedListener);
+        context.eventEmitter.on("deleted-error", deleteErrorListener);
 
-        let siteIds = [];
-        WchToolsApi.getRemoteSites(this.context, opts)
+        let siteItems = [];
+        WchToolsApi.getRemoteSites(context, opts)
             .then(function (sites) {
                 if (sites) {
                     // Add each remote site to the ready list or the draft list.
-                    const readySiteIds = [];
-                    const draftSiteIds = [];
+                    const readySites = [];
+                    const draftSites = [];
                     sites.forEach(function (site) {
-                        if (site.siteStatus === "draft") {
+                        if (sitesHelper.getStatus(context, site, opts) === "draft") {
                             // Add draft site to the draft list.
-                            draftSiteIds.push(site.id);
+                            draftSites.push(site);
                         } else {
                             // Add ready site to the ready list.
-                            readySiteIds.push(site.id);
+                            readySites.push(site);
                         }
                     });
 
                     // A ready page cannot be deleted if a draft page refers to it, so draft pages are deleted first.
-                    siteIds = draftSiteIds.concat(readySiteIds);
+                    siteItems = draftSites.concat(readySites);
                 }
             })
             .then(function () {
                 // Local function to recursively delete pages for one site at a time.
                 let index = 0;
                 const deletePagesBySite = function () {
-                    if (index < siteIds.length) {
-                        return self.handlePromise(self.deleteAllPages(utils.cloneOpts(opts, {siteId: siteIds[index++]})))
+                    if (index < siteItems.length) {
+                        return self.handlePromise(self.deleteAllPages(utils.cloneOpts(opts, {siteItem: siteItems[index++]})))
                             .then(function () {
                                 return deletePagesBySite();
                             });
@@ -534,8 +537,8 @@ class WchToolsApi {
                 deferred.reject(err);
             })
             .finally(function () {
-                self.context.eventEmitter.removeListener("deleted", deletedListener);
-                self.context.eventEmitter.removeListener("deleted-error", deleteErrorListener);
+                context.eventEmitter.removeListener("deleted", deletedListener);
+                context.eventEmitter.removeListener("deleted-error", deleteErrorListener);
             });
 
         return deferred.promise;

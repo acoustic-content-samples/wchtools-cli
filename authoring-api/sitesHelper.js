@@ -22,6 +22,7 @@ const rest = require("./lib/sitesREST").instance;
 const SitesFS = require("./lib/sitesFS");
 const fS = SitesFS.instance;
 const utils = require("./lib/utils/utils.js");
+const options = require("./lib/utils/options.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
@@ -52,24 +53,34 @@ class SitesHelper extends JSONItemHelper {
     }
 
     /**
-     * Get the status of the given item.
+     * Get the context name to use for the given site.
      *
-     * @param {Object} context The API context to be used for this operation.
-     * @param {Object} item The item for which to get the status.
-     * @param {Object} opts The options to be used for this operations.
+     * @param {Object} siteItem The site for which to get the context name.
      *
-     * @returns {String} "ready" or "draft".
-     *
-     * @protected
-     *
-     * @override
+     * @returns {String} The context name to use for the given site.
      */
-    getStatus(context, item, opts) {
-        if (item && item.siteStatus && item.siteStatus === "draft") {
-            return "draft";
-        } else {
-            return "ready";
-        }
+    getSiteContextName(siteItem) {
+        return SitesFS.getSiteContextName(siteItem);
+    }
+
+    makeEmittedObject(context, item, opts) {
+        const result = super.makeEmittedObject(context, item, opts);
+
+        // Add the site's context root and status to the result.
+        result.contextRoot = item.contextRoot || "";
+        result.status = this.getStatus(context, item, opts);
+
+        return result;
+    }
+
+    _makeListItemResult(context, item, opts) {
+        const result = super._makeListItemResult(context, item, opts);
+
+        // Add the site's context root and status to the result.
+        result.contextRoot = item.contextRoot || "";
+        result.status = this.getStatus(context, item, opts);
+
+        return result;
     }
 
     /**
@@ -83,9 +94,28 @@ class SitesHelper extends JSONItemHelper {
         return super._listLocalItemNames(context, opts)
             .then(function (results) {
                 if (results && context.siteList) {
-                    // Filter the list of sites to only include those in the context site list.
+                    // This method will typically return a list of local site items which is limited to those sites that
+                    // are contained in the context's siteList. For example, when called during a list, push, or compare
+                    // of sites, the result should only include those sites that are in the context's siteList. However,
+                    // when called during a pull of sites "with deletions", the context siteList will only contain those
+                    // sites that exist on the server, but the result of this method must also include any sites that
+                    // have been deleted on the server.
+                    const deletions = options.getRelevantOption(context, opts, "deletions");
                     results = results.filter(function (site) {
-                        return site.id && context.siteList.indexOf(site.id) !== -1;
+                        // First determine if the site is in the context site list.
+                        const inSiteList = context.siteList.some(function (siteItem) {
+                            return site.id === siteItem.id;
+                        });
+
+                        if (deletions) {
+                            // The list of local site items returned from the super method has already been filtered
+                            // based on the ready/draft options. Return each of these site items for now.
+                            // FUTURE Filter out any site items that don't match the specified site and project options.
+                            return true;
+                        } else {
+                            // Only include the local site if it is in the site list.
+                            return inSiteList;
+                        }
                     });
                 }
                 return results;
@@ -108,11 +138,28 @@ class SitesHelper extends JSONItemHelper {
                 if (results && context.siteList) {
                     // Filter the list of sites to only include those in the context site list.
                     results = results.filter(function (site) {
-                        return site.id && context.siteList.indexOf(site.id) !== -1;
+                        return context.siteList.some(function (siteItem) {
+                            return site.id === siteItem.id;
+                        });
                     });
                 }
                 return results;
             });
+    }
+
+    /**
+     *  Determine whether the given item can be deleted.
+     *
+     *  @param {Object} item The item to be deleted.
+     *  @param {Object} isDeleteAll Flag that indicates whether the item will be deleted during a delete all operation.
+     *  @param {Object} opts - The options to be used for the delete operation.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be deleted. A return value of false
+     *                     indicates that the item cannot be deleted.
+     */
+    canDeleteItem(item, isDeleteAll, opts) {
+        // Don't delete the default site.
+        return super.canDeleteItem(item, isDeleteAll, opts) && item["id"] !== "default" && item["id"] !== "default:draft";
     }
 
     /**
@@ -131,7 +178,9 @@ class SitesHelper extends JSONItemHelper {
                 if (results && context.siteList) {
                     // Filter the list of sites to only include those in the context site list.
                     results = results.filter(function (site) {
-                        return site.id && context.siteList.indexOf(site.id) !== -1;
+                        return context.siteList.some(function (siteItem) {
+                            return site.id === siteItem.id;
+                        });
                     });
                 }
                 return results;
@@ -153,11 +202,53 @@ class SitesHelper extends JSONItemHelper {
                 if (results && context.siteList) {
                     // Filter the list of sites to only include those in the context site list.
                     results = results.filter(function (site) {
-                        return site.id && context.siteList.indexOf(site.id) !== -1;
+                        return context.siteList.some(function (siteItem) {
+                            return site.id === siteItem.id;
+                        });
                     });
                 }
                 return results;
             });
+    }
+
+    /**
+     * Pull all items from the remote content hub to the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the pull operations.
+     *
+     * @returns {Q.Promise} A promise to pull the remote items to the local file system.
+     *
+     * @resolves {Array} The items that were pulled.
+     */
+    pullAllItems(context, opts) {
+        // Create a local file path map to be used for cleaning up old files after the pull.
+        const map = this._fsApi.createLocalFilePathMap(context, opts);
+
+        // Use a clone of the opts object to store the local file path map, so that it goes away after the call.
+        opts = utils.cloneOpts(opts, {"localFilePathMap": map});
+
+        return super.pullAllItems(context, opts);
+    }
+
+    /**
+     * Pull any modified items from the remote content hub to the local file system.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts - The options to be used for the pull operations.
+     *
+     * @returns {Q.Promise} A promise to pull the modified remote items to the local file system.
+     *
+     * @resolves {Array} The modified items that were pulled.
+     */
+    pullModifiedItems(context, opts) {
+        // Create a local file path map to be used for cleaning up old files after the pull.
+        const map = this._fsApi.createLocalFilePathMap(context, opts);
+
+        // Use a clone of the opts object to store the local file path map, so that it goes away after the call.
+        opts = utils.cloneOpts(opts, {"localFilePathMap": map});
+
+        return super.pullModifiedItems(context, opts);
     }
 
     /**
@@ -187,8 +278,8 @@ class SitesHelper extends JSONItemHelper {
             .then(function (items) {
                 // Sort sites by status -- ready before draft.
                 items.sort(function (a, b) {
-                    const aStatus = a.siteStatus || "ready";
-                    const bStatus = b.siteStatus || "ready";
+                    const aStatus = helper.getStatus(context, a, opts);
+                    const bStatus = helper.getStatus(context, b, opts);
                     if (aStatus === "ready") {
                         if (bStatus === "ready") {
                             // Ready site a goes after ready site b to maintain original order.
@@ -203,9 +294,9 @@ class SitesHelper extends JSONItemHelper {
                     }
                 });
 
-                // Push the sorted categories one at a time.
+                // Push the sorted sites one at a time.
                 names = items.map(function (item) {
-                    return helper.getName(item);
+                    return SitesFS.getSiteContextName(item);
                 });
 
                 // Call the super class method to do the push.

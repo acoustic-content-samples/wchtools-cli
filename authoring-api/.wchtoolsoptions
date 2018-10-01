@@ -90,6 +90,5 @@
   "retryMaxTimeout": 16000,
   "retryFactor": 2,
   "retryRandomize": false,
-  "retryStatusCodes": [],
-  "disablePushPullResources": true
+  "retryStatusCodes": []
 }

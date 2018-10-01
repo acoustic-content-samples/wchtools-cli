@@ -112,6 +112,12 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
       or
       wchtools list -A --server --password 0zXyZMapDLGaFDmebg1Fh1d2wDLMXmvXbU666t0TL-zz
 
+#### Specifying default options and command line options
+
+The init command generates a .wchtoolsoptions file in the user's home directory with the values provided during the init command. You may also create the .wchtoolsoptions file in a tooling project working-directory with the init command by using the --dir option.
+
+The wchtools CLI utility will first load the options from the .wchtoolsoptions file in the user's home directory. If a .wchtoolsoptions file exists in the tooling project working-directory (as specified by the --dir option or from the current working directory of the process if --dir is not specified), the values from that copy of .wchtoolsoptions will override anything specified in the copy from the user's home directory. Finally, arguments specified directly on the wchtools command line will override any values read from the .wchtoolsoptions files.
+
 #### Trying your first wchtools commands
 
   Then try the following commands:
@@ -149,6 +155,10 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
        types/              ( authoring content types )
 
 
+### Naming of artifact files for non-default sites
+
+  The artifact file for the default site is named "default.json". The artifact file for the draft version of the default site is named "default_wchdraft.json". The names of artifact files for non-default sites are based on the contextRoot property of the site. The folders containing a site's page artifact files follow the same naming convention.
+
 ### Sample Usage and Commands
 
 #### Pushing sample content from a local file system
@@ -158,9 +168,9 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   That command  pushes all authoring artifacts such as content model, content, and assets from the specified working directory and its subfolders. You can add the "-v" to enable verbose logging.
 
-#### Pulling site, pages, content and related authoring artifacts to a local file system
+#### Pulling sites, pages, content and related authoring artifacts to a local file system
 
-  To pull (export) all site, pages, content model, content, and assets to a local working directory, run the following command:
+  To pull (export) all sites, pages, content model, content, and assets to a local working directory, run the following command:
 
     wchtools pull -A --dir <path-to-working-directory>
 
@@ -168,11 +178,11 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
 #### Pulling artifacts under a specific folder or path
 
-  To pull web assets, content types, layouts, and/or layout mappings under a specific path, specify the --path option.  For example:
+  To pull web assets, content types, layouts, layout mappings, and/or pages under a specific path, specify the --path option.  For example:
 
     wchtools pull -w -v --path /myNavigationWidget  --dir <path-to-working-directory>
 
-#### Pushing a full site's, pages, content and related authoring artifacts from a local file system folder
+#### Pushing a full site's pages, content, and related authoring artifacts from a local file system folder
 
   To push (import) all pages, content model, content, and assets to a local working directory, run the following command:
 
@@ -180,7 +190,7 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   This will push the artifacts in the order of least dependencies (eg, image profiles), to most (eg, pages), in order for dependent items to be there before items that depend on them.
 
-  In most cases, the site metadata (eg, working-directory/sites/default.json ) is not changed across pulling/pushing pages and content etc, and since the default site metadata is created out of the box for new tenants, the revision in your package may not match the revision in the Watson Content Hub tenant data.  If you're not changing the site metadata (eg, site name or description),  you may wish to exclude the working-dir/sites/default.json from what you store in your local source code repository (eg, git repository) or remove that default.json file, before pushing, to avoid a conflict.   If you do push it and it fails with a conflict error, you may push the site again with -f (--force-override) to override the conflict, if you intend for the local copy to replace the current site metadata on the server side, for your Watson Content Hub tenant.
+  In most cases, the metadata for the default site (<working-directory>/sites/default.json) is not changed across pulling/pushing pages and content etc. And since the default site metadata is created out of the box for new tenants, the revision in your package may not match the revision in the Watson Content Hub tenant data. So even if you're not changing the default site metadata (eg, site name or description), you may get a conflict error when pushing the site to a different tenant. If you do push it and it fails with a conflict error, you may either ignore the conflict if you haven't made any changes, or push the default site again with -f (--force-override) to override the conflict and update the current default site metadata on the server side, for your Watson Content Hub tenant.
 
 #### Uploading new managed content assets such as images
 
@@ -535,7 +545,7 @@ Manifests can be stored on Watson Content Hub. The manifest file can be treated 
 will push any manifests in the /dxconfig/manifests directory to Watson Content Hub. Any manifests stored like this on Watson Content Hub can then be accessed using the --server-manifest argument.
 
 ### Pulling, pushing, and listing only "ready" artifacts.
-Some artifact types (content items and content assets) support draft versions. A draft version of an artifact is a working copy that will not be published until it is set to ready. For this reason a site developer may not want to include draft versions in a push, pull, or list operation.
+Some artifact types (content items, content assets, pages, and sites) support draft versions. A draft version of an artifact is a working copy that will not be published until it is set to ready. For this reason a site developer may not want to include draft versions in a push, pull, or list operation.
 
 #### Pulling only ready artifacts
 When populating a new WCH tenant, a site developer may not want to include draft versions of artifacts. In this case, the developer can pull only the ready artifacts to a directory on the local file system.
@@ -547,7 +557,7 @@ The local file system directory will contain only the ready artifacts from the c
 #### Creating a manifest that contains only ready artifacts
 When creating a manifest for a set of WCH artifacts, it may be desirable to include only the ready items.
 
-    wchtools list --server -A --ready --write-manifest ready_only_content
+    wchtools list --server -AI --ready --write-manifest ready_only_content
 
 The manifest created from this command will include all of the ready artifacts in the current WCH tenant.
 
@@ -599,7 +609,7 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools pull -ac --draft --ready
 
-  Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. You can specify a more granular folder structure when pushing or pulling web assets, content types, layouts, and layout mappings. By using the --path option, you can specify a path below the <working-directory>/<artifact-type>/ folder. For example, consider a working directory with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , topNav, and sideNav.
+  Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. You can specify a more granular folder structure when pushing or pulling web assets, content types, layouts, layout mappings, and pages. By using the --path option, you can specify a path below the <working-directory>/<artifact-type>/ folder. For example, consider a working directory with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , topNav, and sideNav.
 
    - To push only the web assets under a folder called /topNav, you would use
 
@@ -615,7 +625,11 @@ The manifest created from this command will include all of the ready artifacts i
 
    - To pull layouts from a specific folder, use
 
-            wchtools push -l --path <somefolder>
+            wchtools pull -l --path <somefolder>
+
+   - To pull pages from a specific folder, use
+
+            wchtools pull -p --path "/Design articles"
 
 #### Granular Options
 

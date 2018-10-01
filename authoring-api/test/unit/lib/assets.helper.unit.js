@@ -5276,10 +5276,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should succeed when there is one local resource.", function (done) {
-                // Create an assetsFS.listResourceNames stub to return a single resource name.
-                const stubResource = sinon.stub(assetsFS, "listResourceNames");
-                stubResource.resolves([{"path":UnitTest.DUMMY_PATH,"id":UnitTest.DUMMY_ID}]);
-
                 // Create a stub for assetsFS.getResourceContentLength that returns false.
                 const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
                 stubContentLength.resolves(0);
@@ -5294,6 +5290,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 resourceStream.tag = STREAM_TAG;
                 resourceStream.push(resourceContent);
                 resourceStream.push(null);
+
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([{"path":resourceMetadata.path,"id":UnitTest.DUMMY_ID}]);
 
                 // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
@@ -5337,7 +5337,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the other stubs were called once with the expected values.
                         expect(stubStream).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubStream.args[0][1]).to.equal(resourceMetadata.path);
                         expect(stubPush).to.have.been.calledOnce;
                         expect(stubPush.args[0][7]["tag"]).to.equal(STREAM_TAG);
                     })
@@ -5450,10 +5450,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should succeed when there is one local resource, which has to be retried twice.", function (done) {
-                // Create an assetsFS.listResourceNames stub to return a single resource name.
-                const stubResource = sinon.stub(assetsFS, "listResourceNames");
-                stubResource.resolves([{"path":UnitTest.DUMMY_PATH,"id":UnitTest.DUMMY_ID}]);
-
                 // Create a stub for assetsFS.getResourceContentLength that returns false.
                 const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
                 stubContentLength.resolves(0);
@@ -5463,6 +5459,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const resourceContent = fs.readFileSync(resourcePath);
                 const resourceMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
                 const resourceMetadata = UnitTest.getJsonObject(resourceMetadataPath);
+
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([{"path":resourceMetadata.path,"id":UnitTest.DUMMY_ID}]);
 
                 // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
@@ -5519,9 +5519,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called thrice with the expected values.
                         expect(stubStream).to.have.been.calledThrice;
-                        expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
-                        expect(stubStream.args[1][1]).to.equal(UnitTest.DUMMY_PATH);
-                        expect(stubStream.args[2][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubStream.args[0][1]).to.equal(resourceMetadata.path);
+                        expect(stubStream.args[1][1]).to.equal(resourceMetadata.path);
+                        expect(stubStream.args[2][1]).to.equal(resourceMetadata.path);
 
                         // Verify that the push stub was called thrice with the expected streams.
                         expect(stubPush).to.have.been.calledThrice;
@@ -5934,10 +5934,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
             });
 
             it("should succeed when there is one local resource.", function (done) {
-                // Create an assetsFS.listResourceNames stub to return a single resource name.
-                const stubResource = sinon.stub(assetsFS, "listResourceNames");
-                stubResource.resolves([{"path":UnitTest.DUMMY_PATH,"id":UnitTest.DUMMY_ID}]);
-
                 // Create a stub for assetsFS.getResourceContentLength that returns false.
                 const stubContentLength = sinon.stub(assetsFS, "getResourceContentLength");
                 stubContentLength.resolves(0);
@@ -5952,6 +5948,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 resourceStream.tag = STREAM_TAG;
                 resourceStream.push(resourceContent);
                 resourceStream.push(null);
+
+                // Create an assetsFS.listResourceNames stub to return a single resource name.
+                const stubResource = sinon.stub(assetsFS, "listResourceNames");
+                stubResource.resolves([{"path":resourceMetadata.path,"id":UnitTest.DUMMY_ID}]);
 
                 // Create an assetsFS.getResourceReadStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceReadStream");
@@ -5995,7 +5995,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the other stubs were called once with the expected values.
                         expect(stubStream).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).to.equal(UnitTest.DUMMY_PATH);
+                        expect(stubStream.args[0][1]).to.equal(resourceMetadata.path);
                         expect(stubPush).to.have.been.calledOnce;
                         expect(stubPush.args[0][7]["tag"]).to.equal(STREAM_TAG);
                     })
@@ -8531,6 +8531,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubListRemoteItemNames = sinon.stub(assetsHelper, "_listRemoteItemNames");
                 stubListRemoteItemNames.resolves([]);
 
+                const stubListRemoteResources = sinon.stub(assetsHelper, "_listRemoteResources");
+                stubListRemoteResources.resolves([]);
+
                 let error;
                 assetsHelper.compare(context, "http://foo.com/api", "http://foo.com/api")
                     .then(function (diffs) {
@@ -8542,6 +8545,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     })
                     .finally(function () {
                         stubListRemoteItemNames.restore();
+                        stubListRemoteResources.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
