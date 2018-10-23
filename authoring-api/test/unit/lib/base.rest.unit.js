@@ -308,7 +308,7 @@ class BaseRestUnitTest extends UnitTest {
         describe("getItemsFail", function() {
             it("should fail when getting request options fails with an error", function (done) {
                 // Create a stub for the GET requests.
-                const stub = sinon.stub(restApi, "getRequestOptions");
+                const stub = sinon.stub(restApi, "_getRequestOptions");
 
                 // The call tp getRequestOptions rejects with an error.
                 const GET_ERROR = "Error getting the options.";
@@ -1680,6 +1680,42 @@ class BaseRestUnitTest extends UnitTest {
             });
 
         });
+
+
+        it("should include tag if specified", function (done) {
+            const err = null;
+            const res = {"statusCode": 200};
+            // The second GET request is to retrieve the items metadata.
+            const stub = sinon.stub(request, "put");
+            const item1 = UnitTest.getJsonObject(itemPath1);
+            const body = null;
+            stub.onCall(0).yields(err, res, body);
+
+            // The stub should be restored when the test is complete.
+            self.addTestDouble(stub);
+
+            // Call the method being tested.
+            let error;
+            restApi.updateItem(context, item1, {"setTag": "test-tag"})
+                .then(function (item) {
+                    expect(stub).to.have.been.calledOnce;
+                    expect(item).to.exist;
+                    if (restApi.supportsTags()) {
+                        expect(item.tags).to.exist;
+                        expect(item.tags).to.contain("test-tag");
+                    }
+                })
+                .catch(function (err) {
+                    // NOTE: A failed expectation from above will be handled here.
+                    // Pass the error to the "done" function to indicate a failed test.
+                    error = err;
+                })
+                .finally(function () {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                });
+        });
+
     }
 
     testCreateItem (restApi, lookupUri, restName, itemPath1, itemPath2) {

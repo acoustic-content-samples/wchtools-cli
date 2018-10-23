@@ -2,6 +2,7 @@
   "singleton_construct_error": "Eine Instanz von Singleton-Klasse %(classname)s kann nicht erstellt werden",
   "create_local_item_error": "Fehler in createLocalItem: ",
   "error_filtering_remote_items": "Fehler beim Filtern der Liste der fernen Elemente in listModifiedRemoteItemNames",
+  "error_renaming_item": "Beim Umbenennen der lokalen Datei '%(name)s' ist ein Fehler aufgetreten. Fehler: %(message)s",
   "push_error_creating_item": "Fehler in Push-Operation beim Erstellen des Elements: ",
   "push_error_updating_item": "Fehler in Push-Operation beim Aktualisieren des Elements: ",
   "push_warning_ignore_conflict": "Unwichtige Unterschiede beim mit Push-Operation übertragenen Element werden ignoriert: %(name)s.",
@@ -12,6 +13,7 @@
   "remote_asset_not_found": "Fernes Asset nicht gefunden: ",
   "cannot_push_item": "Element '%(name)s' konnte nicht mit Push-Operation übertragen werden.",
   "cannot_pull_item": "Element '%(name)s' konnte nicht mit Pull-Operation extrahiert werden.",
+  "compare_error_loading_item": "Fehler beim Laden des Elements für den Vergleich: ",
 
   "deleted_original_file": "Gelöschte Originaldatei: %(old_name)s neue Datei: %(new_name)s",
   "file_parse_error": "Datei kann nicht geparst werden: %(path)s",

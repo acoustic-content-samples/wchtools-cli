@@ -2,6 +2,7 @@
   "singleton_construct_error": "Impossibile creare un'istanza della classe singleton %(classname)s",
   "create_local_item_error": "Errore in createLocalItem: ",
   "error_filtering_remote_items": "Errore durante il filtraggio dell'elenco degli elementi remoti in listModifiedRemoteItemNames",
+  "error_renaming_item": "Si è verificato un errore durante la ridenominazione del file locale '%(name)s'. Errore: %(message)s",
   "push_error_creating_item": "Errore push durante la creazione dell'elemento: ",
   "push_error_updating_item": "Errore push durante l'aggiornamento dell'elemento: ",
   "push_warning_ignore_conflict": "Si ignoreranno le differenze non importanti nell'elemento sottoposto al push: %(name)s.",
@@ -12,6 +13,7 @@
   "remote_asset_not_found": "Asset remoto non trovato: ",
   "cannot_push_item": "Impossibile eseguire il push dell'elemento '%(name)s'.",
   "cannot_pull_item": "Impossibile eseguire il pull dell'elemento '%(name)s'.",
+  "compare_error_loading_item": "Errore di caricamento elemento per il confronto: ",
 
   "deleted_original_file": "File originale eliminato: %(old_name)s nuovo file: %(new_name)s",
   "file_parse_error": "Impossibile analizzare il file: %(path)s",

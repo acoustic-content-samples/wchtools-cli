@@ -1,87 +1,67 @@
 {
   "dx-api-gateway": "https://my.digitalexperience.ibm.com/api",
   "content": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 8
   },
   "types": {
-    "offset": 0,
-    "limit": 200,
-    "concurrent-limit": 8
-  },
-  "presentations": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 8
   },
   "assets": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 5
   },
   "image-profiles": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 8
   },
   "renditions": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 8
   },
   "resources": {
-    "offset": 0,
     "limit": 100,
     "concurrent-limit": 5
   },
   "publishing": {
-    "offset": 0,
     "limit": 100,
     "concurrent-limit": 8
   },
   "publishing-sources": {
-    "offset": 0,
     "limit": 100,
     "concurrent-limit": 8
   },
   "publishing-profiles": {
-    "offset": 0,
     "limit": 100,
     "concurrent-limit": 8
   },
   "site-revisions": {
-    "offset": 0,
     "limit": 100,
     "concurrent-limit": 8
   },
   "categories": {
-    "offset": 0,
+    "useDeepPageMode": false,
     "limit": 200,
     "concurrent-limit": 8
   },
   "authoring-search": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 8
   },
   "layouts": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 5
   },
   "layout-mappings": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 5
   },
   "sites": {
-    "offset": 0,
     "limit": 200,
     "concurrent-limit": 1
   },
   "pages": {
-    "offset": 0,
     "limit": 5000,
     "concurrent-limit": 1
   },

@@ -126,7 +126,7 @@ class AuthoringSearchREST extends BaseREST {
             });
         }
 
-        const offset = options.getRelevantOption(context, opts, "offset", this.getServiceName());
+        const offset = options.getRelevantOption(context, opts, "offset", this.getServiceName()) || 0;
         searchQuery += "&start=" + offset;
         const limit = options.getRelevantOption(context, opts, "limit",  this.getServiceName());
         searchQuery += "&rows=" + limit;

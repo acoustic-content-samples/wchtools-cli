@@ -94,15 +94,14 @@ class LoginREST extends BaseREST {
      */
     getRequestOptions (context, opts) {
         const baseUrl = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url");
-        const api_gateway = options.getRelevantOption(context, opts, "dx-api-gateway");
 
-        // FUTURE We expect at least one of these should exist before getting here. If neither exists, the error from
+        // FUTURE We expect x-ibm-dx-tenant-base-url should exist before getting here. If not, the error from
         // FUTURE the login request is "Invalid URI null/login/v1/basicauth". This isn't very useful. It would be more
         // FUTURE useful to throw an Error from here and catch it before login. Or at least add an error to the log.
 
         // Resolve the promise with the standard request options and the retry options.
         const requestOptions = {
-            uri: (baseUrl || api_gateway) + this.getUriPath(context, opts),
+            uri: this._appendURI(baseUrl, this.getUriPath(context, opts)),
             headers: LoginREST.getHeaders(context, opts),
             auth: {
                 "user": opts.username,

@@ -28,6 +28,8 @@ class CategoriesREST extends JSONItemREST {
         if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "CategoriesREST"});
         }
+        // We must use /views/by-modified for the allUriSuffix because it returns categories from the entire hierarchy, not
+        // just the top level taxonomies as the standard GET /authoring/v1/categories would.
         super("categories", "/authoring/v1/categories", "/views/by-modified", "/views/by-modified");
     }
 

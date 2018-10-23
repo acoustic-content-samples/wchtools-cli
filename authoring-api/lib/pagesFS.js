@@ -96,22 +96,22 @@ class PagesFS extends JSONPathBasedItemFS {
     }
 
     /**
-     * Filter the given list of file names before completing the list operation.
+     * Sort the given list of items before completing the list operation.
      *
      * @param {Object} context The API context to be used for this operation.
-     * @param {Array} files The file names of the items to be listed.
+     * @param {Array} items The items to be listed.
      * @param {Object} opts The options to be used for this operations.
      *
-     * @returns {Array} The filtered list of file names.
+     * @returns {Array} The sorted list of items.
      *
      * @protected
      */
-    _listFilter(context, files, opts) {
-        const pageArtifactFiles = super._listFilter(context, files, opts);
+    _listSort(context, items, opts) {
+        const pageItems = super._listSort(context, items, opts);
 
-        // TODO Sort the pages by path and position, so that the pages within a folder are listed and pushed in order.
+        // TODO Sort the pages by folder and position, so that the pages within a folder are listed and pushed in order.
 
-        return pageArtifactFiles;
+        return pageItems;
     }
 
     /**

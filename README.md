@@ -143,16 +143,16 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
   The actual authoring or web resource artifacts are stored in the following subfolders under the working directory.
 
     <working dir>
-       assets/...          ( Non-managed (web resource) assets, such as html, js, css, managed with wchtools, not authoring UI )
-       assets/dxdam/...    ( Managed Authoring Assets, uploaded via Authoring UI and tagged with additional metadata )
-       assets/dxconfig/... ( configuration storage area, including manifests )
-       categories/         ( authoring categories and taxonomies )
-       content/            ( authoring content items )
-       image-profiles/     ( authoring image profiles )
-       renditions/         ( authoring renditions )
-       sites/{site-id}/{pages}  site metadata and page node hierarhy for the site
-       resources/          ( image resources no longer referenced by asset metadata, when images updated on assets )
-       types/              ( authoring content types )
+       assets/...                   ( Non-managed (web resource) assets, such as html, js, css, managed with wchtools, not authoring UI )
+       assets/dxdam/...             ( Managed Authoring Assets, uploaded via Authoring UI and tagged with additional metadata )
+       assets/dxconfig/...          ( configuration storage area, including manifests )
+       categories/                  ( authoring categories and taxonomies )
+       content/                     ( authoring content items )
+       image-profiles/              ( authoring image profiles )
+       renditions/                  ( authoring renditions )
+       sites/{site-folder}/{pages}  ( site metadata and page node hierarhy for the site )
+       resources/                   ( image resources no longer referenced by asset metadata, when images updated on assets )
+       types/                       ( authoring content types )
 
 
 ### Naming of artifact files for non-default sites
@@ -166,7 +166,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
       wchtools push -A --dir <path-to-working-directory>
 
-  That command  pushes all authoring artifacts such as content model, content, and assets from the specified working directory and its subfolders. You can add the "-v" to enable verbose logging.
+  That command pushes all authoring artifacts such as content model, content, and assets from the specified working directory and its subfolders. You can add the "-v" to enable verbose logging.
 
 #### Pulling sites, pages, content and related authoring artifacts to a local file system
 
@@ -174,7 +174,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
     wchtools pull -A --dir <path-to-working-directory>
 
-  When you pull artifacts from the Watson Content Hub authoring services, wchtools CLI creates folders for types, assets, and content under the working directory. The tool does not operate on raw artifacts in a current working directory. You must specify the <working-directory> parent of the subfolders that contain the contain artifacts, or be in the <working-directory> parent folder that contains such subfolders, when you run wchtools CLI with the push, pull or list commands.
+  When you pull artifacts from the Watson Content Hub authoring services, wchtools CLI creates a folder for each artifact type (types, assets, content, etc.) in the working directory. The tool does not operate on raw artifacts in a current working directory. You must specify the <working-directory> parent of the subfolders that contain the artifacts, or be in the <working-directory> parent folder that contains such subfolders, when you run wchtools CLI with the push, pull or list commands.
 
 #### Pulling artifacts under a specific folder or path
 
@@ -182,9 +182,9 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
     wchtools pull -w -v --path /myNavigationWidget  --dir <path-to-working-directory>
 
-#### Pushing a full site's pages, content, and related authoring artifacts from a local file system folder
+#### Pushing all pages, content, and related authoring artifacts from a local file system folder
 
-  To push (import) all pages, content model, content, and assets to a local working directory, run the following command:
+  To push (import) all pages, content model, content, and assets from a local working directory, run the following command:
 
     wchtools push -A --dir <path-to-working-directory>
 
@@ -202,7 +202,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
 #### Uploading web assets such as html, Javascript and CSS
 
-  Web resource assets are manipulated only via the wchtools CLI at this time and not by the Authoring UI.  To upload web resource assets, place them below the assets folder in your working directory anywhere except under assets/dxdam/... path, then push -A for all authoring artifacts or -w to push only web resource assets.
+  Web resource assets are manipulated only via the wchtools CLI at this time and not by the Authoring UI.  To upload web resource assets, place them below the assets folder in your working directory anywhere except under the assets/dxdam/... folder, then push -A for all authoring artifacts or -w to push only web resource assets.
 
     wchtools push -w --dir <path-to-working-directory>
 
@@ -212,13 +212,19 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
     wchtools push -w --dir <path-to-working-directory> --publish-now
 
+#### Setting a tag on assets, content and types, when pushing
+
+  If you are pushing artifacts (for example, specific set of image assets from an external source, as managed assets) and would like to explicitly tag those artifacts with a user specified tag, during the push, use the following --set-tag <tag-name> option.
+
+    wchtools push -A -v --set-tag <my-tag-name>
+
 ### Pulling all artifact instances and deleting local stale copies
 
-By default a wchtools pull of all or specified artifact types, only pulls new or updated (modified) items, using a by-modified endpoint on each WCH Authoring API.    The wchtools pull -I or --ignore-timestamps  options will pull all artifacts of that type (whether modified or not, but is still additive and update only (it only gets a list of everything that currently exists on the server for each authoring service, and pulls those to the local working directory.  For any artifacts that were pulled previously, but have since been deleted on the server by a business user using the authoring UI, (eg, drafts of content or assets,  or content items no longer needed), you may still have local copies of those artifacts locally, if you had pulled them from WCH prior to their deletion.
+By default a wchtools pull of all or specified artifact types, only pulls new or updated (modified) items, using a by-modified endpoint on each WCH Authoring API.  The wchtools pull -I (or --ignore-timestamps) option will pull all artifacts of the specified type(s), whether modified or not, to the local working directory.  Any artifacts that were pulled previously will still exist in the local working directory, even if they have since been deleted on the server by a business user using the authoring UI, (eg, drafts of content or assets, or content items no longer needed.)
 
 wchtools 2.2 and later adds a new pull option called --deletions which can help with this scenario.
 
-wchtools pull -A (or specified artifact type)  with --deletions
+wchtools pull -A (or specified artifact type) --deletions
   - Is a super-set of -I --ignore-timestamps, in that it will walk every instance of the specified artifact types, ensuring you have the latest copy of each
   - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the WCH authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.
   - It asks whether you want to delete these local-only files, rather than deleting by default, in case they were local files just created by the developer, that you just haven't pushed yet.
@@ -293,9 +299,11 @@ The compare command will optionally generate manifests which represent the compl
     wchtools compare -A --source <working_directory> --target <url> --write-manifest my_diffs --write-deletions-manifest my_deletions
 
 The resulting my_diffs manifest would contain all of the added and changed artifacts between the compared locations.
+
 The resulting my_deletions manifest would contain all of the deleted artifacts that exist in the target location but are removed from the source location.
 
 When comparing two directories or a source directory and a target WCH tenant, any manifest files read or written by the compare command will be loaded or saved using the source directory as identified by the --source argument.
+
 When comparing two Watson Content Hub tenants, any manifest files read or written by the compare command will be loaded or saved using the current working directory where the command is executed from.
 
 ##### Limiting the scope of the comparison
@@ -332,7 +340,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
   The delete command supports the following options:
 
-    -p --path <path> this specifies the path to the assets, layout or layout mapping to delete.  Not applicable to other artifact types at this time.
+    --path <path> this specifies the path to the asset(s), layout, layout mapping, or page to delete.  Not applicable to other artifact types at this time.
     -r --recursive this specifies whether the delete should apply recursively to all descendants of the matching folder path
     -P --preview this specifies whether to simply preview the artifacts to be deleted, but does not actually execute the delete operation
     -q --quiet this specifies whether the user should be prompted for each artifact to be deleted
@@ -366,24 +374,25 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
 #### Deleting pages by hierarchical path or by id
 
-  You can delete pages by hierarchical path, or by id.  The hierarchical path is the tree based path shown in the Watson Content Hub site manager user interface, which is not necessarily the same as the URL path to the page.  The hierarchical path is made up of the page names, separated by / characters (eg, /Home/Products/Outdoors) and is case sensitive.   The "path" field when creating a page or editing a page settings is for the URL path, which by default is the same as the hierarchical name based path, but may differ, if a sites developer decides to set alternate URL path fields for some pages.   To see a list of "hierarchical" page paths for your site, try the following command:
+  You can delete pages by hierarchical path, or by id.  The hierarchical path is the tree based path shown in the Watson Content Hub site manager user interface, which is not necessarily the same as the URL path to the page.  The hierarchical path is made up of the page names, separated by / characters (eg, /Home/Products/Outdoors) and is case sensitive.  The "path" field when creating a page or editing a page settings is for the URL path, which by default is the same as the hierarchical name based path, but may differ, if a sites developer decides to set alternate URL path fields for some pages.  To see a list of "hierarchical" page paths for your site, try the following command:
 
     wchtools list --pages --server
 
-  Note, Watson Content Hub will delete all child pages of a specified page, when that page is deleted, whether deleted from the Sites UI, wchtools, or via API, so be sure you want to delete that entire page hierarchy before deleting a page that has child pages below it.
+  A Watson Content Hub tenant can be used to manage multiple web sites. The resulting list will show a list of pages associated with each of these sites. When deleting pages by path or id, a site must also be specified using the --site-context option and the "context root" of the site. (The default site does not have a context root, so use a value of "default".)
 
-    wchtools delete -p -v --path /Home/Products/Details    (delete the page named Details, and any child pages below that)
+    wchtools delete -p -v --path /Home/Products/Details --site-context default  (delete the page named Details from the default site)
 
-    wchtools delete -p -v --path "/Home/Lawn and Garden"  (delete page "Lawn and Garden" and any pages below that)
+    wchtools delete -p -v --path "/Home/Lawn and Garden" --site-context Marketing  (delete page "Lawn and Garden" from the Marketing site)
 
-    wchtools delete -p -v --id {page-id}
+    wchtools delete -p -v --id {page-id} --site-context Campaign  (delete the page with the specified id from the Campaign site)
 
-  NOTE:  the WCH Sites API treats the page path (constructed by concatenating the "Name" fields of pages, with / separators) as case sensitive, so it will not find a page named "Lawn and Garden"  if you pass the path "/Home/lawn and garden".
+  Watson Content Hub will delete all child pages of a specified page, when that page is deleted.  This behavior is the same whether a page is deleted from the Sites UI, wchtools, or via API, so be sure you want to delete that entire page hierarchy before deleting a page that has child pages below it.
 
-  By default the WCH Sites Pages API endpoint only deletes the page definition when you delete a page, but leaves the page content directly associated with that page behind, in case you need to do anything with that content before deleting it.
-  To delete both the page and the page content at the same time, pass the additional --page-content flag to the delete -p command.
+  Note:  The WCH Sites API treats the page path (constructed by concatenating the "Name" fields of pages, with / separators) as case sensitive, so it will not find a page named "Lawn and Garden"  if you pass the path "/Home/lawn and garden".
 
-    wchtools delete -p -v --path /testpage --page-content  (delete testpage and the page content item that was created with testpage).
+  By default the WCH Sites API only deletes the page definition when you delete a page, but not the page content directly associated with that page, in case you need to do anything with that content before deleting it.  To delete both the page and the page content at the same time, pass the additional --page-content flag to the delete -p command.
+
+    wchtools delete -p -v --path /testpage --site-context default --page-content  (delete testpage from the default site and the page content item that was created with testpage)
 
 #### Deleting content, types or assets by specified tag
 
@@ -410,7 +419,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
     wchtools delete -c -v --by-type-name "Sample Article"
 
-  Note:  As with deleting assets with wildcards,  if the command would result in deleting multiple artifacts, you will be queried with each content item name, and may answer y or n to delete (or not) each content item.  Use the -q --quiet argument to avoid the prompt and have it delete whatever the search by type finds for content items with that type name.
+  Note:  As with deleting assets with wildcards, if the command would result in deleting multiple artifacts, you will be prompted with each content item name, and may answer y or n to delete (or not) each content item.  Use the -q (--quiet) option to avoid the prompt and have it delete all content items with that type name.
 
 #### Deleting content, types, layouts and layout mappings by id
 
@@ -505,26 +514,28 @@ To generate a new manifest from the contents of your local working directory, ex
 
     wchtools list --write-manifest <manifest>
 
-The set of artifacts that are included in the manifest can be further restricted if desired. For example, to generate a manifest for just content artifacts, execute:
+The set of artifacts that are included in the manifest can be further restricted if desired.
 
-    wchtools list -c --write-manifest <manifest>
+For example, to generate a manifest for just content artifacts, execute:
+
+    wchtools list -c -I --write-manifest <manifest>
 
 To generate a new manifest from the contents of your WCH tenant, use:
 
-    wchtools list --server --write-manifest <manifest>
+    wchtools list --server -A -I --write-manifest <manifest>
 
 To generate a new manifest of artifacts under a specific folder path, use the --path argument. For example:
 
-    wchtools list -w --server --write-manifest <manifest> --path /myNavWidget
-    wchtools list -tlm --server --write-manifest <manifest> --path /standard
+    wchtools list -w -I --server --write-manifest <manifest> --path /myNavWidget
+    wchtools list -tlm -I --server --write-manifest <manifest> --path /standard
 
 To push the modified contents of your local working directory to your tenant and generate a manifest that includes only the artifacts that were pushed, use:
 
-    wchtools push --write-manifest <manifest>
+    wchtools push -A --write-manifest <manifest>
 
 To pull all artifacts from your WCH tenant to a local working directory and generate a manifest of everything that was pulled, use:
 
-    wchtools pull -A --write-manifest <manifest>
+    wchtools pull -A -I --write-manifest <manifest>
 
 Since manifests are stored in a folder called "/dxconfig/manifests" under the {working-directory}/assets folder, they will be pushed with the web application assets and can be shared with other developers using the same tenant, by pushing them to your WCH tenant with those web application assets.  They may also be shared by checking the manifest(s) in to the source code control repository that you and the other developers are using to track your web application artifacts.
 
@@ -544,8 +555,10 @@ Manifests can be stored on Watson Content Hub. The manifest file can be treated 
 
 will push any manifests in the /dxconfig/manifests directory to Watson Content Hub. Any manifests stored like this on Watson Content Hub can then be accessed using the --server-manifest argument.
 
-### Pulling, pushing, and listing only "ready" artifacts.
-Some artifact types (content items, content assets, pages, and sites) support draft versions. A draft version of an artifact is a working copy that will not be published until it is set to ready. For this reason a site developer may not want to include draft versions in a push, pull, or list operation.
+### Pulling, pushing, listing, and comparing only "ready" artifacts.
+Some artifact types (content items, content assets, pages, and sites) support draft versions. A draft version of an artifact is a working copy that will not be published until it is set to ready. For this reason a site developer may not want to include draft versions in a push, pull, list, or compare operation.
+
+Note: The push, pull, list, and compare commands only include ready items by default. The following examples explicitly specifiy the --ready option for clarity, but the same result is achieved if the --ready option is omitted.
 
 #### Pulling only ready artifacts
 When populating a new WCH tenant, a site developer may not want to include draft versions of artifacts. In this case, the developer can pull only the ready artifacts to a directory on the local file system.
@@ -560,6 +573,56 @@ When creating a manifest for a set of WCH artifacts, it may be desirable to incl
     wchtools list --server -AI --ready --write-manifest ready_only_content
 
 The manifest created from this command will include all of the ready artifacts in the current WCH tenant.
+
+#### Limiting a command to the pages and site definition for a specific site
+
+  By default, the pull, push, list, compare, and delete commands include the pages and site definitions from all ready sites in the Watson Content Hub tenant. When the --draft option is used, the pages and site definitions from all draft sites are included. But sometimes you may only want to work with the pages and site definitions for a specific site. This can be accomplished by using the --site-context option.
+
+  The value specified for the --site-context option is the _context root_ of the site. You can use the wchtools list command to determine the context root value of a site. The default site does not have a context root value, so a value of "default" can be used for the default site.
+
+  Note: The --site-context option is currently applied only to pages and site definitions. There may be other artifacts (assets, content, etc.) which are used exclusively for a specific site, however those artifact types cannot be limited using the --site-context option.
+
+  To display a list of all site definitions, use the following command:
+
+    wchtools list -s -I --ready --draft
+
+  To pull the ready pages for the "default" site, use the following command:
+
+    wchtools pull -p -I -v --site-context default
+
+  Note: Because the site definition may be required by other wchtools commands that use these pages, the site definition for the "default" site will also be pulled by this command.
+
+  To pull the draft pages for the "Analytics" site, use the following command:
+
+    wchtools pull -pIv --draft --site-context Analytics
+
+  To push only those ready pages for the "default" site that have been modified, use the following command:
+
+    wchtools push -p -v --site-context default
+
+  To list site definition and all drafts of the Halloween site, use the following command:
+
+    wchtools list -sI --ready --draft --site-context Halloween
+
+  To compare the local page artifacts for the Fall Fashion site to the pages in the Watson Content Hub, use the following command:
+
+    wchtools compare -pv --site-context "Fall Fashion" --source <working_directory> --target <url>
+
+  To delete a ready page from the Race Car Rally site, use the following command:
+
+    wchtools delete -pv --path /Publicity/Talladega/Pre-Race-Party --site-context "Race Car Rally"
+
+  Note: Deleting a page will also delete any child pages and drafts of that page. In either of these cases, you will be prompted to confirm the delete.
+
+  To cancel all draft pages for the Race Car Rally site, use the following command:
+
+    wchtools delete --all -pv --draft --site-context "Race Car Rally"
+
+  To delete the Favorite Movies site from the Watson Content Hub (without prompting), use the following command:
+
+    wchtools delete --quiet -sv --site-context "Favorite Movies"
+
+  Caution: It's a good idea to pull all artifacts to your working directory before deleting them from the Watson Content Hub. This provides a backup in case you need to restore some or all of the deleted artifacts in the future.
 
 #### Triggering a publish job
   By default, authoring artifacts such as assets are published to the delivery system when they are uploaded and authoring artifacts such as content are moved from draft to ready state. Therefore, an explicit publish command is not necessary.   If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
@@ -581,7 +644,7 @@ The manifest created from this command will include all of the ready artifacts i
 
 
 #### Defaults
-  By default, wchtools CLI pushes and pulls only the authoring artifacts and web resources that are "ready" (not draft)), and have been modified since the last successful push or pull.  To push or pull artifacts again whether they are modified or not since the last successful push or pull, use the -I option to Ignore-timestamps. To push or pull "draft" authoring artifacts, use the --draft option.
+  By default, wchtools CLI pushes and pulls only the authoring artifacts and web resources that are "ready" (not draft), and have been modified since the last successful push or pull.  To push or pull artifacts again whether they are modified or not since the last successful push or pull, use the -I option to Ignore-timestamps. To push or pull "draft" authoring artifacts, use the --draft option.
 
   An initial push of a starter kit or sample package is done to populate the initial authoring artifacts. Those authoring artifacts and successive ones are typically manipulated in the Watson Content Hub web based Authoring UI and not locally on the filesystem. Web resource artifacts such as html, css, js, and handlebars templates are managed and edited externally and pushed to the Watson Content Hub with the wchtools CLI utility. Therefore, the default is to push and pull only web resource artifacts, if no options are specified to the push and pull commands.
 
@@ -597,9 +660,9 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools pull -act -I
 
-  Use the following command to pull to a specific directory.
+  Use the following command to pull assets and content artifacts to a specific directory.
 
-    wchtools pull --dir <some directory>
+    wchtools pull -ac --dir <some directory>
 
   Use the following command to pull draft assets and content artifacts.
 
@@ -607,7 +670,7 @@ The manifest created from this command will include all of the ready artifacts i
 
   Use the following command to pull ready AND draft assets and content artifacts.
 
-    wchtools pull -ac --draft --ready
+    wchtools pull -ac --ready --draft
 
   Pushing and pulling assumes the <working-directory>/<artifact-type> folder structure that was described earlier. You can specify a more granular folder structure when pushing or pulling web assets, content types, layouts, layout mappings, and pages. By using the --path option, you can specify a path below the <working-directory>/<artifact-type>/ folder. For example, consider a working directory with an assets/ subfolder, and the assets folder contains its own subfolders: simpleSpa , topNav, and sideNav.
 
@@ -627,9 +690,9 @@ The manifest created from this command will include all of the ready artifacts i
 
             wchtools pull -l --path <somefolder>
 
-   - To pull pages from a specific folder, use
+   - To pull ready pages from the default site for a specific folder, use
 
-            wchtools pull -p --path "/Design articles"
+            wchtools pull -p --path "/Design articles" --site-context default
 
 #### Granular Options
 
@@ -639,7 +702,7 @@ NOTE:  Granular options such as pushing only one or more artifact types at a tim
 
            wchtools push -act
 
-  Use the following command to push all categories, assets, contents, types from a specific directory. The -I switch pushes even unmodified items.
+  Use the following command to push all categories, assets, content items, and content types from a specific directory. The -I switch pushes even unmodified items.
 
            wchtools push -Cact  --I --dir <some_working_directory>
 
@@ -787,8 +850,6 @@ When pushing artifacts using wchtools, it is possible to encounter a scenario wh
   The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
 
   - The authoring APIs and services do not allow you to push an update to an authoring artifact, where the "revision" field of the item you are trying to push does not match the current revision stored that is stored on the server by the authoring service. This action is enforced by the services to help prevent overwriting newer updates by another user through authoring UI with an older copy of an artifact.  If a wchtools push encounters such a 409 conflict error for an authoring artifact or artifacts, each conflicting copy is saved to the appropriate artifact subfolder with a "conflict" suffix. Some conflicts are not meaningful (for example, a difference in the lastModified timestamp field) and are automatically ignored by wchtools which treats the push as successful but logs a warning indicating that a conflict was ignored. You can compare the files locally to determine which changes are appropriate.  If you determine that it is safe to override the conflicting server changes with your local artifacts, you may try pushing again with the -f or --force-override options to ask the authoring services to override the revision conflict validation.
-
-  - The authoring content service does not allow pushing a "ready" state content item, if that content item currently has a "draft" outstanding. You can push a draft content item, whether a draft exists, or no artifact exists for that content ID. But you cannot push a "ready" content item if that item has a draft.  If you must push a ready item, for example, to recover from a server side mistake, where a draft exists, you can cancel the draft and try again. Or you can fix the issue with the authoring UI and then pull the content down to the local filesystem again for archiving.
 
   - Authoring artifacts refer to each other by internal identifiers (the 'id' field). The Watson Content Hub authoring services enforce validation of referential integrity as artifacts are created or updated through the public REST APIs.   For this reason, it is suggested that you use the -A or --All-authoring options when you push authoring artifacts. This option is not needed if you are pushing up only a new set of low level artifacts such as content types (where you could use -t to specify that's what what you want to push). Low-level artifacts are those artifacts without references to other types of artifacts. The all authoring artifact options push artifacts in order from those with no dependencies, to those with the most dependencies. This ordering helps avoid issues where dependent artifacts don't exist yet on the server, during a push.
 

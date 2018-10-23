@@ -128,7 +128,7 @@ class JSONItemHelper extends BaseHelper {
      * Get the specified item on the remote content hub.
      *
      * @param {Object} context The API context to be used by the get operation.
-     * @param {Object} id     The id of the item to retrieve
+     * @param {String} id The id of the item to retrieve
      * @param {Object} opts - The options to be used to get the items.
      *
      * @returns {Q.Promise} A promise to get the items on the remote content hub.
@@ -344,9 +344,6 @@ class JSONItemHelper extends BaseHelper {
      * @resolves {Array} The items that were pulled.
      */
     pullAllItems (context, opts) {
-        // Create a deferred object to control the timing of this operation.
-        const deferred = Q.defer();
-
         // Keep track of the error count.
         context.pullErrorCount = 0;
 
@@ -362,17 +359,10 @@ class JSONItemHelper extends BaseHelper {
         // Pull a "chunk" of remote items and and then recursively pull any remaining chunks.
         const helper = this;
         const listFn = helper.getRemoteItems.bind(helper, context);
-        helper._pullItemsChunk(context, listFn, opts)
-            .then(function (pullInfo) {
-                // The deferred will get resolved when all chunks have been pulled.
-                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
-            })
-            .catch(function (err) {
-                deferred.reject(err);
-            });
+        const handleChunkFn = helper._pullItemsChunk.bind(helper);
 
         // After the promise has been resolved, update the last pull timestamp.
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
                 const filterPath = options.getRelevantOption(context, opts, "filterPath");
 
@@ -413,9 +403,6 @@ class JSONItemHelper extends BaseHelper {
      * @resolves {Array} The modified items that were pulled.
      */
     pullModifiedItems (context, opts) {
-        // Create a deferred object to control the timing of this operation.
-        const deferred = Q.defer();
-
         // Keep track of the error count.
         context.pullErrorCount = 0;
 
@@ -425,17 +412,10 @@ class JSONItemHelper extends BaseHelper {
         // Pull a "chunk" of modified remote items and and then recursively pull any remaining chunks.
         const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(helper, context, [helper.NEW, helper.MODIFIED]);
-        helper._pullItemsChunk(context, listFn, opts)
-            .then(function (pullInfo) {
-                // The deferred will get resolved when all chunks have been pulled.
-                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
-            })
-            .catch(function (err) {
-                deferred.reject(err);
-            });
+        const handleChunkFn = helper._pullItemsChunk.bind(helper);
 
         // After the promise has been resolved, update the last pull timestamp.
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
                 const filterPath = options.getRelevantOption(context, opts, "filterPath");
 
@@ -757,28 +737,13 @@ class JSONItemHelper extends BaseHelper {
      * @returns {Q.Promise} - A promise for an array of the names of all remote items.
      */
     _listRemoteItemNames (context, opts) {
-        // Create the deferred to be used for recursively retrieving items.
-        const deferred = Q.defer();
-
         // Recursively call restApi.getItems() to retrieve all of the remote items.
-        const listFn = this.getRemoteItems.bind(this, context);
+        const helper = this;
+        const listFn = helper.getRemoteItems.bind(helper, context);
+        const handleChunkFn = helper._listItemChunk.bind(helper);
 
         // Get the first chunk of remote items, and then recursively retrieve any additional chunks.
-        const helper = this;
-        helper._listItemChunk(context, listFn, opts)
-            .then(function (listInfo) {
-                // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
-                // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
-                // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
-            })
-            .catch(function (err) {
-                // If the list function's promise is rejected, propogate that to the deferred that was returned.
-                deferred.reject(err);
-            });
-
-        // Return the deferred promise chain.
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
                 // Turn the resulting list of items (metadata) into a list of item names.
                 return items.map(function (item) {
@@ -842,18 +807,11 @@ class JSONItemHelper extends BaseHelper {
      *                        pushed/pulled.
      */
     _listModifiedRemoteItemNames (context, flags, opts) {
-        const deferred = Q.defer();
         const helper = this;
         const listFn = helper.getModifiedRemoteItems.bind(helper, context, flags);
-        helper._listItemChunk(context, listFn, opts)
-            .then(function (listInfo) {
-                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
-            })
-            .catch(function (err) {
-                deferred.reject(err);
-            });
+        const handleChunkFn = helper._listItemChunk.bind(helper);
 
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
                 const results = items.map(function (item) {
                     return helper._makeListItemResult(context, item, opts);
@@ -1048,35 +1006,21 @@ class JSONItemHelper extends BaseHelper {
         if (targetIsUrl) {
             targetOpts["x-ibm-dx-tenant-base-url"] = target;
             if (context.readManifest) {
-                targetListFunction = function () {
-                    return self.getManifestItems(context, targetOpts);
-                }
+                targetListFunction = self.getManifestItems.bind(self);
             } else {
-                targetListFunction = function () {
-                    return self._listRemoteItemNames(context, targetOpts)
-                        .catch(function () {
-                            // Could not get the remote items, so return an empty list.
-                            return Q([]);
-                        });
-                }
+                targetListFunction = self._wrapRemoteListFunction.bind(self, self._listRemoteItemNames.bind(self));
             }
-            targetGetItemFunction = function (item) {
-                return self.getRemoteItem(context, item.id, targetOpts);
-            };
+            targetGetItemFunction = self._wrapRemoteItemFunction.bind(self, function (context, item, opts) {
+                return self.getRemoteItem(context, item.id, opts);
+            });
         } else {
             targetOpts.workingDir = target;
             if (context.readManifest) {
-                targetListFunction = function () {
-                    return self.getManifestItems(context, targetOpts);
-                }
+                targetListFunction = self.getManifestItems.bind(self);
             } else {
-                targetListFunction = function () {
-                    return self._listLocalItemNames(context, targetOpts);
-                }
+                targetListFunction = self._wrapLocalListFunction.bind(self, self._listLocalItemNames.bind(self));
             }
-            targetGetItemFunction = function (item) {
-                return self.getLocalItem(context, item, targetOpts);
-            }
+            targetGetItemFunction = self._wrapLocalItemFunction.bind(self, self.getLocalItem.bind(self));
         }
 
         let sourceListFunction;
@@ -1084,45 +1028,87 @@ class JSONItemHelper extends BaseHelper {
         if (sourceIsUrl) {
             sourceOpts["x-ibm-dx-tenant-base-url"] = source;
             if (context.readManifest) {
-                sourceListFunction = function () {
-                    return self.getManifestItems(context, sourceOpts);
-                }
+                sourceListFunction = self.getManifestItems.bind(self);
             } else {
-                sourceListFunction = function () {
-                    return self._listRemoteItemNames(context, sourceOpts)
-                        .catch(function () {
-                            // Could not get the remote items, so return an empty list.
-                            return Q([]);
-                        });
-                }
+                sourceListFunction = self._wrapRemoteListFunction.bind(self, self._listRemoteItemNames.bind(self));
             }
-            sourceGetItemFunction = function (item) {
-                return self.getRemoteItem(context, item.id, sourceOpts);
-            };
+            sourceGetItemFunction = self._wrapRemoteItemFunction.bind(self, function (context, item, opts) {
+                return self.getRemoteItem(context, item.id, opts);
+            });
         } else {
             sourceOpts.workingDir = source;
             if (context.readManifest) {
-                sourceListFunction = function () {
-                    return self.getManifestItems(context, sourceOpts);
-                }
+                sourceListFunction = self.getManifestItems.bind(self);
             } else {
-                sourceListFunction = function () {
-                    return self._listLocalItemNames(context, sourceOpts);
-                }
+                sourceListFunction = self._wrapLocalListFunction.bind(self, self._listLocalItemNames.bind(self));
             }
-            sourceGetItemFunction = function (item) {
-                return self.getLocalItem(context, item, sourceOpts);
-            }
+            sourceGetItemFunction = self._wrapLocalItemFunction.bind(self, self.getLocalItem.bind(self));
         }
 
         const emitter = self.getEventEmitter(context);
 
-        return targetListFunction()
+        const diffItems = {
+            diffCount: 0,
+            totalCount: 0
+        };
+
+        const handleRemovedItem = function (context, item, opts) {
+            // Add the item to the deletions manifest.
+            self._updateDeletionsManifest(context, [item], opts);
+
+            // Increment both the total items counter and diff counter.
+            diffItems.totalCount++;
+            diffItems.diffCount++;
+
+            // Emit a "removed" event for the target item.
+            if (emitter) {
+                emitter.emit("removed", {artifactName: self.getArtifactName(), item: item});
+            }
+        };
+
+        const handleAddedItem = function (context, item, opts) {
+            // Add the item to the manifest.
+            self._updateManifest(context, [item], opts);
+
+            // Increment both the total items counter and diff counter.
+            diffItems.totalCount++;
+            diffItems.diffCount++;
+
+            // Emit an "added" event for the source item.
+            if (emitter) {
+                emitter.emit("added", {artifactName: self.getArtifactName(), item: item});
+            }
+        };
+
+        const handleDifferentItem = function (context, object, diffs, opts) {
+            self._updateManifest(context, [object], opts);
+
+            // Increment both the total items counter and diff counter.
+            diffItems.totalCount++;
+            diffItems.diffCount++;
+
+            // Emit a "diff" event for the source item.
+            if (emitter) {
+                const item = self.makeEmittedObject(context, object, opts);
+                emitter.emit("diff", {artifactName: self.getArtifactName(), item: item, diffs: diffs});
+            }
+        };
+
+        const handleEqualItem = function (context, object, opts) {
+            // Increment the total items counter.
+            diffItems.totalCount++;
+        };
+
+        const handleMissingItem = function (context, object, opts) {
+            // Don't count the missing items, since no comparison was done.
+        };
+
+        return targetListFunction(context, targetOpts)
             .then(function (unfilteredTargetItems) {
                 const targetItems = unfilteredTargetItems.filter(function (item) {
                     return self.canCompareItem(item, targetOpts);
                 });
-                return sourceListFunction()
+                return sourceListFunction(context, sourceOpts)
                     .then(function (unfilteredSourceItems) {
                         const sourceItems = unfilteredSourceItems.filter(function (item) {
                             return self.canCompareItem(item, sourceOpts);
@@ -1136,80 +1122,56 @@ class JSONItemHelper extends BaseHelper {
                             return item.id;
                         });
 
-                        const diffItems = {
-                            diffCount: 0,
-                            totalCount: 0
-                        };
-
                         const promises = [];
                         targetItems.forEach(function (targetItem) {
                             if (sourceIds.indexOf(targetItem.id) === -1) {
-                                // Item exists in target but not source. From source perspective, it has been removed.
-                                self._updateDeletionsManifest(context, [targetItem], opts);
-
-                                // Increment both the total items counter and diff counter.
-                                diffItems.totalCount++;
-                                diffItems.diffCount++;
-
-                                // Emit a "removed" event for the target item.
-                                if (emitter) {
-                                    emitter.emit("removed", {artifactName: self.getArtifactName(), item: targetItem});
-                                }
+                                // The target id exists but the source id does not. The item has been removed.
+                                handleRemovedItem(context, targetItem, opts);
                             }
                         });
 
                         const ignoreKeys = self.getIgnoreKeys();
                         sourceItems.forEach(function (sourceItem) {
                             if (targetIds.indexOf(sourceItem.id) === -1) {
-                                // Item exists in source but not target. From source perspective, it has been added.
-                                self._updateManifest(context, [sourceItem], opts);
-
-                                // Increment both the total items counter and diff counter.
-                                diffItems.totalCount++;
-                                diffItems.diffCount++;
-
-                                // Emit an "added" event for the source item.
-                                if (emitter) {
-                                    emitter.emit("added", {artifactName: self.getArtifactName(), item: sourceItem});
-                               }
+                                // The source id exists but the target id does not. The item has been added.
+                                handleAddedItem(context, sourceItem, opts);
                             } else {
-                                // Item exists in both source and target.
+                                // Both the source and target ids exist, so get the complete objects for comparison.
                                 const deferredCompare = Q.defer();
                                 promises.push(deferredCompare.promise);
 
-                                // Increment the total items counter.
-                                diffItems.totalCount++;
-
-                                targetGetItemFunction(sourceItem)
+                                targetGetItemFunction(context, sourceItem, targetOpts)
                                     .then(function (targetObject) {
-                                        sourceGetItemFunction(sourceItem)
+                                        sourceGetItemFunction(context, sourceItem, sourceOpts)
                                             .then(function (sourceObject) {
-                                                const diffs = utils.compare(sourceObject, targetObject, ignoreKeys);
-                                                if (diffs.added.length > 0 || diffs.changed.length > 0 || diffs.removed.length > 0) {
-                                                    // The items are different.
-                                                    self._updateManifest(context, [sourceItem], opts);
-
-                                                    // Increment the diff counter.
-                                                    diffItems.diffCount++;
-
-                                                    // Emit a "diff" event for the source item.
-                                                    if (emitter) {
-                                                        emitter.emit("diff", {
-                                                            artifactName: self.getArtifactName(),
-                                                            item: sourceItem,
-                                                            diffs: diffs
-                                                        });
+                                                if (targetObject && sourceObject) {
+                                                    // Both the target and source objects exist. Compare them.
+                                                    const diffs = utils.compare(sourceObject, targetObject, ignoreKeys);
+                                                    if (diffs.added.length > 0 || diffs.changed.length > 0 || diffs.removed.length > 0) {
+                                                        // The objects are different.
+                                                        handleDifferentItem(context, sourceObject, diffs, opts);
+                                                    } else {
+                                                        // The objects are equal.
+                                                        handleEqualItem(context, sourceObject, opts);
                                                     }
+                                                } else if (targetObject) {
+                                                    // The object exists in target but not source. It has been removed.
+                                                    handleRemovedItem(context, targetObject, opts);
+                                                } else if (sourceObject) {
+                                                    // The object exists in source but not target. It has been added.
+                                                    handleAddedItem(context, sourceObject, opts);
+                                                } else {
+                                                    // Neither the target nor source object exists. It is missing.
+                                                    handleMissingItem(context, sourceItem, opts);
                                                 }
+
                                                 deferredCompare.resolve(true);
                                             })
                                             .catch(function (err) {
-                                                utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                                 deferredCompare.reject(err);
                                             });
                                     })
                                     .catch(function (err) {
-                                        utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                         deferredCompare.reject(err);
                                     });
                             }
@@ -1585,7 +1547,7 @@ class JSONItemHelper extends BaseHelper {
                         // Append the resulting itemList to the manifest if writing/updating a manifest.
                         helper._updateManifest(context, manifestList, opts);
 
-                        deferred.resolve({chunkSize: chunkSize, items: items});
+                        deferred.resolve({length: chunkSize, items: items});
                     });
             })
             .catch(function (err) {
@@ -1593,51 +1555,6 @@ class JSONItemHelper extends BaseHelper {
             });
         return deferred.promise;
     }
-
-    _recursePull (context, listFn, deferred, allItems, pullInfo, opts) {
-        const helper = this;
-        //append the results from the previous chunk to the allItems array
-        allItems.push.apply(allItems, pullInfo.items);
-        const iLen = pullInfo.chunkSize;
-        const limit = options.getRelevantOption(context, opts, "limit", helper.getArtifactName());
-        //test to see if we got less than the full chunk size
-        if (iLen === 0 || iLen < limit) {
-            //resolve the deferred with the allItems array
-            deferred.resolve(allItems);
-        } else {
-            //get the next chunk
-            const offset = options.getRelevantOption(context, opts, "offset", helper.getArtifactName());
-            opts = utils.cloneOpts(opts, {offset: offset + limit});
-            this._pullItemsChunk(context, listFn, opts)
-                .then(function (pullInfo) {
-                    helper._recursePull(context, listFn, deferred, allItems, pullInfo, opts);
-                })
-                .catch(function (err) {
-                    // FUTURE This should probably behave the same way as an error when pulling an item (add reason, emit error,
-                    // FUTURE increment error count.) That way the promise is still resolved with the successfully pulled items.
-                    deferred.reject(err);
-                });
-        }
-    }
-
-    _recurseList (context, listFn, deferred, results, listInfo, opts) {
-        // If a results array is specified, accumulate the items listed.
-        results = results.concat(listInfo.items);
-
-        const iLen = listInfo.length;
-        const limit = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
-        if (iLen === 0 || iLen < limit) {
-            deferred.resolve(results);
-        } else {
-            const offset = options.getRelevantOption(context, opts, "offset", this.getArtifactName());
-            opts = utils.cloneOpts(opts, {offset: offset + limit});
-            const helper = this;
-            helper._listItemChunk(context, listFn, opts)
-                .then(function (listInfo) {
-                    helper._recurseList(context, listFn, deferred, results, listInfo, opts);
-                });
-        }
-    };
 }
 
 /**

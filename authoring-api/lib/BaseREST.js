@@ -76,6 +76,16 @@ class BaseREST {
         return hdrs;
     }
 
+    /**
+     * Gets the request URI.
+     *
+     * @param {Object} context The API context to be used for the current request.
+     * @param {Object} opts The override options specified for the current request.
+     *
+     * @returns {Q.Promise} A promise for the request URI.
+     *
+     * @protected
+     */
     getRequestURI (context, opts) {
         // Promise based to allow for lookup of URI if necessary going forward
         const deferred = Q.defer();
@@ -253,7 +263,27 @@ class BaseREST {
         }
     }
 
-    _getRequestOptions (context, headers, opts) {
+    /**
+     * Appends a suffix to a URI, ensuring the URI and the suffix are separated by one and only one slash ('/').
+     *
+     * @param uri the URI
+     * @param uriSuffix the URI suffix
+     * @return {string} the concatenated URI
+     * @private
+     */
+    _appendURI (uri, uriSuffix) {
+        // Make sure uri doesn't end with a '/'
+        while (uri && uri.endsWith('/')) {
+            uri = uri.substring(0, uri.length()-1);
+        }
+        // Make sure uriSuffix doesn't start with a '/'
+        while (uriSuffix && uriSuffix.startsWith('/')) {
+            uriSuffix = uriSuffix.substring(1);
+        }
+        return uriSuffix ? (uri + '/' + uriSuffix) : uri;
+    }
+
+    _getRequestOptions (context, uriPath, headers, opts) {
         const restObject = this;
         const deferred = Q.defer();
 
@@ -261,7 +291,7 @@ class BaseREST {
             .then(function (uri) {
                 // Resolve the promise with the standard request options and the retry options.
                 const requestOptions = {
-                    uri: uri + restObject.getUriPath(context, opts),
+                    uri: restObject._appendURI(uri, uriPath),
                     json: true,
                     headers: headers
                 };
@@ -275,12 +305,12 @@ class BaseREST {
 
     getRequestOptions (context, opts) {
         const headers = BaseREST.getHeaders(context, opts);
-        return this._getRequestOptions(context, headers, opts);
+        return this._getRequestOptions(context, this.getUriPath(context, opts), headers, opts);
     }
 
     getUpdateRequestOptions (context, opts) {
         const headers = BaseREST.getUpdateHeaders(context, opts);
-        return this._getRequestOptions(context, headers, opts);
+        return this._getRequestOptions(context, this.getUriPath(context, opts), headers, opts);
     }
 
     supportsByModified () {
@@ -309,17 +339,58 @@ class BaseREST {
         return this._getItems(context, this._allUriSuffix, undefined, opts);
     }
 
+    /**
+     * Returns whether the next links should be used for paging through chunks of items.
+     *
+     * @param {Object} context The API context to be used for the current request.
+     * @param {Object} opts The override options specified for the current request.
+     * @return {boolean} true if next links should be used for paging
+     */
+    useNextLinks (context, opts) {
+        const useNextLinks = options.getRelevantOption(context, opts, "useNextLinks", this.getServiceName());
+        return (useNextLinks !== null) ? useNextLinks : true;
+    }
+
+    /**
+     * Returns whether the deep page mode should be used for paging through chunks of items.
+     *
+     * @param {Object} context The API context to be used for the current request.
+     * @param {Object} opts The override options specified for the current request.
+     * @return {boolean} true if deep page mode should be used for paging
+     */
+    useDeepPageMode (context, opts) {
+        const useDeepPageMode = options.getRelevantOption(context, opts, "useDeepPageMode", this.getServiceName());
+        return this.useNextLinks(context, opts) && ((useDeepPageMode !== null) ? useDeepPageMode : true);
+    }
+
     _getItems (context, uriSuffix, queryParams, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const offset = options.getRelevantOption(context, opts, "offset", this.getServiceName());
-        const limit = options.getRelevantOption(context, opts, "limit", this.getServiceName());
-        this.getRequestOptions(context, opts)
+
+        let uriPath;
+        if (this.useNextLinks(context, opts) && opts && opts.nextURI) {
+            // This is a continuation request for the next chunk of results, set uriPath with the nextURI available in opts.
+            uriPath = opts.nextURI;
+        } else {
+            // This is either an initial request for the first chunk of items, or a continuation request without using next links.
+            uriPath = restObject._appendURI(this.getUriPath(context, opts), uriSuffix);
+            queryParams = queryParams || {};
+            // Set the offset and limit parameters to fetch the next chunk of items
+            queryParams.offset = options.getRelevantOption(context, opts, "offset", this.getServiceName()) || 0;
+            queryParams.limit = options.getRelevantOption(context, opts, "limit", this.getServiceName());
+            // Set the pageMode=deep param if enabled.
+            if (this.useDeepPageMode(context, opts)) {
+                queryParams.pageMode = "deep";
+            }
+        }
+
+        this._getRequestOptions(context, uriPath, BaseREST.getHeaders(context, opts), opts)
             .then(function (requestOptions) {
-                requestOptions.uri = requestOptions.uri + (uriSuffix || "") + "?offset=" + offset + "&limit=" + limit;
                 if (queryParams) {
+                    let delimiter = (requestOptions.uri.indexOf('?') === -1) ? "?" : "&";
                     Object.keys(queryParams).forEach(function (key) {
-                        requestOptions.uri = requestOptions.uri + "&" + key + "=" + queryParams[key];
+                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + queryParams[key];
+                        delimiter = "&";
                     });
                 }
                 request.get(requestOptions, function (err, res, body) {
@@ -331,6 +402,13 @@ class BaseREST {
                         deferred.reject(err);
                     } else if (body && body.items) {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        // If next links is enabled and the response contains a next link, set it in the opts.
+                        // Otherwise, ensure that there is no nextURI value in the opts.
+                        if (restObject.useNextLinks(context, opts) && opts && body.next) {
+                            opts.nextURI = body.next;
+                        } else if (opts && opts.nextURI) {
+                            delete opts.nextURI;
+                        }
                         deferred.resolve(body.items);
                     } else {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);
@@ -346,15 +424,15 @@ class BaseREST {
     }
 
     getItem (context, id, opts) {
-        return this._getItem(context, id, undefined, opts);
+        return this._getItem(context, "/" + id, undefined, opts);
     }
 
-    _getItem(context, id, queryParams, opts) {
+    _getItem (context, uriSuffix, queryParams, opts) {
         const restObject = this;
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
-                requestOptions.uri = requestOptions.uri + "/" + id;
+                requestOptions.uri = restObject._appendURI(requestOptions.uri, uriSuffix);
                 if (queryParams) {
                     let delimiter = "?";
                     Object.keys(queryParams).forEach(function (key) {
@@ -368,7 +446,7 @@ class BaseREST {
                         err = utils.getError(err, body, response, requestOptions);
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
 
-                        // special case where we ar just seeing if the item does exisit and if not it's not an error
+                        // special case where we are just seeing if the item does exist and if not it's not an error
                         if (!opts || opts.noErrorLog !== "true") {
                             utils.logErrors(context, i18n.__("get_item_error", {service_name: restObject.getServiceName()}), err);
                         }
@@ -403,38 +481,14 @@ class BaseREST {
      * Ask the authoring API to return the specified artifact by path
      */
     getItemByPath (context, path, opts) {
-        const deferred = Q.defer();
-        const serviceName = this.getServiceName();
-        const self = this;
         if (this.supportsItemByPath()) {
-            this.getRequestOptions(context, opts)
-                .then(function (requestOptions) {
-                    requestOptions.uri = requestOptions.uri + "/by-path?" + self.getItemByPathQueryParameterName() + "=" + path + "&include=" + self.getItemByPathQueryParameterName();
-                    request.get(requestOptions, function (err, res, body) {
-                        const response = res || {};
-                        if (err || response.statusCode !== 200) {
-                            err = utils.getError(err, body, response, requestOptions);
-                            BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
-
-                            // special case where we are just seeing if the item does exist and if not it's not an error
-                            if (!opts || opts.noErrorLog !== "true") {
-                                utils.logErrors(context, i18n.__("get_item_error", {"service_name": serviceName}), err);
-                            }
-                            deferred.reject(err);
-                        } else {
-                            BaseREST.logRetryInfo(context, requestOptions, response.attempts);
-                            deferred.resolve(body);
-                        }
-                    });
-                })
-                .catch(function (err) {
-                    deferred.reject(err);
-                });
+            const queryParams = { "include": this.getItemByPathQueryParameterName() };
+            queryParams[this.getItemByPathQueryParameterName()] = path;
+            return this._getItem(context, "/by-path", queryParams, opts);
         } else {
             // This is a programming error, no need to translate.
-            deferred.reject(new Error(i18n.__("error_unsupported_endpoint", {"service_name": serviceName, "endpoint": "by-path"})));
+            return Q.reject(new Error(i18n.__("error_unsupported_endpoint", {"service_name": this.getServiceName(), "endpoint": "by-path"})));
         }
-        return deferred.promise;
     }
 
     /*
@@ -489,7 +543,7 @@ class BaseREST {
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
-                requestOptions.uri = restObject.getDeleteUri(requestOptions.uri + "/" + item.id, opts);
+                requestOptions.uri = restObject.getDeleteUri(restObject._appendURI(requestOptions.uri, item.id), opts);
                 utils.logDebugInfo(context, 'delete item:' + restObject.getServiceName(), undefined, requestOptions);
 
                 // del ==> delete

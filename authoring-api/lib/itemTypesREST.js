@@ -44,6 +44,13 @@ class ItemTypesREST extends JSONPathBasedItemREST {
     supportsForceOverride() {
         return true;
     }
+
+    /*
+     * Does this artifact type support tags (eg, to allow setting a tag on a push)
+     */
+    supportsTags() {
+        return true;
+    }
 }
 
 module.exports = ItemTypesREST;

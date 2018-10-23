@@ -60,24 +60,35 @@ class SitesFS extends JSONItemFS {
     static getSiteContextName(site) {
         if (site) {
             let filename;
-            if (site["contextRoot"] && site["contextRoot"] !== "/") {
-                // Use the context root as the default context name.
-                filename = site["contextRoot"];
+            if (site.id === "default") {
+                // Handle the special case of the default site.
+                filename = "default";
+            } else {
+                // The base context name is based on the site's context root (on the site's id if no context root).
+                if (site["contextRoot"] && site["contextRoot"] !== "/") {
+                    // Use the context root as the base context name.
+                    filename = site["contextRoot"];
+                } else if (site.id && site.id.startsWith("default:")) {
+                    // Use "default" as the base context name.
+                    filename = "default";
+                } else {
+                    // Use the id as the base context name.
+                    filename = site.id || "";
+                }
 
                 // A draft site can have the same contextRoot as its corresponding ready site.
                 if (BaseFS.getStatus(site) === "draft") {
                     // Differentiate the file name of the draft site by adding a suffix.
-                    const projectId = site["projectId"];
-                    const suffix = "_wchdraft" + (projectId ? "_" + projectId : "");
-                    filename += suffix;
+                    filename += "_wchdraft";
                 }
-            } else if (site.id === "default:draft") {
-                // Handle the special case of the default draft site.
-                filename = "default_wchdraft";
-            } else {
-                // The context root cannot be used for the context name, so fall back to using the id.
-                filename = site.id;
+
+                // Further differentiate the file name if the site is contained in a project.
+                const projectId = site["projectId"];
+                if (projectId) {
+                    filename += "_" + projectId;
+                }
             }
+
             return BaseFS.getValidFileName(filename);
         }
     }

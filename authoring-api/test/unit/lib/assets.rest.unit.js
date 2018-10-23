@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,7 +39,10 @@ const assetsREST = AssetsREST.instance;
 const DUMMY_HTML_FILE_NAME = "dummy.html";
 const DUMMY_MD5_HASH = "1234567890";
 const DUMMY_REQUEST_OPTIONS = {"x-ibm-dx-tenant-base-url": "dummy-url"};
-const DUMMY_PUBLISH_NOW_REQUEST_OPTIONS = {"x-ibm-dx-tenant-base-url": "dummy-url", "publish-now":true};
+const DUMMY_PUBLISH_NOW_REQUEST_OPTIONS = {
+    "x-ibm-dx-tenant-base-url": "dummy-url", 
+    "publish-now":true,
+    "setTag": "test-tag"};
 
 // The default API context used for unit tests.
 const context = UnitTest.DEFAULT_API_CONTEXT;
@@ -1717,6 +1720,9 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         expect(stubPost.secondCall.args[0].uri).to.contain("/authoring/v1/assets");
                         expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.resource);
                         expect(stubPost.secondCall.args[0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubPost.secondCall.args[0].body.tags).to.exist;
+                        expect(stubPost.secondCall.args[0].body.tags.values).to.exist;
+                        expect(stubPost.secondCall.args[0].body.tags.values).to.contain("test-tag");
                         expect(stubPost.secondCall.args[0].headers).to.exist;
                         expect(stubPost.secondCall.args[0].headers["x-ibm-dx-publish-priority"]).to.exist;
 
@@ -2352,7 +2358,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the generated URI.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources/"+ AssetsUnitTest.ASSET_JPG_3);
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources"+ AssetsUnitTest.ASSET_JPG_3);
 
                         // Verify that the expected error is returned.
                         expect(err.name).to.equal("Error");
@@ -2394,7 +2400,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     .catch(function (err) {
                         // Verify that the stub was called once with the lookup URI and once with the generated URI.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources/"+ AssetsUnitTest.ASSET_JPG_3);
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources"+ AssetsUnitTest.ASSET_JPG_3);
 
                         // Verify that the expected error is returned.
                         expect(err.name).to.equal("Error");
@@ -2480,7 +2486,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     .then(function (asset) {
                         // Verify that the stub was called once with the lookup URI and once with the generated URI.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources/"+ AssetsUnitTest.ASSET_JPG_3);
+                        expect(stub.firstCall.args[0].uri).to.contain("/authoring/v1/resources"+ AssetsUnitTest.ASSET_JPG_3);
 
                         // Verify that the expected value was written to the stream.
                         expect(savedContent.toString()).to.contain(content1);

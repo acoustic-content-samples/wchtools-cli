@@ -23,18 +23,10 @@ const UnitTest = require("./base.cli.unit.js");
 
 // Require the node modules used in this test file.
 const fs = require("fs");
-const path = require("path");
-const rimraf = require("rimraf");
-const diff = require("diff");
-const prompt = require("prompt");
 const Q = require("q");
 const sinon = require("sinon");
 const ToolsApi = require("wchtools-api");
-const hashes = ToolsApi.getHashes();
 const toolsCli = require("../../../wchToolsCli");
-const BaseCommand = require("../../../lib/baseCommand");
-const CompareCommand = require("../../../commands/compare");
-const mkdirp = require("mkdirp");
 const manifests = ToolsApi.getManifests();
 
 // Require the local modules that will be stubbed, mocked, and spied.
@@ -110,14 +102,28 @@ class CompareUnitTest extends UnitTest {
                 };
                 stubFS.returns(dummyStats);
 
+                // Return different site lists for the source and target;
+                CompareUnitTest.restoreLocalSitesStub();
+                stubLocalSites = sinon.stub(ToolsApi.getSitesHelper()._fsApi, "getItems");
+                stubLocalSites.onCall(0).resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
+                stubLocalSites.onCall(1).resolves([{id: "ack", status: "ready"}, {
+                    id: "bar",
+                    status: "draft"
+                }, {id: "nak", status: "draft"}]);
+
                 let error;
 
                 // Execute the command to list the default local items.
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--source", "foo", "--target", "bar"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--ready", "--draft", "--source", "foo", "--target", "bar"])
                     .then(function (msg) {
                         // Verify that the expected message was returned.
-                        expect(msg).to.contain('compared 25');
-                        expect(msg).to.contain('differences 1');
+                        if (switches === "--pages") {
+                            expect(msg).to.contain('compared 100');
+                            expect(msg).to.contain('differences 4');
+                        } else {
+                            expect(msg).to.contain('compared 25');
+                            expect(msg).to.contain('differences 1');
+                        }
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -126,13 +132,17 @@ class CompareUnitTest extends UnitTest {
                     .finally(function () {
                         stub.restore();
                         stubFS.restore();
+                        stubLocalSites.restore();
+
+                        // Add the deafult local sites stub.
+                        CompareUnitTest.addLocalSitesStub();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
             });
 
-            it("succeeds when local source and target are specified with verbose", function (done) {
+            it("succeeds when local source and remote target are specified with verbose", function (done) {
                 const results = {"diffCount": 1, "totalCount": 25};
                 const stub = sinon.stub(helper, "compare");
                 stub.resolves(results);
@@ -147,7 +157,7 @@ class CompareUnitTest extends UnitTest {
                 let error;
 
                 // Execute the command to list the default local items.
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--verbose", "--source", "foo", "--target", "bar"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--verbose", "--source", "foo", "--target", "https://foo/api", "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the expected message was returned.
                         expect(msg).to.contain('compared 25');
@@ -174,15 +184,16 @@ class CompareUnitTest extends UnitTest {
                     setTimeout(function () {
                         // Emit different events to test all of the cases.
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("diff", {item: {name: "item-name"}});
-                        emitter.emit("diff", {item: {id: "item-id"}});
-                        emitter.emit("diff", {item: {path: "item-path"}});
-                        emitter.emit("added", {item: {name: "item-name"}});
-                        emitter.emit("added", {item: {id: "item-id"}});
-                        emitter.emit("added", {item: {path: "item-path"}});
-                        emitter.emit("removed", {item: {name: "item-name"}});
-                        emitter.emit("removed", {item: {id: "item-id"}});
-                        emitter.emit("removed", {item: {path: "item-path"}});
+                        const artifactName = helper.getArtifactName();
+                        emitter.emit("diff", {item: {name: "item-name"}, artifactName: artifactName});
+                        emitter.emit("diff", {item: {id: "item-id"}, artifactName: artifactName});
+                        emitter.emit("diff", {item: {path: "item-path"}, artifactName: artifactName});
+                        emitter.emit("added", {item: {name: "item-name"}, artifactName: artifactName});
+                        emitter.emit("added", {item: {id: "item-id"}, artifactName: artifactName});
+                        emitter.emit("added", {item: {path: "item-path"}, artifactName: artifactName});
+                        emitter.emit("removed", {item: {name: "item-name"}, artifactName: artifactName});
+                        emitter.emit("removed", {item: {id: "item-id"}, artifactName: artifactName});
+                        emitter.emit("removed", {item: {path: "item-path"}, artifactName: artifactName});
                         stubDeferred.resolve(results);
                     }, 0);
                     return stubDeferred.promise;
@@ -198,7 +209,7 @@ class CompareUnitTest extends UnitTest {
                 let error;
 
                 // Execute the command to list the default local items.
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--source", "https://foo/api", "--target", "bar", "--user", "foo"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--source", "https://foo/api", "--target", "bar", "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the expected message was returned.
                         expect(msg).to.contain('compared 25');
@@ -217,7 +228,7 @@ class CompareUnitTest extends UnitTest {
                     });
             });
 
-            it("succeeds when remote source and local target are specified with verbose", function (done) {
+            it("succeeds when remote source and remote target are specified with verbose", function (done) {
                 const results = {"diffCount": 5, "totalCount": 25};
                 const stub = sinon.stub(helper, "compare", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
@@ -225,14 +236,31 @@ class CompareUnitTest extends UnitTest {
                     setTimeout(function () {
                         // Emit different events to test all of the cases.
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("diff", {item: {name: "item-name-1", id: "item-id-1", path: "item-path-1"}});
-                        emitter.emit("diff", {item: {name: "item-name-2", id: "item-id-2", path: "item-path-2"}, diffs: {}});
-                        emitter.emit("diff", {item: {name: "item-name-3", id: "item-id-3", path: "item-path-3"}, diffs: {
+                        const artifactName = helper.getArtifactName();
+                        emitter.emit("diff", {
+                            item: {name: "item-name-1", id: "item-id-1", path: "item-path-1"},
+                            artifactName: artifactName
+                        });
+                        emitter.emit("diff", {
+                            item: {name: "item-name-2", id: "item-id-2", path: "item-path-2"},
+                            artifactName: artifactName,
+                            diffs: {}
+                        });
+                        emitter.emit("diff", {
+                            item: {name: "item-name-3", id: "item-id-3", path: "item-path-3"},
+                            artifactName: artifactName,
+                            diffs: {
                             added: [{node: ["1", "2", "3"], value1: "value"}],
                             removed: [{node: ["1", "2", "3"], value2: "value"}],
                             changed: [{node: ["1", "2", "3"], value1: "value-1", value2: "value-2"}]}});
-                        emitter.emit("added", {item: {name: "item-name-4", id: "item-id-4", path: "item-path-4"}});
-                        emitter.emit("removed", {item: {name: "item-name-5", id: "item-id-5", path: "item-path-5"}});
+                        emitter.emit("added", {
+                            item: {name: "item-name-4", id: "item-id-4", path: "item-path-4"},
+                            artifactName: artifactName
+                        });
+                        emitter.emit("removed", {
+                            item: {name: "item-name-5", id: "item-id-5", path: "item-path-5"},
+                            artifactName: artifactName
+                        });
                         stubDeferred.resolve(results);
                     }, 0);
                     return stubDeferred.promise;
@@ -248,7 +276,7 @@ class CompareUnitTest extends UnitTest {
                 let error;
 
                 // Execute the command to list the default local items.
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--verbose", "--source", "https://foo/api", "--target", "bar", "--user", "foo"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "compare", switches, "--verbose", "--source", "https://foo/api", "--target", "bar", "--user", "foo", "--password", "password"])
                     .then(function (msg) {
                         // Verify that the expected message was returned.
                         expect(msg).to.contain('compared 25');

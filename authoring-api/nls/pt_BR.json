@@ -2,6 +2,7 @@
   "singleton_construct_error": "Uma instância de classe singleton %(classname)s não pode ser construída",
   "create_local_item_error": "Erro em createLocalItem: ",
   "error_filtering_remote_items": "Erro ao filtrar lista de itens remotos em listModifiedRemoteItemNames",
+  "error_renaming_item": "Houve um erro ao renomear o arquivo local '%(name)s'. Erro: %(message)s",
   "push_error_creating_item": "Erro de push ao criar o item: ",
   "push_error_updating_item": "Erro de push ao atualizar o item: ",
   "push_warning_ignore_conflict": "Ignorando diferenças não importantes no item enviado por push: %(name)s.",
@@ -12,6 +13,7 @@
   "remote_asset_not_found": "Ativo remoto não localizado: ",
   "cannot_push_item": "O item '%(name)s' não pôde ser mais enviado por push.",
   "cannot_pull_item": "O item '%(name)s' não pôde ser puxado.",
+  "compare_error_loading_item": "Erro ao carregar item para comparação: ",
 
   "deleted_original_file": "Excluído arquivo original: %(old_name)s novo arquivo: %(new_name)s",
   "file_parse_error": "Não é possível analisar arquivo: %(path)s",

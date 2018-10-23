@@ -271,7 +271,8 @@ function _getManifestSection (context, manifestRoot, artifactName, okToCreate, o
                 id: siteId,
                 name: siteItem.name,
                 contextRoot: siteItem.contextRoot,
-                status: siteItem.status
+                status: siteItem.status,
+                placeholder: true
             };
         }
         root = sitesSection[siteId] || {};
@@ -284,7 +285,8 @@ function _getManifestSection (context, manifestRoot, artifactName, okToCreate, o
 }
 
 /**
- * Returns a section of the in-memory manifest from the context.
+ * Returns a section of the in-memory manifest from the context. The results of this method
+ * are filtered to remove any placeholder objects from the manifest data.
  *
  * @param context The context object for the operation.
  * @param artifactName The artifact name for which to obtain the manifest data.
@@ -292,7 +294,28 @@ function _getManifestSection (context, manifestRoot, artifactName, okToCreate, o
  * @returns {*} The manifest data for the specified artifact type.
  */
 function getManifestSection (context, artifactName, opts) {
-    return _getManifestSection(context, context.readManifest, artifactName, false, opts);
+    const section = _getManifestSection(context, context.readManifest, artifactName, false, opts);
+    let filtered = section;
+    if (section) {
+        filtered = Object.keys(section).filter(function (key) {
+            return !section[key].placeholder;
+        }).reduce(function (obj, key) {
+            obj[key] = section[key];
+            return obj;
+        }, {});
+    }
+    return filtered;
+}
+
+/**
+ * Returns the sites section of the in-memory manifest from the context.
+ *
+ * @param context The context object for the operation.
+ * @param opts The options object for the operation.
+ * @returns {*} The manifest sites section.
+ */
+function getManifestSites (context, opts) {
+    return _getManifestSection(context, context.readManifest, "sites", false, opts);
 }
 
 /**
@@ -315,12 +338,14 @@ function appendManifestSection (context, manifest, artifactName, itemList, opts)
         itemList.forEach(function (item) {
             if (item[keyField]) {
                 if (artifactName === SITES_ARTIFACT_TYPE) {
-                    section[item[keyField]] = {
-                        id: item.id,
-                        name: item.name,
-                        contextRoot: item.contextRoot,
-                        status: item.status 
-                    };
+                    if (!section[item[keyField]]) {
+                        section[item[keyField]] = {};
+                    }
+                    section[item[keyField]].id = item.id;
+                    section[item[keyField]].name = item.name;
+                    section[item[keyField]].contextRoot = item.contextRoot;
+                    section[item[keyField]].status = item.status;
+                    delete section[item[keyField]].placeholder;
                 } else {
                     section[item[keyField]] = {id: item.id, name: item.name, path: item.path || item.hierarchicalPath};
                 }
@@ -459,6 +484,7 @@ const manifests = {
     resetManifests: resetManifests,
     getManifestPath: getManifestPath,
     getManifestSection: getManifestSection,
+    getManifestSites: getManifestSites,
     updateManifestSection: updateManifestSection,
     updateDeletionsManifestSection: updateDeletionsManifestSection,
     saveManifest: saveManifest,
