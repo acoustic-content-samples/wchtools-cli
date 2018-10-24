@@ -274,7 +274,7 @@ class BaseREST {
     _appendURI (uri, uriSuffix) {
         // Make sure uri doesn't end with a '/'
         while (uri && uri.endsWith('/')) {
-            uri = uri.substring(0, uri.length()-1);
+            uri = uri.substring(0, uri.length-1);
         }
         // Make sure uriSuffix doesn't start with a '/'
         while (uriSuffix && uriSuffix.startsWith('/')) {

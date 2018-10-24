@@ -1,6 +1,6 @@
 # Changelog
 
-### 3.2.1 changes since 3.1
+### 3.2 changes since 3.1
 
   - Add full support for push, pull, list, delete, and compare of multiple site definitions and the associated pages. The site-context option can be used to specify a site for an operation.
   - Add prompts when deleting a page, if drafts of that page will be cancelled, or if children of that page will also be deleted.
