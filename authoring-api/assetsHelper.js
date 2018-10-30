@@ -508,47 +508,9 @@ class AssetsHelper extends BaseHelper {
                         helper._updateManifest(context, manifestList, opts);
 
                         // Return the number of assets processed (either success or failure) and an array of pulled assets.
-                        return {length: listLength, assets: assets};
+                        return {length: listLength, items: assets};
                     });
             });
-    }
-
-    /**
-     * Recursive function to pull subsequent chunks of assets retrieved by the given function.
-     *
-     * @param {Object} context - The context to be used for the push operation.
-     * @param {Function} listFn - A function that returns a promise for a chunk of remote assets to be pulled.
-     * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* assets pulled.
-     * @param {Array} results - The accumulated results.
-     * @param {Object} pullInfo - The number of assets processed (either success or failure) and an array of pulled assets.
-     * @param {Object} opts - The options to be used for the pull operations.
-     *
-     * @private
-     */
-    _recursePull (context, listFn, deferred, results, pullInfo, opts) {
-        // If a results array is specified, accumulate the assets pulled.
-        results = results.concat(pullInfo.assets);
-
-        const currentChunkSize = pullInfo.length;
-        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
-        if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
-            // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
-            // with the accumulated results.
-            deferred.resolve(results);
-        } else {
-            // The current chunk is a full chunk, so there may be more assets to retrieve.
-            const helper = this;
-
-            // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", helper.getArtifactName());
-            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
-
-            // Pull the next chunk of assets from the content hub.
-            helper._pullItemsChunk(context, listFn, opts)
-                .then(function (pullInfo) {
-                    helper._recursePull(context, listFn, deferred, results, pullInfo, opts);
-                });
-        }
     }
 
     /**
@@ -714,60 +676,22 @@ class AssetsHelper extends BaseHelper {
                         helper._updateResourceManifest(context, manifestList, opts);
 
                         // Return the number of resources processed (either success or failure) and an array of pulled resources.
-                        return {length: listLength, resources: resources};
+                        return {length: listLength, items: resources};
                     });
             });
     }
 
-    /**
-     * Recursive function to pull subsequent chunks of resources retrieved by the given function.
-     *
-     * @param {Object} context - The context to be used for the pull operation.
-     * @param {Function} listFn - A function that returns a promise for a chunk of remote resources to be pulled.
-     * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* resources pulled.
-     * @param {Array} results - The accumulated results.
-     * @param {Object} pullInfo - The number of resources processed (either success or failure) and an array of pulled resources.
-     * @param {Object} opts - The options to be used for the pull operations.
-     *
-     * @private
-     */
-    _recurseResourcesPull (context, listFn, deferred, results, pullInfo, opts) {
-        // If a results array is specified, accumulate the resources pulled.
-        results = results.concat(pullInfo.resources);
-
-        const currentChunkSize = pullInfo.length;
-        const maxChunkSize = options.getRelevantOption(context, opts, "limit", "resources");
-        if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
-            // The current chunk is a partial chunk, so there are no more resources to be retrieved. Resolve the promise
-            // with the accumulated results.
-            deferred.resolve(results);
-        } else {
-            // The current chunk is a full chunk, so there may be more resources to retrieve.
-            const helper = this;
-
-            // Increase the offset so that the next chunk of resources will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", "resources");
-            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
-
-            // Pull the next chunk of resources from the content hub.
-            helper._pullResourcesChunk(context, listFn, opts)
-                .then(function (pullInfo) {
-                    helper._recurseResourcesPull(context, listFn, deferred, results, pullInfo, opts);
-                });
-        }
-    }
-
     pullResources (context, opts) {
-        const deferred = Q.defer();
         const helper = this;
-        const emitter = helper.getEventEmitter(context);
-        let allFSResources;
 
         // If we're only pulling (Fernando) web assets, don't bother pulling resources without asset references.
         // If the noVirtualFolder option has been specified, we can't pull resources without asset references.
         if (opts && (opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS || opts.noVirtualFolder)) {
-            deferred.resolve();
+            return Q();
         } else {
+            const emitter = helper.getEventEmitter(context);
+            let allFSResources;
+
             // The mechanism for handling deletions is to emit a "resource-local-only" event for each local item to be
             // deleted. Because of this, deletions should only be calculated if there is an emitter to use for the event.
             if (emitter && options.getRelevantOption(context, opts, "deletions")) {
@@ -775,37 +699,27 @@ class AssetsHelper extends BaseHelper {
             }
 
             const listFn = this._restApi.getResourceList.bind(this._restApi, context);
-            helper._pullResourcesChunk(context, listFn, opts)
-                .then(function (pullInfo) {
-                    // There are no results initially, so just pass an empty array. The accumulated array of
-                    // resources for all pulled items will be available when "deferred" has been resolved.
-                    helper._recurseResourcesPull(context, listFn, deferred, [], pullInfo, opts);
-                })
-                .catch(function (err) {
-                    // There was a fatal issue, beyond a failure to pull one or more items.
-                    deferred.reject(err);
+            const handleChunkFn = this._pullResourcesChunk.bind(this);
+            return helper.recursiveGetResources(context, listFn, handleChunkFn, opts)
+                .then(function (resources) {
+                    if (allFSResources) {
+                        return allFSResources
+                            .then(function (values) {
+                                const pulledPaths = resources.map(function (resource) {
+                                    return resource.path;
+                                });
+                                values.forEach(function (resource) {
+                                    if (pulledPaths.indexOf(resource.path) === -1) {
+                                        emitter.emit("resource-local-only", resource);
+                                    }
+                                });
+                                return resources;
+                            });
+                    } else {
+                        return resources;
+                    }
                 });
         }
-
-        return deferred.promise
-            .then(function (resources) {
-                if (allFSResources) {
-                    return allFSResources
-                        .then(function (values) {
-                            const pulledPaths = resources.map(function (resource) {
-                                return resource.path;
-                            });
-                            values.forEach(function (resource) {
-                                if (pulledPaths.indexOf(resource.path) === -1) {
-                                    emitter.emit("resource-local-only", resource);
-                                }
-                            });
-                            return resources;
-                        });
-                } else {
-                    return resources;
-                }
-            });
     }
 
     /**
@@ -931,7 +845,6 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} A promise for the assets that were pulled.
      */
     pullAllItems (context, opts) {
-        const deferred = Q.defer();
         const helper = this;
 
         // The mechanism for handling deletions is to emit a "local-only" event for each local item to be deleted.
@@ -944,6 +857,7 @@ class AssetsHelper extends BaseHelper {
 
         // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
         const listFn = helper._restApi.getItems.bind(helper._restApi, context);
+        const handleChunkFn = helper._pullItemsChunk.bind(helper);
 
         // Keep track of the error count.
         context.pullErrorCount = 0;
@@ -952,19 +866,8 @@ class AssetsHelper extends BaseHelper {
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
 
-        helper._pullItemsChunk(context, listFn, opts)
-            .then(function (pullInfo) {
-                // There are no results initially, so just pass an empty array. The accumulated array of asset
-                // metadata for all pulled items will be available when "deferred" has been resolved.
-                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
-            })
-            .catch(function (err) {
-                // There was a fatal issue, beyond a failure to pull one or more items.
-                deferred.reject(err);
-            });
-
         // Handle any necessary actions once the pull operations have completed.
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
                 if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
                     return items;
@@ -1013,11 +916,10 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} A promise for the assets that were pulled.
      */
     pullModifiedItems (context, opts) {
-        const deferred = Q.defer();
-
         // Use getModifiedRemoteItems() as the list function, so that only new and modified assets will be pulled.
-        const listFn = this.getModifiedRemoteItems.bind(this, context, [this.NEW, this.MODIFIED]);
         const helper = this;
+        const listFn = helper.getModifiedRemoteItems.bind(helper, context, [helper.NEW, helper.MODIFIED]);
+        const handleChunkFn = helper._pullItemsChunk.bind(helper);
         // Keep track of the error count.
         context.pullErrorCount = 0;
         context.skippedAssetPaths = [];
@@ -1025,19 +927,8 @@ class AssetsHelper extends BaseHelper {
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
 
-        helper._pullItemsChunk(context, listFn, opts)
-            .then(function (pullInfo) {
-                // There are no results initially, so just pass an empty array. The accumulated array of asset
-                // metadata for all pulled items will be available when "deferred" has been resolved.
-                helper._recursePull(context, listFn, deferred, [], pullInfo, opts);
-            })
-            .catch(function (err) {
-                // There was a fatal issue, beyond a failure to pull one or more items.
-                deferred.reject(err);
-            });
-
         // Handle any necessary actions once the pull operations have completed.
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
                 if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
                     return items;
@@ -1799,36 +1690,10 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
-     * Wrapper function to call the REST API getItemByPath, for obtaining the
-     * remote asset metadata for a compare operation.
-     * @param context The API context to be used for this operation.
-     * @param assetPath The asset path to retrieve the metadata for.
-     * @param opts The options for this operation.
-     * @returns {*} The remote asset metadata.
-     * @private
-     */
-    _compareGetRemoteAsset (context, assetPath, opts) {
-        return this._restApi.getItemByPath(context, assetPath, opts);
-    }
-
-    /**
-     * Wrapper function to call the REST API getResourceStream, for obtaining the
-     * remote resource binary data for a compare operation.
-     * @param context The API context to be used for this operation.
-     * @param asset The asset to retrieve the resource stream for.
-     * @param opts The options for this operation.
-     * @returns {*} The remote resource stream.
-     * @private
-     */
-    _compareGetRemoteReadStream (context, asset, opts) {
-        // For a remote asset, we have metadata, use the resource member.
-        return this._restApi.getResourceStream(context, asset.resource, opts);
-    }
-
-    /**
      * Wrapper function to call the FS API getItem, for obtaining the
      * local asset metadata for a compare operation. For web assets, there is
      * no local metadata, so we return a resolved promise with mock metadata.
+     * 
      * @param context The API context to be used for this operation.
      * @param assetPath The asset path to retrieve the metadata for.
      * @param opts The options for this operation.
@@ -1839,7 +1704,7 @@ class AssetsHelper extends BaseHelper {
         // Determine if this is a managed asset or a web asset.
         if (this._fsApi.isContentResource(assetPath)) {
             // For managed assets, call the getItem API to get the managed asset metadata.
-            return this._fsApi.getItem(context, assetPath, opts);
+            return this._wrapLocalItemFunction(this._fsApi.getItem.bind(this._fsApi), context, assetPath, opts);
         } else {
             // For web assets, make a mock metadata with the path attribute.
             return Q({path: assetPath});
@@ -1847,22 +1712,117 @@ class AssetsHelper extends BaseHelper {
     }
 
     /**
-     * Wrapper function to call the FS API getItemReadStream, for obtaining the
-     * local resource binary data for a compare operation.
+     * Wraps a call to a function to get a remote MD5 hash so that errors can be ignored.
+     * 
+     * @param getMD5HashFunction the function to call
+     * @param context the context for the operation
+     * @param asset the asset to compute the MD5 hash for
+     * @param opts the options for the operation
+     * @return {Q.Promise} the results of the MD5 hash function or a Promise resolved with undefined
+     * @private
+     */
+    _wrapGetRemoteMD5HashFunction (getMD5HashFunction, context, asset, opts) {
+        // For a remote asset, we have metadata, use the resource member.
+        return getMD5HashFunction(context, asset, utils.cloneOpts(opts, {"noErrorLog": true}))
+            .catch(function (err) {
+                if (err.statusCode === 404) {
+                    // The remote item does not exist, so return undefined. This can happen when the specified
+                    // manifest contains an item that does not exist on the server.
+                    return Q();
+                } else {
+                    // There was an unexpected error, so log the error and rethrow it.
+                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                    throw err;
+                }
+            });
+    }
+
+    /**
+     * Wraps a call to a function to get a local MD5 hash so that errors can be ignored.
+     * 
+     * @param getMD5HashFunction the function to call
+     * @param context the context for the operation
+     * @param asset the asset to compute the MD5 hash for
+     * @param opts the options for the operation
+     * @return {Q.Promise} the results of the MD5 hash function or a Promise resolved with undefined
+     * @private
+     */
+    _wrapGetLocalMD5HashFunction (getMD5HashFunction, context, asset, opts) {
+        // For a local resource, we have no metadata, use the path member.
+        return getMD5HashFunction(context, asset, utils.cloneOpts(opts, {"noErrorLog": true}))
+            .catch(function (err) {
+                if (err.code === "ENOENT") {
+                    // The local item does not exist, so return undefined. This can happen when the specified
+                    // manifest contains an item that does not exist on the local file system.
+                    return Q();
+                } else {
+                    // There was an unexpected error, so log the error and rethrow it.
+                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                    throw err;
+                }
+            });
+    }
+
+    /**
+     * Wrapper function to call the REST API getResourceStream and hashes generateMD5HashFromStream,
+     * for obtaining the remote resource binary data for a compare operation.
+     * 
      * @param context The API context to be used for this operation.
      * @param asset The asset to retrieve the resource stream for.
      * @param opts The options for this operation.
      * @returns {*} The remote resource stream.
      * @private
      */
-    _compareGetLocalReadStream (context, asset, opts) {
-        // For a local asset, we have no metadata, use the path member.
-        return this._fsApi.getItemReadStream(context, asset.path, opts);
+    _compareGetRemoteMD5Hash (context, asset, opts) {
+        const self = this;
+        return self._wrapGetRemoteMD5HashFunction(function (context, asset, opts) {
+            // For a remote asset, we have metadata, use the resource member.
+            return self._restApi.getResourceStream(context, asset.resource, opts)
+                .then(function (readStream) {
+                    return hashes.generateMD5HashFromStream(readStream);
+                });
+        }, context, asset, opts);
     }
 
-    _compareGetLocalResourceReadStream (context, resource, opts) {
-        // For a local resource, we have no metadata, use the path member.
-        return this._fsApi.getResourceReadStream(context, resource.path, opts);
+    /**
+     * Wrapper function to call the FS API getItemReadStream and hashes generateMD5HashFromStream,
+     * for obtaining the local resource binary data for a compare operation.
+     * 
+     * @param context The API context to be used for this operation.
+     * @param asset The asset to retrieve the resource stream for.
+     * @param opts The options for this operation.
+     * @returns {*} The remote resource stream.
+     * @private
+     */
+    _compareGetLocalMD5Hash (context, asset, opts) {
+        const self = this;
+        return self._wrapGetLocalMD5HashFunction(function (context, asset, opts) {
+            // For a local asset, we have no metadata, use the path member.
+            return self._fsApi.getItemReadStream(context, asset.path, opts)
+                .then(function (readStream) {
+                    return hashes.generateMD5HashFromStream(readStream);
+                });
+        }, context, asset, opts);
+    }
+
+    /**
+     * Wrapper function to call the FS API getResourceReadStream and hashes generateMD5HashFromStream,
+     * for obtaining the local resource binary data for a compare operation.
+     * @param context The API context to be used for this operation.
+     * @param asset The asset to retrieve the resource stream for.
+     * @param opts The options for this operation.
+     * @returns {*} The remote resource stream.
+     * @private
+     */
+    _compareGetLocalResourceMD5Hash (context, resource, opts) {
+        const self = this;
+        return self._wrapGetLocalMD5HashFunction(function (context, resource, opts) {
+            // For a local resource, we have no metadata, use the path member.
+            return self._fsApi.getResourceReadStream(context, resource.path, opts)
+                .then(function (readStream) {
+                    return hashes.generateMD5HashFromStream(readStream);
+                });
+        }, context, resource, opts);
     }
 
     /**
@@ -1881,73 +1841,156 @@ class AssetsHelper extends BaseHelper {
         const targetOpts = utils.cloneOpts(opts);
         const sourceOpts = utils.cloneOpts(opts);
 
-        let targetList;
+        let targetListFunction;
         let targetGetAsset;
-        let targetGetReadStream;
-        let targetResourceList;
-        let targetGetResourceReadStream;
+        let targetGetMD5Hash;
+        let targetResourceListFunction;
+        let targetGetResourceMD5Hash;
         if (targetIsUrl) {
             targetOpts["x-ibm-dx-tenant-base-url"] = target;
             if (context.readManifest) {
-                targetList = self.getManifestItems(context, targetOpts);
-                targetResourceList = self.getManifestResourceItems(context, targetOpts);
+                targetListFunction = self.getManifestItems.bind(self);
+                targetResourceListFunction = self.getManifestResourceItems.bind(self);
             } else {
-                targetList = self._listRemoteItemNames(context, targetOpts);
-                targetResourceList = self._listRemoteResources(context, targetOpts);
+                targetListFunction = self._wrapRemoteListFunction.bind(self, self._listRemoteItemNames.bind(self));
+                targetResourceListFunction = self._wrapRemoteListFunction.bind(self, self._listRemoteResources.bind(self));
             }
-            targetGetAsset = self._compareGetRemoteAsset.bind(self);
-            targetGetReadStream = self._compareGetRemoteReadStream.bind(self);
-            targetGetResourceReadStream = self._compareGetRemoteReadStream.bind(self);
+            targetGetAsset = self._wrapRemoteItemFunction.bind(self, self._restApi.getItemByPath.bind(self._restApi));
+            targetGetMD5Hash = self._compareGetRemoteMD5Hash.bind(self);
+            targetGetResourceMD5Hash = self._compareGetRemoteMD5Hash.bind(self);
         } else {
             targetOpts.workingDir = target;
             if (context.readManifest) {
-                targetList = self.getManifestItems(context, targetOpts);
-                targetResourceList = self.getManifestResourceItems(context, targetOpts);
+                targetListFunction = self.getManifestItems.bind(self);
+                targetResourceListFunction = self.getManifestResourceItems.bind(self);
             } else {
-                targetList = self._listLocalItemNames(context, targetOpts);
-                targetResourceList = self.listLocalResourceNames(context, targetOpts);
+                targetListFunction = self._wrapLocalListFunction.bind(self, self._listLocalItemNames.bind(self));
+                targetResourceListFunction = self._wrapLocalListFunction.bind(self, self.listLocalResourceNames.bind(self));
             }
             targetGetAsset = self._compareGetLocalAsset.bind(self);
-            targetGetReadStream = self._compareGetLocalReadStream.bind(self);
-            targetGetResourceReadStream = self._compareGetLocalResourceReadStream.bind(self);
+            targetGetMD5Hash = self._compareGetLocalMD5Hash.bind(self);
+            targetGetResourceMD5Hash = self._compareGetLocalResourceMD5Hash.bind(self);
         }
 
-        let sourceList;
+        let sourceListFunction;
         let sourceGetAsset;
-        let sourceGetReadStream;
-        let sourceResourceList;
-        let sourceGetResourceReadStream;
+        let sourceGetMD5Hash;
+        let sourceResourceListFunction;
+        let sourceGetResourceMD5Hash;
         if (sourceIsUrl) {
             sourceOpts["x-ibm-dx-tenant-base-url"] = source;
             if (context.readManifest) {
-                sourceList = self.getManifestItems(context, sourceOpts);
-                sourceResourceList = self.getManifestResourceItems(context, sourceOpts);
+                sourceListFunction = self.getManifestItems.bind(self);
+                sourceResourceListFunction = self.getManifestResourceItems.bind(self);
             } else {
-                sourceList = self._listRemoteItemNames(context, sourceOpts);
-                sourceResourceList = self._listRemoteResources(context, sourceOpts);
+                sourceListFunction = self._wrapRemoteListFunction.bind(self, self._listRemoteItemNames.bind(self));
+                sourceResourceListFunction = self._wrapRemoteListFunction.bind(self, self._listRemoteResources.bind(self));
             }
-            sourceGetAsset = self._compareGetRemoteAsset.bind(self);
-            sourceGetReadStream = self._compareGetRemoteReadStream.bind(self);
-            sourceGetResourceReadStream = self._compareGetRemoteReadStream.bind(self);
+            sourceGetAsset = self._wrapRemoteItemFunction.bind(self, self._restApi.getItemByPath.bind(self._restApi));
+            sourceGetMD5Hash = self._compareGetRemoteMD5Hash.bind(self);
+            sourceGetResourceMD5Hash = self._compareGetRemoteMD5Hash.bind(self);
         } else {
             sourceOpts.workingDir = source;
             if (context.readManifest) {
-                sourceList = self.getManifestItems(context, sourceOpts);
-                sourceResourceList = self.getManifestResourceItems(context, sourceOpts);
+                sourceListFunction = self.getManifestItems.bind(self);
+                sourceResourceListFunction = self.getManifestResourceItems.bind(self);
             } else {
-                sourceList = self._listLocalItemNames(context, sourceOpts);
-                sourceResourceList = self.listLocalResourceNames(context, sourceOpts);
+                sourceListFunction = self._wrapLocalListFunction.bind(self, self._listLocalItemNames.bind(self));
+                sourceResourceListFunction = self._wrapLocalListFunction.bind(self, self.listLocalResourceNames.bind(self));
             }
             sourceGetAsset = self._compareGetLocalAsset.bind(self);
-            sourceGetReadStream = self._compareGetLocalReadStream.bind(self);
-            sourceGetResourceReadStream = self._compareGetLocalResourceReadStream.bind(self);
+            sourceGetMD5Hash = self._compareGetLocalMD5Hash.bind(self);
+            sourceGetResourceMD5Hash = self._compareGetLocalResourceMD5Hash.bind(self);
         }
 
-        return targetList.then(function (unfilteredTargetItems) {
+        const emitter = self.getEventEmitter(context);
+
+        const diffItems = {
+            diffCount: 0,
+            totalCount: 0
+        };
+
+        const _handleRemovedItem = function (isResource, context, item, opts) {
+            // Add the item to the deletions manifest.
+            if (isResource) {
+                self._updateResourceDeletionsManifest(context, [item], opts);
+            } else {
+                self._updateDeletionsManifest(context, [item], opts);
+            }
+
+            // Increment both the total items counter and diff counter.
+            diffItems.totalCount++;
+            diffItems.diffCount++;
+
+            // Emit a "removed" event for the target item.
+            if (emitter) {
+                const artifactName = isResource ? "resources" : self.getArtifactName();
+                emitter.emit("removed", {artifactName: artifactName, item: item});
+            }
+        };
+        const handleRemovedItem = _handleRemovedItem.bind(self, false);
+        const handleRemovedResource = _handleRemovedItem.bind(self, true);
+
+        const _handleAddedItem = function (isResource, context, item, opts) {
+            // Add the item to the manifest.
+            if (isResource) {
+                self._updateResourceManifest(context, [item], opts);
+            } else {
+                self._updateManifest(context, [item], opts);
+            }
+
+            // Increment both the total items counter and diff counter.
+            diffItems.totalCount++;
+            diffItems.diffCount++;
+
+            // Emit a "added" event for the target item.
+            if (emitter) {
+                const artifactName = isResource ? "resources" : self.getArtifactName();
+                emitter.emit("added", {artifactName: artifactName, item: item});
+            }
+        };
+        const handleAddedItem = _handleAddedItem.bind(self, false);
+        const handleAddedResource = _handleAddedItem.bind(self, true);
+
+        const _handleDifferentItem = function (isResource, context, item, diffs, opts) {
+            // Add the item to the manifest.
+            if (isResource) {
+                self._updateResourceManifest(context, [item], opts);
+            } else {
+                self._updateManifest(context, [item], opts);
+            }
+
+            // Increment both the total items counter and diff counter.
+            diffItems.totalCount++;
+            diffItems.diffCount++;
+
+            // Emit a "diff" event for the target item.
+            if (emitter) {
+                const artifactName = isResource ? "resources" : self.getArtifactName();
+                emitter.emit("diff", {artifactName: artifactName, item: item, diffs: diffs});
+            }
+        };
+        const handleDifferentItem = _handleDifferentItem.bind(self, false);
+        const handleDifferentResource = _handleDifferentItem.bind(self, true);
+
+        const _handleEqualItem = function (isResource, context, item, opts) {
+            // Increment the total items counter.
+            diffItems.totalCount++;
+        };
+        const handleEqualItem = _handleEqualItem.bind(self, false);
+        const handleEqualResource = _handleEqualItem.bind(self, true);
+
+        const _handleMissingItem = function (isResource, context, item, opts) {
+            // Don't count the missing items, since no comparison was done.
+        };
+        const handleMissingItem = _handleMissingItem.bind(self, false);
+        const handleMissingResource = _handleMissingItem.bind(self, true);
+
+        return targetListFunction(context, targetOpts).then(function (unfilteredTargetItems) {
             const targetItems = unfilteredTargetItems.filter(function (item) {
                 return self.canCompareItem(item, targetOpts);
             });
-            return sourceList.then(function (unfilteredSourceItems) {
+            return sourceListFunction(context, sourceOpts).then(function (unfilteredSourceItems) {
                 const sourceItems = unfilteredSourceItems.filter(function (item) {
                     return self.canCompareItem(item, sourceOpts);
                 });
@@ -1959,11 +2002,6 @@ class AssetsHelper extends BaseHelper {
                 const sourcePaths = sourceItems.map(function (item) {
                     return item.path;
                 });
-
-                const diffItems = {
-                    diffCount: 0,
-                    totalCount: 0
-                };
 
                 // Construct an array to hold all promises that we will wait for.
                 const promises = [];
@@ -1977,34 +2015,16 @@ class AssetsHelper extends BaseHelper {
                     // Check to see if the item exists in the source.
                     if (sourcePaths.indexOf(targetItem.path) === -1) {
                         // Item exists in target but not source.
-                        self._updateDeletionsManifest(context, [targetItem], opts);
-                        // Increment both the total items counter and diff counter.
-                        diffItems.totalCount++;
-                        diffItems.diffCount++;
-                        // Emit an event indicating the deleted item.
-                        const emitter = self.getEventEmitter(context);
-                        if (emitter) {
-                            emitter.emit("removed", {artifactName: self.getArtifactName(), item: targetItem});
-                        }
+                        handleRemovedItem(context, targetItem, opts);
                     }
                 });
 
                 // Iterate all source items to check for additions and changes.
                 sourceItems.forEach(function (sourceItem) {
-                    // Increment the total items counter.
-                    diffItems.totalCount++;
-
                     // Check to see if the item exists in the target.
                     if (targetPaths.indexOf(sourceItem.path) === -1) {
                         // Item exists in source but not target.
-                        self._updateManifest(context, [sourceItem], opts);
-                        // Increment the diff counter.
-                        diffItems.diffCount++;
-                        // Emit an event indicating the new item.
-                        const emitter = self.getEventEmitter(context);
-                        if (emitter) {
-                            emitter.emit("added", {artifactName: self.getArtifactName(), item: sourceItem});
-                        }
+                        handleAddedItem(context, sourceItem, opts);
                     } else {
                         // Create a new promise to resolve when the compare is complete.
                         const deferredCompare = Q.defer();
@@ -2016,80 +2036,82 @@ class AssetsHelper extends BaseHelper {
                                 sourceGetAsset(context, sourceItem.path, sourceOpts)
                                     .then(function (sourceAsset) {
 
-                                        allTargetResourceIds.push(targetAsset.resource);
-                                        allSourceResourceIds.push(sourceAsset.resource);
-
-                                        let different = false;
-                                        let compareDiffs;
-                                        // Only compare the metadata for content resources.
-                                        if (self._fsApi.isContentResource(sourceItem.path)) {
-                                            compareDiffs = utils.compare(sourceAsset, targetAsset, self._restApi.getIgnoreKeys());
-                                            different = (compareDiffs.added.length > 0 || compareDiffs.changed.length > 0 || compareDiffs.removed.length > 0);
+                                        if (targetAsset && targetAsset.resource) {
+                                            allTargetResourceIds.push(targetAsset.resource);
                                         }
-                                        if (different) {
-                                            const absPath = self._fsApi.getMetadataPath(context, sourceItem.path, sourceOpts);
-                                            const relativePath = path.relative(self._fsApi.getAssetsPath(context, sourceOpts), absPath);
-                                            self._updateManifest(context, [{path: relativePath}], opts);
+                                        if (sourceAsset && sourceAsset.resource) {
+                                            allSourceResourceIds.push(sourceAsset.resource);
+                                        }
 
-                                            // Increment the diff counter.
-                                            diffItems.diffCount++;
-                                            // Emit an event indicating the asset difference.
-                                            const emitter = self.getEventEmitter(context);
-                                            if (emitter) {
-                                                emitter.emit("diff", {artifactName: self.getArtifactName(), item: {path: relativePath}, diffs: compareDiffs});
+                                        if (targetAsset && sourceAsset) {
+                                            let different = false;
+                                            let compareDiffs;
+                                            // Only compare the metadata for content resources.
+                                            if (self._fsApi.isContentResource(sourceItem.path)) {
+                                                compareDiffs = utils.compare(sourceAsset, targetAsset, self._restApi.getIgnoreKeys());
+                                                different = (compareDiffs.added.length > 0 || compareDiffs.changed.length > 0 || compareDiffs.removed.length > 0);
                                             }
-                                            // Resolve the promise.
-                                            deferredCompare.resolve(true);
-                                        } else {
-                                            // Compare the binary resources.
-                                            // Get the target resource stream.
-                                            targetGetReadStream(context, targetAsset, targetOpts)
-                                                .then(function (targetReadStream) {
-                                                    // Construct the hash of the target resource stream.
-                                                    hashes.generateMD5HashFromStream(targetReadStream).then(function (targetMd5) {
-                                                        // Get the source resource stream.
-                                                        sourceGetReadStream(context, sourceAsset, sourceOpts)
-                                                            .then(function (sourceReadStream) {
-                                                                // Construct the hash of the source resource stream.
-                                                                hashes.generateMD5HashFromStream(sourceReadStream).then(function (sourceMd5) {
+                                            if (different) {
+                                                const absPath = self._fsApi.getMetadataPath(context, sourceItem.path, sourceOpts);
+                                                const relativePath = path.relative(self._fsApi.getAssetsPath(context, sourceOpts), absPath);
+                                                handleDifferentItem(context, {path: relativePath}, compareDiffs, opts);
+                                                // Resolve the promise.
+                                                deferredCompare.resolve(true);
+                                            } else {
+                                                // Compare the binary resources.
+                                                // Construct the hash of the target resource stream.
+                                                targetGetMD5Hash(context, targetAsset, targetOpts)
+                                                    .then(function (targetMd5) {
+                                                        // Construct the hash of the source resource stream.
+                                                        sourceGetMD5Hash(context, sourceAsset, sourceOpts)
+                                                            .then(function (sourceMd5) {
+                                                                if (targetMd5 && sourceMd5) {
                                                                     if (targetMd5 !== sourceMd5) {
-                                                                        self._updateManifest(context, [sourceItem], opts);
-
-                                                                        // Increment the diff counter.
-                                                                        diffItems.diffCount++;
-                                                                        // Emit an event indicating the asset difference.
-                                                                        const emitter = self.getEventEmitter(context);
-                                                                        if (emitter) {
-                                                                            compareDiffs = {
-                                                                                changed: [
-                                                                                    { node: [""], value1: sourceMd5, value2: targetMd5 }
-                                                                                ]
-                                                                            };
-                                                                            emitter.emit("diff", {artifactName: self.getArtifactName(), item: sourceItem, diffs: compareDiffs});
-                                                                        }
+                                                                        compareDiffs = {
+                                                                            changed: [
+                                                                                {
+                                                                                    node: [""],
+                                                                                    value1: sourceMd5,
+                                                                                    value2: targetMd5
+                                                                                }
+                                                                            ]
+                                                                        };
+                                                                        handleDifferentItem(context, sourceItem, compareDiffs, opts);
+                                                                    } else {
+                                                                        handleEqualItem(context, sourceItem, opts);
                                                                     }
-                                                                    // Resolve the promise.
-                                                                    deferredCompare.resolve(true);
-                                                                })
-                                                                .catch(function (err) {
-                                                                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
-                                                                    deferredCompare.reject(err);
-                                                                });
+                                                                } else if (targetMd5) {
+                                                                    handleRemovedItem(context, targetAsset, opts);
+                                                                } else if (sourceMd5) {
+                                                                    handleAddedItem(context, sourceAsset, opts);
+                                                                } else {
+                                                                    handleMissingItem(context, sourceItem, opts);
+                                                                }
+                                                                // Resolve the promise.
+                                                                deferredCompare.resolve(true);
                                                             })
                                                             .catch(function (err) {
                                                                 utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                                                 deferredCompare.reject(err);
                                                             });
-                                                        })
-                                                        .catch(function (err) {
-                                                            utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
-                                                            deferredCompare.reject(err);
-                                                        });
-                                                })
-                                                .catch(function (err) {
-                                                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
-                                                    deferredCompare.reject(err);
-                                                });
+                                                    })
+                                                    .catch(function (err) {
+                                                        utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                                                        deferredCompare.reject(err);
+                                                    });
+                                            }
+                                        } else if (targetAsset) {
+                                            // The object exists in target but not source. It has been removed.
+                                            handleRemovedItem(context, targetAsset, opts);
+                                            deferredCompare.resolve(true);
+                                        } else if (sourceAsset) {
+                                            // The object exists in source but not target. It has been added.
+                                            handleAddedItem(context, sourceAsset, opts);
+                                            deferredCompare.resolve(true);
+                                        } else {
+                                            // Neither the target nor source asset exists. It is missing.
+                                            handleMissingItem(context, sourceItem, opts);
+                                            deferredCompare.resolve(true);
                                         }
                                     })
                                     .catch(function (err) {
@@ -2111,11 +2133,11 @@ class AssetsHelper extends BaseHelper {
                     if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
                         return diffItems;
                     } else {
-                        return targetResourceList.then(function (targetResources) {
+                        return targetResourceListFunction(context, targetOpts).then(function (targetResources) {
                             const targetResourceFiltered = targetResources.filter(function (resource) {
                                 return allTargetResourceIds.indexOf(resource.id) === -1;
                             });
-                            return sourceResourceList.then(function (sourceResources) {
+                            return sourceResourceListFunction(context, sourceOpts).then(function (sourceResources) {
                                 const sourceResourceFiltered = sourceResources.filter(function (resource) {
                                     return allSourceResourceIds.indexOf(resource.id) === -1;
                                 });
@@ -2131,91 +2153,47 @@ class AssetsHelper extends BaseHelper {
                                     // Check to see if the item exists in the source.
                                     if (sourceResourceIds.indexOf(targetResource.id) === -1) {
                                         // Item exists in target but not source.
-                                        self._updateResourceDeletionsManifest(context, [targetResource], opts);
-                                        // Increment both the total items counter and diff counter.
-                                        diffItems.totalCount++;
-                                        diffItems.diffCount++;
-                                        // Emit an event indicating the deleted item.
-                                        const emitter = self.getEventEmitter(context);
-                                        if (emitter) {
-                                            emitter.emit("removed", {artifactName: "resources", item: targetResource});
-                                        }
+                                        handleRemovedResource(context, targetResource, opts);
                                     }
                                 });
                                 sourceResourceFiltered.forEach(function (sourceResource) {
-                                    // Increment the total items counter.
-                                    diffItems.totalCount++;
-
                                     // Check to see if the item exists in the target.
                                     if (targetResourceIds.indexOf(sourceResource.id) === -1) {
                                         // Item exists in source but not target.
-                                        self._updateResourceManifest(context, [sourceResource], opts);
-                                        // Increment the diff counter.
-                                        diffItems.diffCount++;
-                                        // Emit an event indicating the new item.
-                                        const emitter = self.getEventEmitter(context);
-                                        if (emitter) {
-                                            emitter.emit("added", {artifactName: "resources", item: sourceResource});
-                                        }
+                                        handleAddedResource(context, sourceResource, opts);
                                     } else {
                                         const resourceDeferred = Q.defer();
                                         resourcePromises.push(resourceDeferred);
 
                                         // Compare the binary resources.
-                                        // Get the target resource stream.
+                                        // Construct the hash of the target resource stream.
                                         const resourcePath = hashes.getPathForResource(context, self._fsApi.getResourcesPath(context, targetOpts), sourceResource.id, targetOpts);
-                                        targetGetResourceReadStream(context, {
-                                            path: resourcePath,
-                                            resource: sourceResource.id
-                                        }, targetOpts)
-                                            .then(function (targetReadStream) {
-                                                // Construct the hash of the target resource stream.
-                                                hashes.generateMD5HashFromStream(targetReadStream).then(function (targetMd5) {
-                                                    // Get the source resource stream.
-                                                    sourceGetResourceReadStream(context, {
-                                                        path: sourceResource.path,
-                                                        resource: sourceResource.id
-                                                    }, sourceOpts)
-                                                        .then(function (sourceReadStream) {
-                                                            // Construct the hash of the source resource stream.
-                                                            hashes.generateMD5HashFromStream(sourceReadStream).then(function (sourceMd5) {
-                                                                if (targetMd5 !== sourceMd5) {
-                                                                    self._updateResourceManifest(context, [sourceResource], opts);
-
-                                                                    // Increment the diff counter.
-                                                                    diffItems.diffCount++;
-                                                                    // Emit an event indicating the resource difference.
-                                                                    const emitter = self.getEventEmitter(context);
-                                                                    if (emitter) {
-                                                                        const compareDiffs = {
-                                                                            changed: [
-                                                                                {
-                                                                                    node: [""],
-                                                                                    value1: sourceMd5,
-                                                                                    value2: targetMd5
-                                                                                }
-                                                                            ]
-                                                                        };
-                                                                        emitter.emit("diff", {
-                                                                            artifactName: "resources",
-                                                                            item: sourceResource,
-                                                                            diffs: compareDiffs
-                                                                        });
-                                                                    }
-                                                                }
-                                                                // Resolve the promise.
-                                                                resourceDeferred.resolve(true);
-                                                            })
-                                                                .catch(function (err) {
-                                                                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
-                                                                    resourceDeferred.reject(err);
-                                                                });
-                                                        })
-                                                        .catch(function (err) {
-                                                            utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
-                                                            resourceDeferred.reject(err);
-                                                        });
-                                                })
+                                        targetGetResourceMD5Hash(context, { path: resourcePath, resource: sourceResource.id }, targetOpts)
+                                            .then(function (targetMd5) {
+                                                // Construct the hash of the source resource stream.
+                                                sourceGetResourceMD5Hash(context, {path: sourceResource.path, resource: sourceResource.id }, sourceOpts)
+                                                    .then(function (sourceMd5) {
+                                                        if (targetMd5 && sourceMd5) {
+                                                            if (targetMd5 !== sourceMd5) {
+                                                                const compareDiffs = {
+                                                                    changed: [
+                                                                        { node: [""], value1: sourceMd5, value2: targetMd5 }
+                                                                    ]
+                                                                };
+                                                                handleDifferentResource(context, sourceResource, compareDiffs, opts);
+                                                            } else {
+                                                                handleEqualResource(context, sourceResource, opts);
+                                                            }
+                                                        } else if (targetMd5) {
+                                                            handleRemovedResource(context, sourceResource, opts);
+                                                        } else if (sourceMd5) {
+                                                            handleAddedResource(context, sourceResource, opts);
+                                                        } else {
+                                                            handleMissingResource(context, sourceResource, opts);
+                                                        }
+                                                        // Resolve the promise.
+                                                        resourceDeferred.resolve(true);
+                                                    })
                                                     .catch(function (err) {
                                                         utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
                                                         resourceDeferred.reject(err);
@@ -2317,46 +2295,8 @@ class AssetsHelper extends BaseHelper {
                 // Filter the assets before listing them.
                 assetList = helper._listFilter(context, assetList, opts);
 
-                return {length: chunkLength, assets: assetList};
+                return {length: chunkLength, items: assetList};
             });
-    }
-
-    /**
-     * Recursive function to list subsequent chunks of assets retrieved by the given function.
-     *
-     * @param {Object} context The API context to be used for this operation.
-     * @param {Function} listFn - A function that returns a promise for a chunk of remote assets to be listed.
-     * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* assets listed.
-     * @param {Array} results - The accumulated results.
-     * @param {Object} listInfo - The number of assets listed and an array of listed assets.
-     * @param {Object} opts - The options to be used for the list operations.
-     *
-     * @private
-     */
-    _recurseList (context, listFn, deferred, results, listInfo, opts) {
-        // Add the assets listed in the most recent chunk to the existing results.
-        results = results.concat(listInfo.assets);
-
-        const currentChunkSize = listInfo.length;
-        const maxChunkSize = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
-        if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
-            // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
-            // with the accumulated results.
-            deferred.resolve(results);
-        } else {
-            // The current chunk is a full chunk, so there may be more assets to retrieve.
-            const helper = this;
-
-            // Increase the offset so that the next chunk of assets will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", helper.getArtifactName());
-            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
-
-            // List the next chunk of assets from the content hub.
-            helper._listItemChunk(context, listFn, opts)
-                .then(function (listInfo) {
-                    helper._recurseList(context, listFn, deferred, results, listInfo, opts);
-                });
-        }
     }
 
     /**
@@ -2367,7 +2307,7 @@ class AssetsHelper extends BaseHelper {
     }
 
     searchRemote (context, searchOptions, opts, path, recursive) {
-        const deferred = Q.defer();
+        const helper = this;
 
         if (!path) {
             searchOptions["fl"] = ["name", "id", "path"];
@@ -2421,7 +2361,7 @@ class AssetsHelper extends BaseHelper {
         }
         searchOptions["fq"].push("path:" + searchPath);
 
-        // define a list function to work with the _listItemChunk/_recurseList methods for handling paging
+        // define a list function to work with the _listItemChunk/_recurse methods for handling paging
         const listFn = function(opts) {
             const listFnDeferred = Q.defer();
             searchREST.search(context, searchOptions, opts)
@@ -2438,30 +2378,18 @@ class AssetsHelper extends BaseHelper {
                 });
             return listFnDeferred.promise;
         };
+        const handleChunkFn = helper._listItemChunk.bind(helper);
 
         // get the offset/limit for the search service from the configured options
         const searchServiceName = searchREST.getServiceName();
-        const offset = options.getRelevantOption(context, opts, "offset", searchServiceName);
+        const offset = options.getRelevantOption(context, opts, "offset", searchServiceName) || 0;
         const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
 
         // set the search service's offset/limit values on a clone of the opts
         opts = utils.cloneOpts(opts, {offset: offset, limit: limit});
 
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
-        const helper = this;
-        helper._listItemChunk(context, listFn, opts)
-            .then(function (listInfo) {
-                // Pass an empty array for results to indicate that we retrieved the first chunk. The deferred will be
-                // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
-                // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
-            })
-            .catch(function (err) {
-                // If the list function's promise is rejected, propogate that to the deferred that was returned.
-                deferred.reject(err);
-            });
-
-        return deferred.promise.then(function (results) {
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts).then(function (results) {
             // strip off any trailing '*' from the user provided path; we'll examine the remaining path independently
             const searchPath = path.endsWith('*') ? path.substring(0, path.length - 1) : path;
             // construct a regular expression replacing '*' with an expression to match any character except a path separator ('/')
@@ -2514,28 +2442,13 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} - A promise for an array of the names of all remote assets.
      */
     _listRemoteItemNames (context, opts) {
-        // Create the deferred to be used for recursively retrieving assets.
-        const deferred = Q.defer();
-
         // Recursively call AssetsREST.getItems() to retrieve all of the remote assets.
-        const listFn = this._restApi.getItems.bind(this._restApi, context);
+        const helper = this;
+        const listFn = helper._restApi.getItems.bind(helper._restApi, context);
+        const handleChunkFn = helper._listItemChunk.bind(helper);
 
         // Get the first chunk of remote assets, and then recursively retrieve any additional chunks.
-        const helper = this;
-        helper._listItemChunk(context, listFn, opts)
-            .then(function (listInfo) {
-                // Pass an empty array for results to indicate that we retrieved the first chunk. The deferred will be
-                // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
-                // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
-            })
-            .catch(function (err) {
-                // If the list function's promise is rejected, propogate that to the deferred that was returned.
-                deferred.reject(err);
-            });
-
-        // Return the deferred promise chain.
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (assets) {
                 // Turn the retrieved list of assets (metadata) into a list of asset path values.
                 return assets.map(function (asset) {
@@ -2583,71 +2496,18 @@ class AssetsHelper extends BaseHelper {
             .then(function (resourceList) {
                 const chunkLength = resourceList.length;
 
-                return {length: chunkLength, resources: resourceList};
+                return {length: chunkLength, items: resourceList};
             });
-    }
-
-    /**
-     * Recursive function to list subsequent chunks of resources retrieved by the given function.
-     *
-     * @param {Object} context The API context to be used for this operation.
-     * @param {Function} listFn - A function that returns a promise for a chunk of remote resources to be listed.
-     * @param {Q.Deferred} deferred - A deferred that will be resolved with *all* resources listed.
-     * @param {Array} results - The accumulated results.
-     * @param {Object} listInfo - The number of resources listed and an array of listed resources.
-     * @param {Object} opts - The options to be used for the list operations.
-     *
-     * @private
-     */
-    _recurseResourceList (context, listFn, deferred, results, listInfo, opts) {
-        // Add the resources listed in the most recent chunk to the existing results.
-        results = results.concat(listInfo.resources);
-
-        const currentChunkSize = listInfo.length;
-        const maxChunkSize = options.getRelevantOption(context, opts, "limit", "resources");
-        if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
-            // The current chunk is a partial chunk, so there are no more assets to be retrieved. Resolve the promise
-            // with the accumulated results.
-            deferred.resolve(results);
-        } else {
-            // The current chunk is a full chunk, so there may be more resources to retrieve.
-            const helper = this;
-
-            // Increase the offset so that the next chunk of resources will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", "resources");
-            opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
-
-            // List the next chunk of resources from the content hub.
-            helper._listResourceChunk(context, listFn, opts)
-                .then(function (listInfo) {
-                    helper._recurseResourceList(context, listFn, deferred, results, listInfo, opts);
-                });
-        }
     }
 
     _listRemoteResources (context, opts) {
-        // Create the deferred to be used for recursively retrieving resources.
-        const deferred = Q.defer();
-
         // Recursively call AssetsREST.getResourceList() to retrieve all of the remote resources.
-        const listFn = this._restApi.getResourceList.bind(this._restApi, context);
+        const helper = this;
+        const listFn = helper._restApi.getResourceList.bind(helper._restApi, context);
+        const handleChunkFn = helper._listResourceChunk.bind(helper);
 
         // Get the first chunk of remote resources, and then recursively retrieve any additional chunks.
-        const helper = this;
-        helper._listResourceChunk(context, listFn, opts)
-            .then(function (listInfo) {
-                // Pass an empty array for results to indicate that we retrieved the first chunk. The deferred will be
-                // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
-                // deferred, so we have to handle that explicitly.
-                helper._recurseResourceList(context, listFn, deferred, [], listInfo, opts);
-            })
-            .catch(function (err) {
-                // If the list function's promise is rejected, propagate that to the deferred that was returned.
-                deferred.reject(err);
-            });
-
-        // Return the deferred promise chain.
-        return deferred.promise;
+        return helper.recursiveGetResources(context, listFn, handleChunkFn, opts);
     }
 
     /**
@@ -2693,23 +2553,12 @@ class AssetsHelper extends BaseHelper {
      *                        pushed/pulled.
      */
     _listModifiedRemoteItemNames (context, flags, opts) {
-        const deferred = Q.defer();
-
         // Use getModifiedRemoteItems() as the list function, so that only modified assets will be pulled.
         const helper = this;
-        const listFn = helper.getModifiedRemoteItems.bind(this, context, flags);
-        helper._listItemChunk(context, listFn, opts)
-            .then(function (listInfo) {
-                // There are no results initially, so just pass an empty array for the results. The accumulated array of
-                // asset metadata for all listed items will be available when "deferred" has been resolved.
-                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
-            })
-            .catch(function (err) {
-                // There was an error listing the assets.
-                deferred.reject(err);
-            });
+        const listFn = helper.getModifiedRemoteItems.bind(helper, context, flags);
+        const handleChunkFn = helper._listItemChunk.bind(helper);
 
-        return deferred.promise
+        return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
                 // The list results contain the path of each modified asset.
                 const results = items.map(function (item) {
@@ -3201,7 +3050,7 @@ class AssetsHelper extends BaseHelper {
                 const helper = this;
 
                 // Increase the offset so that the next chunk of assets will be retrieved.
-                const offset = options.getRelevantOption(context, opts, "offset", this.getArtifactName());
+                const offset = options.getRelevantOption(context, opts, "offset", this.getArtifactName()) || 0;
                 opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
                 // Retrieve the next chunk of assets from the REST service.
@@ -3375,6 +3224,53 @@ class AssetsHelper extends BaseHelper {
                 // A ready-and-draft pull operation will use the oldest timestamp to make sure all modified items are pulled.
                 return utils.getOldestTimestamp([webAssetTimestamps["draft"], webAssetTimestamps["ready"], contentAssetTimestamps["draft"], contentAssetTimestamps["ready"]]);
             }
+        }
+    }
+
+    recursiveGetResources (context, listFn, handleChunkFn, opts) {
+        const deferred = Q.defer();
+        const helper = this;
+        // Make a copy of opts so it can be used to pass back paging metadata.
+        opts = utils.cloneOpts(opts);
+        // Obtain the first chunk of items.
+        handleChunkFn(context, listFn, opts)
+            .then(function (listInfo) {
+                // There are no results initially, so just pass an empty array. The accumulated array of
+                // all pulled items will be available when "deferred" has been resolved.
+                helper._recurseResources(context, listFn, handleChunkFn, deferred, [], listInfo, opts);
+            })
+            .catch(function (err) {
+                // There was a fatal issue, beyond a failure to pull one or more items.
+                deferred.reject(err);
+            });
+        return deferred.promise;
+    }
+
+    _recurseResources (context, listFn, handleChunkFn, deferred, allItems, listInfo, opts) {
+        const helper = this;
+
+        // Append the results from the previous chunk to the allItems array.
+        allItems.push.apply(allItems, listInfo.items);
+
+        const chunkSize = listInfo.length;
+        const limit = options.getRelevantOption(context, opts, "limit", "resources");
+        //test to see if we got less than the full chunk size
+        if ((this._restApi.useNextLinks(context, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
+            //resolve the deferred with the allItems array
+            deferred.resolve(allItems);
+        } else {
+            //get the next chunk
+            const offset = options.getRelevantOption(context, opts, "offset", "resources") || 0;
+            opts = utils.cloneOpts(opts, {offset: offset + limit});
+            handleChunkFn(context, listFn, opts)
+                .then(function (listInfo) {
+                    helper._recurseResources(context, listFn, handleChunkFn, deferred, allItems, listInfo, opts);
+                })
+                .catch(function (err) {
+                    // FUTURE This should probably behave the same way as an error when pulling an item (add reason, emit error,
+                    // FUTURE increment error count.) That way the promise is still resolved with the successfully pulled items.
+                    deferred.reject(err);
+                });
         }
     }
 }

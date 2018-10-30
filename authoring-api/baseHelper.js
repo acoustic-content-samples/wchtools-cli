@@ -351,6 +351,7 @@ class BaseHelper {
 
         // Delete a "chunk" of remote items and then recursively delete any remaining chunks.
         const listFn = self.getRemoteItems.bind(self, context);
+        opts = utils.cloneOpts(opts);
         self._deleteItemsChunk(context, listFn, opts)
             .then(function (deleteInfo) {
                 // Need to adjust the offset because getRemoteItems() is affected by deleting items.
@@ -387,7 +388,7 @@ class BaseHelper {
                             const limit = options.getRelevantOption(context, opts, "limit", self.getArtifactName());
                             const getRetryChunk = function (context, opts) {
                                 const deferredChunk = Q.defer();
-                                const offset = options.getRelevantOption(context, opts, "offset", self.getArtifactName());
+                                const offset = options.getRelevantOption(context, opts, "offset", self.getArtifactName()) || 0;
 
                                 if (offset >= itemsToDelete.length) {
                                     // Past the end of the array.
@@ -709,7 +710,7 @@ class BaseHelper {
                 return utils.throttledAll(context, functions, concurrentLimit)
                     .then(function () {
                         // Resolve with the number of items in the chunk and an array of deleted items.
-                        deferred.resolve({chunkSize: chunkSize, items: deletedItems});
+                        deferred.resolve({length: chunkSize, items: deletedItems});
                     });
             })
             .catch(function (err) {
@@ -740,7 +741,7 @@ class BaseHelper {
         results = results.concat(deleteInfo.items);
 
         // Determine whether this is the last chunk to be deleted.
-        const currentChunkSize = deleteInfo.chunkSize;
+        const currentChunkSize = deleteInfo.length;
         const maxChunkSize = options.getRelevantOption(context, opts, "limit", this.getArtifactName());
         if (currentChunkSize === 0 || currentChunkSize < maxChunkSize) {
             this.getLogger(context).debug("Partial delete chunk - Received " + currentChunkSize + ", maximum chunk size is " + maxChunkSize + ".");
@@ -754,7 +755,7 @@ class BaseHelper {
             const self = this;
 
             // Increase the offset so that the next chunk of items will be retrieved.
-            const offset = options.getRelevantOption(context, opts, "offset", self.getArtifactName());
+            const offset = options.getRelevantOption(context, opts, "offset", self.getArtifactName()) || 0;
             opts = utils.cloneOpts(opts, {offset: offset + maxChunkSize});
 
             // Adjust the offset by the number of items deleted, if necessary.
@@ -1055,8 +1056,6 @@ class BaseHelper {
      * Execute a remote authoring search with the specified search options.
      */
     searchRemote (context, searchOptions, opts) {
-        const deferred = Q.defer();
-
         if (!searchOptions) {
             searchOptions = {};
         }
@@ -1095,7 +1094,7 @@ class BaseHelper {
             searchOptions["fq"].push(ccl);
         }
 
-        // define a list function to work with the _listAssetChunk/_recurseList methods for handling paging
+        // define a list function to work with the _listAssetChunk/_recurse methods for handling paging
         const listFn = function(opts) {
             const listFnDeferred = Q.defer();
             searchREST.search(context, searchOptions, opts)
@@ -1112,30 +1111,157 @@ class BaseHelper {
                 });
             return listFnDeferred.promise;
         };
+        const handleChunkFn = this._listItemChunk.bind(this);
 
         // get the offset/limit for the search service from the configured options
         const searchServiceName = searchREST.getServiceName();
-        const offset = options.getRelevantOption(context, opts, "offset", searchServiceName);
+        const offset = options.getRelevantOption(context, opts, "offset", searchServiceName) || 0;
         const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
 
         // set the search service's offset/limit values on a clone of the opts
         opts = utils.cloneOpts(opts, {offset: offset, limit: limit});
 
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
+        return this.recursiveGetItems(context, listFn, handleChunkFn, opts);
+    }
+
+    recursiveGetItems (context, listFn, handleChunkFn, opts) {
+        const deferred = Q.defer();
         const helper = this;
-        helper._listItemChunk(context, listFn, opts)
+        // Make a copy of opts so it can be used to pass back paging metadata.
+        opts = utils.cloneOpts(opts);
+        // Obtain the first chunk of items.
+        handleChunkFn(context, listFn, opts)
             .then(function (listInfo) {
-                // Pass a value of null for results to indicate that we retrieved the first chunk. The deferred will be
-                // resolved when all chunks have been retrieved. However, the retrieval process will never reject the
-                // deferred, so we have to handle that explicitly.
-                helper._recurseList(context, listFn, deferred, [], listInfo, opts);
+                // There are no results initially, so just pass an empty array. The accumulated array of
+                // all pulled items will be available when "deferred" has been resolved.
+                helper._recurse(context, listFn, handleChunkFn, deferred, [], listInfo, opts);
             })
             .catch(function (err) {
-                // If the list function's promise is rejected, propogate that to the deferred that was returned.
+                // There was a fatal issue, beyond a failure to pull one or more items.
                 deferred.reject(err);
             });
-
         return deferred.promise;
+    }
+
+    _recurse (context, listFn, handleChunkFn, deferred, allItems, listInfo, opts) {
+        const helper = this;
+
+        // Append the results from the previous chunk to the allItems array.
+        allItems.push.apply(allItems, listInfo.items);
+
+        const chunkSize = listInfo.length;
+        const limit = options.getRelevantOption(context, opts, "limit", helper.getArtifactName());
+        //test to see if we got less than the full chunk size
+        if ((this._restApi.useNextLinks(context, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
+            //resolve the deferred with the allItems array
+            deferred.resolve(allItems);
+        } else {
+            //get the next chunk
+            const offset = options.getRelevantOption(context, opts, "offset", helper.getArtifactName()) || 0;
+            opts = utils.cloneOpts(opts, {offset: offset + limit});
+            handleChunkFn(context, listFn, opts)
+                .then(function (listInfo) {
+                    helper._recurse(context, listFn, handleChunkFn, deferred, allItems, listInfo, opts);
+                })
+                .catch(function (err) {
+                    // FUTURE This should probably behave the same way as an error when pulling an item (add reason, emit error,
+                    // FUTURE increment error count.) That way the promise is still resolved with the successfully pulled items.
+                    deferred.reject(err);
+                });
+        }
+    }
+
+    /**
+     * Wraps a call to a remote list function to avoid logging errors.
+     *
+     * @param listFn the remote list function to call
+     * @param context the context for the operation
+     * @param opts the options for the operation
+     * @return {Q.Promise} the results of the list function or an empty []
+     * @private
+     */
+    _wrapRemoteListFunction (listFn, context, opts) {
+        return listFn(context, utils.cloneOpts(opts, {"noErrorLog": true}))
+            .catch(function (err) {
+                if (err.statusCode === 404) {
+                    // The remote items do not exist, so return an empty list. This can happen when a site
+                    // does not exist on the server, and the pages for that site is being compared.
+                    return Q([]);
+                } else {
+                    // There was an unexpected error, so log the error and rethrow it.
+                    utils.logErrors(context, i18n.__("compare_error_loading_items"), err);
+                    throw err;
+                }
+            });
+    }
+
+    /**
+     * Wraps a call to a local list function to avoid logging errors.
+     *
+     * @param listFn the local list function to call
+     * @param context the context for the operation
+     * @param opts the options for the operation
+     * @return {Q.Promise} the results of the list function or an empty []
+     * @private
+     */
+    _wrapLocalListFunction (listFn, context, opts) {
+        return listFn(context, utils.cloneOpts(opts, {"noErrorLog": true}))
+            .catch(function () {
+                // The local items do not exist, so return an empty list. It's not clear how this could
+                // happen, but it should not result in an error if it does.
+                return Q([]);
+            });
+    }
+
+    /**
+     * Wraps a call to a remote get item function to avoid logging errors.
+     *
+     * @param getItemFn the remote get item function to call
+     * @param context the context for the operation
+     * @param item the item to get
+     * @param opts the options for the operation
+     * @return {Q.Promise} the results of the get item function or a Promise resolved with undefined
+     * @private
+     */
+    _wrapRemoteItemFunction (getItemFn, context, item, opts) {
+        return getItemFn(context, item, utils.cloneOpts(opts, {"noErrorLog": true}))
+            .catch(function (err) {
+                if (err.statusCode === 404) {
+                    // The remote item does not exist, so return undefined. This can happen when the specified
+                    // manifest contains an item that does not exist on the server.
+                    return Q();
+                } else {
+                    // There was an unexpected error, so log the error and rethrow it.
+                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                    throw err;
+                }
+            });
+    }
+
+    /**
+     * Wraps a call to a local get item function to avoid logging errors.
+     *
+     * @param getItemFn the local get item function to call
+     * @param context the context for the operation
+     * @param item the item to get
+     * @param opts the options for the operation
+     * @return {Q.Promise} the results of the get item function or a Promise resolved with undefined
+     * @private
+     */
+    _wrapLocalItemFunction (getItemFn, context, item, opts) {
+        return getItemFn(context, item, utils.cloneOpts(opts, {"noErrorLog": true}))
+            .catch(function (err) {
+                if (err.code === "ENOENT") {
+                    // The local item does not exist, so return undefined. This can happen when the specified
+                    // manifest contains an item that does not exist on the local file system.
+                    return Q();
+                } else {
+                    // There was an unexpected error, so log the error and rethrow it.
+                    utils.logErrors(context, i18n.__("compare_error_loading_item"), err);
+                    throw err;
+                }
+            });
     }
 }
 

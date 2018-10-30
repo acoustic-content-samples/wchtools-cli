@@ -30,6 +30,9 @@ class JSONItemREST extends BaseREST {
     createItem (context, item, opts) {
         const restObject = this;
         const deferred = Q.defer();
+        if (restObject.supportsTags() && options.getRelevantOption(context, opts, "setTag")) {
+            restObject.setTag (context, item, opts);
+        }
         this.getUpdateRequestOptions(context, opts)
             .then(function (requestOptions) {
                 const saveRev = item.rev;
@@ -80,9 +83,12 @@ class JSONItemREST extends BaseREST {
     updateItem (context, item, opts) {
         const deferred = Q.defer();
         const restObject = this;
+        if (restObject.supportsTags() && options.getRelevantOption(context, opts, "setTag")) {
+            restObject.setTag (context, item, opts);
+        }
         this.getUpdateRequestOptions(context, opts)
             .then(function (requestOptions) {
-                requestOptions.uri = requestOptions.uri + "/" + item.id;
+                requestOptions.uri = restObject._appendURI(requestOptions.uri, item.id);
                 if (restObject.supportsForceOverride() && options.getRelevantOption(context, opts, "force-override")) {
                     requestOptions.uri += "?forceOverride=true";
                 }
@@ -140,6 +146,25 @@ class JSONItemREST extends BaseREST {
                 deferred.reject(err);
             });
         return deferred.promise;
+    }
+
+    /*
+     * Does this artifact type support tags (eg, to allow setting a tag on a push)
+     */
+    supportsTags() {
+        return false;
+    }
+
+    /*
+     * Set the specified tag in this item, if not already in the list of tags for the specified item.
+     */
+    setTag(context, item, opts) {
+        const tag = options.getRelevantOption(context, opts, "setTag");
+        if (!item.tags) {
+            item.tags = [tag];
+        } else if (!item.tags.includes(tag) && !item.tags.includes("user:"+tag)) {
+            item.tags.push(tag);
+        }
     }
 }
 

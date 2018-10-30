@@ -137,7 +137,7 @@ describe("manifests", function () {
             const errorStub = sinon.stub(context.logger, "error");
 
             let error;
-            manifests.initializeManifests(context, "foo", null, null, opts)
+            manifests.initializeManifests(context, "/foo", null, null, opts)
                 .then(function (result) {
                     // This is not expected. Pass the error to the "done" function to indicate a failed test.
                     error = new Error("The promise for initializing the manifest should have been rejected.");
@@ -145,7 +145,7 @@ describe("manifests", function () {
                 .catch(function (err) {
                     const filename = options.getRelevantOption(context, opts, "readManifestFile");
 
-                    expect(filename).to.equal("foo");
+                    expect(filename).to.equal("/foo");
                     expect(existsStub.args[0][0].endsWith("foo.json")).to.equal(true);
                     expect(errorStub.args[0][0]).to.contain("Manifest file");
                     expect(errorStub.args[0][0]).to.contain("foo");
@@ -939,6 +939,49 @@ describe("manifests", function () {
                     manifest = options.getRelevantOption(context, opts, "writeManifest");
                     expect(manifest["sites"]["default"]["pages"]["id1"].path).to.equal("path1");
                     expect(manifest["sites"]["default"]["pages"]["id3"].path).to.equal("path3");
+                })
+                .catch(function (err) {
+                    error = err;
+                })
+                .finally(function () {
+                    existsStub.restore();
+                    readStub.restore();
+
+                    done(error);
+                });
+        });
+
+        it("should append the specified page item if the site doesn't exist in the sites section", function (done) {
+            // Create an fs.existsSync stub to return true.
+            const existsStub = sinon.stub(fs, "existsSync");
+            existsStub.returns(true);
+
+            // Create an fs.readFileSync stub to return the manifest contents.
+            const readStub = sinon.stub(fs, "readFileSync");
+            readStub.returns(SITES_MANIFEST_CONTENTS);
+
+            // Specify a non-default site id.
+            opts.siteItem = {id: "non-default"};
+
+            let error;
+            manifests.initializeManifests(context, null, "foo", null, opts)
+                .then(function (result) {
+                    let manifest = options.getRelevantOption(context, opts, "writeManifest");
+
+                    expect(manifest["sites"]["default"].id).to.equal("default");
+                    expect(manifest["sites"]["default"].name).to.equal("default");
+                    expect(manifest["sites"]["default"].status).to.equal("ready");
+                    expect(manifest["sites"]["default"].contextRoot).to.equal("/");
+                    expect(manifest["sites"]["non-default"]).to.not.exist;
+
+                    manifests.updateManifestSection(context, "pages", [{
+                        "id": "id3",
+                        "name": "name3",
+                        "hierarchicalPath": "path3"
+                    }], opts);
+
+                    manifest = options.getRelevantOption(context, opts, "writeManifest");
+                    expect(manifest["sites"]["non-default"]["pages"]["id3"].path).to.equal("path3");
                 })
                 .catch(function (err) {
                     error = err;

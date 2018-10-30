@@ -51,37 +51,45 @@ class SitesHelperUnitTest extends BaseHelperUnitTest {
         const self = this;
         describe("_pushNameList", function () {
             it("should sort the local items, ready items followed by draft items.", function (done) {
-                const names = ["draft4", "ready4", "draft3", "ready3", "draft2" ,"draft1", "ready2", "ready1",];
-                const metadataDraft1 = {id: "draft1", name: "draft1", status: "draft"};
-                const metadataDraft2 = {id: "draft2", name: "draft2", status: "draft"};
-                const metadataDraft3 = {id: "draft3", name: "draft3", status: "draft"};
-                const metadataDraft4 = {id: "draft4", name: "draft4", status: "draft"};
-                const metadataReady1 = {id: "ready1", name: "ready1", status: "ready"};
-                const metadataReady2 = {id: "ready2", name: "ready2", status: "ready"};
-                const metadataReady3 = {id: "ready3", name: "ready3", status: "ready"};
-                const metadataReady4 = {id: "ready4", name: "ready4", status: "ready"};
+                const metadataDraft1 = {id: "site1:draft", name: "draft1", status: "draft", contextRoot: "foo"};
+                const nameDraft1 = "foo_wchdraft";
+                const metadataDraft2 = {id: "site2:draft", name: "draft2", status: "draft", contextRoot: "bar"};
+                const nameDraft2 = "bar_wchdraft";
+                const metadataDraft3 = {id: "site3:draft", name: "draft3", status: "draft", contextRoot: "draft3"};
+                const nameDraft3 = "draft3_wchdraft";
+                const metadataDraft4 = {id: "site4:draft", name: "draft4", status: "draft"};
+                const nameDraft4 = "site4_sep_draft_wchdraft";
+                const metadataReady1 = {id: "site1", name: "ready1", status: "ready", contextRoot: "foo"};
+                const nameReady1 = "foo";
+                const metadataReady2 = {id: "site2", name: "ready2", status: "ready", contextRoot: "bar"};
+                const nameReady2 = "bar";
+                const metadataReady3 = {id: "site3", name: "ready3", status: "ready", contextRoot: "ready3"};
+                const nameReady3 = "ready3";
+                const metadataReady4 = {id: "site4", name: "ready4", status: "ready"};
+                const nameReady4 = "site4";
+                const names = [nameDraft4, nameReady4, nameDraft3, nameReady3, nameDraft2, nameDraft1, nameReady2, nameReady1];
 
                 // Create a helper.listNames stub that returns a list of items.
                 const stubGet = sinon.stub(helper, "getLocalItem");
-                stubGet.withArgs(sinon.match.any, "draft1").resolves(metadataDraft1);
-                stubGet.withArgs(sinon.match.any, "draft2").resolves(metadataDraft2);
-                stubGet.withArgs(sinon.match.any, "draft3").resolves(metadataDraft3);
-                stubGet.withArgs(sinon.match.any, "draft4").resolves(metadataDraft4);
-                stubGet.withArgs(sinon.match.any, "ready1").resolves(metadataReady1);
-                stubGet.withArgs(sinon.match.any, "ready2").resolves(metadataReady2);
-                stubGet.withArgs(sinon.match.any, "ready3").resolves(metadataReady3);
-                stubGet.withArgs(sinon.match.any, "ready4").resolves(metadataReady4);
+                stubGet.withArgs(sinon.match.any, nameDraft1).resolves(metadataDraft1);
+                stubGet.withArgs(sinon.match.any, nameDraft2).resolves(metadataDraft2);
+                stubGet.withArgs(sinon.match.any, nameDraft3).resolves(metadataDraft3);
+                stubGet.withArgs(sinon.match.any, nameDraft4).resolves(metadataDraft4);
+                stubGet.withArgs(sinon.match.any, nameReady1).resolves(metadataReady1);
+                stubGet.withArgs(sinon.match.any, nameReady2).resolves(metadataReady2);
+                stubGet.withArgs(sinon.match.any, nameReady3).resolves(metadataReady3);
+                stubGet.withArgs(sinon.match.any, nameReady4).resolves(metadataReady4);
 
                 // Create a helper.pushItem stub that return an item.
                 const stubPush = sinon.stub(helper, "pushItem");
-                stubPush.withArgs(sinon.match.any, "draft1").resolves(metadataDraft1);
-                stubPush.withArgs(sinon.match.any, "draft2").resolves(metadataDraft2);
-                stubPush.withArgs(sinon.match.any, "draft3").resolves(metadataDraft3);
-                stubPush.withArgs(sinon.match.any, "draft4").resolves(metadataDraft4);
-                stubPush.withArgs(sinon.match.any, "ready1").resolves(metadataReady1);
-                stubPush.withArgs(sinon.match.any, "ready2").resolves(metadataReady2);
-                stubPush.withArgs(sinon.match.any, "ready3").resolves(metadataReady3);
-                stubPush.withArgs(sinon.match.any, "ready4").resolves(metadataReady4);
+                stubPush.withArgs(sinon.match.any, nameDraft1).resolves(metadataDraft1);
+                stubPush.withArgs(sinon.match.any, nameDraft2).resolves(metadataDraft2);
+                stubPush.withArgs(sinon.match.any, nameDraft3).resolves(metadataDraft3);
+                stubPush.withArgs(sinon.match.any, nameDraft4).resolves(metadataDraft4);
+                stubPush.withArgs(sinon.match.any, nameReady1).resolves(metadataReady1);
+                stubPush.withArgs(sinon.match.any, nameReady2).resolves(metadataReady2);
+                stubPush.withArgs(sinon.match.any, nameReady3).resolves(metadataReady3);
+                stubPush.withArgs(sinon.match.any, nameReady4).resolves(metadataReady4);
 
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stubGet);
@@ -96,14 +104,101 @@ class SitesHelperUnitTest extends BaseHelperUnitTest {
                         expect(stubPush).to.have.callCount(8);
 
                         // Verify that pushItem method was called with items in the expected order.
-                        expect(stubPush.args[0][1]).to.equal("ready1");
-                        expect(stubPush.args[1][1]).to.equal("ready2");
-                        expect(stubPush.args[2][1]).to.equal("ready3");
-                        expect(stubPush.args[3][1]).to.equal("ready4");
-                        expect(stubPush.args[4][1]).to.equal("draft1");
-                        expect(stubPush.args[5][1]).to.equal("draft2");
-                        expect(stubPush.args[6][1]).to.equal("draft3");
-                        expect(stubPush.args[7][1]).to.equal("draft4");
+                        expect(stubPush.args[0][1]).to.equal(nameReady1);
+                        expect(stubPush.args[1][1]).to.equal(nameReady2);
+                        expect(stubPush.args[2][1]).to.equal(nameReady3);
+                        expect(stubPush.args[3][1]).to.equal(nameReady4);
+                        expect(stubPush.args[4][1]).to.equal(nameDraft1);
+                        expect(stubPush.args[5][1]).to.equal(nameDraft2);
+                        expect(stubPush.args[6][1]).to.equal(nameDraft3);
+                        expect(stubPush.args[7][1]).to.equal(nameDraft4);
+
+                        // Verify that the expected values were returned.
+                        expect(items).to.have.lengthOf(8);
+                        expect(diff.diffJson(items[0], metadataReady1)).to.have.lengthOf(1);
+                        expect(diff.diffJson(items[1], metadataReady2)).to.have.lengthOf(1);
+                        expect(diff.diffJson(items[2], metadataReady3)).to.have.lengthOf(1);
+                        expect(diff.diffJson(items[3], metadataReady4)).to.have.lengthOf(1);
+                        expect(diff.diffJson(items[4], metadataDraft1)).to.have.lengthOf(1);
+                        expect(diff.diffJson(items[5], metadataDraft2)).to.have.lengthOf(1);
+                        expect(diff.diffJson(items[6], metadataDraft3)).to.have.lengthOf(1);
+                        expect(diff.diffJson(items[7], metadataDraft4)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+
+        describe("_pushNameList", function () {
+            it("should sort the local items, ready items followed by draft items.", function (done) {
+                const metadataDraft1 = {id: "site1:draft", name: "draft1", status: "draft", contextRoot: "foo"};
+                const nameDraft1 = "foo_wchdraft";
+                const metadataDraft2 = {id: "site2:draft", name: "draft2", status: "draft", contextRoot: "bar"};
+                const nameDraft2 = "bar_wchdraft";
+                const metadataDraft3 = {id: "site3:draft", name: "draft3", status: "draft", contextRoot: "draft3"};
+                const nameDraft3 = "draft3_wchdraft";
+                const metadataDraft4 = {id: "site4:draft", name: "draft4", status: "draft"};
+                const nameDraft4 = "site4_sep_draft_wchdraft";
+                const metadataReady1 = {id: "site1", name: "ready1", status: "ready", contextRoot: "foo"};
+                const nameReady1 = "foo";
+                const metadataReady2 = {id: "site2", name: "ready2", status: "ready", contextRoot: "bar"};
+                const nameReady2 = "bar";
+                const metadataReady3 = {id: "site3", name: "ready3", status: "ready", contextRoot: "ready3"};
+                const nameReady3 = "ready3";
+                const metadataReady4 = {id: "site4", name: "ready4", status: "ready"};
+                const nameReady4 = "site4";
+                const names = [nameDraft4, nameReady4, nameDraft3, nameReady3, nameDraft2, nameDraft1, nameReady2, nameReady1];
+
+                // Create a helper.listNames stub that returns a list of items.
+                const stubGet = sinon.stub(helper, "getLocalItem");
+                stubGet.withArgs(sinon.match.any, nameDraft1).resolves(metadataDraft1);
+                stubGet.withArgs(sinon.match.any, nameDraft2).resolves(metadataDraft2);
+                stubGet.withArgs(sinon.match.any, nameDraft3).resolves(metadataDraft3);
+                stubGet.withArgs(sinon.match.any, nameDraft4).resolves(metadataDraft4);
+                stubGet.withArgs(sinon.match.any, nameReady1).resolves(metadataReady1);
+                stubGet.withArgs(sinon.match.any, nameReady2).resolves(metadataReady2);
+                stubGet.withArgs(sinon.match.any, nameReady3).resolves(metadataReady3);
+                stubGet.withArgs(sinon.match.any, nameReady4).resolves(metadataReady4);
+
+                // Create a helper.pushItem stub that return an item.
+                const stubPush = sinon.stub(helper, "pushItem");
+                stubPush.withArgs(sinon.match.any, nameDraft1).resolves(metadataDraft1);
+                stubPush.withArgs(sinon.match.any, nameDraft2).resolves(metadataDraft2);
+                stubPush.withArgs(sinon.match.any, nameDraft3).resolves(metadataDraft3);
+                stubPush.withArgs(sinon.match.any, nameDraft4).resolves(metadataDraft4);
+                stubPush.withArgs(sinon.match.any, nameReady1).resolves(metadataReady1);
+                stubPush.withArgs(sinon.match.any, nameReady2).resolves(metadataReady2);
+                stubPush.withArgs(sinon.match.any, nameReady3).resolves(metadataReady3);
+                stubPush.withArgs(sinon.match.any, nameReady4).resolves(metadataReady4);
+
+                // The stub and spy should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubPush);
+
+                // Call the method being tested.
+                let error;
+                helper._pushNameList(context, names, UnitTest.DUMMY_OPTIONS)
+                    .then(function (items) {
+                        // Verify that the stubs were called the expected number of times.
+                        expect(stubGet).to.have.callCount(8);
+                        expect(stubPush).to.have.callCount(8);
+
+                        // Verify that pushItem method was called with items in the expected order.
+                        expect(stubPush.args[0][1]).to.equal(nameReady1);
+                        expect(stubPush.args[1][1]).to.equal(nameReady2);
+                        expect(stubPush.args[2][1]).to.equal(nameReady3);
+                        expect(stubPush.args[3][1]).to.equal(nameReady4);
+                        expect(stubPush.args[4][1]).to.equal(nameDraft1);
+                        expect(stubPush.args[5][1]).to.equal(nameDraft2);
+                        expect(stubPush.args[6][1]).to.equal(nameDraft3);
+                        expect(stubPush.args[7][1]).to.equal(nameDraft4);
 
                         // Verify that the expected values were returned.
                         expect(items).to.have.lengthOf(8);

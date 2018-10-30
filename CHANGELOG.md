@@ -1,8 +1,17 @@
 # Changelog
 
+### 3.2 changes since 3.1
+
+  - Add full support for push, pull, list, delete, and compare of multiple site definitions and the associated pages. The site-context option can be used to specify a site for an operation.
+  - Add prompts when deleting a page, if drafts of that page will be cancelled, or if children of that page will also be deleted.
+  - Add --set-tag <tagname> to the push command, to optionally set a tag on assets, contents and types, when pushed
+  - Add a warning after successful push, if --publish-now not specified and a publishing schedule is set, that may delay the publishing of the ready artifacts that were just pushed.
+  - Update manifest support to handle placeholder sites
+  - Update paging support to use the next links provided in service responses
+
 ### 3.1 changes since 3.0
 
-  - Add latent support for push, pull, list, and compare of multiple sites. The artifact file name for a non-default site is based on the contextRoot property of the site. The artifact file name for a draft site is further qualifed by appending the site's project id, or "draft" if the site is not part of a project.
+  - Add latent support for push, pull, list, and compare of multiple sites. The artifact file name for a non-default site is based on the contextRoot property of the site. The artifact file name for a draft site is further qualifed by appending "_wchdraft" and the site's project id, if the site is part of a project.
   - Add support for push, pull, and list of pages by path. This is the same as the existing functionality for web assets, types, layouts, and layout mappings.
   - Add support for push, pull, list, and compare of orphaned resources.
   - Fix a bug with the creation of minimal asset metadata when run with the createOnly option.

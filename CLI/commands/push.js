@@ -103,6 +103,10 @@ class PushCommand extends BaseCommand {
                 return self.handlePathOption();
             })
             .then(function () {
+                // Handle the site-context option.
+                return self.handleSiteContextOption();
+            })
+            .then(function () {
                 // Handle the ready and draft options.
                 return self.handleReadyDraftOptions();
             })
@@ -125,24 +129,30 @@ class PushCommand extends BaseCommand {
             })
             .finally(function () {
                 // End the display of the pushed artifacts.
-                self.endDisplay(error);
+                self.checkWarnAboutSchedule(context, self.getApiOptions())
+                .then(warnAboutSchedule =>{
+                    self.endDisplay(error, warnAboutSchedule);
 
-                if (!error) {
-                    // Save the results to a manifest, if one was specified.
-                    try {
-                        // Save the manifests.
-                        self.saveManifests(context);
-                    } catch (err) {
-                        // Log the error that occurred while saving the manifest, but do not fail the push operation.
-                        self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                    if (!error) {
+                        // Save the results to a manifest, if one was specified.
+                        try {
+                            // Save the manifests.
+                            self.saveManifests(context);
+                        } catch (err) {
+                            // Log the error that occurred while saving the manifest, but do not fail the push operation.
+                            self.getLogger().error(i18n.__("cli_save_manifest_failure", {"err": err.message}));
+                        }
                     }
-                }
 
-                // Reset the list of sites used for this command.
-                self.resetSites(context);
+                    // Reset the list of sites used for this command.
+                    self.resetSites(context);
 
-                // Reset the command line options once the command has completed.
-                self.resetCommandLineOptions();
+                    // Reset the command line options once the command has completed.
+                    self.resetCommandLineOptions();
+                })
+                .catch(error => {
+                    self.getLogger().error(error);
+                });
             });
     };
 
@@ -167,12 +177,44 @@ class PushCommand extends BaseCommand {
         }
     }
 
+    /*
+     * On a push completion, if schedule(s) exist and --publish-now not specified,
+     * and ready items are being pushed (thus user may expect immediate publish)
+     * then warn the user in the completion message that what they pushed may be
+     * waiting on the next scheduled publish
+     *
+     * @return a promise that resolved to either the next publishing schedule if ready items are going to wait on it, or null
+     */
+    checkWarnAboutSchedule(context, opts) {
+        const deferred = Q.defer();
+        if (!options.getRelevantOption(context, opts, "publish-now") && !options.getRelevantOption(context, opts, "filterDraft")) {
+            ToolsApi.getPublishingNextSchedulesHelper().getNextSchedules(context, opts)
+                .then(items => {
+                    if (items && items.length && items.length>0) {
+                        const date = new Date(items[0].releaseDate);
+                        deferred.resolve(date.toString());
+                    } else {
+                        deferred.resolve(null);
+                    }
+                })
+                .catch(err => {
+                    this.warningMessage(i18n.__("cli_push_warn_schedule_lookup", {"message": err.message}));
+                    deferred.resolve(null);
+                });
+        } else {
+            deferred.resolve(null);
+        }
+
+        return deferred.promise;
+    }
+
     /**
      * End the display for the pushed artifacts.
      *
      * @param err An error to be displayed if the pull operation resulted in an error before it was started.
+     * @param warnAboutSchedule is set to the next publish date, if a publishing schedule exists and ready items were pushed without --publish-now
      */
-    endDisplay (err) {
+    endDisplay (err, warnAboutSchedule) {
         let message;
         const logger = this.getLogger();
         const manifest = this.getCommandLineOption("manifest");
@@ -241,6 +283,10 @@ class PushCommand extends BaseCommand {
             this.getLogger().info(message);
             this.successMessage(message);
         }
+
+        if (this._artifactsCount > 0 && warnAboutSchedule) {
+            this.warningMessage(i18n.__('cli_push_warn_schedule', {publishNow: "--publish-now", publishDateTime: warnAboutSchedule}));
+        }
     }
 
     /**
@@ -265,6 +311,10 @@ class PushCommand extends BaseCommand {
         }
         if (self.getCommandLineOption("publishNow")) {
             self.setApiOption("publish-now", true);
+        }
+        const setTagVal = self.getCommandLineOption("setTag");
+        if (setTagVal) {
+            self.setApiOption("setTag", setTagVal);
         }
 
         self.readyToPush()
@@ -428,6 +478,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const assetPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_asset_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -437,6 +492,11 @@ class PushCommand extends BaseCommand {
         };
         emitter.on("pushed-error", assetPushedError);
         const resourcePushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_resource_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -458,10 +518,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", assetPushed);
@@ -494,6 +557,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const imageProfilePushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_image_profile_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -515,10 +583,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", imageProfilePushed);
@@ -549,6 +620,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const layoutPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_layout_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -570,10 +646,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", layoutPushed);
@@ -604,6 +683,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const artifactPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_layout_mapping_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -625,10 +709,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", artifactPushed);
@@ -659,6 +746,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const renditionPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_rendition_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -680,10 +772,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", renditionPushed);
@@ -714,6 +809,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const categoryPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_cat_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -735,10 +835,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", categoryPushed);
@@ -769,6 +872,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const itemTypePushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_type_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -790,10 +898,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", itemTypePushed);
@@ -824,6 +935,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const contentPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_content_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -845,10 +961,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", contentPushed);
@@ -882,6 +1001,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const artifactPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_page_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -898,10 +1022,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, opts)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", artifactPushed);
@@ -927,15 +1054,28 @@ class PushCommand extends BaseCommand {
         const artifactPushed = function (item) {
             self._artifactsCount++;
             if (item.contextRoot) {
-                self.getLogger().info(i18n.__('cli_push_site_pushed', item));
+                if (item.status === "draft") {
+                    self.getLogger().info(i18n.__('cli_push_draft_site_pushed', item));
+                } else {
+                    self.getLogger().info(i18n.__('cli_push_site_pushed', item));
+                }
             } else {
-                self.getLogger().info(i18n.__('cli_push_site_pushed_2', item));
+                if (item.status === "draft") {
+                    self.getLogger().info(i18n.__('cli_push_draft_site_pushed_2', item));
+                } else {
+                    self.getLogger().info(i18n.__('cli_push_site_pushed_2', item));
+                }
             }
         };
         emitter.on("pushed", artifactPushed);
 
         // The api emits an event when there is a push error, so we log it for the user.
         const artifactPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             if (typeof info === "object") {
                 self.getLogger().error(i18n.__('cli_push_site_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
@@ -957,10 +1097,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", artifactPushed);
@@ -991,6 +1134,11 @@ class PushCommand extends BaseCommand {
 
         // The api emits an event when there is a push error, so we log it for the user.
         const siteRevisionPushedError = function (error, name) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_push_site_revision_push_error', {name: name, message: error.message}));
         };
@@ -1008,10 +1156,13 @@ class PushCommand extends BaseCommand {
         // Return the promise for the results of the push operation.
         return this.pushItems(context, helper, apiOptions)
             .catch(function (err) {
-                // If the promise is rejected, it means that an error was encountered before the pull process started,
-                // so we need to make sure this error is accounted for.
-                self._artifactsError++;
-                throw err;
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
             })
             .finally(function () {
                 emitter.removeListener("pushed", siteRevisionPushed);
@@ -1060,27 +1211,20 @@ class PushCommand extends BaseCommand {
                 return deferred.promise;
             }
 
-            // The ready and draft options can only be used with the named option for pages.
             if (this.getCommandLineOption("pages")) {
-                if (!this.getCommandLineOption("ready") && !this.getCommandLineOption("draft")) {
-                    // Push named page from the ready site if neither ready nor draft was specified.
-                    this.setCommandLineOption("ready", true);
+                // For backward compatibility, pushing a named page uses the "default" site if no site was specified.
+                if (!this.getCommandLineOption("siteContext")) {
+                    // The "site-context" option was not specified, so use "default".
+                    this.setCommandLineOption("siteContext", "default");
                 }
-/*
-                if (!this.getCommandLineOption("site")) {
-                    // TODO When multiple sites feature is available, set the "site" option to "default" if not specified.
-                }
-*/
-            } else {
-                if (this.getCommandLineOption("ready")) {
-                    deferred.reject(new Error(i18n.__('cli_push_name_and_ready')));
-                    return deferred.promise;
-                }
-
-                if (this.getCommandLineOption("draft")) {
-                    deferred.reject(new Error(i18n.__('cli_push_name_and_draft')));
-                    return deferred.promise;
-                }
+            } else if (this.getCommandLineOption("ready")) {
+                // The ready option is only valid with the named option for pages.
+                deferred.reject(new Error(i18n.__('cli_push_name_and_ready')));
+                return deferred.promise;
+            } else if (this.getCommandLineOption("draft")) {
+                // The draft option is only valid with the named option for pages.
+                deferred.reject(new Error(i18n.__('cli_push_name_and_draft')));
+                return deferred.promise;
             }
 
             if (this.getOptionArtifactCount() !== 1) {
@@ -1120,7 +1264,7 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("serverManifest", undefined);
         this.setCommandLineOption("writeManifest", undefined);
         this.setCommandLineOption("publishNow", undefined);
-
+        this.setCommandLineOption("setTag", undefined);
         super.resetCommandLineOptions();
     }
 }
@@ -1149,12 +1293,14 @@ function pushCommand (program) {
         .option('--create-only',         i18n.__('cli_push_opt_create_only'))
         .option('--ready',               i18n.__('cli_push_opt_ready'))
         .option('--draft', i18n.__('cli_push_opt_draft'))
+        .option('--site-context <contextRoot>', i18n.__('cli_push_opt_siteContext'))
         .option('--named <named>',       i18n.__('cli_push_opt_named'))
         .option('--path <path>',         i18n.__('cli_push_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_push_opt_use_manifest'))
         .option('--server-manifest <manifest>', i18n.__('cli_push_opt_use_server_manifest'))
         .option('--write-manifest <manifest>', i18n.__('cli_push_opt_write_manifest'))
         .option('--dir <dir>',           i18n.__('cli_push_opt_dir'))
+        .option('--set-tag <tag>',       i18n.__('cli_push_opt_set_tag'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))

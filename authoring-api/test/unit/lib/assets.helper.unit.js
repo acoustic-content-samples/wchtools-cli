@@ -1497,11 +1497,21 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata6 = UnitTest.getJsonObject(assetMetadataPath6);
 
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stubGet = sinon.stub(assetsREST, "getItems");
-                stubGet.onCall(0).resolves([assetMetadata1, assetMetadata2]);
-                stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
-                stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
-                stubGet.onCall(3).resolves([]);
+                const stubGet = sinon.stub(assetsREST, "getItems", function (context, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([assetMetadata1, assetMetadata2]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=4";
+                        return Q([assetMetadata3, assetMetadata4]);
+                    } else if (stubGet.callCount === 3) {
+                        opts.nextURI = "off=6";
+                        return Q([assetMetadata5, assetMetadata6]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // Create an assetsHelper.pullResources stub that returns an empty list.
                 const stubResources = sinon.stub(assetsHelper, "pullResources");
@@ -1654,11 +1664,21 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata6 = UnitTest.getJsonObject(assetMetadataPath6);
 
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stubGet = sinon.stub(assetsREST, "getItems");
-                stubGet.onCall(0).resolves([assetMetadata1, assetMetadata2]);
-                stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
-                stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
-                stubGet.onCall(3).resolves([]);
+                const stubGet = sinon.stub(assetsREST, "getItems", function (context, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([assetMetadata1, assetMetadata2]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=4";
+                        return Q([assetMetadata3, assetMetadata4]);
+                    } else if (stubGet.callCount === 3) {
+                        opts.nextURI = "off=6";
+                        return Q([assetMetadata5, assetMetadata6]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // Test the code path for Windows, which is more restrictive on valid filename chars
                 const stubIsWindows = sinon.stub(utils, "isWindows");
@@ -1814,11 +1834,21 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata6 = UnitTest.getJsonObject(assetMetadataPath6);
 
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stubGet = sinon.stub(assetsREST, "getItems");
-                stubGet.onCall(0).resolves([assetMetadata1, assetMetadata2]);
-                stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
-                stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
-                stubGet.onCall(3).resolves([]);
+                const stubGet = sinon.stub(assetsREST, "getItems", function (context, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([assetMetadata1, assetMetadata2]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=4";
+                        return Q([assetMetadata3, assetMetadata4]);
+                    } else if (stubGet.callCount === 3) {
+                        opts.nextURI = "off=6";
+                        return Q([assetMetadata5, assetMetadata6]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // Create an assetsHelper.pullResources stub that returns an empty list.
                 const stubResources = sinon.stub(assetsHelper, "pullResources");
@@ -2281,11 +2311,21 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata6 = UnitTest.getJsonObject(assetMetadataPath6);
 
                 // Create an assetsREST.getModifiedItems stub that returns a promise for the metadata of the assets.
-                const stubGet = sinon.stub(assetsREST, "getModifiedItems");
-                stubGet.onCall(0).resolves([assetMetadata1, assetMetadata2]);
-                stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
-                stubGet.onCall(2).resolves([assetMetadata5, assetMetadata6]);
-                stubGet.onCall(3).resolves([]);
+                const stubGet = sinon.stub(assetsREST, "getModifiedItems", function (context, timestamp, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([assetMetadata1, assetMetadata2]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=4";
+                        return Q([assetMetadata3, assetMetadata4]);
+                    } else if (stubGet.callCount === 3) {
+                        opts.nextURI = "off=6";
+                        return Q([assetMetadata5, assetMetadata6]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // Test the code path for Windows, which is more restrictive on valid filename chars
                 const stubIsWindows = sinon.stub(utils, "isWindows");
@@ -2449,10 +2489,21 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
 
                 // Create an assetsREST.getModifiedItems stub that returns a promise for asset metadata.
-                const stubGet = sinon.stub(assetsREST, "getModifiedItems");
-                stubGet.onCall(0).resolves([assetMetadata1, assetMetadata2]);
-                stubGet.onCall(1).resolves([assetMetadata3, assetMetadata4]);
-                stubGet.onCall(2).resolves([assetMetadata5]);
+                const stubGet = sinon.stub(assetsREST, "getModifiedItems", function (context, timestamp, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([assetMetadata1, assetMetadata2]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=4";
+                        return Q([assetMetadata3, assetMetadata4]);
+                    } else if (stubGet.callCount === 3) {
+                        opts.nextURI = "off=6";
+                        return Q([assetMetadata5]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getItemWriteStream");
@@ -3134,9 +3185,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
             it("should succeed when remote resources are retrieved in a full chunk.", function (done) {
                 // Create an assetsREST.getResourceList stub to return two resources in a full chunk, then an empty chunk.
-                const stubResource = sinon.stub(assetsREST, "getResourceList");
-                stubResource.onFirstCall().resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
-                stubResource.onSecondCall().resolves([]);
+                const stubResource = sinon.stub(assetsREST, "getResourceList", function (context, opts) {
+                    if (stubResource.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
@@ -3223,9 +3280,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
             it("should succeed when remote resources are retrieved in multiple chunks.", function (done) {
                 // Create an assetsREST.getResourceList stub to return three resources in two chunks.
-                const stubResource = sinon.stub(assetsREST, "getResourceList");
-                stubResource.onFirstCall().resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
-                stubResource.onSecondCall().resolves([{"id": "zzz", "path": "test2"}]);
+                const stubResource = sinon.stub(assetsREST, "getResourceList", function (context, opts) {
+                    if (stubResource.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([{"id": "zzz", "path": "test2"}]);
+                    }
+                });
 
                 // Change the hashes.getPathForResource stub to return an existing path for the second resource.
                 stubGetPathForResource.onSecondCall().returns("some-path");
@@ -6110,9 +6173,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
 
                 // Create an assetsREST.getItems stub that returns a promise for the remote asset names.
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.onCall(0).resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
-                stub.onCall(1).resolves([assetMetadata5]);
+                const stub = sinon.stub(assetsREST, "getItems", function (context, opts) {
+                    if (stub.callCount === 1) {
+                        opts.nextURI = "off=4";
+                        return Q([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([assetMetadata5]);
+                    }
+                });
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -6157,9 +6226,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
 
                 // Create an assetsREST.getItems stub that returns a promise for the remote asset names.
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.onCall(0).resolves([assetMetadata1, assetMetadata2, assetMetadata3]);
-                stub.onCall(1).resolves([assetMetadata4, assetMetadata5]);
+                const stub = sinon.stub(assetsREST, "getItems", function (context, opts) {
+                    if (stub.callCount === 1) {
+                        opts.nextURI = "off=3";
+                        return Q([assetMetadata1, assetMetadata2, assetMetadata3]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([assetMetadata4, assetMetadata5]);
+                    }
+                });
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -6203,9 +6278,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
 
                 // Create an assetsREST.getItems stub that returns a promise for the remote asset names.
-                const stub = sinon.stub(assetsREST, "getItems");
-                stub.onCall(0).resolves([assetMetadata1, assetMetadata2, assetMetadata3]);
-                stub.onCall(1).resolves([assetMetadata4, assetMetadata5]);
+                const stub = sinon.stub(assetsREST, "getItems", function (context, opts) {
+                    if (stub.callCount === 1) {
+                        opts.nextURI = "off=3";
+                        return Q([assetMetadata1, assetMetadata2, assetMetadata3]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([assetMetadata4, assetMetadata5]);
+                    }
+                });
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -6281,9 +6362,15 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
 
                 // Create an assetsREST.getItems stub that returns a promise for the remote asset names.
-                const stubRemote = sinon.stub(assetsREST, "getItems");
-                stubRemote.onCall(0).resolves([assetMetadata1, assetMetadata3]);
-                stubRemote.onCall(1).resolves([assetMetadata5]);
+                const stubRemote = sinon.stub(assetsREST, "getItems", function (context, opts) {
+                    if (stubRemote.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([assetMetadata1, assetMetadata3]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([assetMetadata5]);
+                    }
+                });
 
                 // Create a non-default stub for hashes.listFiles that returns the local asset paths.
                 stubListFiles.restore();

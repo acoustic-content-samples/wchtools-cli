@@ -30,7 +30,6 @@ const ToolsApi = require("wchtools-api");
 const hashes = ToolsApi.getHashes();
 const sitesHelper = ToolsApi.getSitesHelper();
 const toolsCli = require("../../../wchToolsCli");
-const BaseCommand = require("../../../lib/baseCommand");
 const mkdirp = require("mkdirp");
 const options = ToolsApi.getOptions();
 const manifests = ToolsApi.getManifests();
@@ -611,23 +610,22 @@ class PullUnitTest extends UnitTest {
                     // the first time (initSites) then returns the test values the second time (the actual push).
                     PullUnitTest.restoreRemoteSitesStub();
                     stubGet = sinon.stub(helper._restApi, "getItems");
-                    stubGet.onFirstCall().resolves([{id: "foo", status: "ready"}, {
-                        id: "bar",
-                        status: "draft"
-                    }]);
-                    stubGet.onSecondCall().resolves([{name: itemName1, id: "foo", path: itemName1}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2
-                    }, {name: badItem, id: "ack", path: badItem}]);
+                    stubGet.onFirstCall().resolves(
+                        [{id: "foo", status: "ready"},
+                            {id: "bar", status: "draft"}]
+                    );
+                    stubGet.onSecondCall().resolves(
+                        [{name: itemName1, id: "foo", path: itemName1, contextRoot: "foo", status: "ready"},
+                            {name: itemName2, id: "bar", path: itemName2, contextRoot: "bar", status: "draft"},
+                            {name: badItem, id: "ack", path: badItem, contextRoot: "ack", status: "ready"}]
+                    );
                 } else {
                     stubGet = sinon.stub(helper._restApi, "getItems");
-                    stubGet.resolves([{name: itemName1, id: "foo", path: itemName1, status: "ready"}, {
-                        name: itemName2,
-                        id: "bar",
-                        path: itemName2,
-                        status: "draft"
-                    }, {name: badItem, id: "ack", path: badItem, status: "ready"}]);
+                    stubGet.resolves(
+                        [{name: itemName1, id: "foo", path: itemName1, status: "ready"},
+                            {name: itemName2, id: "bar", path: itemName2, status: "draft"},
+                            {name: badItem, id: "ack", path: badItem, status: "ready"}]
+                    );
                 }
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
@@ -2221,9 +2219,12 @@ class PullUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 // Stub the helper.pullManifestItems method to return a promise that is resolved after emitting events.
                 const stubPull = sinon.stub(helper, "pullManifestItems", function (context) {
@@ -2240,6 +2241,22 @@ class PullUnitTest extends UnitTest {
                     return stubDeferred.promise;
                 });
 
+                let stubPullSites;
+                if (switches === "--pages") {
+                    // Stub the sitesHelper.pullManifestItems method to return a promise that is resolved after emitting events.
+                    stubPullSites = sinon.stub(sitesHelper, "pullManifestItems", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = sitesHelper.getEventEmitter(context);
+                            emitter.emit("pulled", {id: "id1", name: "foo", status: "ready", contextRoot: "foo"});
+                            emitter.emit("pulled", {id: "id2", name: "bar", status: "ready", contextRoot: "bar"});
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                }
+
                 // Execute the command to push the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, '-v', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
@@ -2247,7 +2264,8 @@ class PullUnitTest extends UnitTest {
                         if (switches === "--pages") {
                             // Verify that the pull stub was called twice (once for each site), and that the expected message was returned.
                             expect(stubPull).to.have.been.calledTwice;
-                            expect(msg).to.contain('4 artifacts successfully');
+                            expect(stubPullSites).to.have.been.calledOnce;
+                            expect(msg).to.contain('6 artifacts successfully');
                             expect(msg).to.contain('4 errors');
                         } else {
                             // Verify that the pull stub was called once, and that the expected message was returned.
@@ -2261,10 +2279,14 @@ class PullUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
-                        // Restore the stubbed method.
+                        // Restore the stubbed methods.
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
                         stubPull.restore();
+                        if (stubPullSites) {
+                            stubPullSites.restore();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -2278,12 +2300,15 @@ class PullUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 const stubSave = sinon.stub(manifests, "saveManifest");
-                stubSave.throws(new Error("Save manifest error expected by unit test."));
+                stubSave.throws(new Error("Save manifest error expected by unit test"));
 
                 // Stub the helper.pullManifestItems method to return a promise that is resolved after emitting events.
                 const stubPull = sinon.stub(helper, "pullManifestItems", function (context) {
@@ -2300,6 +2325,22 @@ class PullUnitTest extends UnitTest {
                     return stubDeferred.promise;
                 });
 
+                let stubPullSites;
+                if (switches === "--pages") {
+                    // Stub the sitesHelper.pullManifestItems method to return a promise that is resolved after emitting events.
+                    stubPullSites = sinon.stub(sitesHelper, "pullManifestItems", function (context) {
+                        // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                        const stubDeferred = Q.defer();
+                        setTimeout(function () {
+                            const emitter = sitesHelper.getEventEmitter(context);
+                            emitter.emit("pulled", {id: "id1", name: "foo", status: "ready", contextRoot: "foo"});
+                            emitter.emit("pulled", {id: "id2", name: "bar", status: "ready", contextRoot: "bar"});
+                            stubDeferred.resolve();
+                        }, 0);
+                        return stubDeferred.promise;
+                    });
+                }
+
                 // Execute the command to push the items to the download directory.
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, '-v', "--manifest", "foo", '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
@@ -2307,7 +2348,8 @@ class PullUnitTest extends UnitTest {
                         if (switches === "--pages") {
                             // Verify that the pull stub was called twice (once for each site), and that the expected message was returned.
                             expect(stubPull).to.have.been.calledTwice;
-                            expect(msg).to.contain('4 artifacts successfully');
+                            expect(stubPullSites).to.have.been.calledOnce;
+                            expect(msg).to.contain('6 artifacts successfully');
                             expect(msg).to.contain('4 errors');
                         } else {
                             // Verify that the pull stub was called once, and that the expected message was returned.
@@ -2325,11 +2367,15 @@ class PullUnitTest extends UnitTest {
                         error = err;
                     })
                     .finally(function () {
-                        // Restore the stubbed method.
+                        // Restore the stubbed methods.
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
                         stubSave.restore();
                         stubPull.restore();
+                        if (stubPullSites) {
+                            stubPullSites.restore();
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -2536,9 +2582,12 @@ class PullUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--ready", "--manifest", "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -2556,6 +2605,7 @@ class PullUnitTest extends UnitTest {
                     .finally(function () {
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -2569,9 +2619,12 @@ class PullUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--draft", "--manifest", "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -2589,6 +2642,7 @@ class PullUnitTest extends UnitTest {
                     .finally(function () {
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -2606,9 +2660,12 @@ class PullUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--path", "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -2626,6 +2683,7 @@ class PullUnitTest extends UnitTest {
                     .finally(function () {
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);

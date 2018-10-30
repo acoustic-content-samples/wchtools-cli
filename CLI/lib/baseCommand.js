@@ -23,7 +23,6 @@ const fs  = require('fs');
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
 const Q = require("q");
-const log4js = require('log4js');
 const ProductVersion = require("../package.json").version;
 const cliLog = "cli" + " " + ProductVersion;
 
@@ -182,6 +181,7 @@ class BaseCommand {
     resetCommandLineOptions () {
         this.setCommandLineOption("ready", undefined);
         this.setCommandLineOption("draft", undefined);
+        this.setCommandLineOption("siteContext", undefined);
         this.setCommandLineOption("dir", undefined);
         this.setCommandLineOption("url", undefined);
         this.setCommandLineOption("user", undefined);
@@ -334,10 +334,10 @@ class BaseCommand {
      *
      * @param {Object} context The API context associated with this command.
      *
-     * @returns {Array} An array of the manifest's site items to use for this command, or undefined.
+     * @returns {Array} An array of the manifest's site items to use for this command.
      */
     getManifestSiteItems(context) {
-        const sitesSection = manifests.getManifestSection(context, "sites", this.getApiOptions());
+        const sitesSection = manifests.getManifestSites(context, this.getApiOptions());
         if (sitesSection) {
             // The sites section has a property for each site, keyed by the site id.
             const siteIds = Object.keys(sitesSection);
@@ -355,6 +355,9 @@ class BaseCommand {
                 });
             }
         }
+
+        // If there are no sites in the manifest, return an empty array.
+        return [];
     }
 
     /**
@@ -412,7 +415,7 @@ class BaseCommand {
                 // Sites and pages are handled separately so that a page section can be found for each site.
                 if (artifactType.section === "sites") {
                     siteItems = self.getManifestSiteItems(context);
-                    if (siteItems) {
+                    if (siteItems.length > 0) {
                         hasSection = true;
                     }
                 } else if (artifactType.section === "pages") {
@@ -549,7 +552,9 @@ class BaseCommand {
             } else {
                 // Make sure the specified directory exists.
                 if (!fs.statSync(dir).isDirectory()) {
-                    throw new Error(i18n.__('cli_dir_is_not_a_directory', {dir: dir}));
+                    const err = new Error(i18n.__('cli_dir_is_not_a_directory', {dir: dir}));
+                    err.code = "ENOTDIR";
+                    throw err;
                 }
             }
         } catch (err) {
@@ -802,6 +807,29 @@ class BaseCommand {
     }
 
     /**
+     * Handle the site-context option specified on the command line.
+     *
+     * @returns {Q.Promise} Resolve if the specified site-context option is valid, otherwise reject to indicate that
+     *          command execution should not continue.
+     */
+    handleSiteContextOption() {
+        const deferred = Q.defer();
+        if (this.getCommandLineOption("siteContext")) {
+            // Verify that "siteContext" is only used with artifact types that support a site.
+            if (this.getCommandLineOption("sites") || this.getCommandLineOption("pages")) {
+                this.setApiOption("filterSite", this.getCommandLineOption("siteContext"));
+                deferred.resolve();
+            } else {
+                deferred.reject(new Error(i18n.__('cli_invalid_siteContext_option')));
+            }
+        } else {
+            deferred.resolve();
+        }
+
+        return deferred.promise;
+    }
+
+    /**
      * Handle the ready and draft options specified on the command line.
      *
      * @returns {Q.Promise} Resolve if the specified ready and draft options are valid, otherwise reject to
@@ -876,6 +904,28 @@ class BaseCommand {
     }
 
     /**
+     * Filter the list of sites to be used for this command, if necessary.
+     *
+     * @param {Object} context The API context associated with this command.
+     * @param {Object} opts The API options associated with this command.
+     */
+    filterSiteList(context, opts) {
+        // Use the context root specified by the "site-context" option to filter the site list.
+        const filterSite = options.getRelevantOption(context, opts, "filterSite");
+        if (filterSite && context.siteList) {
+            context.siteList = context.siteList.filter(function (site) {
+                if (filterSite === "default") {
+                    // The default site (or any draft of the default site) is specified using the special value "default".
+                    return (site.id === "default") || (site.id.indexOf("default:") === 0);
+                } else {
+                    // A non-default site must have a contextRoot value that matches the site-context option.
+                    return (site.contextRoot === filterSite);
+                }
+            });
+        }
+    }
+
+    /**
      * Initialize the list of sites to be used for this command, if necessary.
      *
      * @param {Object} context The API context associated with this command.
@@ -895,23 +945,24 @@ class BaseCommand {
                 const sites = self.getManifestSiteItems(context);
                 const readySites = [];
                 const draftSites = [];
-                if (sites && sites.length > 0) {
-                    const sitesHelper = ToolsApi.getSitesHelper();
-                    sites.forEach(function (site) {
-                        // Add the site to the ready or draft list.
-                        const status = sitesHelper.getStatus(context, site, opts);
-                        if (status === "ready") {
-                            // The ready site should be handled by this command.
-                            readySites.push(site);
-                        } else if (status === "draft") {
-                            // The draft site should be handled by this command.
-                            draftSites.push(site);
-                        }
-                    });
-                }
+                const sitesHelper = ToolsApi.getSitesHelper();
+                sites.forEach(function (site) {
+                    // Add the site to the ready or draft list.
+                    const status = sitesHelper.getStatus(context, site, opts);
+                    if (status === "draft") {
+                        // The draft site should be handled by this command.
+                        draftSites.push(site);
+                    } else {
+                        // The ready site should be handled by this command.
+                        readySites.push(site);
+                    }
+                });
 
                 // Create a list of ready and draft sites, in the order required by this command.
                 context.siteList = self.createSiteList(readySites, draftSites);
+
+                // Filter the sites list
+                self.filterSiteList(context, opts);
 
                 // The site list has been set synchronously, so go ahead and resolve the promise.
                 deferred.resolve();
@@ -964,6 +1015,9 @@ class BaseCommand {
 
                         // Create a list of ready and draft site ids, in the order required by this command.
                         context.siteList = self.createSiteList(readySites, draftSites);
+
+                        // Filter the sites list
+                        self.filterSiteList(context, opts);
 
                         deferred.resolve();
                     })

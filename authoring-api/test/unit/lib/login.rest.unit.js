@@ -152,10 +152,6 @@ class LoginRestUnitTest extends UnitTest {
                     let requestOptions = loginREST.getRequestOptions(context, {"x-ibm-dx-tenant-base-url": "XXXXX"});
                     expect(requestOptions).to.exist;
                     expect(requestOptions.uri).to.contain("XXXXX");
-
-                    requestOptions = loginREST.getRequestOptions(context, {"x-ibm-dx-tenant-base-url": "", "dx-api-gateway": "YYYYY"});
-                    expect(requestOptions).to.exist;
-                    expect(requestOptions.uri).to.contain("YYYYY");
                 } catch (err) {
                     error = err;
                 } finally {

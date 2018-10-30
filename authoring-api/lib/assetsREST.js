@@ -96,7 +96,7 @@ class AssetsREST extends BaseREST {
             .then(function (uri) {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
-                    uri: uri + "/authoring/v1/resources",
+                    uri: restObject._appendURI(uri, "/authoring/v1/resources"),
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -123,7 +123,7 @@ class AssetsREST extends BaseREST {
             .then(function (uri) {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
-                    uri: uri + "/authoring/v1/resources/views/by-created",
+                    uri: restObject._appendURI(uri, "/authoring/v1/resources/views/by-created"),
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -164,7 +164,7 @@ class AssetsREST extends BaseREST {
         this.getRequestURI(context, opts)
             .then(function (uri) {
                 const requestOptions = {
-                    uri: uri + "/authoring/v1/assets/" + id + forceParam,
+                    uri: restObject._appendURI(uri, "/authoring/v1/assets/" + id) + forceParam,
                     headers: headers,
                     json: true
                 };
@@ -187,7 +187,7 @@ class AssetsREST extends BaseREST {
             .then(function (uri) {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
-                    uri: uri + "/authoring/v1/resources?name=" + querystring.escape(fname),
+                    uri: restObject._appendURI(uri, "/authoring/v1/resources") + "?name=" + querystring.escape(fname),
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -211,7 +211,7 @@ class AssetsREST extends BaseREST {
                 const uriIdPath = resourceId ? "/" + resourceId : "";
                 const paramMd5 = resourceMd5 ? "&md5=" + querystring.escape(resourceMd5) : "";
                 const requestOptions = {
-                    uri: uri + "/authoring/v1/resources" + uriIdPath + "?name=" + querystring.escape(fname) + paramMd5,
+                    uri: restObject._appendURI(uri, "/authoring/v1/resources" + uriIdPath) + "?name=" + querystring.escape(fname) + paramMd5,
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -231,7 +231,7 @@ class AssetsREST extends BaseREST {
         this.getRequestURI(context, opts)
             .then(function (uri) {
                 const requestOptions = {
-                    uri: uri + "/authoring/v1/assets/record?path=" + querystring.escape(path),
+                    uri: restObject._appendURI(uri, "/authoring/v1/assets/record") + "?path=" + querystring.escape(path),
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -246,7 +246,7 @@ class AssetsREST extends BaseREST {
     getResourceList (context, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const offset = options.getRelevantOption(context, opts, "offset", "resources");
+        const offset = options.getRelevantOption(context, opts, "offset", "resources") || 0;
         const limit = options.getRelevantOption(context, opts, "limit", "resources");
         restObject.getResourceListRequestOptions(context, opts)
             .then(function (requestOptions) {
@@ -341,17 +341,17 @@ class AssetsREST extends BaseREST {
     pullItem (context, asset, stream, opts) {
         const deferred = Q.defer();
 
-        const helper = this;
+        const restObject = this;
         // Initialize the request options.
         this.getDownloadRequestOptions(context, opts)
             .then(function (reqOptions) {
-                reqOptions.uri = reqOptions.uri + "/" + asset.resource;
+                reqOptions.uri = restObject._appendURI(reqOptions.uri, asset.resource);
                 // Make the request and pipe the response to the specified stream.
                 const responseStream = request.get(reqOptions);
                 if (opts && opts.returnDisposition) {
                     responseStream.on("response", function (response) {
                         const disposition = response.headers["content-disposition"];
-                        asset.disposition = helper._extractFilename(disposition);
+                        asset.disposition = restObject._extractFilename(disposition);
                         asset.contentType = response.headers["content-type"];
                     });
                 }
@@ -408,10 +408,11 @@ class AssetsREST extends BaseREST {
     getResourceStream (context, resourcePath, opts) {
         const deferred = Q.defer();
 
+        const restObject = this;
         // Initialize the request options.
         this.getDownloadRequestOptions(context, opts)
             .then(function (reqOptions) {
-                reqOptions.uri = reqOptions.uri + "/" + resourcePath;
+                reqOptions.uri = restObject._appendURI(reqOptions.uri, resourcePath);
                 // Make the request and return the stream.
                 const responseStream = request.get(reqOptions);
 
@@ -461,6 +462,9 @@ class AssetsREST extends BaseREST {
      */
     _postAssetMetadata (context, opts, reqOptions, deferred, createOnly) {
         const restObject = this;
+        if (options.getRelevantOption(context, opts, "setTag")) {
+            restObject.setTag (context, reqOptions.body, opts);
+        }                                
         utils.logDebugInfo(context, "_postAssetMetadata request", undefined, reqOptions);
         request.post(reqOptions, function (err, res, body) {
             const response = res || {};
@@ -595,6 +599,9 @@ class AssetsREST extends BaseREST {
                             if (requestBody.id && requestBody.rev) {
                                 restObject.getAssetUpdateRequestOptions(context, requestBody.id, opts)
                                     .then(function (reqOptions) {
+                                        if (options.getRelevantOption(context, opts, "setTag")) {
+                                            restObject.setTag (context, requestBody, opts);
+                                        }                                
                                         reqOptions.body = requestBody;
                                         request.put(reqOptions, function (err, res, body) {
                                             const response = res || {};
@@ -659,7 +666,7 @@ class AssetsREST extends BaseREST {
                 if (updateContentResource) {
                     // Before a PUT, do HEAD request to see if the resource already exists with the same MD5 hash.
                     restObject.getDownloadRequestOptions(context, opts).then(function (headReqOptions) {
-                        headReqOptions.uri = headReqOptions.uri + "/" + resourceId + "?bypass-cache=" + Date.now();
+                        headReqOptions.uri = restObject._appendURI(headReqOptions.uri, resourceId) + "?bypass-cache=" + Date.now();
                         request.head(headReqOptions, function(headErr, headRes, headBody) {
                             let sendResource = true;
                             if (headErr) {
@@ -693,6 +700,33 @@ class AssetsREST extends BaseREST {
             });
 
         return deferred.promise;
+    }
+
+    /*
+     * Set the specified tag in this item, if not already in the list of tags for the specified item.
+     * 
+     * End up with a tag entry like this in the asset metadata item:
+     * { ...
+     *   "tags": {
+     *       "values": [
+     *           ...
+     *           "thetag" 
+     *       ] 
+     *   }
+     * }
+     * @param context
+     * @param asset metadata item
+     * @param opts
+     */
+    setTag(context, item, opts) {
+        const tag = options.getRelevantOption(context, opts, "setTag");
+        if (!item.tags) {
+            item.tags = { "values": [tag] };
+        } else if (!item.tags.values) {
+            item.tags.values = [tag];
+        } else if (!item.tags.values.includes(tag) && !item.tags.values.includes("user:"+tag)) {
+            item.tags.values.push(tag);
+        }
     }
 }
 

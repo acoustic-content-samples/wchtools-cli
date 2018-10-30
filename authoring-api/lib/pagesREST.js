@@ -29,6 +29,8 @@ class PagesREST extends JSONPathBasedItemREST {
             throw i18n.__("singleton_construct_error", {classname: "PagesREST"});
 
         // The uriPath is passed as "" because it always needs to be calculated dynamically in the getUriPath() method.
+        // We must use /views/by-modified for the allUriSuffix because it returns pages from the entire hierarchy, not
+        // just the top level pages as the standard GET /authoring/v1/sites/{site-id}/pages would.
         super("pages", "", "/views/by-modified", "/views/by-modified");
     }
 
@@ -72,10 +74,18 @@ class PagesREST extends JSONPathBasedItemREST {
      * Ask the authoring API to return the specified artifact by path
      */
     getItemByPath (context, path, opts) {
-        // Page path is dynamically constructed from page names, so would never
-        // have a .json suffix. Strip off the .json suffix if there.
-        if (path && path.endsWith(".json"))
-          path = path.replace(".json", "");
+        if (path) {
+            // A page's path is dynamically constructed from page names. It should never have a .json suffix.
+            if (path.endsWith(".json")) {
+                path = path.replace(".json", "");
+            }
+
+            // Make sure the path has the correct format.
+            if (path[0] !== "/") {
+                path = "/" + path;
+            }
+        }
+
         return super.getItemByPath(context, path, opts);
     }
 
@@ -86,19 +96,19 @@ class PagesREST extends JSONPathBasedItemREST {
         if (!queryParams) {
             queryParams = {};
         }
-        queryParams.include="hierarchicalPath";
+        queryParams.include = "hierarchicalPath";
         return super._getItems(context, uriSuffix, queryParams, opts);
     }
 
     /*
      * Override _getItem so we can add the pages specific query param
      */
-    _getItem(context, id, queryParams, opts) {
+    _getItem(context, uriSuffix, queryParams, opts) {
         if (!queryParams) {
             queryParams = {};
         }
         queryParams.include = "hierarchicalPath";
-        return super._getItem(context, id, queryParams, opts);
+        return super._getItem(context, uriSuffix, queryParams, opts);
     }
 
     /*

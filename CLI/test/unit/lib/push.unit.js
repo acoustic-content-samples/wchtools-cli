@@ -31,7 +31,6 @@ const sinon = require("sinon");
 const ToolsApi = require("wchtools-api");
 const hashes = ToolsApi.getHashes();
 const toolsCli = require("../../../wchToolsCli");
-const BaseCommand = require("../../../lib/baseCommand");
 const mkdirp = require("mkdirp");
 const manifests = ToolsApi.getManifests();
 
@@ -39,7 +38,10 @@ const manifests = ToolsApi.getManifests();
 const options = require("wchtools-api").getOptions();
 
 const sitesHelper = ToolsApi.getSitesHelper();
+const nextSchedulesHelper = ToolsApi.getPublishingNextSchedulesHelper();
+
 let stubLocalSites;
+let stubNextSchedules;
 
 class PushUnitTest extends UnitTest {
     constructor () {
@@ -48,7 +50,11 @@ class PushUnitTest extends UnitTest {
 
     static addLocalSitesStub () {
         stubLocalSites = sinon.stub(sitesHelper._fsApi, "getItems");
-        stubLocalSites.resolves([{id: "foo", status: "ready"}, {id: "bar", status: "draft"}]);
+        stubLocalSites.resolves([{id: "foo", status: "ready", contextRoot: "foo"}, {
+            id: "bar",
+            status: "draft",
+            contextRoot: "bar"
+        }]);
     }
 
     static restoreLocalSitesStub () {
@@ -65,6 +71,10 @@ class PushUnitTest extends UnitTest {
                 stubLogin = sinon.stub(self.getLoginHelper(), "login");
                 stubLogin.resolves("Adam.iem@mailinator.com");
 
+                stubNextSchedules = sinon.stub(nextSchedulesHelper, "getNextSchedules");
+                // TBD individual test w/resolves [{"_id":"c6efbfff-db50-4cb4-80a2-816bde7930e2","_rev":"2-0296077a4b72f8fcd011d4510e2c354e","classification":"tenant","deliveryDomainId":"default","repeatSchedule":"none","docId":"102a4692-60c8-476d-b615-d227f6103a33","releaseDate":"2018-10-05T02:50:00.000Z","name":"onet"}]
+                stubNextSchedules.resolves(null);
+
                 PushUnitTest.addLocalSitesStub();
 
                 done();
@@ -74,6 +84,7 @@ class PushUnitTest extends UnitTest {
                 rimraf.sync(UnitTest.DOWNLOAD_DIR);
 
                 stubLogin.restore();
+                stubNextSchedules.restore();
                 PushUnitTest.restoreLocalSitesStub();
 
                 done();
@@ -84,6 +95,9 @@ class PushUnitTest extends UnitTest {
             self.testPushByManifest(helper, switches, itemName1, itemName2, badItem);
             self.testPushUrlOption(helper, switches, itemName1, itemName2, badItem);
             self.testPushParamFail(helper, switches);
+            if (switches.includes("-a") || switches.includes("--content")) {
+                self.testPushWithSchedule(helper, switches, itemName1, itemName2, badItem);
+            }
         });
     }
 
@@ -97,8 +111,13 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
-                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
+                        if (switches === "--sites") {
+                            emitter.emit("pushed", {name: itemName1, id: undefined, status: "ready"});
+                            emitter.emit("pushed", {name: itemName2, id: undefined, status: "draft"});
+                        } else {
+                            emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                            emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
+                        }
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
@@ -185,8 +204,23 @@ class PushUnitTest extends UnitTest {
                     const stubDeferred = Q.defer();
                     setTimeout(function () {
                         const emitter = helper.getEventEmitter(context);
-                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
-                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
+                        if (switches === "--sites") {
+                            emitter.emit("pushed", {
+                                name: itemName1,
+                                id: undefined,
+                                contextRoot: itemName1,
+                                status: "ready"
+                            });
+                            emitter.emit("pushed", {
+                                name: itemName2,
+                                id: undefined,
+                                contextRoot: itemName2,
+                                status: "draft"
+                            });
+                        } else {
+                            emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                            emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
+                        }
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
                         emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
                         stubDeferred.resolve();
@@ -196,10 +230,11 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api", "--publish-now"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api", "--publish-now", "--set-tag","test-tag"])
                     .then(function (msg) {
                         expect(savedOpts).to.exist;
                         expect(savedOpts["publish-now"]).to.exist;
+                        expect(savedOpts["setTag"]).to.exist;
 
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -508,12 +543,65 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                let promise;
+                if (switches === "--pages") {
+                    promise = toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--site-context", "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"]);
+                } else {
+                    promise = toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"]);
+                }
+
+                promise
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         // Note that for pages, this push defaults to only the ready site.
                         expect(stub).to.have.been.calledOnce;
                         expect(msg).to.contain('1 artifact');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "pushModifiedItems" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test failed push of named item", function (done) {
+                // Stub the helper.pushModifiedItems method to return a promise that is rejected after emitting an error event.
+                const PUSH_ERROR = "Error pushing named item, expected by unit test.";
+                const stub = sinon.stub(helper, "pushItem", function (context) {
+                    // When the stubbed method is called, return a promise that will be rejected asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const pushError = new Error(PUSH_ERROR);
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pushed-error", pushError, {name: itemName1, id: undefined, path: itemName1});
+                        stubDeferred.reject(pushError);
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                let promise;
+                if (switches === "--pages") {
+                    promise = toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--site-context", "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"]);
+                } else {
+                    promise = toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"]);
+                }
+
+                promise
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The command should have failed.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the expected error was specified.
+                        expect(err.message).to.contain("Encountered 1 error while pushing artifacts.");
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -547,7 +635,7 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--ready", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--site-context", "foo", "--ready", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -585,7 +673,7 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--site-context", "bar", "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;
@@ -609,6 +697,15 @@ class PushUnitTest extends UnitTest {
                     return done();
                 }
 
+                // Restore the global stub and create our own.
+                PushUnitTest.restoreLocalSitesStub();
+                const stubGet = sinon.stub(sitesHelper._fsApi, "getItems");
+                stubGet.resolves([{id: "foo", status: "ready", contextRoot: "foo"}, {
+                    id: "bar",
+                    status: "draft",
+                    contextRoot: "foo"
+                }]);
+
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
                 const stub = sinon.stub(helper, "pushItem", function (context) {
                     // When the stubbed method is called, return a promise that will be resolved asynchronously.
@@ -623,7 +720,7 @@ class PushUnitTest extends UnitTest {
 
                 // Execute the command to push the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--ready", "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--named", itemName1, "--site-context", "foo", "--ready", "--draft", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called twice (once for each site), and that the expected message was returned.
                         expect(stub).to.have.been.calledTwice;
@@ -636,6 +733,10 @@ class PushUnitTest extends UnitTest {
                     .finally(function () {
                         // Restore the helper's "pushModifiedItems" method.
                         stub.restore();
+
+                        // Restore the local stub then add the original stub again.
+                        stubGet.restore();
+                        PushUnitTest.addLocalSitesStub();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -1272,7 +1373,7 @@ class PushUnitTest extends UnitTest {
                     return stubDeferred.promise;
                 });
 
-                // Execute the command to pull the items to the download directory.
+                // Execute the command to push the items from the working directory.
                 let error;
                 const downloadTarget = DOWNLOAD_TARGET;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--ready", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api','-v'])
@@ -1718,9 +1819,12 @@ class PushUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 // Stub the helper.pushManifestItems method to return a promise that is resolved after emitting events.
                 const stubPush = sinon.stub(helper, "pushManifestItems", function (context) {
@@ -1762,6 +1866,7 @@ class PushUnitTest extends UnitTest {
                         // Restore the stubbed method.
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
                         stubPush.restore();
 
                         // Call mocha's done function to indicate that the test is over.
@@ -1776,9 +1881,12 @@ class PushUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 // Stub the helper.pushManifestItems method to return a promise that is resolved after emitting events.
                 const stubPush = sinon.stub(helper, "pushManifestItems", function (context) {
@@ -1843,6 +1951,7 @@ class PushUnitTest extends UnitTest {
                         // Restore the stubbed method.
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
                         stubPush.restore();
                         if (stubSitesPush) {
                             stubSitesPush.restore();
@@ -1860,9 +1969,12 @@ class PushUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 const stubSave = sinon.stub(manifests, "saveManifest");
                 stubSave.throws(new Error("Save manifest error expected by unit test."));
@@ -1909,6 +2021,7 @@ class PushUnitTest extends UnitTest {
                         // Restore the stubbed method.
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
                         stubSave.restore();
                         stubPush.restore();
 
@@ -2481,9 +2594,12 @@ class PushUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--ready", "--manifest", "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -2501,6 +2617,7 @@ class PushUnitTest extends UnitTest {
                     .finally(function () {
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -2514,9 +2631,12 @@ class PushUnitTest extends UnitTest {
                 const stubSection = sinon.stub(manifests, "getManifestSection");
                 stubSection.returns(undefined);
                 stubSection.withArgs(sinon.match.any, helper.getArtifactName()).returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                if (switches === "--pages") {
-                    stubSection.withArgs(sinon.match.any, "sites").returns({id1: {name: "foo", path: "bar"}, id2: {name: "ack", path: "nak"}});
-                }
+
+                const stubManifestSites = sinon.stub(manifests, "getManifestSites");
+                stubManifestSites.returns({
+                    id1: {id: "id1", name: "foo", status: "ready", contextRoot: "foo"},
+                    id2: {id: "id2", name: "bar", status: "ready", contextRoot: "bar"}
+                });
 
                 let error;
                 toolsCli.parseArgs(['', UnitTest.COMMAND, command, switches, "--draft", "--manifest", "foo", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
@@ -2534,6 +2654,7 @@ class PushUnitTest extends UnitTest {
                     .finally(function () {
                         stubInit.restore();
                         stubSection.restore();
+                        stubManifestSites.restore();
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -2562,6 +2683,70 @@ class PushUnitTest extends UnitTest {
                     })
                     .finally(function () {
                         // Restore the stubbed method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+        });
+    }
+
+    testPushWithSchedule (helper, switches, itemName1, itemName2, badItem) {
+        const DOWNLOAD_TARGET = UnitTest.DOWNLOAD_DIR; // Relative to the CLI directory.
+        describe("CLI-unit-pushing", function () {
+
+            before(function (done) {
+
+                stubNextSchedules.resolves([{"_id":"c6efbfff-db50-4cb4-80a2-816bde7930e2","_rev":"2-0296077a4b72f8fcd011d4510e2c354e","classification":"tenant","deliveryDomainId":"default","repeatSchedule":"none","docId":"102a4692-60c8-476d-b615-d227f6103a33","releaseDate":"2018-10-05T02:50:00.000Z","name":"onet"}]);
+
+                done();
+            });
+
+            after(function (done) {
+
+                stubNextSchedules.resolves(null);
+
+                done();
+            });
+
+            it("test generic push with publishing schedule set, is working", function (done) {
+                let savedOpts;
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context, opts) {
+                    savedOpts = opts;
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                        emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+                stubNextSchedules.resolves([{"_id":"c6efbfff-db50-4cb4-80a2-816bde7930e2","_rev":"2-0296077a4b72f8fcd011d4510e2c354e","classification":"tenant","deliveryDomainId":"default","repeatSchedule":"none","docId":"102a4692-60c8-476d-b615-d227f6103a33","releaseDate":"2018-10-05T02:50:00.000Z","name":"onet"}]);
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                    .then(function (msg) {
+                        expect(savedOpts).to.exist;
+
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts');
+                        expect(msg).to.contain('2 errors');
+                        // TODO - add a way to verify a warning was logged that the pushed items may be waiting on a schedule
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "pushModifiedItems" method.
                         stub.restore();
 
                         // Call mocha's done function to indicate that the test is over.

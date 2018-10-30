@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,59 +16,51 @@ limitations under the License.
 "use strict";
 
 const BaseREST = require("./BaseREST.js");
-const JSONItemREST = require("./JSONItemREST.js");
 const Q = require("q");
 const utils = require("./utils/utils.js");
+const options = require("./utils/options.js");
 const request = utils.getRequestWrapper();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class PublishingJobsREST extends JSONItemREST {
+class PublishingNextSchedulesREST extends BaseREST {
 
     constructor(enforcer) {
         if (enforcer !== singletonEnforcer) {
-            throw i18n.__("singleton_construct_error", {classname: "PublishingJobsREST"});
+            throw i18n.__("singleton_construct_error", {classname: "PublishingNextSchedulesREST"});
         }
-        super("publishing", "/publishing/v1/jobs", undefined, undefined);
+        super("publishingNextSchedules", "/publishing/v1/nextSchedule", undefined, undefined);
     }
 
     static get instance() {
         if (!this[singleton]) {
-            this[singleton] = new PublishingJobsREST(singletonEnforcer);
+            this[singleton] = new PublishingNextSchedulesREST(singletonEnforcer);
         }
         return this[singleton];
     }
 
-    createPublishingJob(context, jobParameters, opts) {
-        return this.createItem(context, jobParameters, opts);
-    }
-
-    getPublishingJobs(context, opts) {
-        return this.getItems(context, opts);
-    }
-
-    getPublishingJob(context, id, opts) {
-        return this.getItem(context, id, opts);
-    }
-
-    getPublishingJobStatus (context, id, opts) {
+    /*
+     * Return next schedules (if any) as array of JSON
+     */
+    getNextSchedules(context, opts) {
         const restObject = this;
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
-                requestOptions.uri = restObject._appendURI(requestOptions.uri, id + "/status");
+                const tenantId = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
+                requestOptions.uri = requestOptions.uri + "?deliveryDomainId=default&classification=tenant&docId=" + tenantId;
                 request.get(requestOptions, function (err, res, body) {
                     const response = res || {};
-                    if (err || response.statusCode !== 200) { //NOSONAR
+                    if (err || response.statusCode !== 200) {
                         err = utils.getError(err, body, response, requestOptions);
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
-
-                        // special case where we ar just seeing if the item does exist and if not it's not an error
-                        if(!opts || opts.noErrorLog !== "true")
-                            utils.logErrors(context, i18n.__("getPublishingJobStatus_error", {service_name: restObject.getServiceName()}), err);
+                        utils.logErrors(context, i18n.__("get_items_error", {service_name: restObject.getServiceName()}), err);
                         deferred.reject(err);
+                    } else if (body && body.items) {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        deferred.resolve(body.items);
                     } else {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         deferred.resolve(body);
@@ -78,13 +70,10 @@ class PublishingJobsREST extends JSONItemREST {
             .catch(function (err) {
                 deferred.reject(err);
             });
-        return deferred.promise;
-    }
 
-    deletePublishingJob (context, id, opts) {
-        return this.deleteItem(context, {"id": id}, opts);
+        return deferred.promise;
     }
 
 }
 
-module.exports = PublishingJobsREST;
+module.exports = PublishingNextSchedulesREST;

@@ -76,6 +76,20 @@ class PagesHelper extends JSONPathBasedItemHelper {
     }
 
     /**
+     * Get a list of the child pages for the given page.
+     *
+     * @param {Object} context The API context to be used by the operation.
+     * @param {Object} item - The page item.
+     * @param {Object} opts - The options to be used by the operation.
+     *
+     * @returns {Q.Promise} - A promise for a list of the child pages for the given page.
+     */
+    listRemoteChildPages(context, item, opts) {
+        // Get the list of child pages (_listRemoteItemNames avoids saving a manifest).
+        return this._listRemoteItemNames(context, utils.cloneOpts(opts, {filterPath: item.hierarchicalPath}));
+    }
+
+    /**
      * Determine whether the given item can be deleted.
      *
      * @param {Object} item The item to be deleted.
@@ -95,6 +109,41 @@ class PagesHelper extends JSONPathBasedItemHelper {
             retVal = !item["parentId"];
         }
         return retVal;
+    }
+
+    /**
+     * Determine whether the given page is a draft page.
+     *
+     * @param {Object} context The API context to be used by the operation.
+     * @param {Object} item - The page item.
+     * @param {Object} opts - The options to be used by the operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the given item is a draft page. A return value of false
+     *                    indicates that the given item is not a draft page.
+     */
+    isDraftPage(context, item, opts) {
+        const pageStatus = this.getStatus(context, item, opts);
+        const draftType = item["draftType"];
+
+        // A draft page will have a status of "draft" and a draft type of "properties".
+        return (pageStatus === "draft" && draftType && draftType.includes && draftType.includes("properties"));
+    }
+
+    /**
+     * Determine whether the given page is an overlay page.
+     *
+     * @param {Object} context The API context to be used by the operation.
+     * @param {Object} item - The page item.
+     * @param {Object} opts - The options to be used by the operation.
+     *
+     * @returns {Boolean} A return value of true indicates that the given item is an overlay page. A return value of
+     *                    false indicates that the given item is not an overlay page.
+     */
+    isOverlayPage(context, item, opts) {
+        const pageStatus = this.getStatus(context, item, opts);
+
+        // An overlay page will have a status of "draft" but is not a draft page.
+        return (pageStatus === "draft" && !this.isDraftPage(context, item, opts));
     }
 
     /**
@@ -131,8 +180,14 @@ class PagesHelper extends JSONPathBasedItemHelper {
             .then(function (items) {
                 return items.sort(function (a, b) {
                     // A parent's path is always shorter than its child's path
-                    const alen = a.path ? a.path.length : 0;
-                    const blen = b.path ? b.path.length : 0;
+                    let alen = 0;
+                    let blen = 0;
+                    if (a.path) {
+                        alen = a.path.length;
+                    }
+                    if (b.path) {
+                        blen = b.path.length;
+                    }
                     return alen - blen;
                 });
             });

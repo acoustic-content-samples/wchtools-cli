@@ -22,6 +22,7 @@ const assetsHelper = require('./assetsHelper.js').instance;
 const contentHelper = require('./contentHelper').instance;
 const categoriesHelper = require('./categoriesHelper').instance;
 const publishingJobsHelper = require('./publishingJobsHelper').instance;
+const publishingNextSchedulesHelper = require('./publishingNextSchedulesHelper').instance;
 const publishingSiteRevisionsHelper = require('./publishingSiteRevisionsHelper').instance;
 const renditionsHelper = require('./renditionsHelper').instance;
 const imageProfilesHelper = require('./imageProfilesHelper').instance;
@@ -146,6 +147,10 @@ class WchToolsApi {
 
     static getPublishingJobsHelper () {
         return publishingJobsHelper;
+    }
+
+    static getPublishingNextSchedulesHelper () {
+        return publishingNextSchedulesHelper;
     }
 
     static getPublishingSiteRevisionsHelper () {

@@ -122,9 +122,11 @@ class CompareCommand extends BaseCommand {
      */
     initSitesForCompare (context) {
         const self = this;
+        const helper = ToolsApi.getSitesHelper();
 
-        // Create a combined list of sites for the source and target.
-        const siteList = [];
+        // Create ready and draft site lists to store the sites from both the source and target.
+        const readySites = [];
+        const draftSites = [];
 
         // Obtain the list of sites for the source.
         const remote = utils.isValidApiUrl(self.getSource());
@@ -136,12 +138,16 @@ class CompareCommand extends BaseCommand {
         }
         return self.initSites(context, remote, sourceOpts)
             .then(function () {
-                // Add the source sites to the combined list.
+                // Add each source site to one of the combined site lists.
                 context.siteList.forEach(function (siteItem) {
-                    siteList.push(siteItem);
+                    if (helper.getStatus(context, siteItem, self.getApiOptions()) === "draft") {
+                        draftSites.push(siteItem);
+                    } else {
+                        readySites.push(siteItem);
+                    }
                 });
 
-                // Delete the context site list, so that the target list is not filtered using the source list.
+                // Delete the context site list, so that the target site list isn't filtered using the source site list.
                 delete context.siteList;
 
                 // Obtain the list of sites for the target.
@@ -155,21 +161,33 @@ class CompareCommand extends BaseCommand {
                 return self.initSites(context, remote, targetOpts);
             })
             .then(function () {
-                // Add the target sites to the combined list.
+                // Add each target site to one of the combined site lists.
                 context.siteList.forEach(function (siteItem) {
-                    // Determine whether the tartget site already exists in the combined list.
-                    const exists = siteList.some(function (site) {
-                        return site.id === siteItem.id
-                    });
+                    if (helper.getStatus(context, siteItem, self.getApiOptions()) === "draft") {
+                        // Determine whether the draft target site already exists in the combined draft sites list.
+                        const exists = draftSites.some(function (site) {
+                            return site.id === siteItem.id
+                        });
 
-                    // Add the target site to the combined list if it isn't already in the list.
-                    if (!exists) {
-                        siteList.push(siteItem);
+                        // Add the draft target site to the combined draft site list if it isn't already there.
+                        if (!exists) {
+                            draftSites.push(siteItem);
+                        }
+                    } else {
+                        // Determine whether the ready target site already exists in the combined ready sites list.
+                        const exists = readySites.some(function (site) {
+                            return site.id === siteItem.id
+                        });
+
+                        // Add the ready target site to the combined ready site list if it isn't already there.
+                        if (!exists) {
+                            readySites.push(siteItem);
+                        }
                     }
                 });
 
                 // Set the context site list to the combined list of source and target sites.
-                context.siteList = siteList;
+                context.siteList = self.createSiteList(readySites, draftSites);
             });
     }
 
@@ -203,6 +221,10 @@ class CompareCommand extends BaseCommand {
             .then(function () {
                 // Make sure the "path" option can be handled successfully.
                 return self.handlePathOption();
+            })
+            .then(function () {
+                // Handle the site-context option.
+                return self.handleSiteContextOption();
             })
             .then(function () {
                 // Handle the ready and draft options.
@@ -555,8 +577,15 @@ class CompareCommand extends BaseCommand {
 
         // The API emits an event when an item is different, so we display it for the user.
         const artifactDiff = function (diff) {
-            const messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_diff";
-            const message = i18n.__(messageKey, {id: diff.item.path||diff.item.name||diff.item.id});
+            let messageKey;
+            let message;
+            if (diff.artifactName === "sites") {
+                messageKey = "cli_compare_site_diff";
+                message = i18n.__(messageKey, {contextName: ToolsApi.getSitesHelper().getSiteContextName(diff.item)});
+            } else {
+                messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_diff";
+                message = i18n.__(messageKey, {id: diff.item.path || diff.item.name || diff.item.id});
+            }
             self.getLogger().info(message);
             if (verbose) {
                 if (diff.diffs) {
@@ -591,16 +620,33 @@ class CompareCommand extends BaseCommand {
 
         // The API emits an event when an item is added, so we display it for the user.
         const artifactAdded = function (diff) {
-            const messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_added";
-            const message = i18n.__(messageKey, {id: diff.item.path||diff.item.name||diff.item.id});
+            let messageKey;
+            let message;
+            if (diff.artifactName === "sites") {
+                messageKey = "cli_compare_site_added";
+                message = i18n.__(messageKey, {contextName: ToolsApi.getSitesHelper().getSiteContextName(diff.item)});
+            } else {
+                messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_added";
+                message = i18n.__(messageKey, {id: diff.item.path || diff.item.name || diff.item.id});
+            }
             self.getLogger().info(message);
         };
         emitter.on(EVENT_ITEM_ADDED, artifactAdded);
 
         // The API emits an event when an item is removed, so we display it for the user.
         const artifactRemoved = function (diff) {
-            const messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_removed";
-            const message = i18n.__(messageKey, {id: diff.item.path||diff.item.name||diff.item.id});
+            let messageKey;
+            let message;
+            if (diff.artifactName === "sites") {
+                messageKey = "cli_compare_site_removed";
+                message = i18n.__(messageKey, {contextName: ToolsApi.getSitesHelper().getSiteContextName(diff.item)});
+            } else {
+                messageKey = "cli_compare_" + serviceToMessageKey[diff.artifactName] + "_removed";
+                message = i18n.__(messageKey, {id: diff.item.path || diff.item.name || diff.item.id});
+            }
+
+
+
             self.getLogger().info(message);
         };
         emitter.on(EVENT_ITEM_REMOVED, artifactRemoved);
@@ -868,6 +914,7 @@ function compareCommand (program) {
         .option('-A --all-authoring',    i18n.__('cli_compare_opt_all'))
         .option('--ready', i18n.__('cli_compare_opt_ready'))
         .option('--draft', i18n.__('cli_compare_opt_draft'))
+        .option('--site-context <contextRoot>', i18n.__('cli_compare_opt_siteContext'))
         .option('--manifest <manifest>', i18n.__('cli_compare_opt_use_manifest'))
         .option('--filter-deletions <manifest>', i18n.__('cli_compare_opt_filter_deletions'))
         .option('--write-manifest <manifest>',   i18n.__('cli_compare_opt_write_manifest'))

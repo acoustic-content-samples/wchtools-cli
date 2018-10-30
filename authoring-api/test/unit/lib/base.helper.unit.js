@@ -911,9 +911,15 @@ class BaseHelperUnitTest extends UnitTest {
             it("should fail when second call to get items fails.", function (done) {
                 // Create a restApi.getItems stub that returns an error the second time.
                 const ITEMS_ERROR = "There was an error getting the remote items.";
-                const stubGet = sinon.stub(restApi, "getItems");
-                stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2]);
-                stubGet.onCall(1).rejects(ITEMS_ERROR);
+                const stubGet = sinon.stub(restApi, "getItems", function (context, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([itemMetadata1, itemMetadata2]);
+                    } else {
+                        delete opts.nextURI;
+                        throw new Error(ITEMS_ERROR);
+                    }
+                });
 
                 // The saveItem method should only be called for the successfully pulled items.
                 const stubSave = sinon.stub(fsApi, "saveItem");
@@ -996,11 +1002,21 @@ class BaseHelperUnitTest extends UnitTest {
 
             it("should succeed when pulling all items last getitem is empty hit exact multiple of limit.", function (done) {
                 // Create an restApi.getItems stub that returns a promise for the metadata of the items.
-                const stubGet = sinon.stub(restApi, "getItems");
-                stubGet.onCall(0).resolves([itemMetadata1]);
-                stubGet.onCall(1).resolves([itemMetadata2]);
-                stubGet.onCall(2).resolves([UnitTest.DUMMY_METADATA]);
-                stubGet.onCall(3).resolves([]);
+                const stubGet = sinon.stub(restApi, "getItems", function (context, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=1";
+                        return Q([itemMetadata1]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=2";
+                        return Q([itemMetadata2]);
+                    } else if (stubGet.callCount === 3) {
+                        opts.nextURI = "off=3";
+                        return Q([UnitTest.DUMMY_METADATA]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // The saveItem method should only be called for the successfully pulled items.
                 const SAVE_ERROR = "Error saving the item";
@@ -1059,9 +1075,15 @@ class BaseHelperUnitTest extends UnitTest {
 
             it("should succeed when pulling all items partial last getitem.", function (done) {
                 // Create a restApi.getItems stub that returns a promise for the metadata of the items.
-                const stubGet = sinon.stub(restApi, "getItems");
-                stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2]);
-                stubGet.onCall(1).resolves([UnitTest.DUMMY_METADATA]);
+                const stubGet = sinon.stub(restApi, "getItems", function (context, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([itemMetadata1, itemMetadata2]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([UnitTest.DUMMY_METADATA]);
+                    }
+                });
 
                 // The saveItem method should only be called for the successfully pulled items.
                 const SAVE_ERROR = "Error saving the item";
@@ -1125,10 +1147,18 @@ class BaseHelperUnitTest extends UnitTest {
 
             it("should succeed when pulling all items, no emitter and some can't be pulled.", function (done) {
                 // Create a restApi.getItems stub that returns a promise for the metadata of the items.
-                const stubGet = sinon.stub(restApi, "getItems");
-                stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2]);
-                stubGet.onCall(1).resolves([itemMetadata1, itemMetadata2]);
-                stubGet.onCall(2).resolves([UnitTest.DUMMY_METADATA]);
+                const stubGet = sinon.stub(restApi, "getItems", function (context, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([itemMetadata1, itemMetadata2]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=4";
+                        return Q([itemMetadata1, itemMetadata2]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([UnitTest.DUMMY_METADATA]);
+                    }
+                });
 
                 // Create a helper.canPullItem stub that return false for some of the items.
                 const stubCan = sinon.stub(helper, "canPullItem");
@@ -1488,11 +1518,21 @@ class BaseHelperUnitTest extends UnitTest {
 
             it("should succeed when pulling all items last getitem is empty hit exact multiple of limit.", function (done) {
                 // Create an restApi.getItems stub that returns a promise for the metadata of the items.
-                const stubGet = sinon.stub(restApi, "getModifiedItems");
-                stubGet.onCall(0).resolves([itemMetadata1]);
-                stubGet.onCall(1).resolves([itemMetadata2]);
-                stubGet.onCall(2).resolves([UnitTest.DUMMY_METADATA]);
-                stubGet.onCall(3).resolves([]);
+                const stubGet = sinon.stub(restApi, "getModifiedItems", function (context, timestamp, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=1";
+                        return Q([itemMetadata1]);
+                    } else if (stubGet.callCount === 2) {
+                        opts.nextURI = "off=2";
+                        return Q([itemMetadata2]);
+                    } else if (stubGet.callCount === 3) {
+                        opts.nextURI = "off=3";
+                        return Q([UnitTest.DUMMY_METADATA]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // The saveItem method should only be called for the successfully pulled items.
                 const SAVE_ERROR = "Error saving the item";
@@ -1551,9 +1591,15 @@ class BaseHelperUnitTest extends UnitTest {
 
             it("should succeed when pulling all items partial last getitem.", function (done) {
                 // Create an restApi.getItems stub that returns a promise for the metadata of the items.
-                const stubGet = sinon.stub(restApi, "getModifiedItems");
-                stubGet.onCall(0).resolves([itemMetadata1, itemMetadata2 ]);
-                stubGet.onCall(1).resolves([UnitTest.DUMMY_METADATA]);
+                const stubGet = sinon.stub(restApi, "getModifiedItems", function (context, timestamp, opts) {
+                    if (stubGet.callCount === 1) {
+                        opts.nextURI = "off=2";
+                        return Q([itemMetadata1, itemMetadata2]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([UnitTest.DUMMY_METADATA]);
+                    }
+                });
 
                 // The saveItem method should only be called for the successfully pulled items.
                 const SAVE_ERROR = "Error saving the item";
@@ -3067,10 +3113,18 @@ class BaseHelperUnitTest extends UnitTest {
             });
 
             it("should succeed when getting item names succeeds with multiple chunks.", function (done) {
-                const stub = sinon.stub(restApi, "getItems");
-                stub.onFirstCall().resolves([itemMetadata1]);
-                stub.onSecondCall().resolves([itemMetadata2]);
-                stub.onThirdCall().resolves([]);
+                const stub = sinon.stub(restApi, "getItems", function (context, opts) {
+                    if (stub.callCount === 1) {
+                        opts.nextURI = "off=1";
+                        return Q([itemMetadata1]);
+                    } else if (stub.callCount === 2) {
+                        opts.nextURI = "off=2";
+                        return Q([itemMetadata2]);
+                    } else {
+                        delete opts.nextURI;
+                        return Q([]);
+                    }
+                });
 
                 // Create a stub for the options.getProperty method to return 1 for the chunk limit.
                 const originalGetRelevantOption = options.getRelevantOption.bind(options);

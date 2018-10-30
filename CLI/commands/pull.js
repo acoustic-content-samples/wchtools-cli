@@ -136,6 +136,10 @@ class PullCommand extends BaseCommand {
                 return self.handlePathOption();
             })
             .then(function () {
+                // Handle the site-context option.
+                return self.handleSiteContextOption();
+            })
+            .then(function () {
                 // Handle the ready and draft options.
                 return self.handleReadyDraftOptions();
             })
@@ -1407,9 +1411,17 @@ class PullCommand extends BaseCommand {
         const artifactPulled = function (item) {
             self._artifactsCount++;
             if (item.contextRoot) {
-                self.getLogger().info(i18n.__('cli_pull_site_pulled', item));
+                if (item.status === "draft") {
+                    self.getLogger().info(i18n.__('cli_pull_draft_site_pulled', item));
+                } else {
+                    self.getLogger().info(i18n.__('cli_pull_site_pulled', item));
+                }
             } else {
-                self.getLogger().info(i18n.__('cli_pull_site_pulled_2', item));
+                if (item.status === "draft") {
+                    self.getLogger().info(i18n.__('cli_pull_draft_site_pulled_2', item));
+                } else {
+                    self.getLogger().info(i18n.__('cli_pull_site_pulled_2', item));
+                }
             }
         };
         emitter.on(EVENT_ITEM_PULLED, artifactPulled);
@@ -1710,6 +1722,7 @@ function pullCommand (program) {
         .option('--by-type-name <name>', i18n.__('cli_pull_opt_by_type_name'))
         .option('--deletions',           i18n.__('cli_pull_opt_deletions'))
         .option('-q --quiet',            i18n.__('cli_pull_opt_quiet'))
+        .option('--site-context <contextRoot>', i18n.__('cli_pull_opt_siteContext'))
         .option('--path <path>',         i18n.__('cli_pull_opt_path'))
         .option('--manifest <manifest>', i18n.__('cli_pull_opt_use_manifest'))
         .option('--server-manifest <manifest>', i18n.__('cli_pull_opt_use_server_manifest'))

@@ -33,7 +33,9 @@ class ContentREST extends JSONItemREST {
         if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ContentREST"});
         }
-        super("content", "/authoring/v1/content", undefined, "/views/by-modified");
+        //FUTURE: switch back to undefined (w/o by-modified view) for allUriSuffix
+        // Use /views/by-modified for the allUriSuffix as well because it supports pageMode=deep.
+        super("content", "/authoring/v1/content", "/views/by-modified", "/views/by-modified");
     }
 
     static get instance() {
@@ -62,6 +64,14 @@ class ContentREST extends JSONItemREST {
      * Does this WCH REST API currently support the forceOverride query param?
      */
     supportsForceOverride() {
+        return true;
+    }
+
+
+    /*
+     * Does this artifact type support tags (eg, to allow setting a tag on a push)
+     */
+    supportsTags() {
         return true;
     }
 }

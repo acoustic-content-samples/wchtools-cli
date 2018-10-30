@@ -146,6 +146,22 @@ class JSONPathBasedItemFS extends JSONItemFS {
     }
 
     /**
+     * Sort the given list of items before completing the list operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} items The items to be listed.
+     * @param {Object} opts The options to be used for this operations.
+     *
+     * @returns {Array} The sorted list of items.
+     *
+     * @protected
+     */
+    _listSort(context, items, opts) {
+        // No default sorting.
+        return items;
+    }
+
+    /**
      * Get a list of all items stored in the working dir.
      *
      * @param {Object} context The API context to be used by the listt operation.
@@ -169,10 +185,10 @@ class JSONPathBasedItemFS extends JSONItemFS {
                             return utils.getRelativePath(artifactDir, file);
                         });
 
-                        // Filter the artifacts before listing them.
+                        // Filter the artifacts contained in the list.
                         files = fsObject._listFilter(context, files, opts);
 
-                        const items = files.map(function (file) {
+                        let items = files.map(function (file) {
                             // For each file name, create a "proxy" item that contains the metadata to be listed.
                             const proxy = {path: file};
 
@@ -196,6 +212,9 @@ class JSONPathBasedItemFS extends JSONItemFS {
                             }
                             return proxy;
                         });
+
+                        // Sort the artifacts contained in the list.
+                        items = fsObject._listSort(context, items, opts);
 
                         resolve(items);
                     }

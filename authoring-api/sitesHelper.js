@@ -92,33 +92,55 @@ class SitesHelper extends JSONItemHelper {
      */
     _listLocalItemNames (context, opts) {
         return super._listLocalItemNames(context, opts)
-            .then(function (results) {
-                if (results && context.siteList) {
-                    // This method will typically return a list of local site items which is limited to those sites that
-                    // are contained in the context's siteList. For example, when called during a list, push, or compare
-                    // of sites, the result should only include those sites that are in the context's siteList. However,
-                    // when called during a pull of sites "with deletions", the context siteList will only contain those
-                    // sites that exist on the server, but the result of this method must also include any sites that
-                    // have been deleted on the server.
-                    const deletions = options.getRelevantOption(context, opts, "deletions");
-                    results = results.filter(function (site) {
-                        // First determine if the site is in the context site list.
-                        const inSiteList = context.siteList.some(function (siteItem) {
-                            return site.id === siteItem.id;
+            .then(function (localSites) {
+                if (localSites && context.siteList) {
+                    // This method will typically return a list of local sites which is limited to those sites contained
+                    // in the context site list. For example, when called during a list, push, or compare of sites, the
+                    // result should only include a local site if it is also in the context site list. But when called
+                    // during a pull of sites "with deletions", the context site list will only contain those sites that
+                    // exist on the server. In that case, the list of local sites returned from this method must include
+                    // any local sites that do not exist on the server, so that the local site artifact can be deleted.
+                    if (options.getRelevantOption(context, opts, "deletions")) {
+                        // This is the deletions case. The list of local sites has already been filtered based on ready
+                        // and draft options. But if a site option was specified, local sites must also be filtered by
+                        // context root. Note that deletion of local site artifacts is not dependent on the site order.
+                        const filterSite = options.getRelevantOption(context, opts, "filterSite");
+                        localSites = localSites.filter(function (localSite) {
+                            // The default site (and any of its drafts) do not have a context root, so the special value
+                            // "default" is used for the site option.
+                            if (filterSite && filterSite === "default") {
+                                // Only include the site in the result if its id matches one of the default sites.
+                                return (localSite.id === "default") || localSite.id.startsWith("default:");
+                            } else if (filterSite) {
+                                // Only include the site in the result if its context root matches the site option.
+                                return (localSite.contextRoot === filterSite);
+                            } else {
+                                // Not filtering by context root, so include the site in the result.
+                                return true;
+                            }
+                        });
+                    } else {
+                        // This is the typical case. A local site is only included in the result if it is contained in
+                        // the context site list. It's important to preserve the order of the context site list, because
+                        // certain operations depend on the order.
+                        const sortedLocalSites = [];
+                        context.siteList.forEach(function (siteItem) {
+                            // For each site in the context site list, find the matching site in the list of local sites.
+                            const site = localSites.find(function (localSite) {
+                                return (localSite.id === siteItem.id);
+                            });
+
+                            // If the matching site was found in the list of local sites, add it to the sorted result.
+                            if (site) {
+                                sortedLocalSites.push(site);
+                            }
                         });
 
-                        if (deletions) {
-                            // The list of local site items returned from the super method has already been filtered
-                            // based on the ready/draft options. Return each of these site items for now.
-                            // FUTURE Filter out any site items that don't match the specified site and project options.
-                            return true;
-                        } else {
-                            // Only include the local site if it is in the site list.
-                            return inSiteList;
-                        }
-                    });
+                        return sortedLocalSites;
+                    }
                 }
-                return results;
+
+                return localSites;
             });
     }
 
@@ -134,16 +156,26 @@ class SitesHelper extends JSONItemHelper {
      */
     _listModifiedLocalItemNames (context, flags, opts) {
         return super._listModifiedLocalItemNames(context, flags, opts)
-            .then(function (results) {
-                if (results && context.siteList) {
-                    // Filter the list of sites to only include those in the context site list.
-                    results = results.filter(function (site) {
-                        return context.siteList.some(function (siteItem) {
-                            return site.id === siteItem.id;
+            .then(function (localSites) {
+                if (localSites && context.siteList) {
+                    // Filter the list of local sites to only include those in the context site list. It is important
+                    // to preserve the order of the context site list, because certain operations depend on the order.
+                    const sortedLocalSites = [];
+                    context.siteList.forEach(function (siteItem) {
+                        // For each site in the context site list, find the matching site in the list of local sites.
+                        const site = localSites.find(function (localSite) {
+                            return (localSite.id === siteItem.id);
                         });
+
+                        // If the matching site was found in the list of local sites, add it to the sorted result.
+                        if (site) {
+                            sortedLocalSites.push(site);
+                        }
                     });
+
+                    return sortedLocalSites;
                 }
-                return results;
+                return localSites;
             });
     }
 
@@ -174,16 +206,27 @@ class SitesHelper extends JSONItemHelper {
      */
     getRemoteItems (context, opts) {
         return super.getRemoteItems(context, opts)
-            .then(function (results) {
-                if (results && context.siteList) {
-                    // Filter the list of sites to only include those in the context site list.
-                    results = results.filter(function (site) {
-                        return context.siteList.some(function (siteItem) {
-                            return site.id === siteItem.id;
+            .then(function (remoteSites) {
+                if (remoteSites && context.siteList) {
+                    // Filter the list of remote sites to only include those in the context site list. It is important
+                    // to preserve the order of the context site list, because certain operations depend on the order.
+                    const sortedRemoteSites = [];
+                    context.siteList.forEach(function (siteItem) {
+                        // For each site in the context site list, find the matching site in the list of remote sites.
+                        const site = remoteSites.find(function (remoteSite) {
+                            return (remoteSite.id === siteItem.id);
                         });
+
+                        // If the matching site was found in the list of remote sites, add it to the sorted result.
+                        if (site) {
+                            sortedRemoteSites.push(site);
+                        }
                     });
+
+                    return sortedRemoteSites;
                 }
-                return results;
+
+                return remoteSites;
             });
     }
 
@@ -195,19 +238,31 @@ class SitesHelper extends JSONItemHelper {
      * @param {Object} opts - The options to be used for this operation.
      *
      * @returns {Q.Promise} - A promise for an array of all remote items that were modified since being pushed/pulled.
+     *
+     * @resolves {Array} The items on the remote content hub that have been modified.
      */
     getModifiedRemoteItems (context, flags, opts) {
         return super.getModifiedRemoteItems(context, flags, opts)
-            .then(function (results) {
-                if (results && context.siteList) {
-                    // Filter the list of sites to only include those in the context site list.
-                    results = results.filter(function (site) {
-                        return context.siteList.some(function (siteItem) {
-                            return site.id === siteItem.id;
+            .then(function (remoteSites) {
+                if (remoteSites && context.siteList) {
+                    // Filter the list of remote sites to only include those in the context site list. It is important
+                    // to preserve the order of the context site list, because certain operations depend on the order.
+                    const sortedRemoteSites = [];
+                    context.siteList.forEach(function (siteItem) {
+                        // For each site in the context site list, find the matching site in the list of remote sites.
+                        const site = remoteSites.find(function (remoteSite) {
+                            return (remoteSite.id === siteItem.id);
                         });
+
+                        // If the matching site was found in the list of remote sites, add it to the sorted result.
+                        if (site) {
+                            sortedRemoteSites.push(site);
+                        }
                     });
+
+                    return sortedRemoteSites;
                 }
-                return results;
+                return remoteSites;
             });
     }
 

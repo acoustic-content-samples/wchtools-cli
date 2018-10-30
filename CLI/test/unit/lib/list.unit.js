@@ -31,12 +31,17 @@ const hashes = ToolsApi.getHashes();
 const toolsCli = require("../../../wchToolsCli");
 const BaseCommand = require("../../../lib/baseCommand");
 const manifests = ToolsApi.getManifests();
+const mkdirp = require("mkdirp");
+const rimraf = require("rimraf");
 
 // Require the local modules that will be stubbed, mocked, and spied.
 const options = require("wchtools-api").getOptions();
 
 let stubRemoteSites;
 let stubLocalSites;
+
+// Directory for temporary artifact files.
+const ARTIFACTS_DIR = UnitTest.DOWNLOAD_DIR; // Relative to the CLI directory.
 
 class ListUnitTest extends UnitTest {
     constructor () {
@@ -68,6 +73,8 @@ class ListUnitTest extends UnitTest {
         describe("Unit tests for list  " + switches, function () {
             let stubLogin;
             before(function (done) {
+                mkdirp.sync(ARTIFACTS_DIR);
+
                 stubLogin = sinon.stub(self.getLoginHelper(), "login");
                 stubLogin.resolves("Adam.iem@mailinator.com");
 
@@ -78,9 +85,13 @@ class ListUnitTest extends UnitTest {
             });
 
             after(function (done) {
+                rimraf.sync(ARTIFACTS_DIR);
+
                 stubLogin.restore();
+
                 ListUnitTest.restoreRemoteSitesStub();
                 ListUnitTest.restoreLocalSitesStub();
+
                 done();
             });
 
@@ -364,7 +375,8 @@ class ListUnitTest extends UnitTest {
                 process.env.WCHTOOLS_PASSWORD = "password";
 
                 const stubList = sinon.stub(helper, "listModifiedRemoteItemNames");
-                const LIST_ERROR = "Error listing artifacts - expected by unit test.";
+                const LIST_ERROR = new Error("Could not retrieve the remote artifacts - expected by unit test.");
+                LIST_ERROR.heading = "Error listing artifacts.";
                 stubList.rejects(LIST_ERROR);
 
                 // Execute the command to list the items on the server.
@@ -383,7 +395,11 @@ class ListUnitTest extends UnitTest {
                         // Restore the original methods and values.
                         stubGet.restore();
                         stubList.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -428,7 +444,11 @@ class ListUnitTest extends UnitTest {
                         // Restore the original methods and values.
                         stubGet.restore();
                         stubList.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -469,7 +489,11 @@ class ListUnitTest extends UnitTest {
                         // Restore the original methods and values.
                         stubGet.restore();
                         stubList.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -521,7 +545,11 @@ class ListUnitTest extends UnitTest {
                         stubList.restore();
                         stubInit.restore();
                         stubSave.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -569,7 +597,11 @@ class ListUnitTest extends UnitTest {
                         stubGet.restore();
                         stubList.restore();
                         stubPrompt.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -617,7 +649,11 @@ class ListUnitTest extends UnitTest {
                         stubGet.restore();
                         stubList.restore();
                         stubPrompt.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -665,7 +701,11 @@ class ListUnitTest extends UnitTest {
                         stubGet.restore();
                         stubList.restore();
                         stubPrompt.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -719,7 +759,11 @@ class ListUnitTest extends UnitTest {
                         stubList.restore();
                         stubPrompt.restore();
                         spyConsole.restore();
-                        process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        if (originalPassword) {
+                            process.env.WCHTOOLS_PASSWORD = originalPassword;
+                        } else {
+                            delete process.env.WCHTOOLS_PASSWORD;
+                        }
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -915,7 +959,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--mod", "--dir", ARTIFACTS_DIR, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stubs were called as expected, and the expected message was returned.
                         expect(stubList).to.have.been.calledOnce;
@@ -967,7 +1011,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--ready", "--draft", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--server", "--ready", "--draft", "--mod", "--dir", ARTIFACTS_DIR, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stubs were called as expected, and the expected message was returned.
                         if (switches.includes("--sites")) {
@@ -1023,7 +1067,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ready", "--server", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--ready", "--server", "--mod", "--dir", ARTIFACTS_DIR, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stubs were called as expected, and the expected message was returned.
                         expect(stubList).to.have.been.calledOnce;
@@ -1077,7 +1121,7 @@ class ListUnitTest extends UnitTest {
 
                 // Execute the command to list the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--draft", "--server", "--mod", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "list", switches, "--draft", "--server", "--mod", "--dir", ARTIFACTS_DIR, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stubs were called as expected, and the expected message was returned.
                         expect(stubList).to.have.been.calledOnce;
@@ -1614,8 +1658,10 @@ class ListUnitTest extends UnitTest {
             });
 
             it("test fail bad dir param", function (done) {
+                const BAD_DIRECTORY = new Error("Directory error, expected by unit test.");
+                BAD_DIRECTORY.code = "ENOENT";
                 const stub = sinon.stub(fs, "statSync");
-                stub.throws("BAD DIRECTORY");
+                stub.throws(BAD_DIRECTORY);
 
                 // Execute the command to list the items to the download directory.
                 let error;

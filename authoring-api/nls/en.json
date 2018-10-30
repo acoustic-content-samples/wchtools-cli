@@ -13,6 +13,7 @@
   "remote_asset_not_found": "Remote asset not found: ",
   "cannot_push_item": "Item '%(name)s' could not be pushed.",
   "cannot_pull_item": "Item '%(name)s' could not be pulled.",
+  "compare_error_loading_items": "Error getting list of items for compare: ",
   "compare_error_loading_item": "Error loading item for compare: ",
 
   "deleted_original_file": "Deleted original file: %(old_name)s new file: %(new_name)s",
