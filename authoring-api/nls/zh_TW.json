@@ -13,6 +13,7 @@
   "remote_asset_not_found": "找不到遠端資產：",
   "cannot_push_item": "無法推送項目 '%(name)s'。",
   "cannot_pull_item": "無法取回項目 '%(name)s'。",
+  "compare_error_loading_items": "取得項目清單進行比較時發生錯誤：",
   "compare_error_loading_item": "載入項目進行比較時發生錯誤：",
 
   "deleted_original_file": "已刪除原始檔案：%(old_name)s 新的檔案：%(new_name)s",

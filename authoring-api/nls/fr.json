@@ -13,6 +13,7 @@
   "remote_asset_not_found": "Actif éloigné introuvable : ",
   "cannot_push_item": "L'élément '%(name)s' n'a pas pu être inséré.",
   "cannot_pull_item": "L'élément '%(name)s' n'a pas pu être extrait.",
+  "compare_error_loading_items": "Erreur lors de l'obtention de la liste des éléments pour la comparaison : ",
   "compare_error_loading_item": "Erreur lors du chargement de l'élément pour la comparaison : ",
 
   "deleted_original_file": "Fichier d'origine supprimé : %(old_name)s ; nouveau fichier : %(new_name)s",

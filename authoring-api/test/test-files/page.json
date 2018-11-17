@@ -1,0 +1,8 @@
+{
+  "name": "PAGE_TEST_NAME",
+  "hierarchicalPath": "/PAGE_TEST_NAME",
+  "title": "PAGE_TEST_TITLE",
+  "segment": "PAGE_TEST_SEGMENT",
+  "description": "Page created by pagesREST integration test.",
+  "status": "draft"
+}

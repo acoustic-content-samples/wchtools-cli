@@ -141,8 +141,8 @@ class BaseCommand {
             // command object itself. This is just the way Commander works.
             this._commandLineOptions = command;
 
-            // Provide a meesage to indicate that there was an invalid argument on the command line.
-            this.errorMessage(i18n.__('cli_invalid_arguments', {arguments: commandLineOptions}));
+            // Provide a meesage to indicate that there was an invalid option on the command line.
+            this.errorMessage(i18n.__('cli_invalid_arguments', {options: commandLineOptions}));
 
             // Reset the command line options.
             this.resetCommandLineOptions();

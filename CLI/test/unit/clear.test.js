@@ -198,7 +198,7 @@ describe("Test 'clear' command", function () {
             })
             .catch(function (err) {
                 // Verify that the expected error message was returned.
-                expect(err.message).to.contain("Invalid argument foo");
+                expect(err.message).to.contain("Invalid option foo");
             })
             .catch(function (err) {
                 error = err;

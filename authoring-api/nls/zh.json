@@ -13,6 +13,7 @@
   "remote_asset_not_found": "找不到远程资产：",
   "cannot_push_item": "无法推送项“%(name)s”。",
   "cannot_pull_item": "无法拉取项“%(name)s”。",
+  "compare_error_loading_items": "获取项列表以进行比较时发生错误：",
   "compare_error_loading_item": "装入此项以进行比较时发生错误：",
 
   "deleted_original_file": "已删除原始文件：%(old_name)s 新文件：%(new_name)s",

@@ -19,6 +19,7 @@ const Q = require("q");
 const utils = require("./utils/utils.js");
 const request = utils.getRequestWrapper();
 const options = require("./utils/options.js");
+const querystring = require("querystring");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 class BaseREST {
@@ -389,7 +390,7 @@ class BaseREST {
                 if (queryParams) {
                     let delimiter = (requestOptions.uri.indexOf('?') === -1) ? "?" : "&";
                     Object.keys(queryParams).forEach(function (key) {
-                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + queryParams[key];
+                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + querystring.escape(queryParams[key]);
                         delimiter = "&";
                     });
                 }
@@ -436,7 +437,7 @@ class BaseREST {
                 if (queryParams) {
                     let delimiter = "?";
                     Object.keys(queryParams).forEach(function (key) {
-                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + queryParams[key];
+                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + querystring.escape(queryParams[key]);
                         delimiter = "&";
                     });
                 }

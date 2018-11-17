@@ -13,6 +13,7 @@
   "remote_asset_not_found": "Ativo remoto não localizado: ",
   "cannot_push_item": "O item '%(name)s' não pôde ser mais enviado por push.",
   "cannot_pull_item": "O item '%(name)s' não pôde ser puxado.",
+  "compare_error_loading_items": "Erro ao obter lista de itens para comparação: ",
   "compare_error_loading_item": "Erro ao carregar item para comparação: ",
 
   "deleted_original_file": "Excluído arquivo original: %(old_name)s novo arquivo: %(new_name)s",

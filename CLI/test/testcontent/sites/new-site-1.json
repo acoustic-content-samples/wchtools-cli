@@ -1,0 +1,17 @@
+{
+  "name": "new-site-1",
+  "description": "",
+  "status": "ready",
+  "contextRoot": "new-site-1",
+  "storeId": "",
+  "storeIdentifier": "",
+  "kind": [],
+  "routingMode": "path",
+  "classification": "site",
+  "lastModified": "2018-10-26T03:34:45.802Z",
+  "lastModifierId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "created": "2018-10-26T03:34:45.802Z",
+  "creatorId": "2e6472c3-b349-4ed3-836b-a43d53d456de",
+  "id": "7a83c263-723c-4aa3-b14a-5ee6acff330c",
+  "rev": "1-cf1b0ab90cf8b064c4a3cc33350a8286"
+}

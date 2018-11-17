@@ -67,14 +67,14 @@ program.errorMessage = function () {
 };
 
 /* istanbul ignore next */
-program.on('*', function () {
+program.on('command:*', function () {
     program.outputHelp(); // NOSONAR
     program.errorMessage('Unknown Command: ' + program.args.join(' ')); // NOSONAR
 });
 
 program.getSpinner = function(){
     return spinner;
-}
+};
 
 program.successMessageSave = program.successMessage;
 program.errorMessageSave = program.errorMessage;

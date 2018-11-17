@@ -2,7 +2,7 @@
   "singleton_construct_error": "singleton クラス %(classname)s のインスタンスを作成できません",
   "create_local_item_error": "createLocalItem でエラーが発生しました: ",
   "error_filtering_remote_items": "listModifiedRemoteItemNames でリモート・アイテム・リストをフィルタリング中にエラーが発生しました",
-  "error_renaming_item": "ローカル・ファイル '%(name)s' の名前変更中にエラーが発生しました。エラー: %(message)s",
+  "error_renaming_item": "ローカル・ファイル '%(name)s' の名前変更中にエラーが発生しました。 エラー: %(message)s",
   "push_error_creating_item": "アイテムの作成でプッシュ・エラーが発生しました: ",
   "push_error_updating_item": "アイテムの更新でプッシュ・エラーが発生しました: ",
   "push_warning_ignore_conflict": "プッシュ済みアイテム %(name)s 内の重要でない違いを無視します。",
@@ -13,6 +13,7 @@
   "remote_asset_not_found": "リモート・アセットが見つかりません: ",
   "cannot_push_item": "アイテム '%(name)s' をプッシュできませんでした。",
   "cannot_pull_item": "アイテム '%(name)s' をプルできませんでした。",
+  "compare_error_loading_items": "比較するアイテムのリストの取得中にエラーが発生しました: ",
   "compare_error_loading_item": "比較するアイテムのロード中にエラーが発生しました: ",
 
   "deleted_original_file": "元のファイル %(old_name)s を削除しました。新規ファイル: %(new_name)s",

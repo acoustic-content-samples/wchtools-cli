@@ -187,7 +187,7 @@ class PushCommand extends BaseCommand {
      */
     checkWarnAboutSchedule(context, opts) {
         const deferred = Q.defer();
-        if (!options.getRelevantOption(context, opts, "publish-now") && !options.getRelevantOption(context, opts, "filterDraft")) {
+        if (this._artifactsCount > 0 && !options.getRelevantOption(context, opts, "publish-now") && !options.getRelevantOption(context, opts, "filterDraft")) {
             ToolsApi.getPublishingNextSchedulesHelper().getNextSchedules(context, opts)
                 .then(items => {
                     if (items && items.length && items.length>0) {

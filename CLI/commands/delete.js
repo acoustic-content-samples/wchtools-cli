@@ -887,11 +887,19 @@ class DeleteCommand extends BaseCommand {
                 logger.info(i18n.__('cli_delete_success', {"name": getDisplayName(item)}));
             })
             .catch(function (err) {
-                // Track the number of failed delete operations.
-                self._artifactsError++;
+                if (err.statusCode === 404) {
+                    // The item no longer exists, so assume it was deleted automatically.
+                    self._artifactsCount++;
 
-                // Add an error entry for the localized failure message. (Displayed in verbose mode.)
-                logger.error(i18n.__("cli_delete_failure", {"name": getDisplayName(item), "err": err.message}));
+                    // Add an info entry for the localized success message. (Displayed in verbose mode.)
+                    logger.info(i18n.__('cli_delete_item_ignored', {"name": getDisplayName(item)}));
+                } else {
+                    // Track the number of failed delete operations.
+                    self._artifactsError++;
+
+                    // Add an error entry for the localized failure message. (Displayed in verbose mode.)
+                    logger.error(i18n.__("cli_delete_failure", {"name": getDisplayName(item), "err": err.message}));
+                }
             });
     }
 

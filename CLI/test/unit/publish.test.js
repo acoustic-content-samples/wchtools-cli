@@ -148,7 +148,7 @@ describe("Test publish command", function () {
             .catch(function (err) {
                 try {
                     // The stub should only have been called once, and it should have been before the spy.
-                    expect(err.message).to.contain('Invalid argument');
+                    expect(err.message).to.contain('Invalid option');
                 } catch (err) {
                     error = err;
                 }
@@ -304,5 +304,5 @@ describe("Test publish command", function () {
             .finally(function () {
                 done(error);
             });
-    });    
+    });
 });

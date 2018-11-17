@@ -201,7 +201,7 @@ class JSONPathBasedItemFS extends JSONItemFS {
                                 const additionalProperties = opts["additionalItemProperties"];
                                 if (additionalProperties) {
                                     additionalProperties.forEach(function (property) {
-                                        if (item[property]) {
+                                        if (item[property] || item[property] === 0) {
                                             proxy[property] = item[property];
                                         }
                                     });

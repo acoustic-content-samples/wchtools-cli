@@ -13,6 +13,7 @@
   "remote_asset_not_found": "원격 자산을 찾을 수 없음: ",
   "cannot_push_item": "'%(name)s' 항목을 푸시할 수 없습니다.",
   "cannot_pull_item": "'%(name)s' 항목을 가져올 수 없습니다.",
+  "compare_error_loading_items": "비교를 위해 항목의 목록을 가져오는 중에 오류 발생: ",
   "compare_error_loading_item": "비교를 위해 항목을 로드하는 중에 오류 발생: ",
 
   "deleted_original_file": "삭제된 원본 파일: %(old_name)s 새 파일: %(new_name)s",

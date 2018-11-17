@@ -107,11 +107,85 @@ class PagesFS extends JSONPathBasedItemFS {
      * @protected
      */
     _listSort(context, items, opts) {
-        const pageItems = super._listSort(context, items, opts);
+        const result = [];
+        if (items) {
+            // Create a list of parent objects, each of which contain a list of children.
+            const root = {children: []};
+            const parents = [];
+            items.forEach(function (item) {
+                // Find the parent of the page item.
+                let parent;
+                if (!item.parentId) {
+                    parent = root;
+                } else {
+                    parent = parents.find(function (parent) {
+                        return parent.id === item.parentId;
+                    });
 
-        // TODO Sort the pages by folder and position, so that the pages within a folder are listed and pushed in order.
+                    if (!parent) {
+                        // Create a new parent object and add it to the list.
+                        parent = {id: item.parentId, children: [], visited: false};
+                        parents.push(parent);
+                    }
+                }
 
-        return pageItems;
+                // Add the child to its parent.
+                parent.children.push(item);
+            });
+
+            // Sort each list of child pages by position.
+            root.children.sort(function (childA, childB) {
+                return childA.position - childB.position;
+            });
+            parents.forEach(function (parent) {
+                parent.children.sort(function (childA, childB) {
+                    return childA.position - childB.position;
+                });
+            });
+
+            const addPagesToResult = function (pages) {
+                pages.forEach(function (page) {
+                    result.push(page);
+                    const parent = parents.find(function (parent) {
+                        return parent.id === page.id;
+                    });
+                    if (parent) {
+                        addPagesToResult(parent.children);
+                        parent.visited = true;
+                    }
+                });
+            };
+
+            addPagesToResult(root.children);
+
+            // Add any pages from parents that were not visited already. (Typically only necessary for a draft site.)
+            parents.forEach(function (parent) {
+                if (!parent.visited) {
+                    addPagesToResult(parent.children);
+                }
+            });
+        }
+
+        return result;
+    }
+
+    /**
+     * @param {Object} context The API context to be used by the get operation.
+     * @param {Object} opts Any override options to be used for this operation.
+     *
+     * @returns {Q.Promise} A promise that resolves with the list of all items stored in the working dir.
+     *                      There is no guarantee that the names refer to a valid file.
+     */
+    listNames(context, opts) {
+        // Each site in the resulting list should include the contextRoot property.
+        opts = utils.cloneOpts(opts);
+        if (!opts["additionalItemProperties"]) {
+            opts["additionalItemProperties"] = [];
+        }
+        opts["additionalItemProperties"].push("position");
+        opts["additionalItemProperties"].push("parentId");
+
+        return super.listNames(context, opts);
     }
 
     /**

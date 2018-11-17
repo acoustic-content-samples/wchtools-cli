@@ -213,13 +213,33 @@ class WchToolsApi {
     }
 
     pushAllItems (opts) {
+        this.getLogger().info("pushAllItems started");
         this.context.wchToolsApiPushMethod = "pushAllItems";
         return this.pushItems(opts);
     }
 
     pushModifiedItems (opts) {
+        this.getLogger().info("pushModifiedItems started");
         this.context.wchToolsApiPushMethod = "pushModifiedItems";
         return this.pushItems(opts);
+    }
+
+    pushManifestItems (opts) {
+        this.getLogger().info("pushManifestItems started");
+        this.context.wchToolsApiPushMethod = "pushManifestItems";
+
+        // Clear out any existing manifest settings.
+        manifests.resetManifests(this.context, opts);
+
+        const self = this;
+        return manifests.initializeManifests(this.context, this.context.manifest, undefined, undefined, opts)
+            .then(function () {
+                self.getLogger().debug("pushing from manifest: " + JSON.stringify(self.context.readManifest, null, "  "));
+                return self.pushItems(opts);
+            })
+            .catch(function (err) {
+                self.getLogger().info("unable to initialize manifest: " + self.context.manifest);
+            });
     }
 
     pushItems (opts) {
