@@ -13,6 +13,7 @@
   "remote_asset_not_found": "Fjärrtillgång hittades inte: ",
   "cannot_push_item": "Objektet '%(name)s' kunde inte skickas.",
   "cannot_pull_item": "Objektet '%(name)s' kunde inte hämtas.",
+  "compare_error_loading_items": "Fel vid hämtning av lista över objekt för att jämföra: ",
   "compare_error_loading_item": "Fel vid inläsning av objekt för att jämföra: ",
 
   "deleted_original_file": "Borttagen ursprunglig fil: %(old_name) ny fil: %(new_name)",

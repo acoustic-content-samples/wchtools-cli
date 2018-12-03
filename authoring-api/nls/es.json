@@ -13,6 +13,7 @@
   "remote_asset_not_found": "No se ha encontrado el activo remoto: ",
   "cannot_push_item": "No se ha podido enviar el elemento '%(name)s'.",
   "cannot_pull_item": "No se ha podido extraer el elemento '%(name)s'.",
+  "compare_error_loading_items": "Error al obtener la lista de elementos para comparar: ",
   "compare_error_loading_item": "Error al cargar el elemento para comparar: ",
 
   "deleted_original_file": "Archivo original suprimido: nuevo archivo de %(old_name)s: %(new_name)s",

@@ -378,7 +378,7 @@ class CompareUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the expected error message was returned.
-                        expect(err.message).to.contain('Invalid argument');
+                        expect(err.message).to.contain('Invalid option');
                     })
                     .catch(function (err) {
                         error = err;

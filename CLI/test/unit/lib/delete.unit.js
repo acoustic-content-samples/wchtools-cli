@@ -841,7 +841,7 @@ class DeleteUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        expect(err.message).to.contain("site-context can only be used when the sites or pages option is also specified");
+                        expect(err.message).to.contain("The --site-context option is only supported for sites and pages.");
                     })
                     .catch(function (err) {
                         error = err;
@@ -862,7 +862,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected message should have been returned.
-                        expect(err.message).to.contain("The --site-context argument must be specified when deleting a site.");
+                        expect(err.message).to.contain("To delete a site definition, the --site-context option must be specified.");
                     })
                     .catch(function (err) {
                         error = err;
@@ -1170,7 +1170,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected message should have been returned.
-                        expect(err.message).to.contain("Both --ready and --draft cannot be specified when deleting by id.");
+                        expect(err.message).to.contain("The --ready and --draft options cannot both be specified when deleting by id.");
                     })
                     .catch(function (err) {
                         error = err;
@@ -1364,7 +1364,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected message should have been returned.
-                        expect(err.message).to.contain("The --id argument or the --path and --site-context arguments must be specified when deleting a page.");
+                        expect(err.message).to.contain("To delete a page, the --id option or the --path and --site-context options must be specified.");
                     })
                     .catch(function (err) {
                         error = err;
@@ -1385,7 +1385,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected message should have been returned.
-                        expect(err.message).to.contain("The --id argument or the --path and --site-context arguments must be specified when deleting a page.");
+                        expect(err.message).to.contain("To delete a page, the --id option or the --path and --site-context options must be specified.");
                     })
                     .catch(function (err) {
                         error = err;
@@ -2342,7 +2342,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected error should have been returned.
-                        expect(err.message).to.contain('Invalid argument');
+                        expect(err.message).to.contain('Invalid option');
                     })
                     .catch(function (err) {
                         error = err;
@@ -2465,7 +2465,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected error should have been returned.
-                        expect(err.message).to.contain('requires either the --all or --tag option');
+                        expect(err.message).to.contain('Deleting more than one artifact type at a time is only supported when the --all, --tag, or --manifest option is specified.');
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -2486,7 +2486,7 @@ class DeleteUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // The expected error should have been returned.
-                        expect(err.message).to.contain('Both --id and --path');
+                        expect(err.message).to.contain('The --id and --path options cannot both be specified.');
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -2512,7 +2512,7 @@ class DeleteUnitTest extends UnitTest {
                         if (!(switches.includes('-a') || (switches.includes('-w')))) {
                             // The stub should have been called and the expected error should have been returned.
                             expect(stubId).to.have.been.calledOnce;
-                            expect(err.message).to.contain('--id argument is not supported');
+                            expect(err.message).to.contain('The --id option is not supported for the specified artifact type.');
                         }
                     })
                     .catch (function (err) {
@@ -2582,7 +2582,7 @@ class DeleteUnitTest extends UnitTest {
                         // The stubs should have been called and the expected error should have been returned.
                         expect(stubPath).to.have.been.calledOnce;
                         expect(stubRecursive).to.have.been.calledOnce;
-                        expect(err.message).to.contain('--recursive argument is not supported');
+                        expect(err.message).to.contain('--recursive option is not supported');
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

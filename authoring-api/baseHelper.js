@@ -318,7 +318,7 @@ class BaseHelper {
         const helper = this;
         return helper.getManifestItems(context, opts)
             .then(function (items) {
-                return helper._deleteItemList(context, items, opts);
+                return helper.deleteItemList(context, items, opts);
             });
     }
 
@@ -462,7 +462,7 @@ class BaseHelper {
     }
 
     /**
-     * Delete the remote items returned from the given list function.
+     * Delete the remote items in the given list.
      *
      * @param {Object} context The API context to be used by the delete operation.
      * @param {Array} items A list of items to be deleted.
@@ -474,7 +474,7 @@ class BaseHelper {
      * @rejects {Error} An error that occurred during the delete. Note that errors occurring during the delete of an
      *                  individual item do not cause the promise to be rejected.
      */
-    _deleteItemList (context, items, opts) {
+    deleteItemList(context, items, opts) {
         // Create a deferred object to control the timing of this operation.
         const deferred = Q.defer();
         const self = this;

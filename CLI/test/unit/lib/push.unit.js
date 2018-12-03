@@ -2431,7 +2431,7 @@ class PushUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(err.message).to.contain('Invalid argument');
+                            expect(err.message).to.contain('Invalid option');
                         } catch (err) {
                             error = err;
                         }
@@ -2482,7 +2482,7 @@ class PushUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(err.message).to.equal('Invalid options, named can only be used for a single type.');
+                            expect(err.message).to.equal('The --named option can only be used for a single artifact type.');
                         } catch (err) {
                             error = err;
                         }
@@ -2504,7 +2504,7 @@ class PushUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(err.message).to.equal('Invalid options named and path cannot be used together.');
+                            expect(err.message).to.equal('The --named and --path options cannot both be specified.');
                         } catch (err) {
                             error = err;
                         }
@@ -2529,7 +2529,7 @@ class PushUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the expected error message was returned.
-                        expect(err.message).to.equal('Invalid options named and ready cannot be used together.');
+                        expect(err.message).to.equal('The --named and --ready options cannot both be specified.');
                     })
                     .catch(function (err) {
                         error = err;
@@ -2554,7 +2554,7 @@ class PushUnitTest extends UnitTest {
                     })
                     .catch(function (err) {
                         // Verify that the expected error message was returned.
-                        expect(err.message).to.equal('Invalid options named and draft cannot be used together.');
+                        expect(err.message).to.equal('The --named and --draft options cannot both be specified.');
                     })
                     .catch(function (err) {
                         error = err;
@@ -2576,7 +2576,7 @@ class PushUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(err.message).to.equal('Invalid options named and Ignore-timestamps cannot be used together.');
+                            expect(err.message).to.equal('The --named and --Ignore-timestamps options cannot both be specified.');
                         } catch (err) {
                             error = err;
                         }
@@ -2608,7 +2608,7 @@ class PushUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        expect(err.message).to.contain("cannot specifiy both ready and manifest");
+                        expect(err.message).to.contain("The --ready and --manifest options cannot both be specified.");
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.
@@ -2645,7 +2645,7 @@ class PushUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        expect(err.message).to.contain("cannot specifiy both draft and manifest");
+                        expect(err.message).to.contain("The --draft and --manifest options cannot both be specified.");
                     })
                     .catch (function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

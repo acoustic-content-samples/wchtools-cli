@@ -8,6 +8,7 @@
   - Add a warning after successful push, if --publish-now not specified and a publishing schedule is set, that may delay the publishing of the ready artifacts that were just pushed.
   - Update manifest support to handle placeholder sites
   - Update paging support to use the next links provided in service responses
+  - Fix an issue with delete by page when receiving a 404 response.
 
 ### 3.1 changes since 3.0
 

@@ -3255,7 +3255,9 @@ class AssetsHelper extends BaseHelper {
         const chunkSize = listInfo.length;
         const limit = options.getRelevantOption(context, opts, "limit", "resources");
         //test to see if we got less than the full chunk size
-        if ((this._restApi.useNextLinks(context, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
+        //FUTURE: prod-authoring-resource views/by-modified does not support next links
+//        if ((this._restApi.useNextLinks(context, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
+        if (chunkSize === 0 || chunkSize < limit) {
             //resolve the deferred with the allItems array
             deferred.resolve(allItems);
         } else {
