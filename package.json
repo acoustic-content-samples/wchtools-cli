@@ -1,13 +1,13 @@
 {
   "name": "prod-tools",
-  "version": "3.2.16",
+  "version": "4.0.1",
   "author": "IBM Corporation",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/ibm-wch/wchtools-cli/issues"
   },
   "engines": {
-    "node": ">=6.13.0"
+    "node": ">=8.9.4"
   },
   "config": {
     "engine-strict": true

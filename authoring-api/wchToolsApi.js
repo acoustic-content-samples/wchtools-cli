@@ -232,13 +232,13 @@ class WchToolsApi {
         manifests.resetManifests(this.context, opts);
 
         const self = this;
-        return manifests.initializeManifests(this.context, this.context.manifest, undefined, undefined, opts)
+        return manifests.initializeManifests(this.context, opts.manifest, undefined, undefined, opts)
             .then(function () {
                 self.getLogger().debug("pushing from manifest: " + JSON.stringify(self.context.readManifest, null, "  "));
                 return self.pushItems(opts);
             })
             .catch(function (err) {
-                self.getLogger().info("unable to initialize manifest: " + self.context.manifest);
+                self.getLogger().info("unable to initialize manifest: " + opts.manifest);
             });
     }
 
