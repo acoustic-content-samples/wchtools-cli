@@ -146,6 +146,7 @@ class LoginREST extends BaseREST {
                 const tenant = response.headers["x-ibm-dx-tenant-id"];
                 const baseUrl = response.headers["x-ibm-dx-tenant-base-url"];
                 const existingBaseUrl = options.getProperty(context, "x-ibm-dx-tenant-base-url");
+                context.logger.debug("LoginREST.login: successful authentication to " + existingBaseUrl + " as " + opts.username);
 
                 // Resolve the promise with the tenant and baseUrl values from the login response.
                 result["x-ibm-dx-tenant-id"] = tenant;

@@ -1,5 +1,10 @@
 # Changelog
 
+### 4.0 changes since 3.2
+
+  - Add support for storing user credentials in the operating system key manager (Windows and Mac OS only).
+  - Increment minimum Node.js version to 8.x.
+
 ### 3.2 changes since 3.1
 
   - Add full support for push, pull, list, delete, and compare of multiple site definitions and the associated pages. The site-context option can be used to specify a site for an operation.

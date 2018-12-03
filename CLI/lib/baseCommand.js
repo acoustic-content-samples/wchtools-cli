@@ -24,6 +24,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
 const Q = require("q");
 const ProductVersion = require("../package.json").version;
+const creds = require("@ibm-wch-sdk/cli-credentials");
 const cliLog = "cli" + " " + ProductVersion;
 
 class BaseCommand {
@@ -692,6 +693,7 @@ class BaseCommand {
      */
     handleAuthenticationOptions (context) {
         const defer = Q.defer();
+        const self = this;
         let schemaInput;
 
         // Get the user name.
@@ -747,38 +749,66 @@ class BaseCommand {
             };
         }
 
-        if (schemaInput) {
-            // Prompt for the user name and/or password.
-            prompt.message = '';
-            prompt.delimiter = ' ';
-            prompt.start();
-            const schemaProps = {properties: schemaInput};
-            const self = this;
-            prompt.get(schemaProps, function (err, result) {
-                if (err) {
-                    // FUTURE How do we get an error, and should we reject if we do?
-                    console.warn(err.message);
-                    defer.resolve();
-                } else {
-                    if (result.username) {
-                        // Add the specified user name to the API options.
-                        username = result.username;
-                        self.setApiOption("username", username);
+        const keystoreDeferred = Q.defer();
+        // If we don't have a password, try the OS keystore.
+        if (schemaInput && schemaInput.password) {
+            const baseUrl = options.getRelevantOption(context, this.getApiOptions(), "x-ibm-dx-tenant-base-url");
+            creds.wchGetCredentials(baseUrl)
+                .then(function (osCredentials) {
+                    if (osCredentials && osCredentials.username && osCredentials.password) {
+                        self.getLogger().info(i18n.__("cli_found_credentials", {"url": baseUrl, "username": osCredentials.username}));
+                        // Use the credentials from the OS keystore if a username wasn't specified
+                        // or the username specified matches the username retrieved from the OS keystore.
+                        if (!username || username === osCredentials.username) {
+                            self.setApiOption("username", osCredentials.username);
+                            self.setApiOption("password", osCredentials.password);
+                            // Reset the schemaInput since we don't need to prompt now.
+                            schemaInput = undefined;
+                        }
                     }
-                    if (result.password) {
-                        // Add the specified password to the API options.
-                        password = result.password;
-                        self.setApiOption("password", password);
-                    }
-
-                    // The user name and password have been provided, so resolve the promise.
-                    defer.resolve();
-                }
-            });
+                    keystoreDeferred.resolve();
+                })
+                .catch(function (err) {
+                    self.getLogger().warn(i18n.__("cli_error_loading_credentials", {"url": baseUrl, "err": err.message}));
+                    keystoreDeferred.resolve();
+                });
         } else {
-            // Did not need to prompt for user name and password, so resolve the promise.
-            defer.resolve();
+            keystoreDeferred.resolve();
         }
+
+        keystoreDeferred.promise.then(function () {
+            if (schemaInput) {
+                // Prompt for the user name and/or password.
+                prompt.message = '';
+                prompt.delimiter = ' ';
+                prompt.start();
+                const schemaProps = {properties: schemaInput};
+                prompt.get(schemaProps, function (err, result) {
+                    if (err) {
+                        // FUTURE How do we get an error, and should we reject if we do?
+                        console.warn(err.message);
+                        defer.resolve();
+                    } else {
+                        if (result.username) {
+                            // Add the specified user name to the API options.
+                            username = result.username;
+                            self.setApiOption("username", username);
+                        }
+                        if (result.password) {
+                            // Add the specified password to the API options.
+                            password = result.password;
+                            self.setApiOption("password", password);
+                        }
+
+                        // The user name and password have been provided, so resolve the promise.
+                        defer.resolve();
+                    }
+                });
+            } else {
+                // Did not need to prompt for user name and password, so resolve the promise.
+                defer.resolve();
+            }
+        });
 
         return defer.promise;
     }

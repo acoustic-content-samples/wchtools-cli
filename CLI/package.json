@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "3.2.16",
+  "version": "4.0.1",
   "keywords": [
     "cli"
   ],
@@ -11,7 +11,7 @@
     "url": "https://github.com/ibm-wch/wchtools-cli/issues"
   },
   "engines": {
-    "node": ">=6.13.0"
+    "node": ">=8.9.4"
   },
   "config": {
     "engine-strict": true
@@ -22,16 +22,17 @@
     "wchtools_heap": "./bin/wchtools_heap"
   },
   "dependencies": {
+    "@ibm-wch-sdk/cli-credentials": "^7.0.165",
     "cli-table": "^0.3.1",
-    "colors": "^1.1.2",
-    "commander": "^2.9.0",
-    "wchtools-api": "../authoring-api",
+    "colors": "^1.3.2",
+    "commander": "^2.19.0",
     "log4js": "^3.0.5",
     "ora": "^1.2.0",
     "prompt": "^1.0.0",
     "q": "^1.5.0",
     "rimraf": "^2.6.1",
-    "update-notifier": "^2.1.0"
+    "update-notifier": "^2.5.0",
+    "wchtools-api": "../authoring-api"
   },
   "devDependencies": {
     "chai": "^3.5.0",
@@ -45,7 +46,7 @@
     "sinon": "^1.10.3",
     "sinon-as-promised": "^4.0.3",
     "sinon-chai": "^2.10.0",
-    "uuid": "^3.0.1"
+    "uuid": "^3.3.2"
   },
   "scripts": {
     "unit": "./node_modules/.bin/istanbul cover ../node_modules/mocha/bin/_mocha test/unit/*.test.js -- -R spec",

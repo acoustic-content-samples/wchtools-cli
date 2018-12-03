@@ -13,8 +13,8 @@ Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/
 
  Pre-Requisite: Before you install the wchtools CLI, you must install NodeJS.
 
-   - Install the latest Node 6.x LTS or Node 8.x LTS version of Node
-     - Note, early versions of 6.x had emitter issues and early versions of both 6.x and 8.x may have security risks, so use the latest point release of 6.x or 8.x available, to ensure you take advantage of available functional and security fixes.
+   - Install the latest Node 8.x LTS version of Node
+     - Note, early versions of 8.x may have security risks, so use the latest point release of 8.x available, to ensure you take advantage of available functional and security fixes.
 
  Learn more about installing NodeJS at the following locations
 
@@ -83,8 +83,8 @@ Then follow the Getting Started instructions below, to configure and start using
 #### Initializing wchtools with a username and API URL for a non-federated IBM id
 
       wchtools init
-      User: myWCHusername@mycompany.com
       API URL: https://my11.digitalexperience.ibm.com/api/00000000-1111-2222-3333-444444444444
+      User: myWCHusername@mycompany.com
 
 #### Using a Federated Identity (user) with Watson Content Hub tooling and APIs
 
@@ -103,14 +103,22 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
   When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use.   Then use "apikey" as the value for "Username" on the init command or as passed to the --user argument of wchtools, and use the value of the API key as the password to authenticate with, associated with that API key.
 
       wchtools  init
-      Username: apikey
       API URL: https://my11.digitalexperience.ibm.com/api/00000000-1111-2222-3333-444444444444
+      Username: apikey
 
       wchtools list -A --server
       Password:  0zXyZMapDLGaFDmebg1Fh1d2wDLMXmvXbU666t0TL-zz
 
       or
       wchtools list -A --server --password 0zXyZMapDLGaFDmebg1Fh1d2wDLMXmvXbU666t0TL-zz
+
+#### Store credentials in the operating system key manager
+
+  You can optionally store the credentials in the operating system key manager (Windows and Mac OS only).
+
+  When running wchtools init, add the --store-credentials option to the command line. The wchtools init command will prompt for the password and then store the credentials in the operating system key manager. The credentials are stored per-API URL, so it is possible to maintain unique user credentials for each Watson Content Hub API URL.
+
+  When another wchtools command (for example, push, pull, etc) is run that requires a login, if the username and password are not specified via the command line options, wchtools will attempt to obtain the username and password automatically from the operating system key manager using the API URL to lookup the credentials. If the user credentials are not found in the operating system key manager, wchtools will prompt you to enter them.
 
 #### Specifying default options and command line options
 
