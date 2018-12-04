@@ -1108,13 +1108,15 @@ class BaseCommand {
     }
 
     getLogConfig () {
+        const maxLogSize = utils.getEnvNumericValue('WCHTOOLS_LOG_MAX_SIZE');
+        const maxBackups = utils.getEnvNumericValue('WCHTOOLS_LOG_MAX_BACKUPS');
         // Set up logging for the CLI in the directory where the files exist, and then get the logger.
         const fileAppender = {
             type: 'file',
             filename: './' + utils.ProductAbrev + '-cli.log',
             category: cliLog,
-            maxLogSize: 30480,
-            backups: 3
+            maxLogSize: maxLogSize,
+            backups: maxBackups
         };
         const consoleAppender = {
             type: 'console',
