@@ -362,6 +362,24 @@ function getErrorFromResponse (response) {
     return err;
 }
 
+/**
+ * Returns the numeric value of a process environment variable, or the supplied default if it is not a numeric value.
+ * @param variableName the name of the process environment variable
+ * @param defaultValue the default value
+ * @returns The numeric value, the default value, or undefined.
+ */
+function getEnvNumericValue (variableName, defaultValue) {
+    let result = defaultValue;
+    const n = process.env[variableName];
+    if (n && !Number.isNaN(n) && Number(n) >= 0 && Number.isSafeInteger(Number(n))) {
+        result = Number(n);
+    }
+    return result;
+}
+
+const maxLogSize = getEnvNumericValue('WCHTOOLS_LOG_MAX_SIZE', 5242880);
+const maxBackups = getEnvNumericValue('WCHTOOLS_LOG_MAX_BACKUPS', 5);
+
 const apisLog = ProductAbrev + " " + ProductVersion;
 let apisLogConfig;
 
@@ -380,8 +398,8 @@ if (buildTag && buildTag.indexOf('jenkins') !== -1) {
                 type: 'file',
                 filename: getApiLogPath(),
                 category: apisLog,
-                maxLogSize: 500480,
-                backups: 5
+                maxLogSize: maxLogSize,
+                backups: maxBackups
             }
         },
         categories: {
@@ -397,8 +415,8 @@ if (buildTag && buildTag.indexOf('jenkins') !== -1) {
                 type: 'file',
                 filename: getApiLogPath(),
                 category: apisLog,
-                maxLogSize: 500480,
-                backups: 5
+                maxLogSize: maxLogSize,
+                backups: maxBackups
             }
         },
         categories: {
@@ -935,7 +953,8 @@ const utils = {
     getOldestTimestamp: getOldestTimestamp,
     replaceAll: replaceAll,
     reset: reset,
-    getUserAgent: getUserAgent
+    getUserAgent: getUserAgent,
+    getEnvNumericValue: getEnvNumericValue
 };
 
 module.exports = utils;
