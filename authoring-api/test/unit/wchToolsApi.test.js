@@ -1,6 +1,6 @@
 /*
- Copyright 2016 IBM Corporation
-
+ Copyright IBM Corporation 2016, 2018
+ 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -66,6 +66,16 @@ describe("Unit tests for wchToolsApi.js", function () {
             expect(helper).to.have.property("doesDirectoryExist");
             expect(helper).to.have.property("getPathName");
             expect(helper).to.have.property("pushAllItems");
+            done();
+        });
+
+        it("getDefaultContentHelper", function (done) {
+            const helper = ToolsApi.getContentHelper();
+            expect(helper).to.be.ok;
+            expect(helper.getArtifactName()).to.equal("content");
+            expect(helper).to.have.property("isRetryPushEnabled");
+            expect(helper).to.have.property("listLocalDeletedNames");
+            expect(helper).to.have.property("supportsDeleteByPath");
             done();
         });
 
@@ -266,6 +276,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves([]);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
             stubContent.resolves([]);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "pushAllItems");
+            stubDefaultContent.resolves([]);
             const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
@@ -287,6 +299,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called; // Because there are no local sites.
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -309,6 +322,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubSites.restore();
                     stubPages.restore();
                     stubSiteRevisions.restore();
@@ -355,6 +369,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves([]);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
             stubContent.resolves([]);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "pushAllItems");
+            stubDefaultContent.resolves([]);
             const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
@@ -375,6 +391,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two local sites
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -398,6 +415,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubSites.restore();
                     stubPages.restore();
                     stubSiteRevisions.restore();
@@ -444,6 +462,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves([]);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
             stubContent.resolves([]);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "pushAllItems");
+            stubDefaultContent.resolves([]);
             const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
@@ -464,6 +484,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called; // Because there are no local sites
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -487,6 +508,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubSites.restore();
                     stubPages.restore();
                     stubSiteRevisions.restore();
@@ -534,6 +556,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves([]);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
             stubContent.resolves([]);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "pushAllItems");
+            stubDefaultContent.resolves([]);
             const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
@@ -571,6 +595,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubSites.restore();
                     stubPages.restore();
                     stubSiteRevisions.restore();
@@ -616,6 +641,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves([]);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
             stubContent.resolves([]);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "pushAllItems");
+            stubDefaultContent.resolves([]);
             const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
@@ -636,6 +663,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -658,6 +686,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubSites.restore();
                     stubPages.restore();
                     stubSiteRevisions.restore();
@@ -703,6 +732,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves([]);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushAllItems");
             stubContent.resolves([]);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "pushAllItems");
+            stubDefaultContent.resolves([]);
             const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushAllItems");
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushAllItems");
@@ -736,6 +767,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubSites.restore();
                     stubPages.restore();
                     stubSiteRevisions.restore();
@@ -764,6 +796,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves([]);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "pushModifiedItems");
             stubContent.resolves([]);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "pushModifiedItems");
+            stubDefaultContent.resolves([]);
             const stubSites = sinon.stub(ToolsApi.getSitesHelper(), "pushModifiedItems");
             stubSites.resolves([]);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "pushModifiedItems");
@@ -785,6 +819,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubSites).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called;
                     expect(stubSiteRevisions).to.have.been.calledOnce;
@@ -807,6 +842,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubSites.restore();
                     stubPages.restore();
                     stubSiteRevisions.restore();
@@ -835,6 +871,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves(undefined);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
             stubContent.resolves(undefined);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "deleteRemoteItems");
+            stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
 
@@ -852,6 +890,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called; // Because there are no remote sites.
 
                     // Verify that the expected values are returned.
@@ -872,6 +911,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubPages.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -912,6 +952,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves(undefined);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
             stubContent.resolves(undefined);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "deleteRemoteItems");
+            stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
 
@@ -927,6 +969,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
 
                     // Verify that the expected values are returned.
@@ -950,6 +993,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubPages.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -991,6 +1035,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves(undefined);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
             stubContent.resolves(undefined);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "deleteRemoteItems");
+            stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
 
@@ -1017,6 +1063,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
                 })
                 .catch (function (err) {
@@ -1037,6 +1084,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubPages.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -1074,6 +1122,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves(undefined);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
             stubContent.resolves(undefined);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "deleteRemoteItems");
+            stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
 
@@ -1089,6 +1139,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
 
                     // Verify that the expected values are returned.
@@ -1109,6 +1160,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubPages.restore();
 
                     // Call mocha's done function to indicate that the test is over.
@@ -1146,6 +1198,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubLayoutMappings.resolves(undefined);
             const stubContent = sinon.stub(ToolsApi.getContentHelper(), "deleteRemoteItems");
             stubContent.resolves(undefined);
+            const stubDefaultContent = sinon.stub(ToolsApi.getDefaultContentHelper(), "deleteRemoteItems");
+            stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
 
@@ -1163,6 +1217,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     // Verify that the stubs were called as expected.
                     expect(stubPages).to.have.been.calledTwice;
                     expect(stubContent).to.have.been.calledOnce;
+                    expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubLayoutMappings).to.have.been.calledOnce;
                     expect(stubTypes).to.have.been.calledOnce;
                     expect(stubLayouts).to.have.been.calledOnce;
@@ -1185,6 +1240,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubTypes.restore();
                     stubLayoutMappings.restore();
                     stubContent.restore();
+                    stubDefaultContent.restore();
                     stubPages.restore();
 
                     // Call mocha's done function to indicate that the test is over.

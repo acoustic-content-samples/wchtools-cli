@@ -4,6 +4,10 @@
     "limit": 200,
     "concurrent-limit": 8
   },
+  "default-content": {
+    "limit": 200,
+    "concurrent-limit": 8
+  },
   "types": {
     "limit": 200,
     "concurrent-limit": 8

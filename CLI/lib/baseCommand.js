@@ -1,5 +1,5 @@
 /*
-Copyright 2016 IBM Corporation
+Copyright IBM Corporation 2016, 2017, 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -388,6 +388,7 @@ class BaseCommand {
                 {option: "layouts", section: "layouts"},
                 {option: "layoutMappings", section: "layout-mappings"},
                 {option: "content", section: "content"},
+                {option: "defaultContent", section: "default-content"},
                 {option: "categories", section: "categories"},
                 {option: "renditions", section: "renditions"},
                 {option: "imageProfiles", section: "image-profiles"},
@@ -455,6 +456,7 @@ class BaseCommand {
                 this.setCommandLineOption("layouts", true);
                 this.setCommandLineOption("layoutMappings", true);
                 this.setCommandLineOption("content", true);
+                this.setCommandLineOption("defaultContent", true);
                 this.setCommandLineOption("categories", true);
                 this.setCommandLineOption("renditions", true);
                 this.setCommandLineOption("imageProfiles", true);
@@ -477,6 +479,9 @@ class BaseCommand {
                 this._optionArtifactCount++;
             }
             if (this.getCommandLineOption("layoutMappings")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("defaultContent")) {
                 this._optionArtifactCount++;
             }
             if (this.getCommandLineOption("content")) {
@@ -823,7 +828,7 @@ class BaseCommand {
         const deferred = Q.defer();
         if (this.getCommandLineOption("path")) {
             // Verify that "path" is only used with artifact types that support a path.
-            if (this.getCommandLineOption("webassets") || this.getCommandLineOption("types") || this.getCommandLineOption("layouts") || this.getCommandLineOption("layoutMappings") || this.getCommandLineOption("pages")) {
+            if (this.getCommandLineOption("webassets") || this.getCommandLineOption("assets") || this.getCommandLineOption("types") || this.getCommandLineOption("layouts") || this.getCommandLineOption("layoutMappings") || this.getCommandLineOption("pages")) {
                 this.setApiOption("filterPath", this.getCommandLineOption("path"));
                 deferred.resolve();
             } else {

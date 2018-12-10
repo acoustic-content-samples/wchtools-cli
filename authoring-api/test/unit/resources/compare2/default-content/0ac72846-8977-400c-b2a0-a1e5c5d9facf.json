@@ -1,0 +1,68 @@
+{
+  "id": "0ac72846-8977-400c-b2a0-a1e5c5d9facf",
+  "name": "Design Topics List",
+  "typeId": "84c0e928-6585-4d34-ba02-5ed1b2e4c21c",
+  "locale": "en",
+  "tags": [
+    "user:LivingRoom",
+    "user:Bath",
+    "user:Bedroom",
+    "user:DiningRoom",
+    "user:Kitchen"
+  ],
+  "keywords": [],
+  "status": "ready",
+  "elements": {
+    "maxItem": {
+      "elementType": "number",
+      "value": 3
+    },
+    "datesToInclude": {
+      "elementType": "category"
+    },
+    "listTitle": {
+      "elementType": "text",
+      "value": "Design Topics"
+    },
+    "contentType": {
+      "elementType": "category",
+      "categoryIds": [
+        "46d22f42-3fde-4708-9c34-cd6624dda9e4"
+      ],
+      "categories": [
+        "Dynamic list criteria/Type/Design page"
+      ]
+    },
+    "sortOrder": {
+      "elementType": "category"
+    },
+    "viewAllLink": {
+      "elementType": "link"
+    }
+  },
+  "selectedLayouts": [
+    {
+      "layout": {
+        "id": "gallery-dynamic-list"
+      }
+    }
+  ],
+  "kind": [],
+  "thumbnail": {
+    "id": "2c18ffcf-c695-4ea6-a444-25f03cf123f5",
+    "url": "/authoring/v1/resources/bf2293a6865c8833c948e9c849d019d7"
+  },
+  "description": "",
+  "lastModified": "2018-05-09T16:26:10.852Z",
+  "created": "2018-05-09T16:26:10.852Z",
+  "classification": "default-content",
+  "lastModifierId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "creatorId": "e8dd7eb8-b13f-4877-bcd8-dfec433f656a",
+  "type": "Dynamic list",
+  "creator": "kevintap",
+  "lastModifier": "kevintap",
+  "publishing": {
+    "status": "not-available"
+  },
+  "rev": "1-1ba9ae1272a01436aef350b568652468"
+}

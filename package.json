@@ -1,6 +1,6 @@
 {
   "name": "prod-tools",
-  "version": "4.0.3",
+  "version": "4.1.1",
   "author": "IBM Corporation",
   "license": "Apache-2.0",
   "bugs": {
@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "istanbul": "^0.4.5",
+    "license-checker": "^24.0.1",
     "mocha": "^4.x.x",
     "rimraf": "^2.6.1"
   },

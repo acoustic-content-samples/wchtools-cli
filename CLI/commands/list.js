@@ -30,6 +30,7 @@ const SUFFIX = " ===========";
 const ListTypes =                PREFIX + i18n.__('cli_listing_types') + SUFFIX;
 const ListAssets =               PREFIX + i18n.__('cli_listing_assets') + SUFFIX;
 const ListContentItems =         PREFIX + i18n.__('cli_listing_content') + SUFFIX;
+const ListDefaultContent =       PREFIX + i18n.__('cli_listing_default_content') + SUFFIX;
 const ListCategories =           PREFIX + i18n.__('cli_listing_categories') + SUFFIX;
 const ListImageProfiles =        PREFIX + i18n.__('cli_listing_image_profiles') + SUFFIX;
 const ListLayouts =              PREFIX + i18n.__('cli_listing_layouts') + SUFFIX;
@@ -489,6 +490,11 @@ class ListCommand extends BaseCommand {
                 }
             })
             .then(function () {
+                if (self.getCommandLineOption("defaultContent")) {
+                    return self.handleListPromise(self.listDefaultContent(context), results);
+                }
+            })
+            .then(function () {
                 if (self.getCommandLineOption("content")) {
                     return self.handleListPromise(self.listContent(context), results);
                 }
@@ -793,6 +799,32 @@ class ListCommand extends BaseCommand {
     }
 
     /**
+     * List the "default-content" artifacts.
+     *
+     * @param {Object} context The API context associated with this list command.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of "default-content" artifacts.
+     */
+    listDefaultContent (context) {
+        const helper = ToolsApi.getDefaultContentHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper, context);
+        const contentsPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        contentsPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListDefaultContent, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
+    }
+
+
+    /**
      * List the "sites" artifacts.
      *
      * @param {Object} context The API context associated with this list command.
@@ -889,6 +921,7 @@ class ListCommand extends BaseCommand {
         this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
+        this.setCommandLineOption("defaultContent", undefined);
         this.setCommandLineOption("categories", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("renditions", undefined);
@@ -917,6 +950,7 @@ function listCommand (program) {
         .option('-m --layout-mappings',  i18n.__('cli_list_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_list_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_list_opt_content'))
+        .option('-D --default-content',  i18n.__('cli_list_opt_default_content'))
         .option('-C --categories',       i18n.__('cli_list_opt_categories'))
         .option('-r --renditions',       i18n.__('cli_list_opt_renditions'))
         .option('-s --sites',            i18n.__('cli_list_opt_sites'))

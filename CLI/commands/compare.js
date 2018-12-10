@@ -34,6 +34,7 @@ const CompareTypes =                PREFIX + i18n.__('cli_compare_types') + SUFF
 const CompareAssets =               PREFIX + i18n.__('cli_compare_assets') + SUFFIX;
 const CompareResources =            PREFIX + i18n.__('cli_compare_resources') + SUFFIX;
 const CompareContentItems =         PREFIX + i18n.__('cli_compare_content') + SUFFIX;
+const CompareDefaultContent =       PREFIX + i18n.__('cli_compare_default_content') + SUFFIX;
 const CompareCategories =           PREFIX + i18n.__('cli_compare_categories') + SUFFIX;
 const CompareImageProfiles =        PREFIX + i18n.__('cli_compare_image_profiles') + SUFFIX;
 const CompareLayouts =              PREFIX + i18n.__('cli_compare_layouts') + SUFFIX;
@@ -488,6 +489,11 @@ class CompareCommand extends BaseCommand {
                 }
             })
             .then(function () {
+                if (self.getCommandLineOption("defaultContent")) {
+                    return self.handleComparePromise(self.compareDefaultContent(context), results);
+                }
+            })
+            .then(function () {
                 if (self.getCommandLineOption("content")) {
                     return self.handleComparePromise(self.compareContent(context), results);
                 }
@@ -808,6 +814,19 @@ class CompareCommand extends BaseCommand {
     }
 
     /**
+     * Compare the "default-content" artifacts.
+     *
+     * @param {Object} context The API context associated with this compare command.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of "default-content" artifacts.
+     */
+    compareDefaultContent (context) {
+        const helper = ToolsApi.getDefaultContentHelper();
+        const opts = this.getApiOptions();
+        return this.compareArtifactsImpl(context, helper, CompareDefaultContent, opts);
+    }
+
+    /**
      * Compare the "content" artifacts.
      *
      * @param {Object} context The API context associated with this compare command.
@@ -877,6 +896,7 @@ class CompareCommand extends BaseCommand {
         this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
+        this.setCommandLineOption("defaultContent", undefined);
         this.setCommandLineOption("categories", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
         this.setCommandLineOption("renditions", undefined);
@@ -905,6 +925,7 @@ function compareCommand (program) {
         .option('-m --layout-mappings',  i18n.__('cli_compare_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_compare_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_compare_opt_content'))
+        .option('-D --default-content',  i18n.__('cli_compare_opt_default_content'))
         .option('-C --categories',       i18n.__('cli_compare_opt_categories'))
         .option('-r --renditions',       i18n.__('cli_compare_opt_renditions'))
         .option('-s --sites',            i18n.__('cli_compare_opt_sites'))

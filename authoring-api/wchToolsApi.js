@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016, 2017
+Copyright IBM Corporation 2016, 2017, 2018
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ Q.longStackSupport = true;
 const itemTypesHelper = require('./itemTypesHelper').instance;
 const assetsHelper = require('./assetsHelper.js').instance;
 const contentHelper = require('./contentHelper').instance;
+const defaultContentHelper = require('./defaultContentHelper').instance;
 const categoriesHelper = require('./categoriesHelper').instance;
 const publishingJobsHelper = require('./publishingJobsHelper').instance;
 const publishingNextSchedulesHelper = require('./publishingNextSchedulesHelper').instance;
@@ -139,6 +140,10 @@ class WchToolsApi {
 
     static getContentHelper () {
         return contentHelper;
+    }
+
+    static getDefaultContentHelper () {
+        return defaultContentHelper;
     }
 
     static getCategoriesHelper () {
@@ -313,6 +318,9 @@ class WchToolsApi {
                 return self.handlePromise(self.pushLayoutMappings(opts));
             })
             .then(function () {
+                return self.handlePromise(self.pushDefaultContent(opts));
+            })
+            .then(function () {
                 return self.handlePromise(self.pushContent(opts));
             })
             .then(function () {
@@ -432,6 +440,14 @@ class WchToolsApi {
         return promise;
     }
 
+    pushDefaultContent (opts) {
+        this.getLogger().info("pushDefaultContent started");
+        const helper = WchToolsApi.getDefaultContentHelper();
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
+        this.getLogger().info("pushDefaultContent complete");
+        return promise;
+    }
+
     pushContent (opts) {
         this.getLogger().info("pushContent started");
         const helper = WchToolsApi.getContentHelper();
@@ -532,6 +548,9 @@ class WchToolsApi {
                 return self.handlePromise(self.deleteAllContent(opts));
             })
             .then(function () {
+                return self.handlePromise(self.deleteAllDefaultContent(opts));
+            })
+            .then(function () {
                 return self.handlePromise(self.deleteAllLayoutMappings(opts));
             })
             .then(function () {
@@ -582,6 +601,14 @@ class WchToolsApi {
         const helper = WchToolsApi.getContentHelper();
         const promise = helper.deleteRemoteItems(this.context, opts);
         this.getLogger().info("deleteAllContent complete");
+        return promise;
+    }
+
+    deleteAllDefaultContent (opts) {
+        this.getLogger().info("deleteAllDefaultContent started");
+        const helper = WchToolsApi.getDefaultContentHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllDefaultContent complete");
         return promise;
     }
 
