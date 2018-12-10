@@ -18,7 +18,6 @@ Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/
 
  Learn more about installing NodeJS at the following locations
 
-  - https://developer.ibm.com/node/sdk/v6/
   - https://developer.ibm.com/node/sdk/v8/
   - https://nodejs.org/en/
 
