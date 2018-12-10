@@ -2650,7 +2650,7 @@ class PullUnitTest extends UnitTest {
             });
 
             it("should fail if path specified when not supported", function (done) {
-                if (switches === "-w" || switches === "--types" || switches === "--layouts" || switches === "--layout-mappings" || switches === "--pages") {
+                if (switches === "-w" || switches === "-a" || switches === "--types" || switches === "--layouts" || switches === "--layout-mappings" || switches === "--pages") {
                     return done();
                 }
 
@@ -2674,7 +2674,7 @@ class PullUnitTest extends UnitTest {
                         error = new Error("The command should have failed.");
                     })
                     .catch(function (err) {
-                        expect(err.message).to.contain("The --path option is only supported for web assets, content types, layouts, layout mappings, and pages.");
+                        expect(err.message).to.contain("The --path option is only supported for web assets, content assets, content types, layouts, layout mappings, and pages.");
                     })
                     .catch(function (err) {
                         // Pass the error to the "done" function to indicate a failed test.

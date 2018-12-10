@@ -35,6 +35,7 @@ const PushingLayoutMappings =       PREFIX + i18n.__('cli_push_pushing_layout_ma
 const PushingContentAssets =        PREFIX + i18n.__('cli_push_pushing_content_assets') + SUFFIX;
 const PushingWebAssets =            PREFIX + i18n.__('cli_push_pushing_web_assets') + SUFFIX;
 const PushingContentItems =         PREFIX + i18n.__('cli_push_pushing_content') + SUFFIX;
+const PushingDefaultContent =       PREFIX + i18n.__('cli_push_pushing_default_content') + SUFFIX;
 const PushingCategories =           PREFIX + i18n.__('cli_push_pushing_categories') + SUFFIX;
 const PushingPublishingSiteRevisions = PREFIX + i18n.__('cli_push_pushing_site_revisions') + SUFFIX;
 const PushingImageProfiles =        PREFIX + i18n.__('cli_push_pushing_image_profiles') + SUFFIX;
@@ -351,6 +352,11 @@ class PushCommand extends BaseCommand {
             .then(function() {
                 if (self.getCommandLineOption("layoutMappings")) {
                     return self.handlePushPromise(self.pushLayoutMappings(context), continueOnError);
+                }
+            })
+            .then(function () {
+                if (self.getCommandLineOption("defaultContent")) {
+                    return self.handlePushPromise(self.pushDefaultContent(context), continueOnError);
                 }
             })
             .then(function () {
@@ -913,6 +919,68 @@ class PushCommand extends BaseCommand {
     }
 
     /**
+     * Push the default-content artifacts.
+     *
+     * @param {Object} context The API context to be used for the push operation.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pushing the default-content artifacts.
+     */
+    pushDefaultContent (context) {
+        const helper = ToolsApi.getDefaultContentHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+
+        self.getLogger().info(PushingDefaultContent);
+
+        // The api emits an event when an item is pushed, so we log it for the user.
+        const contentPushed = function (item) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_push_default_content_pushed_2', item));
+        };
+        emitter.on("pushed", contentPushed);
+
+        // The api emits an event when there is a push error, so we log it for the user.
+        const contentPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
+            self._artifactsError++;
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_default_content_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_default_content_push_error', {name: info, message: error.message}));
+            }
+        };
+        emitter.on("pushed-error", contentPushedError);
+
+        // If a name is specified, push the named default-content.
+        // If Ignore-timestamps is specified then push all default-content.
+        // Otherwise only push modified default-content (which is the default behavior).
+        const apiOptions = this.getApiOptions();
+
+        if (helper.doesDirectoryExist(context, apiOptions)) {
+            this._directoriesCount++;
+        }
+
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
+            })
+            .finally(function () {
+                emitter.removeListener("pushed", contentPushed);
+                emitter.removeListener("pushed-error", contentPushedError);
+            });
+    }
+
+    /**
      * Push the content artifacts.
      *
      * @param {Object} context The API context to be used for the push operation.
@@ -1252,6 +1320,7 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("content", undefined);
+        this.setCommandLineOption("defaultContent", undefined);
         this.setCommandLineOption("categories", undefined);
         this.setCommandLineOption("renditions", undefined);
         this.setCommandLineOption("publishingSiteRevisions", undefined);
@@ -1280,6 +1349,7 @@ function pushCommand (program) {
         .option('-m --layout-mappings',  i18n.__('cli_push_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_push_opt_image_profiles'))
         .option('-c --content',          i18n.__('cli_push_opt_content'))
+        .option('-D --default-content',  i18n.__('cli_push_opt_default_content'))
         .option('-C --categories',       i18n.__('cli_push_opt_categories'))
         .option('-r --renditions',       i18n.__('cli_push_opt_renditions'))
         .option('-s --sites',            i18n.__('cli_push_opt_sites'))

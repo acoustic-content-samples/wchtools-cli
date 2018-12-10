@@ -269,7 +269,7 @@
   "cli_push_layout_item_error":   "O envio do layout por push com o caminho %(path)s e o ID %(id)s resultou no seguinte erro: %(message)s",
   "cli_push_layout_mapping_pushed_2":   "Mapeamento de layout enviado por push com o caminho %(name)s e o ID %(id)s",
   "cli_push_layout_mapping_push_error": "Enviando por push o mapeamento de layout com o caminho %(name)s resultou no seguinte erro: %(message)s.",
-  "cli_push_layout_mapping_item_error": "O envio do mapeamento de formato por push com o caminho %(path)s e o ID %(id)s resultou no seguinte erro: %(message)s",
+  "cli_push_layout_mapping_item_error": "O envio do mapeamento de layout por push com o caminho %(path)s e o ID %(id)s resultou no seguinte erro: %(message)s",
   "cli_push_rendition_pushed_2":  "Versão enviada por push com o ID %(id)s",
   "cli_push_rendition_push_error":"O envio por push da versão com ID %(name)s resultou no erro a seguir: %(message)s.",
   "cli_push_rendition_item_error":"O envio da versão por push com o ID %(id)s resultou no seguinte erro: %(message)s",

@@ -1699,7 +1699,7 @@ class ListUnitTest extends UnitTest {
                     .catch(function (err) {
                         try {
                             // Verify that the expected error message was returned.
-                            expect(err.message).to.contain('The --path option is only supported for web assets, content types, layouts, layout mappings, and pages.');
+                            expect(err.message).to.contain('The --path option is only supported for web assets, content assets, content types, layouts, layout mappings, and pages.');
                         } catch (err) {
                             error = err;
                         }

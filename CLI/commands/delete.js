@@ -53,6 +53,7 @@ class DeleteCommand extends BaseCommand {
         const webassets = self.getCommandLineOption("webassets");
         const assets = self.getCommandLineOption("assets");
         const content = self.getCommandLineOption("content");
+        const defaultContent = self.getCommandLineOption("defaultContent");
         const types = self.getCommandLineOption("types");
         const layouts = self.getCommandLineOption("layouts");
         const layoutMappings = self.getCommandLineOption("layoutMappings");
@@ -123,6 +124,8 @@ class DeleteCommand extends BaseCommand {
                 helper = ToolsApi.getLayoutMappingsHelper();
             } else if (content) {
                 helper = ToolsApi.getContentHelper();
+            } else if (defaultContent) {
+                helper = ToolsApi.getDefaultContentHelper();
             } else if (sites) {
                 helper = ToolsApi.getSitesHelper();
             } else if (pages) {
@@ -137,7 +140,7 @@ class DeleteCommand extends BaseCommand {
                     errorMessage = i18n.__('cli_delete_no_type');
                 } else {
                     // Make sure the combination of specified options is valid.
-                    if (content && !(id || named || byTypeName)) {
+                    if ((content || defaultContent) && !(id || named || byTypeName)) {
                         // Content items require either the --id, --named, or --by-type-name option.
                         errorMessage = i18n.__('cli_delete_requires_id_name_bytypename');
                     } else if (types && !(id || named)) {
@@ -296,6 +299,7 @@ class DeleteCommand extends BaseCommand {
                 const webassets = self.getCommandLineOption("webassets");
                 const assets = self.getCommandLineOption("assets");
                 const content = self.getCommandLineOption("content");
+                const defaultContent = self.getCommandLineOption("defaultContent");
                 const types = self.getCommandLineOption("types");
                 const layouts = self.getCommandLineOption("layouts");
                 const layoutMappings = self.getCommandLineOption("layoutMappings");
@@ -322,6 +326,8 @@ class DeleteCommand extends BaseCommand {
                     helper = ToolsApi.getLayoutMappingsHelper();
                 } else if (content) {
                     helper = ToolsApi.getContentHelper();
+                } else if (defaultContent) {
+                    helper = ToolsApi.getDefaultContentHelper();
                 } else if (sites) {
                     helper = ToolsApi.getSitesHelper();
                 } else if (pages) {
@@ -1400,6 +1406,11 @@ class DeleteCommand extends BaseCommand {
                 }
             })
             .then(function () {
+                if (self.getCommandLineOption("defaultContent")) {
+                    return self.handleDeletePromise(self.deleteManifestDefaultContent(context), continueOnError);
+                }
+            })
+            .then(function () {
                 if (self.getCommandLineOption("layoutMappings")) {
                     return self.handleDeletePromise(self.deleteManifestLayoutMappings(context), continueOnError);
                 }
@@ -1650,6 +1661,31 @@ class DeleteCommand extends BaseCommand {
             }
         };
 
+        return this.deleteManifestItems(context, helper, getDisplayString, this.getApiOptions());
+    }
+
+    /**
+     * Delete the default-content artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the default-content artifacts are deleted.
+     */
+    deleteManifestDefaultContent (context) {
+        const helper = ToolsApi.getDefaultContentHelper();
+
+        // Local function to supply display strings for the delete operation.
+        const getDisplayString = function (key, item) {
+            if (key === DISPLAY_PREVIEW_BANNER) {
+                return i18n.__("cli_preview_deleting_manifest_default_content");
+            } else if (key === DISPLAY_DELETE_BANNER) {
+                return i18n.__("cli_deleting_manifest_default_content");
+            } else { /* key === DISPLAY_NAME */
+                // Display the name field for the deleted content item.
+                return item["name"];
+            }
+        }; 
+        
         return this.deleteManifestItems(context, helper, getDisplayString, this.getApiOptions());
     }
 
@@ -1921,6 +1957,11 @@ class DeleteCommand extends BaseCommand {
                 }
             })
             .then(function () {
+                if (self.getCommandLineOption("defaultContent")) {
+                    return self.handleDeletePromise(self.deleteAllDefaultContent(context), continueOnError);
+                }
+            })
+            .then(function () {
                 if (self.getCommandLineOption("layoutMappings")) {
                     return self.handleDeletePromise(self.deleteAllLayoutMappings(context), continueOnError);
                 }
@@ -2157,6 +2198,25 @@ class DeleteCommand extends BaseCommand {
         return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
+
+    /**
+     * Delete all "default-content" artifacts.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when all default-content artifacts are deleted.
+     */
+    deleteAllDefaultContent (context) {
+        const helper = ToolsApi.getDefaultContentHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
+
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_default_content") + SUFFIX);
+
+        return this.deleteAllItems(context, helper, "name", opts);
+    }
+
     /**
      * Delete all "Content" artifacts.
      *
@@ -2332,6 +2392,7 @@ class DeleteCommand extends BaseCommand {
         this.setCommandLineOption("layouts",  undefined);
         this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("content", undefined);
+        this.setCommandLineOption("defaultContent", undefined);
         this.setCommandLineOption("imageProfiles", undefined);
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("categories", undefined);
@@ -2364,6 +2425,7 @@ function deleteCommand (program) {
         .option('-l --layouts',          i18n.__('cli_delete_opt_layouts'))
         .option('-m --layout-mappings',  i18n.__('cli_delete_opt_layout_mappings'))
         .option('-c --content',          i18n.__('cli_delete_opt_content'))
+        .option('-D --default-content',  i18n.__('cli_delete_opt_default_content'))
         .option('-t --types',            i18n.__('cli_delete_opt_types'))
         .option('-i --image-profiles',   i18n.__('cli_delete_opt_image_profiles'))
         .option('-C --categories',       i18n.__('cli_delete_opt_categories'))

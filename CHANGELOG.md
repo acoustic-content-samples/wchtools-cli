@@ -1,8 +1,11 @@
 # Changelog
 
-### 4.0 changes since 3.2
+### 4.1 changes since 4.0
+  - Add support for pulling, pushing, deleting, comparing and listing default-content artifacts
 
+### 4.0 changes since 3.2
   - Add support for storing user credentials in the operating system key manager (Windows and Mac OS only).
+  - Increase the number and size of retained logs
   - Increment minimum Node.js version to 8.x.
 
 ### 3.2 changes since 3.1

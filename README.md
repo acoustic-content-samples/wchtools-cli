@@ -87,7 +87,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
 #### Using a Federated Identity (user) with Watson Content Hub tooling and APIs
 
-  Some user IBM ids are "Federated" accounts as described here: https://www.ibm.com/support/knowledgecenter/SS3UMF/dch/admin/fed_authentication_admin.html
+  Some user IBM ids are "Federated" accounts as described here:   https://www.ibm.com/support/knowledgecenter/SS3UMF/wch_q_a_watson_assistant/authentication_api_key.html
 
   Federated user accounts may use the WCH Authoring UI with the user's username and password, but cannot use that same username and password for either WCH REST API access, or for use with wchtools, which uses those same WCH REST APIs.
 
@@ -155,6 +155,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
        assets/dxconfig/...          ( configuration storage area, including manifests )
        categories/                  ( authoring categories and taxonomies )
        content/                     ( authoring content items )
+       default-content/             ( default content )
        image-profiles/              ( authoring image profiles )
        renditions/                  ( authoring renditions )
        sites/{site-folder}/{pages}  ( site metadata and page node hierarhy for the site )
@@ -730,6 +731,33 @@ After you disable auto-publishing, you may either invoke a publish manually with
      - wchtools-api.log - Contains errors, if any, encountered while you ran commands against Watson Content Hub authoring and publishing services.
 
   Using the -v or --verbose option with wchtools commands, logs additional information about the status of the command and any error information to the output console while the command is running.
+
+##### Logging options
+  The logging message levels, log file size and log file rolling for the wchtools CLI utility can be controlled by setting process environment variables.
+  
+    WCHTOOLS_LOG_LEVEL=<ERROR|WARN|INFO|DEBUG> - sets the log detail level
+    WCHTOOLS_LOG_MAX_SIZE=<max size in bytes> - sets the maximum log file size in bytes
+    WCHTOOLS_LOG_MAX_BACKUPS=<max number of backups> - sets the maximum number of rolled log files to retain
+
+  The default values are as follows:
+
+    WCHTOOLS_LOG_LEVEL=WARN
+    WCHTOOLS_LOG_MAX_SIZE=5242880 (5MB)
+    WCHTOOLS_LOG_MAX_BACKUPS=5 
+
+  To override the default logging options, simply set the process environment variables before executing the wchtools command.  For example, to enable debug level logging with a maximum log file size of 10MB:
+
+  -For Windows:
+
+    set WCHTOOLS_LOG_LEVEL=DEBUG
+    set WCHTOOLS_LOG_MAX_SIZE=10485760
+    wchtools pull -A
+
+  -For Mac or Linux:
+  
+    export WCHTOOLS_LOG_LEVEL=DEBUG
+    export WCHTOOLS_LOG_MAX_SIZE=10485760
+    wchtools pull -A
 
 #### Localization
   The command descriptions and usage messages are translated into a few languages to assist users who use other languages with the tool. The messages fall back to English if translations for the current OS locale are not found. A dependent node module attempts to determine the locale from the OS localization settings.  If you need to or choose to change the locale back to English for communicating issues or questions with others, you may set the environment variable LANG=en  in the command shell environment where you are running wchtools. To see the current languages available, look under the CLI/nls folder in the git repository for this tool.

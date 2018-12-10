@@ -11,7 +11,7 @@
   "cli_manifest_no_artifacts": "The specified manifest '%(name)s' did not contain any artifacts.",
   "cli_save_manifest_failure": "An error occurred when trying to save the manifest: %(err)s.",
   "cli_invalid_url_option": "The specified API URL is not valid.",
-  "cli_invalid_path_option": "The --path option is only supported for web assets, content types, layouts, layout mappings, and pages.",
+  "cli_invalid_path_option": "The --path option is only supported for web assets, content assets, content types, layouts, layout mappings, and pages.",
   "cli_invalid_siteContext_option": "The --site-context option is only supported for sites and pages.",
   "cli_ready_and_manifest_options": "The --ready and --manifest options cannot both be specified.",
   "cli_draft_and_manifest_options": "The --draft and --manifest options cannot both be specified.",

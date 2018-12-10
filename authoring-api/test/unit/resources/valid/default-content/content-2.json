@@ -1,0 +1,50 @@
+{
+  "id": "c76978936afc1f0003d59ebe6e13cf31",
+  "name": "DW-ContentItem1",
+  "description": "",
+  "classification": "content",
+  "typeId": "862fd5688e3c8494b55d7c2f9f14c0bf",
+  "lastModified": "2016-07-15T13:22:14.556Z",
+  "lastModifier": "evan",
+  "created": "2016-07-15T13:18:38.228Z",
+  "creator": "Carlos",
+  "tags": [
+    "DW-TAG"
+  ],
+  "owners": [],
+  "status": "draft",
+  "elements": {
+    "datetime-1": {
+      "elementType": "datetime",
+      "value": "2016-07-06T11:11:00Z"
+    },
+    "file-1": {
+      "elementType": "file"
+    },
+    "image-1": {
+      "elementType": "image"
+    },
+    "link-1": {
+      "elementType": "link",
+      "linkURL": "http://graylog.rtp.raleigh.ibm.com/sources#3600",
+      "linkText": "Graylog",
+      "linkTitle": "LinkText"
+    },
+    "number-1": {
+      "elementType": "number",
+      "value": 15
+    },
+    "text-1": {
+      "elementType": "text",
+      "value": "text"
+    },
+    "toggle-1": {
+      "elementType": "toggle",
+      "value": false
+    },
+    "video-1": {
+      "elementType": "video",
+      "videoURL": "c76978936afc1f0003d59ebe6e13e812"
+    }
+  }
+}
