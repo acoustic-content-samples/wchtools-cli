@@ -138,7 +138,7 @@ class JSONPathBasedItemFS extends JSONItemFS {
         if (filterPath) {
             filterPath = utils.formatFilterPath(filterPath);
             files = files.filter(function (file) {
-                return (file.indexOf(filterPath) === 0);
+                return file.match(filterPath);
             });
         }
 

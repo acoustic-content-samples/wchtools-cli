@@ -63,7 +63,7 @@ class PagesHelper extends JSONPathBasedItemHelper {
      * Filter the given list of items using the given path.
      *
      * @param {Array} itemList The items to be listed.
-     * @param {String} filterPath The path used to filter items.
+     * @param {String} filterPath The path regex used to filter items.
      *
      * @returns {Array} The filtered list of items.
      *
@@ -71,7 +71,7 @@ class PagesHelper extends JSONPathBasedItemHelper {
      */
     _filterItemsByPath(itemList, filterPath) {
         return itemList.filter(function (item) {
-            return (item.hierarchicalPath && item.hierarchicalPath.indexOf(filterPath) === 0);
+            return (item.hierarchicalPath && item.hierarchicalPath.match(filterPath));
         });
     }
 
