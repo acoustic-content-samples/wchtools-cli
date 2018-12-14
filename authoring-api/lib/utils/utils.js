@@ -640,16 +640,31 @@ function pathNormalize (filePath) {
  *
  * @param {String} filterPath The path used to filter artifacts.
  *
- * @return {String} The formatted path used to filter artifacts.
+ * @return {String} A regular expression used to filter artifacts.
  */
 function formatFilterPath (filterPath) {
+    // Replace any windows '\' path characters with '/'.
     filterPath = filterPath.replace(/\\/g, '/');
+    // Escape any special characters for regular expressions.
+    filterPath = filterPath.replace(/[.*+?^${}()|[\]]/g, '\\$&');
+
+    // Ensure the expression begins with a leading '/'.
     if (filterPath.charAt(0) !== '/') {
         filterPath = '/' + filterPath;
     }
+    // Now, insert '^' to start matching at the beginning of the path.
+    filterPath = '^' + filterPath;
 
-    if (!filterPath.endsWith('/')) {
-        filterPath = filterPath + '/';
+    // If the filterPath has a '.' after the last '/', assume we're looking for a single file,
+    // (e.g. /dir/file.ext) otherwise assume a directory match (e.g. /dir/).
+    if (filterPath.lastIndexOf('.') < filterPath.lastIndexOf('/')) {
+        // We're matching a directory path, append a trailing '/' if necessary.
+        if (!filterPath.endsWith('/')) {
+            filterPath = filterPath + '/';
+        }
+    } else {
+        // We're matching a fully specified file, append a trailing '$'; match to the end of the path.
+        filterPath = filterPath + "$";
     }
 
     return filterPath;

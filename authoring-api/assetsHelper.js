@@ -409,7 +409,7 @@ class AssetsHelper extends BaseHelper {
             assetList = assetList.filter(function (asset) {
                 const isReady = (helper.getStatus(context, asset, opts) === "ready");
                 if (!isReady) {
-                    context.skippedAssetPaths.push(asset.path);
+                    context.skippedResourceIDs.push(asset.resource);
                 }
                 return isReady;
             });
@@ -418,7 +418,7 @@ class AssetsHelper extends BaseHelper {
             assetList = assetList.filter(function (asset) {
                 const isDraft = (helper.getStatus(context, asset, opts) === "draft");
                 if (!isDraft) {
-                    context.skippedAssetPaths.push(asset.path);
+                    context.skippedResourceIDs.push(asset.resource);
                 }
                 return isDraft;
             });
@@ -428,12 +428,20 @@ class AssetsHelper extends BaseHelper {
         if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_WEB_ASSETS) {
             // Filter out any content assets.
             assetList = assetList.filter(function (asset) {
-                return (!helper._fsApi.isContentResource(asset));
+                const isWebAsset = !helper._fsApi.isContentResource(asset);
+                if (!isWebAsset) {
+                    context.skippedResourceIDs.push(asset.resource);
+                }
+                return isWebAsset;
             });
         } else if (opts && opts[helper.ASSET_TYPES] === helper.ASSET_TYPES_CONTENT_ASSETS) {
             // Filter out any web assets.
             assetList = assetList.filter(function (asset) {
-                return (helper._fsApi.isContentResource(asset));
+                const isContentAsset = helper._fsApi.isContentResource(asset);
+                if (!isContentAsset) {
+                    context.skippedResourceIDs.push(asset.resource);
+                }
+                return isContentAsset;
             });
         }
 
@@ -442,7 +450,11 @@ class AssetsHelper extends BaseHelper {
         if (filterPath) {
             filterPath = utils.formatFilterPath(filterPath);
             assetList = assetList.filter(function (asset) {
-                return (asset.path && asset.path.indexOf(filterPath) === 0);
+                const isFilterMatch = (asset.path && asset.path.match(filterPath));
+                if (!isFilterMatch) {
+                    context.skippedResourceIDs.push(asset.resource);
+                }
+                return isFilterMatch;
             });
         }
 
@@ -494,12 +506,13 @@ class AssetsHelper extends BaseHelper {
                             else {
                                 const error = promise.reason;
                                 assets.push(error);
-                                const assetPath = helper._fsApi.getAssetPath(assetList[index]);
+                                const asset = assetList[index];
+                                const assetPath = helper._fsApi.getAssetPath(asset);
                                 const emitter = helper.getEventEmitter(context);
                                 if (emitter) {
                                     emitter.emit("pulled-error", error, assetPath);
                                 }
-                                context.skippedAssetPaths.push(assetPath);
+                                context.skippedResourceIDs.push(asset.resource);
                                 context.pullErrorCount++;
                             }
                         });
@@ -633,9 +646,9 @@ class AssetsHelper extends BaseHelper {
                     const basePath = helper._fsApi.getResourcesPath(context, opts);
                     const resourcePath = hashes.getPathForResource(context, basePath, resource.id, opts);
                     const assetPath = '/' + path.relative(helper._fsApi.getAssetsPath(context, opts), basePath + resourcePath);
-                    const skippedAssetPaths = context.skippedAssetPaths || [];
+                    const skippedResourceIDs = context.skippedResourceIDs || [];
                     // Only retrieve a resource if we didn't already have it (in hashes) and it wasn't a failed pull in this command.
-                    if (!resourcePath && skippedAssetPaths.indexOf(assetPath) === -1 && !assetPath.match(/\/(.*_)?robots.txt/) && !assetPath.match(/\/(.*_)?sitemap.*\.xml/)) {
+                    if (!resourcePath && skippedResourceIDs.indexOf(resource.id) === -1 && !assetPath.match(/\/(.*_)?robots.txt/) && !assetPath.match(/\/(.*_)?sitemap.*\.xml/)) {
                         return resource;
                     }
                 });
@@ -861,7 +874,7 @@ class AssetsHelper extends BaseHelper {
 
         // Keep track of the error count.
         context.pullErrorCount = 0;
-        context.skippedAssetPaths = [];
+        context.skippedResourceIDs = [];
 
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
@@ -903,7 +916,7 @@ class AssetsHelper extends BaseHelper {
             })
             .finally(function () {
                 delete context.pullErrorCount;
-                delete context.skippedAssetPaths;
+                delete context.skippedResourceIDs;
             });
     }
 
@@ -922,7 +935,7 @@ class AssetsHelper extends BaseHelper {
         const handleChunkFn = helper._pullItemsChunk.bind(helper);
         // Keep track of the error count.
         context.pullErrorCount = 0;
-        context.skippedAssetPaths = [];
+        context.skippedResourceIDs = [];
 
         // Get the timestamp to set before we call the REST API.
         const timestamp = new Date();
@@ -950,7 +963,7 @@ class AssetsHelper extends BaseHelper {
             })
             .finally(function () {
                 delete context.pullErrorCount;
-                delete context.skippedAssetPaths;
+                delete context.skippedResourceIDs;
             });
     }
 
@@ -2267,7 +2280,7 @@ class AssetsHelper extends BaseHelper {
         if (filterPath) {
             filterPath = utils.formatFilterPath(filterPath);
             assetList = assetList.filter(function (asset) {
-                return (asset.path && asset.path.indexOf(filterPath) === 0);
+                return (asset.path && asset.path.match(filterPath));
             });
         }
 

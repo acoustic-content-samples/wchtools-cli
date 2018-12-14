@@ -580,7 +580,7 @@ class AssetsFS extends BaseFS {
         if (filterPath) {
             filterPath = utils.formatFilterPath(filterPath);
             files = files.filter(function (path) {
-                return (path.indexOf(filterPath) === 0);
+                return path.match(filterPath);
             });
         }
 
