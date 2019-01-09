@@ -164,6 +164,14 @@ class ItemTypesHelper extends JSONPathBasedItemHelper {
     }
 
     /**
+     * Determine whether the helper supports searching by path.
+     */
+    supportsSearchByPath () {
+        // Return false as the item types search does not appear to accept a path filter.
+        return false;
+    }
+
+    /**
      * Return a set of extra keys to be ignored for this artifact type.  This should be used to return a list
      * of synthetic fields per artifact type.
      *

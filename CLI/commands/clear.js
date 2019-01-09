@@ -18,7 +18,6 @@ limitations under the License.
 const BaseCommand = require("../lib/baseCommand");
 
 const ToolsApi = require("wchtools-api");
-const loginHelper = ToolsApi.getLogin();
 const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -63,7 +62,7 @@ class ClearCommand extends BaseCommand {
             })
             .then(function () {
                 // Login using the current options.
-                return loginHelper.login(context, apiOptions);
+                return self.handleLogin(context, apiOptions);
             })
             .then(function (/*results*/) {
                 BaseCommand.displayToConsole(i18n.__("cli_clear_cache_started"));

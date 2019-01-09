@@ -510,6 +510,22 @@ function logDebugInfo (context, info, response, requestOptions) {
 }
 
 /**
+ * Log the specified message for request retry detail using the logger specified by the context.
+ *
+ * @param {Object} context The current API context.
+ * @param message The message to log.
+ */
+function logRetryInfo (context, message) {
+    if (context.serviceMode) {
+        // We're running as a service; log the retry message at debug level.
+        logDebugInfo(context, message);
+    } else {
+        // We're running as a CLI; log the retry message at warn level.
+        logWarnings(context, message);
+    }
+}
+
+/**
  * Clone the opts object so you can add an option without affecting the shared object.
  *
  * @param {Object} opts The opts object to be cloned.
@@ -731,7 +747,7 @@ function getLogger (name, config) {
         } else {
             return null;
         }
-        loggers[name] = log4js.getLogger(name)
+        loggers[name] = log4js.getLogger(name);
     }
     return loggers[name];
 }
@@ -959,6 +975,7 @@ const utils = {
     logWarnings: logWarnings,
     logInfo: logInfo,
     logDebugInfo: logDebugInfo,
+    logRetryInfo: logRetryInfo,
     throttledAll: throttledAll,
     getI18N: getI18N,
     getRequestWrapper: getRequestWrapper,

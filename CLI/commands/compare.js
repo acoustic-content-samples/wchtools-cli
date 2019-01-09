@@ -19,7 +19,6 @@ const BaseCommand = require("../lib/baseCommand");
 
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
-const login = ToolsApi.getLogin();
 const options = ToolsApi.getOptions();
 const events = require("events");
 const Q = require("q");
@@ -351,11 +350,11 @@ class CompareCommand extends BaseCommand {
         if (this.isLoginRequired()) {
             const loginPromises = [];
             if (utils.isValidApiUrl(this.getSource())) {
-                const loginPromise = login.login(context, utils.cloneOpts(apiOptions, {"x-ibm-dx-tenant-base-url": this.getSource()}));
+                const loginPromise = super.handleLogin(context, utils.cloneOpts(apiOptions, {"x-ibm-dx-tenant-base-url": this.getSource()}));
                 loginPromises.push(loginPromise);
             }
             if (utils.isValidApiUrl(this.getTarget())) {
-                const loginPromise = login.login(context, utils.cloneOpts(apiOptions, {"x-ibm-dx-tenant-base-url": this.getTarget()}));
+                const loginPromise = super.handleLogin(context, utils.cloneOpts(apiOptions, {"x-ibm-dx-tenant-base-url": this.getTarget()}));
                 loginPromises.push(loginPromise);
             }
             Q.all(loginPromises).then(function () {

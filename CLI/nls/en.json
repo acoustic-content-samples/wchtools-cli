@@ -34,6 +34,7 @@
   "cli_deletions_manifest_saved": "The deletions manifest was written to %(filename)s",
   "cli_found_credentials": "Found credentials for the API URL %(url)s: %(username)s.",
   "cli_error_loading_credentials": "The credentials for the API URL %(url)s could not be loaded: %(err)s.",
+  "cli_login_successful": "Successfully authenticated user %(username)s for API URL %(url)s.",
 
   "cli_opt_verbose":              "Display verbose results from the specified operations.",
   "cli_opt_user_name":            "User name",

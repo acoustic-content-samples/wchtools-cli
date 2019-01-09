@@ -1370,8 +1370,13 @@ class PullUnitTest extends UnitTest {
                     return done();
                 }
 
-                const stubGet = sinon.stub(helper._restApi, "getItems");
-                stubGet.resolves([{name: itemName1, id: "foo", path: "/test/" + itemName1}, {name: itemName2, id: "bar", path: "/test/" + itemName2}, {name: badItem, id: "ack", path: "/test/" + badItem}]);
+                let stub;
+                if (helper.supportsSearchByPath()) {
+                    stub = sinon.stub(helper, "_searchByPath");
+                } else {
+                    stub = sinon.stub(helper._restApi, "getItems");
+                }
+                stub.resolves([{name: itemName1, id: "foo", path: "/test/" + itemName1}, {name: itemName2, id: "bar", path: "/test/" + itemName2}, {name: badItem, id: "ack", path: "/test/" + badItem}]);
 
                 const stubSave = sinon.stub(helper._fsApi, "saveItem");
                 stubSave.resolves(undefined);
@@ -1384,7 +1389,7 @@ class PullUnitTest extends UnitTest {
                 toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", switches, "--path", "test", "--ignore-timestamps", "--dir", downloadTarget, '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api', '-v'])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
-                        expect(stubGet).to.have.been.calledOnce;
+                        expect(stub).to.have.been.calledOnce;
                         expect(stubHashes).to.not.have.been.called;
                         expect(stubSave).to.have.been.calledThrice;
                         expect(stubSave.args[0][1].id).to.equal("foo");
@@ -1398,7 +1403,7 @@ class PullUnitTest extends UnitTest {
                     })
                     .finally(function () {
                         // Restore the stubbed methods.
-                        stubGet.restore();
+                        stub.restore();
                         stubSave.restore();
                         stubHashes.restore();
 

@@ -33,9 +33,7 @@ class ContentREST extends JSONItemREST {
         if (enforcer !== singletonEnforcer) {
             throw i18n.__("singleton_construct_error", {classname: "ContentREST"});
         }
-        //FUTURE: switch back to undefined (w/o by-modified view) for allUriSuffix
-        // Use /views/by-modified for the allUriSuffix as well because it supports pageMode=deep.
-        super("content", "/authoring/v1/content", "/views/by-modified", "/views/by-modified");
+        super("content", "/authoring/v1/content", undefined, "/views/by-modified");
     }
 
     static get instance() {

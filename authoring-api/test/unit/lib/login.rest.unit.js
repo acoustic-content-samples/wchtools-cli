@@ -450,7 +450,7 @@ class LoginRestUnitTest extends UnitTest {
                 stub.onCall(1).yields(null, resSuccess, null);
 
                 // Create a spy for the utils.logWarnings method.
-                const spy = sinon.spy(utils, "logWarnings");
+                const spy = sinon.spy(utils, "logRetryInfo");
 
                 // The stub and spy should be restored when the test is complete.
                 self.addTestDouble(stub);

@@ -19,6 +19,8 @@ const JSONItemHelper = require("./JSONItemHelper.js");
 
 const options = require("./lib/utils/options.js");
 const utils = require("./lib/utils/utils.js");
+const SearchREST = require("./lib/authoringSearchREST.js");
+const searchREST = SearchREST.instance;
 
 /**
  * Helper class for artifacts that are JSON path-based objects.
@@ -122,6 +124,20 @@ class JSONPathBasedItemHelper extends JSONItemHelper {
         return itemList;
     }
 
+    _getRemoteListOpts (context, opts) {
+        const filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (this.supportsSearchByPath() && filterPath) {
+            // get the offset/limit for the search service from the configured options
+            const searchServiceName = searchREST.getServiceName();
+            const offset = options.getRelevantOption(context, opts, "offset", searchServiceName) || 0;
+            const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
+
+            // set the search service's offset/limit values on a clone of the opts
+            opts = utils.cloneOpts(opts, {offset: offset, limit: limit, useNextLinks: false});
+        }
+        return opts;
+    }
+
     /**
      * Pull all items from the remote content hub to the local file system.
      *
@@ -139,6 +155,7 @@ class JSONPathBasedItemHelper extends JSONItemHelper {
             // Use a clone of the opts object to store the local file path map, so that it goes away after the call.
             opts = utils.cloneOpts(opts, {"localFilePathMap": map});
         }
+        opts = this._getRemoteListOpts(context, opts);
 
         return super.pullAllItems(context, opts);
     }
@@ -160,8 +177,79 @@ class JSONPathBasedItemHelper extends JSONItemHelper {
             // Use a clone of the opts object to store the local file path map, so that it goes away after the call.
             opts = utils.cloneOpts(opts, {"localFilePathMap": map});
         }
+        opts = this._getRemoteListOpts(context, opts);
 
         return super.pullModifiedItems(context, opts);
+    }
+
+    _listRemoteItemNames (context, opts) {
+        opts = this._getRemoteListOpts(context, opts);
+
+        return super._listRemoteItemNames(context, opts);
+    }
+
+    _listModifiedRemoteItemNames (context, flags, opts) {
+        opts = this._getRemoteListOpts(context, opts);
+
+        return super._listModifiedRemoteItemNames(context, flags, opts);
+    }
+
+    /**
+     * Determine whether the helper supports searching by path.
+     */
+    supportsSearchByPath () {
+        return true;
+    }
+
+    /**
+     * Returns a function to be used for the list remote items functionality. The returned function should accept a single opts argument.
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the pull operations.
+     * @return the function to call to list remote items.
+     * @private
+     */
+    _getRemoteListFunction (context, opts) {
+        let listFn;
+        const filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (this.supportsSearchByPath() && filterPath) {
+            // Use _searchByPath as the list function, so that all artifacts matching the search will be pulled.
+            listFn = this._searchByPath.bind(this, context, undefined, filterPath);
+        } else {
+            listFn = super._getRemoteListFunction(context, opts);
+        }
+        return listFn;
+    }
+
+    /**
+     * Returns a function to be used for the modified list remote items functionality. The returned function should accept a single opts argument.
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the pull operations.
+     * @return the function to call to list modified remote items.
+     * @private
+     */
+    _getRemoteModifiedListFunction (context, flags, opts) {
+        const helper = this;
+
+        let listFn;
+        const filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (this.supportsSearchByPath() && filterPath) {
+            // Use _searchByPath as the list function, so that all artifacts matching the search will be pulled.
+            listFn = function (opts) {
+                const timestamp = helper.getLastPullTimestamp(context, opts);
+                const searchOptions = {};
+                if (timestamp) {
+                    const expr = "lastModified:[" + timestamp + " TO *]";
+                    searchOptions.fq = [expr];
+                }
+                return helper._searchByPath(context, searchOptions, filterPath, opts)
+                    .then(function (items) {
+                        return helper._filterRemoteModified(context, items, flags, opts);
+                    });
+            };
+        } else {
+            listFn = super._getRemoteModifiedListFunction(context, flags, opts);
+        }
+        return listFn;
     }
 }
 

@@ -39,7 +39,7 @@ program
 
 // Turn off colors when non-interactive
 /* istanbul ignore next */
-colors.mode = process.stdout.isTTY ? colors.mode : 'none'; // NOSONAR
+colors.enabled = process.stdout.isTTY ? true : false; // NOSONAR
 
 // Define a utility function for console.log(), so that only one line has to be excluded from the Sonar analysis.
 const displayToConsole = function (message) {

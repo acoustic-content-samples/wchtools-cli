@@ -19,7 +19,6 @@ const BaseCommand = require("../lib/baseCommand");
 
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
-const login = ToolsApi.getLogin();
 const options = ToolsApi.getOptions();
 const Q = require("q");
 
@@ -363,7 +362,7 @@ class ListCommand extends BaseCommand {
     handleLogin (context, apiOptions) {
         if (this.isLoginRequired()) {
             // A login is required, so use the loginREST object to login in the normal way.
-            return login.login(context, apiOptions);
+            return super.handleLogin(context, apiOptions);
         } else {
             // A login is not required, so just return a resolved promise.
             const deferred = Q.defer();

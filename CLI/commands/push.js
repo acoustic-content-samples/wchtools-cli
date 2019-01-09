@@ -20,7 +20,6 @@ const BaseCommand = require("../lib/baseCommand");
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
-const login = ToolsApi.getLogin();
 const events = require("events");
 const Q = require("q");
 
@@ -85,7 +84,7 @@ class PushCommand extends BaseCommand {
             })
             .then(function() {
                 // Login using the current options.
-                return login.login(context, self.getApiOptions());
+                return self.handleLogin(context, self.getApiOptions());
             })
             .then(function () {
                 // Handle the manifest options.

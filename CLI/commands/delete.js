@@ -21,7 +21,6 @@ const ToolsApi = require("wchtools-api");
 const options = ToolsApi.getOptions();
 const manifests = ToolsApi.getManifests();
 const utils = ToolsApi.getUtils();
-const login = ToolsApi.getLogin();
 const events = require("events");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
@@ -265,7 +264,7 @@ class DeleteCommand extends BaseCommand {
             })
             .then(function () {
                 // Login using the current options.
-                return login.login(context, self.getApiOptions());
+                return self.handleLogin(context, self.getApiOptions());
             })
             .then(function () {
                 // Handle the manifest options.

@@ -1,5 +1,18 @@
 # Changelog
 
+### 4.1.12 changes since 4.1.5
+  - Fix a bug that prevents iterating through all resources.
+  - Fix a bug that prevents iterating through all search results when using the search API.
+  - Fix a bug in resource filtering of robots.txt and sitemap.xml.
+  - Logging configuration improvements.
+  - Disable log colors when not in a TTY process.
+  - Improve performance of --path option.
+  - Use deep page mode for content paging.
+  - Use next links for resource paging.
+
+### 4.1.5 changes since 4.1
+  - Fix resource filtering to avoid pulling resources for assets that were skipped.
+
 ### 4.1 changes since 4.0
   - Add support for pulling, pushing, deleting, comparing and listing default-content artifacts
 

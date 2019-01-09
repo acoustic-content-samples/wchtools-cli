@@ -378,7 +378,7 @@ class BaseHelper {
                                 // Log a warning that the delete of this item will be retried.
                                 const error = retryItem[BaseHelper.RETRY_DELETE_ITEM_ERROR];
                                 const name = self.getName(item);
-                                utils.logWarnings(context, i18n.__("deleted_item_retry", {name: name, message: error.log ? error.log : error.message}));
+                                utils.logRetryInfo(context, i18n.__("deleted_item_retry", {name: name, message: error.log ? error.log : error.message}));
                             });
 
                             // Initialize the retry values and then retry the delete of the items in the list.
@@ -577,7 +577,7 @@ class BaseHelper {
                         // Log a warning that the delete of this item will be retried.
                         const error = retryItem[BaseHelper.RETRY_DELETE_ITEM_ERROR];
                         const name = self.getName(item);
-                        utils.logWarnings(context, i18n.__("deleted_item_retry", {name: name, message: error.log ? error.log : error.message}));
+                        utils.logRetryInfo(context, i18n.__("deleted_item_retry", {name: name, message: error.log ? error.log : error.message}));
                     });
 
                     // Initialize the retry values and then retry the delete of the items in the list.
@@ -1050,67 +1050,105 @@ class BaseHelper {
 
                 return {length: chunkSize, items: itemList};
             });
-    };
+    }
 
-    /**
-     * Execute a remote authoring search with the specified search options.
-     */
-    searchRemote (context, searchOptions, opts) {
+    _addSearchQuery (searchOptions, query) {
+        // Make sure we have a searchOptions object.
         if (!searchOptions) {
             searchOptions = {};
         }
+        // Make sure the 'fq' (filter query) is an array.
+        if (!searchOptions["fq"]) {
+            searchOptions["fq"] = [];
+        } else if (!Array.isArray(searchOptions["fq"])) {
+            searchOptions["fq"] = [searchOptions["fq"]];
+        }
+        if (query) {
+            searchOptions["fq"].push(query);
+        }
+        return searchOptions;
+    }
+
+    _searchByPath (context, searchOptions, path, opts) {
+        if (path.charAt(0) !== '/') {
+            path = "/" + path;
+        }
+        // '/' needs to be escaped with \\/ in the search path
+        let searchPath = path.replace(/\//g, "\\/");
+        // always make sure the search path terminates with '*' so we can do our own additional filtering with the recursive flag later
+        if (!searchPath.endsWith('*')) {
+            searchPath += "*";
+        }
+        return this._search(context, this._addSearchQuery(searchOptions, "path:" + searchPath), opts);
+    }
+
+    _search (context, searchOptions, opts) {
+
+        // Make sure we have a searchOptions object.
+        if (!searchOptions) {
+            searchOptions = {};
+        }
+        // If not provided, set the 'q' (main query) to "*:*".
         if (!searchOptions["q"]) {
             searchOptions["q"] = "*:*";
         }
+        // Make sure the 'fl' (field list) is an array.
         if (!searchOptions["fl"]) {
-            searchOptions["fl"] = ["name", "id"];
+            searchOptions["fl"] = ["id", "document"];
         } else if (!Array.isArray(searchOptions["fl"])) {
             searchOptions["fl"] = [searchOptions["fl"]];
         }
+        // If no fields are specified, set the field list to '*' (everything).
         if (searchOptions["fl"].length === 0) {
             searchOptions["fl"].push("*");
         } else {
-            // always make sure id, path and document are present in the results
+            // always make sure id and name are present in the results
             if (searchOptions["fl"].indexOf("id") === -1) {
                 searchOptions["fl"].push("id");
             }
-            if (searchOptions["fl"].indexOf("name") === -1) {
-                searchOptions["fl"].push("name");
-            }
-
-            // Make sure status is included in the results, if filtering by status.
-            if (opts && (opts["filterReady"] || opts["filterDraft"]) && (searchOptions["fl"].indexOf("status") === -1)) {
-                searchOptions["fl"].push("status");
+            if (searchOptions["fl"].indexOf("document") === -1) {
+                searchOptions["fl"].push("document");
             }
         }
+        // Make sure the 'fq' (filter query) is an array.
         if (!searchOptions["fq"]) {
             searchOptions["fq"] = [];
         } else if (!Array.isArray(searchOptions["fq"])) {
             searchOptions["fq"] = [searchOptions["fq"]];
         }
 
-        if (this._classification) {
-            const ccl = "classification:"+this._classification;
-            searchOptions["fq"].push(ccl);
+        // Add a 'fq' parameter to restrict based on ready/draft status
+        if (opts) {
+            const filterReady = opts["filterReady"];
+            const filterDraft = opts["filterDraft"];
+            if ((filterReady && !filterDraft) || (!filterReady && filterDraft)) {
+                const status = opts["filterReady"] ? "ready" : "draft";
+                searchOptions["fq"].push("status:" + status);
+            }
         }
 
-        // define a list function to work with the _listAssetChunk/_recurse methods for handling paging
-        const listFn = function(opts) {
-            const listFnDeferred = Q.defer();
-            searchREST.search(context, searchOptions, opts)
-                .then(function (results) {
-                    if (!results.documents) {
-                        results.documents = [];
-                    }
-                    listFnDeferred.resolve(results.documents.map(function (result) {
-                        return result;
-                    }));
-                })
-                .catch(function (err) {
-                    listFnDeferred.reject(err);
+        // Add a 'fq' parameter to restrict the search to the classification for this artifact type.
+        if (this._classification) {
+            searchOptions["fq"].push("classification:" + this._classification);
+        }
+
+        return searchREST.search(context, searchOptions, opts)
+            .then(function (results) {
+                if (!results.documents) {
+                    results.documents = [];
+                }
+                return results.documents.map(function (result) {
+                    // Parse the returned document field for the result.
+                    return JSON.parse(result.document);
                 });
-            return listFnDeferred.promise;
-        };
+            });
+    }
+
+    /**
+     * Execute a remote authoring search with the specified search options.
+     */
+    searchRemote (context, searchOptions, opts) {
+        const listFn = this._search.bind(this, context, searchOptions);
         const handleChunkFn = this._listItemChunk.bind(this);
 
         // get the offset/limit for the search service from the configured options
@@ -1119,7 +1157,7 @@ class BaseHelper {
         const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
 
         // set the search service's offset/limit values on a clone of the opts
-        opts = utils.cloneOpts(opts, {offset: offset, limit: limit});
+        opts = utils.cloneOpts(opts, {offset: offset, limit: limit, useNextLinks: false});
 
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
         return this.recursiveGetItems(context, listFn, handleChunkFn, opts);

@@ -19,6 +19,7 @@ const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
 const manifests = ToolsApi.getManifests();
+const login = ToolsApi.getLogin();
 const fs  = require('fs');
 const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
@@ -142,7 +143,7 @@ class BaseCommand {
             // command object itself. This is just the way Commander works.
             this._commandLineOptions = command;
 
-            // Provide a meesage to indicate that there was an invalid option on the command line.
+            // Provide a message to indicate that there was an invalid option on the command line.
             this.errorMessage(i18n.__('cli_invalid_arguments', {options: commandLineOptions}));
 
             // Reset the command line options.
@@ -199,7 +200,7 @@ class BaseCommand {
      */
     static displayToConsole (message) {
         console.log(message); // NOSONAR
-    };
+    }
 
     /**
      * Display the given initialization errors.
@@ -819,6 +820,23 @@ class BaseCommand {
     }
 
     /**
+     * Handle the login to the WCH tenant.
+     *
+     * @param {Object} context The API context associated with this list command.
+     * @param {Object} apiOptions - Optional API settings.
+     *
+     * @returns {Q.Promise} A promise to be fulfilled with the name of the logged in user.
+     */
+    handleLogin (context, apiOptions) {
+        const self = this;
+        return login.login(context, apiOptions)
+            .then(function (loginResult) {
+                self.getLogger().info(i18n.__("cli_login_successful", {"url": loginResult["x-ibm-dx-tenant-base-url"], "username": loginResult.username}));
+                return loginResult;
+            });
+    }
+
+    /**
      * Handle the path option specified on the command line.
      *
      * @returns {Q.Promise} Resolve if the specified path option is valid, otherwise reject to indicate that
@@ -1123,34 +1141,56 @@ class BaseCommand {
             maxLogSize: maxLogSize,
             backups: maxBackups
         };
+        // Configure a console appender to output to the console.
         const consoleAppender = {
             type: 'console',
             category: cliLog
+        };
+        // Disable log4js colors for the console appender if not running in a TTY process.
+        if (!process.stdout.isTTY) {
+            consoleAppender.layout = {
+                type: 'basic'
+            };
+        }
+        // Create a log level filter appender to filter output sent to the log file.
+        const fileFilterAppender = {
+            type: 'logLevelFilter',
+            level: process.env.WCHTOOLS_LOG_LEVEL || 'INFO',
+            appender: 'cliLog'
+        };
+        // Create a log level filter appender to filter output sent to the console.
+        const consoleFilterAppender = {
+            type: 'logLevelFilter',
+            level: 'INFO',
+            appender: 'cliOut'
         };
 
         // Configure the logging, we need an appenders object and a categories object.
         const appenders = {};
         const categories = {};
-        // Add the fileAppender using the name 'cliLog'.
+        // Add the fileAppender using the name 'cliLog' and the fileFilterAppender using 'cliLogFilter'.
         appenders.cliLog = fileAppender;
-        // Set the categories to use the cliLog appender.
-        categories.default = { appenders: ['cliLog'] };
-        categories[cliLog] = { appenders: ['cliLog'] };
-        // Set the level for the categories to 'INFO' to generate verbose output.
-        categories.default.level = 'INFO';
-        categories[cliLog].level = 'INFO';
+        appenders.cliLogFilter = fileFilterAppender;
+        // Set the categories to use the cliLogFilter appender.
+        categories.default = { appenders: ['cliLogFilter'] };
+        categories[cliLog] = { appenders: ['cliLogFilter'] };
+        // Set the level for the categories to 'ALL' so the filters can be applied.
+        categories.default.level = 'ALL';
+        categories[cliLog].level = 'ALL';
         if (this.generateVerboseOutput()) {
-            // The user has requested verbose output, add the consoleAppender using the name 'cliOut'.
+            // The user has requested verbose output, add the consoleAppender using the name 'cliOut' and the consoleFilterAppender using 'cliOutFilter'.
             appenders.cliOut = consoleAppender;
-            // Add the cliOut appender to the categories.
-            categories.default.appenders.push('cliOut');
-            categories[cliLog].appenders.push('cliOut');
+            appenders.cliOutFilter = consoleFilterAppender;
+            // Add the cliOutFilter appender to the categories.
+            categories.default.appenders.push('cliOutFilter');
+            categories[cliLog].appenders.push('cliOutFilter');
         }
         return {
             appenders: appenders,
             categories: categories
         };
     }
+
     /**
      * Get the logger to be used by this command.
      *
