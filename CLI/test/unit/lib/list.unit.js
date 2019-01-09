@@ -1607,7 +1607,12 @@ class ListUnitTest extends UnitTest {
                     return done();
                 }
 
-                const stub = sinon.stub(helper._restApi, "getItems");
+                let stub;
+                if (switches === "-w" || helper.supportsSearchByPath()) {
+                    stub = sinon.stub(helper, "_searchByPath");
+                } else {
+                    stub = sinon.stub(helper._restApi, "getItems");
+                }
                 stub.resolves([{name: itemName1, id: "foo", path: "/test/" + itemName1}, {name: itemName2, id: "bar", path: "/test/" + itemName2}, {name: badItem, id: undefined, path: "/test/" + badItem}]);
 
                 // Execute the command being tested.

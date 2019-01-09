@@ -55,23 +55,23 @@ const defaultContext = toolsApi.getContext();
 
 class UnitTest {
     // The default API context to be used for unit tests.
-    static get DEFAULT_API_CONTEXT () { return defaultContext; };
+    static get DEFAULT_API_CONTEXT () { return defaultContext; }
 
     // File and directory constants used by all unit tests.
-    static get API_PATH () { return authorApiPath; };
-    static get VALID_RESOURCES_DIRECTORY () { return "test/unit/resources/valid" + path.sep; }; // Relative to root.
-    static get INVALID_RESOURCES_DIRECTORY () { return "test/unit/resources/invalid" + path.sep; }; // Relative to root.
-    static get COMPARE_RESOURCES_DIRECTORY_1 () { return "test/unit/resources/compare1" + path.sep; }; // Relate to root.
-    static get COMPARE_RESOURCES_DIRECTORY_2 () { return "test/unit/resources/compare2" + path.sep; }; // Relate to root.
+    static get API_PATH () { return authorApiPath; }
+    static get VALID_RESOURCES_DIRECTORY () { return "test/unit/resources/valid" + path.sep; } // Relative to root.
+    static get INVALID_RESOURCES_DIRECTORY () { return "test/unit/resources/invalid" + path.sep; } // Relative to root.
+    static get COMPARE_RESOURCES_DIRECTORY_1 () { return "test/unit/resources/compare1" + path.sep; } // Relate to root.
+    static get COMPARE_RESOURCES_DIRECTORY_2 () { return "test/unit/resources/compare2" + path.sep; } // Relate to root.
 
     // Dummy values to be used when real values are not required.
-    static get DUMMY_DIR () { return authorApiPath + "test/unit/dummy" + path.sep; };
-    static get DUMMY_ID () { return "test-id"; };
-    static get DUMMY_NAME () { return "test-name"; };
-    static get DUMMY_PATH () { return "test-path"; };
-    static get DUMMY_URI () { return "/test-uri"; };
-    static get DUMMY_METADATA () { return {"id": "xxx", "path": "test1", "hierarchicalPath": "test1"}; };
-    static get DUMMY_OPTIONS () { return {}; };
+    static get DUMMY_DIR () { return authorApiPath + "test/unit/dummy" + path.sep; }
+    static get DUMMY_ID () { return "test-id"; }
+    static get DUMMY_NAME () { return "test-name"; }
+    static get DUMMY_PATH () { return "test-path"; }
+    static get DUMMY_URI () { return "/test-uri"; }
+    static get DUMMY_METADATA () { return {"id": "xxx", "path": "test1", "hierarchicalPath": "test1"}; }
+    static get DUMMY_OPTIONS () { return {}; }
 
     constructor () {
         // Array of mocks, stubs, and spies that should be restored when a test completes.

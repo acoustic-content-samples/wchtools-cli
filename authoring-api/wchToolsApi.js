@@ -97,6 +97,9 @@ class WchToolsApi {
                 };
             });
             options.setOptions(contextOptions, urlOptions);
+
+            // Also set a flag on the context to indicate we are being called by a service.
+            this.context.serviceMode = true;
         }
 
         // Now set the options on the context.

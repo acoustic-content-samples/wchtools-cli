@@ -187,7 +187,7 @@ class BaseREST {
                 // Add a log warning for the retry.
                 const attempt = response ? response.attempts : ((err && err.attempts) ? err.attempts : 1);
                 if (retVal && (attempt < maxAttempts)) {
-                    utils.logWarnings(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.original_message || error.log}));
+                    utils.logRetryInfo(context, i18n.__("retry_failed_request", {id: requestOptions.instanceId, message: error.original_message || error.log}));
                 }
             }
 

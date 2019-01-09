@@ -586,40 +586,48 @@ class AssetsHelper extends BaseHelper {
 
     _pullResource (context, resource, opts) {
         const helper = this;
-        const basePath = helper._fsApi.getResourcesPath(context, opts);
-        // Get the local file stream to be written.
-        return helper._fsApi.getResourceWriteStream(context, resource.id, opts)
-            .then(function (stream) {
-                let md5Promise;
-                stream.on("pipe", function (src) {
-                    md5Promise = hashes.generateMD5HashFromStream(src);
-                });
+        return helper._restApi.getResourceFilename(context, resource.id, opts)
+            .then(function (filename) {
+                if (filename.match(/(.*_)?robots.txt/) || filename.match(/(.*_)?sitemap.*\.xml/)) {
+                    // Return undefined if we're skipping the resource, the callers know how to handle this.
+                    return undefined;
+                } else {
+                    // Get the local file stream to be written.
+                    return helper._fsApi.getResourceWriteStream(context, resource.id, opts)
+                        .then(function (stream) {
+                            let md5Promise;
+                            stream.on("pipe", function (src) {
+                                md5Promise = hashes.generateMD5HashFromStream(src);
+                            });
 
-                // Construct a fake "asset" to pass to the pullItem method.  We just need the resource id and path.
-                const asset = {
-                    id: resource.id,
-                    resource: resource.id,
-                    path: helper._fsApi.getResourcePath(context, resource.id, opts)
-                };
-                // Specify in the opts that we need the resource filename returned.
-                // Download the specified resource contents and write them to the given stream.
-                return helper._restApi.pullItem(context, asset, stream, utils.cloneOpts(opts, {returnDisposition: true}))
-                    .then(function (asset) {
-                        helper._fsApi.renameResource(context, resource.id, asset.disposition, opts);
-                        const newname = helper._fsApi.getRawResourcePath(context, resource.id, asset.disposition, opts);
-                        const relative = utils.getRelativePath(basePath, newname);
-                        md5Promise.then(function (md5) {
-                            hashes.updateResourceHashes(context, basePath, newname, asset, md5, opts);
+                            // Construct a fake "asset" to pass to the pullItem method.  We just need the resource id and path.
+                            const asset = {
+                                id: resource.id,
+                                resource: resource.id,
+                                path: helper._fsApi.getResourcePath(context, resource.id, opts)
+                            };
+                            // Specify in the opts that we need the resource filename returned.
+                            // Download the specified resource contents and write them to the given stream.
+                            return helper._restApi.pullItem(context, asset, stream, utils.cloneOpts(opts, {returnDisposition: true}))
+                                .then(function (asset) {
+                                    const basePath = helper._fsApi.getResourcesPath(context, opts);
+                                    helper._fsApi.renameResource(context, resource.id, asset.disposition, opts);
+                                    const newname = helper._fsApi.getRawResourcePath(context, resource.id, asset.disposition, opts);
+                                    const relative = utils.getRelativePath(basePath, newname);
+                                    md5Promise.then(function (md5) {
+                                        hashes.updateResourceHashes(context, basePath, newname, asset, md5, opts);
+                                    });
+
+                                    // Notify any listeners that the resource at the given path was pulled.
+                                    const emitter = helper.getEventEmitter(context);
+                                    if (emitter) {
+                                        emitter.emit("resource-pulled", {"path":relative, "id":resource.id});
+                                    }
+                                    asset.relative = relative;
+                                    return asset;
+                                });
                         });
-
-                        // Notify any listeners that the resource at the given path was pulled.
-                        const emitter = helper.getEventEmitter(context);
-                        if (emitter) {
-                            emitter.emit("resource-pulled", {"path":relative, "id":resource.id});
-                        }
-                        asset.relative = relative;
-                        return asset;
-                    });
+                }
             });
     }
 
@@ -645,10 +653,9 @@ class AssetsHelper extends BaseHelper {
                     // Filter the list of resources and return only those that aren't pulled for assets.
                     const basePath = helper._fsApi.getResourcesPath(context, opts);
                     const resourcePath = hashes.getPathForResource(context, basePath, resource.id, opts);
-                    const assetPath = '/' + path.relative(helper._fsApi.getAssetsPath(context, opts), basePath + resourcePath);
                     const skippedResourceIDs = context.skippedResourceIDs || [];
                     // Only retrieve a resource if we didn't already have it (in hashes) and it wasn't a failed pull in this command.
-                    if (!resourcePath && skippedResourceIDs.indexOf(resource.id) === -1 && !assetPath.match(/\/(.*_)?robots.txt/) && !assetPath.match(/\/(.*_)?sitemap.*\.xml/)) {
+                    if (!resourcePath && skippedResourceIDs.indexOf(resource.id) === -1) {
                         return resource;
                     }
                 });
@@ -671,8 +678,10 @@ class AssetsHelper extends BaseHelper {
                         promises.forEach(function (promise, index) {
                             if (promise.state === "fulfilled") {
                                 const resource = promise.value;
-                                resources.push(resource);
-                                manifestList.push({ id: resource.id, path: resource.relative });
+                                if (resource) {
+                                    resources.push(resource);
+                                    manifestList.push({ id: resource.id, path: resource.relative });
+                                }
                             }
                             else {
                                 const error = promise.reason;
@@ -868,8 +877,23 @@ class AssetsHelper extends BaseHelper {
             allFSItems = this._listLocalItemNames(context, opts);
         }
 
-        // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
-        const listFn = helper._restApi.getItems.bind(helper._restApi, context);
+        let listFn;
+        const filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            // Use _searchByPath as the list function, so that all assets matching the search will be pulled.
+            listFn = helper._searchByPath.bind(helper, context, undefined, filterPath);
+
+            // get the offset/limit for the search service from the configured options
+            const searchServiceName = searchREST.getServiceName();
+            const offset = options.getRelevantOption(context, opts, "offset", searchServiceName) || 0;
+            const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
+
+            // set the search service's offset/limit values on a clone of the opts
+            opts = utils.cloneOpts(opts, {offset: offset, limit: limit, useNextLinks: false});
+        } else {
+            // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
+            listFn = helper._restApi.getItems.bind(helper._restApi, context);
+        }
         const handleChunkFn = helper._pullItemsChunk.bind(helper);
 
         // Keep track of the error count.
@@ -929,9 +953,36 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} A promise for the assets that were pulled.
      */
     pullModifiedItems (context, opts) {
-        // Use getModifiedRemoteItems() as the list function, so that only new and modified assets will be pulled.
         const helper = this;
-        const listFn = helper.getModifiedRemoteItems.bind(helper, context, [helper.NEW, helper.MODIFIED]);
+
+        let listFn;
+        const filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            // Use _searchByPath as the list function, so that all artifacts matching the search will be pulled.
+            listFn = function (opts) {
+                const timestamp = helper.getLastPullTimestamp(context, opts);
+                const searchOptions = {};
+                if (timestamp) {
+                    const expr = "lastModified:[" + timestamp + " TO *]";
+                    searchOptions.fq = [expr];
+                }
+                return helper._searchByPath(context, searchOptions, filterPath, opts)
+                    .then(function (items) {
+                        return helper._filterRemoteModified(context, items, [helper.NEW, helper.MODIFIED], opts);
+                    });
+            };
+
+            // get the offset/limit for the search service from the configured options
+            const searchServiceName = searchREST.getServiceName();
+            const offset = options.getRelevantOption(context, opts, "offset", searchServiceName) || 0;
+            const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
+
+            // set the search service's offset/limit values on a clone of the opts
+            opts = utils.cloneOpts(opts, {offset: offset, limit: limit, useNextLinks: false});
+        } else {
+            // Use getModifiedRemoteItems() as the list function, so that only new and modified assets will be pulled.
+            listFn = helper.getModifiedRemoteItems.bind(helper, context, [helper.NEW, helper.MODIFIED]);
+        }
         const handleChunkFn = helper._pullItemsChunk.bind(helper);
         // Keep track of the error count.
         context.pullErrorCount = 0;
@@ -1101,12 +1152,12 @@ class AssetsHelper extends BaseHelper {
         }
 
         // Determine whether this asset has reached the attempt limit.
-        const maxAttempts = options.getRelevantOption(context, opts, "retryMaxAttempts");
+        const serviceName = this._restApi.getServiceName();
+        const maxAttempts = options.getRelevantOption(context, opts, "retryMaxAttempts", serviceName);
         if (retryItem[BaseHelper.RETRY_PUSH_ITEM_COUNT] >= maxAttempts) {
             // This asset has reached the attempt limit, so don't return a retry item.
             retryItem = null;
         } else {
-            const serviceName = this._restApi.getServiceName();
             const minTimeout = options.getRelevantOption(context, opts, "retryMinTimeout", serviceName);
             const maxTimeout = options.getRelevantOption(context, opts, "retryMaxTimeout", serviceName);
             const factor = options.getRelevantOption(context, opts, "retryFactor", serviceName);
@@ -1256,7 +1307,7 @@ class AssetsHelper extends BaseHelper {
                                     // Retry the push of this asset if we have a retry item.
                                     if (retryItem) {
                                         // Log a warning that the push of this item will be retried.
-                                        utils.logWarnings(context, i18n.__("pushed_item_retry", {name: path, message: err.log ? err.log : err.message}));
+                                        utils.logRetryInfo(context, i18n.__("pushed_item_retry", {name: path, message: err.log ? err.log : err.message}));
 
                                         // Retry the push after the calculated delay.
                                         setTimeout(function () {
@@ -1371,7 +1422,7 @@ class AssetsHelper extends BaseHelper {
                                     // Retry the push of this asset if we have a retry item.
                                     if (retryItem) {
                                         // Log a warning that the push of this item will be retried.
-                                        utils.logWarnings(context, i18n.__("pushed_item_retry", {name: resourcePath, message: err.log ? err.log : err.message}));
+                                        utils.logRetryInfo(context, i18n.__("pushed_item_retry", {name: resourcePath, message: err.log ? err.log : err.message}));
 
                                         // Retry the push after the calculated delay.
                                         setTimeout(function () {
@@ -2319,78 +2370,25 @@ class AssetsHelper extends BaseHelper {
         return true;
     }
 
+    _search (context, searchOptions, opts) {
+        let typeQuery;
+        // Based on the desired asset types, add a 'fq' parameter to restrict to managed/unmanaged assets.
+        if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
+            typeQuery = "isManaged:false";
+        } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
+            typeQuery = "isManaged:true";
+        }
+        return super._search(context, this._addSearchQuery(searchOptions, typeQuery), opts);
+    }
+
     searchRemote (context, searchOptions, opts, path, recursive) {
         const helper = this;
 
         if (!path) {
-            searchOptions["fl"] = ["name", "id", "path"];
             return super.searchRemote(context, searchOptions, opts);
         }
 
-        if (!searchOptions) {
-            searchOptions = {};
-        }
-        if (!searchOptions["q"]) {
-            searchOptions["q"] = "*:*";
-        }
-        if (!searchOptions["fl"]) {
-            searchOptions["fl"] = [];
-        } else if (!Array.isArray(searchOptions["fl"])) {
-            searchOptions["fl"] = [searchOptions["fl"]];
-        }
-        if (searchOptions["fl"].length === 0) {
-            searchOptions["fl"].push("*");
-        } else {
-            // always make sure id, path and document are present in the results
-            if (searchOptions["fl"].indexOf("id") === -1) {
-                searchOptions["fl"].push("id");
-            }
-            if (searchOptions["fl"].indexOf("path") === -1) {
-                searchOptions["fl"].push("path");
-            }
-            if (searchOptions["fl"].indexOf("document") === -1) {
-                searchOptions["fl"].push("document");
-            }
-        }
-        if (!searchOptions["fq"]) {
-            searchOptions["fq"] = [];
-        } else if (!Array.isArray(searchOptions["fq"])) {
-            searchOptions["fq"] = [searchOptions["fq"]];
-        }
-        searchOptions["fq"].push("classification:asset");
-        if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_WEB_ASSETS) {
-            searchOptions["fq"].push("isManaged:false");
-        } else if (opts && opts[this.ASSET_TYPES] === this.ASSET_TYPES_CONTENT_ASSETS) {
-            searchOptions["fq"].push("isManaged:true");
-        }
-        if (path.charAt(0) !== '/') {
-            path = "/" + path;
-        }
-        // '/' needs to be escaped with \\/ in the search path
-        let searchPath = path.replace(/\//g, "\\/");
-        // always make sure the search path terminates with '*' so we can do our own additional filtering with the recursive flag later
-        if (!searchPath.endsWith('*')) {
-            searchPath += "*";
-        }
-        searchOptions["fq"].push("path:" + searchPath);
-
-        // define a list function to work with the _listItemChunk/_recurse methods for handling paging
-        const listFn = function(opts) {
-            const listFnDeferred = Q.defer();
-            searchREST.search(context, searchOptions, opts)
-                .then(function (results) {
-                    if (!results.documents) {
-                        results.documents = [];
-                    }
-                    listFnDeferred.resolve(results.documents.map(function (result) {
-                        return JSON.parse(result.document);
-                    }));
-                })
-                .catch(function (err) {
-                    listFnDeferred.reject(err);
-                });
-            return listFnDeferred.promise;
-        };
+        const listFn = helper._searchByPath.bind(helper, context, searchOptions, path);
         const handleChunkFn = helper._listItemChunk.bind(helper);
 
         // get the offset/limit for the search service from the configured options
@@ -2399,7 +2397,7 @@ class AssetsHelper extends BaseHelper {
         const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
 
         // set the search service's offset/limit values on a clone of the opts
-        opts = utils.cloneOpts(opts, {offset: offset, limit: limit});
+        opts = utils.cloneOpts(opts, {offset: offset, limit: limit, useNextLinks: false});
 
         // Get the first chunk of search results, and then recursively retrieve any additional chunks.
         return helper.recursiveGetItems(context, listFn, handleChunkFn, opts).then(function (results) {
@@ -2455,9 +2453,25 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} - A promise for an array of the names of all remote assets.
      */
     _listRemoteItemNames (context, opts) {
-        // Recursively call AssetsREST.getItems() to retrieve all of the remote assets.
         const helper = this;
-        const listFn = helper._restApi.getItems.bind(helper._restApi, context);
+
+        let listFn;
+        const filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            // Use _searchByPath as the list function, so that all assets matching the search will be pulled.
+            listFn = helper._searchByPath.bind(helper, context, undefined, filterPath);
+
+            // get the offset/limit for the search service from the configured options
+            const searchServiceName = searchREST.getServiceName();
+            const offset = options.getRelevantOption(context, opts, "offset", searchServiceName) || 0;
+            const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
+
+            // set the search service's offset/limit values on a clone of the opts
+            opts = utils.cloneOpts(opts, {offset: offset, limit: limit, useNextLinks: false});
+        } else {
+            // Use AssetsREST.getItems() as the list function, so that all assets will be pulled.
+            listFn = helper._restApi.getItems.bind(helper._restApi, context);
+        }
         const handleChunkFn = helper._listItemChunk.bind(helper);
 
         // Get the first chunk of remote assets, and then recursively retrieve any additional chunks.
@@ -2533,26 +2547,37 @@ class AssetsHelper extends BaseHelper {
      * @returns {Q.Promise} - A promise for a list of the assets that have been modified on the content hub.
      */
     getModifiedRemoteItems (context, flags, opts) {
-        // Get the local directory to use for comparison, based on the specified options.
-        const dir = this._fsApi.getAssetsPath(context, opts);
-
         // Recursively call AssetsREST.getModifiedItems() to retrieve the remote assets modified since the last pull.
         const helper = this;
         const lastPullTimestamp = helper.getLastPullTimestamp(context, opts);
         return helper._restApi.getModifiedItems(context, lastPullTimestamp, opts)
             .then(function (items) {
-                // Return a promise for the filtered list of remote modified assets.
-                return items.filter(function (item) {
-                    try {
-                        // Determine whether the remote asset was modified, based on the specified flags.
-                        const metadataPath = helper._fsApi.getMetadataPath(context, helper._fsApi.getAssetPath(item), opts);
-                        const itemPath = helper._fsApi.getPath(context, opts) + helper._fsApi.getAssetPath(item);
-                        return hashes.isRemoteModified(context, flags, item, dir, metadataPath, itemPath, opts);
-                    } catch (err) {
-                        utils.logErrors(context, i18n.__("error_filtering_remote_items"), err);
-                    }
-                });
+                return helper._filterRemoteModified(context, items, flags, opts);
             });
+    }
+
+    /**
+     * Given an array of items, filter those that are modified based on the flags.
+     * @param context
+     * @param items
+     * @param flags
+     * @param opts
+     * @private
+     */
+    _filterRemoteModified (context, items, flags, opts) {
+        const helper = this;
+        // Get the local directory to use for comparison, based on the specified options.
+        const dir = helper._fsApi.getAssetsPath(context, opts);
+        return items.filter(function (item) {
+            try {
+                // Determine whether the remote asset was modified, based on the specified flags.
+                const metadataPath = helper._fsApi.getMetadataPath(context, helper._fsApi.getAssetPath(item), opts);
+                const itemPath = helper._fsApi.getPath(context, opts) + helper._fsApi.getAssetPath(item);
+                return hashes.isRemoteModified(context, flags, item, dir, metadataPath, itemPath, opts);
+            } catch (err) {
+                utils.logErrors(context, i18n.__("error_filtering_remote_items"), err);
+            }
+        });
     }
 
     /**
@@ -2568,7 +2593,35 @@ class AssetsHelper extends BaseHelper {
     _listModifiedRemoteItemNames (context, flags, opts) {
         // Use getModifiedRemoteItems() as the list function, so that only modified assets will be pulled.
         const helper = this;
-        const listFn = helper.getModifiedRemoteItems.bind(helper, context, flags);
+
+        let listFn;
+        const filterPath = options.getRelevantOption(context, opts, "filterPath");
+        if (filterPath) {
+            // Use _searchByPath as the list function, so that all artifacts matching the search will be pulled.
+            listFn = function (opts) {
+                const timestamp = helper.getLastPullTimestamp(context, opts);
+                const searchOptions = {};
+                if (timestamp) {
+                    const expr = "lastModified:[" + timestamp + " TO *]";
+                    searchOptions.fq = [expr];
+                }
+                return helper._searchByPath(context, searchOptions, filterPath, opts)
+                    .then(function (items) {
+                        return helper._filterRemoteModified(context, items, flags, opts);
+                    });
+            };
+
+            // get the offset/limit for the search service from the configured options
+            const searchServiceName = searchREST.getServiceName();
+            const offset = options.getRelevantOption(context, opts, "offset", searchServiceName) || 0;
+            const limit = options.getRelevantOption(context, opts, "limit",  searchServiceName);
+
+            // set the search service's offset/limit values on a clone of the opts
+            opts = utils.cloneOpts(opts, {offset: offset, limit: limit, useNextLinks: false});
+        } else {
+            // Use getModifiedRemoteItems() as the list function, so that only new and modified assets will be pulled.
+            listFn = helper.getModifiedRemoteItems.bind(helper, context, flags);
+        }
         const handleChunkFn = helper._listItemChunk.bind(helper);
 
         return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
@@ -3268,9 +3321,7 @@ class AssetsHelper extends BaseHelper {
         const chunkSize = listInfo.length;
         const limit = options.getRelevantOption(context, opts, "limit", "resources");
         //test to see if we got less than the full chunk size
-        //FUTURE: prod-authoring-resource views/by-modified does not support next links
-//        if ((this._restApi.useNextLinks(context, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
-        if (chunkSize === 0 || chunkSize < limit) {
+        if ((this._restApi.useNextLinks(context, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
             //resolve the deferred with the allItems array
             deferred.resolve(allItems);
         } else {

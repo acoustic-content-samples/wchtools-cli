@@ -1355,8 +1355,6 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed when getting item names succeeds - path.", function (done) {
                 const pathBased = (type === "types" || type === "layouts" || type === "layout-mappings" || type === "sites/default");
 
-                // Create a rest.getItems stub that returns metadata for the items.
-                const stubGet = sinon.stub(restApi, "getItems");
                 const metadata1 = utils.clone(itemMetadata1);
                 const metadata2 = utils.clone(itemMetadata2);
                 const metadata3 = utils.clone(itemMetadata2);
@@ -1375,7 +1373,16 @@ class BaseHelperUnitTest extends UnitTest {
                     metadata4.path = "/bar/foo2.json";
                     metadata5.path = "/foo/bar3.json";
                 }
-                stubGet.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
+
+                let stubREST;
+                if (pathBased && helper.supportsSearchByPath()) {
+                    stubREST = sinon.stub(searchREST, "search");
+                    stubREST.resolves({documents: [{document: JSON.stringify(metadata1)}, {document: JSON.stringify(metadata2)}, {document: JSON.stringify(metadata3)}, {document: JSON.stringify(metadata4)}, {document: JSON.stringify(metadata5)}]});
+                } else {
+                    // Create a rest.getItems stub that returns metadata for the items.
+                    stubREST = sinon.stub(restApi, "getItems");
+                    stubREST.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
+                }
 
                 // Create a helper.canPullItem stub that return false for some of the items.
                 const stubCan = sinon.stub(helper, "canPullItem");
@@ -1396,7 +1403,7 @@ class BaseHelperUnitTest extends UnitTest {
                 }
 
                 // The stubs should be restored when the test is complete.
-                self.addTestDouble(stubGet);
+                self.addTestDouble(stubREST);
                 self.addTestDouble(stubCan);
                 self.addTestDouble(stubSave);
 
@@ -1412,7 +1419,7 @@ class BaseHelperUnitTest extends UnitTest {
                 helper.pullAllItems(context, {filterPath: "foo"})
                     .then(function (items) {
                         // Verify that the get stub was called once.
-                        expect(stubGet).to.be.calledOnce;
+                        expect(stubREST).to.be.calledOnce;
 
                         // Verify that the expected items are returned.
                         if (pathBased) {
@@ -3237,7 +3244,6 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed when getting item names succeeds - path.", function (done) {
                 const pathBased = (type === "types" || type === "layouts" || type === "layout-mappings" || type === "sites/default");
 
-                const stub = sinon.stub(restApi, "getItems");
                 const metadata1 = utils.clone(itemMetadata1);
                 const metadata2 = utils.clone(itemMetadata2);
                 const metadata3 = utils.clone(itemMetadata2);
@@ -3256,7 +3262,15 @@ class BaseHelperUnitTest extends UnitTest {
                     metadata4.path = "/bar/foo2.json";
                     metadata5.path = "/foo/bar3.json";
                 }
-                stub.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
+
+                let stub;
+                if (pathBased && helper.supportsSearchByPath()) {
+                    stub = sinon.stub(searchREST, "search");
+                    stub.resolves({documents: [{document: JSON.stringify(metadata1)}, {document: JSON.stringify(metadata2)}, {document: JSON.stringify(metadata3)}, {document: JSON.stringify(metadata4)}, {document: JSON.stringify(metadata5)}]});
+                } else {
+                    stub = sinon.stub(restApi, "getItems");
+                    stub.resolves([metadata1, metadata2, metadata3, metadata4, metadata5]);
+                }
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -4724,7 +4738,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed with default options.", function (done) {
                 const itemMetadata1 = UnitTest.getJsonObject(path1);
                 const stubRest = sinon.stub(searchREST, "search");
-                stubRest.resolves({"documents": [itemMetadata1] });
+                stubRest.resolves({"documents": [{document: JSON.stringify(itemMetadata1)}] });
 
                 // Make sure it can succeed if the helper has no classification.
                 const classification = helper._classification;
@@ -4742,8 +4756,8 @@ class BaseHelperUnitTest extends UnitTest {
                         // Verify that the expected options were passed to the stub.
                         expect(stubRest.args[0][1]["q"]).to.equal("*:*");
                         expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(2);
-                        expect(stubRest.args[0][1]["fl"][0]).to.equal("name");
-                        expect(stubRest.args[0][1]["fl"][1]).to.equal("id");
+                        expect(stubRest.args[0][1]["fl"][0]).to.equal("id");
+                        expect(stubRest.args[0][1]["fl"][1]).to.equal("document");
                         expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(0);
 
                         // Verify that the expected item was returned.
@@ -4767,7 +4781,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed with specific options.", function (done) {
                 const itemMetadata1 = UnitTest.getJsonObject(path1);
                 const stubRest = sinon.stub(searchREST, "search");
-                stubRest.resolves({"documents": [itemMetadata1] });
+                stubRest.resolves({"documents": [{document: JSON.stringify(itemMetadata1)}] });
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubRest);
@@ -4783,7 +4797,7 @@ class BaseHelperUnitTest extends UnitTest {
                         expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(3);
                         expect(stubRest.args[0][1]["fl"][0]).to.equal("bar");
                         expect(stubRest.args[0][1]["fl"][1]).to.equal("id");
-                        expect(stubRest.args[0][1]["fl"][2]).to.equal("name");
+                        expect(stubRest.args[0][1]["fl"][2]).to.equal("document");
                         if (helper._classification) {
                             expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(2);
                             expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
@@ -4811,7 +4825,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed with ready filter.", function (done) {
                 const itemMetadata1 = UnitTest.getJsonObject(path1);
                 const stubRest = sinon.stub(searchREST, "search");
-                stubRest.resolves({"documents": [itemMetadata1] });
+                stubRest.resolves({"documents": [{document: JSON.stringify(itemMetadata1)}] });
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubRest);
@@ -4824,15 +4838,15 @@ class BaseHelperUnitTest extends UnitTest {
 
                         // Verify that the expected options were passed to the stub.
                         expect(stubRest.args[0][1]["q"]).to.equal("foo");
-                        expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(4);
+                        expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(3);
                         expect(stubRest.args[0][1]["fl"][0]).to.equal("bar");
                         expect(stubRest.args[0][1]["fl"][1]).to.equal("id");
-                        expect(stubRest.args[0][1]["fl"][2]).to.equal("name");
-                        expect(stubRest.args[0][1]["fl"][3]).to.equal("status");
+                        expect(stubRest.args[0][1]["fl"][2]).to.equal("document");
                         if (helper._classification) {
-                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(2);
+                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(3);
                             expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
-                            expect(stubRest.args[0][1]["fq"][1]).to.contain(helper._classification);
+                            expect(stubRest.args[0][1]["fq"][1]).to.contain("status:ready");
+                            expect(stubRest.args[0][1]["fq"][2]).to.contain(helper._classification);
                         } else {
                             expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(1);
                             expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
@@ -4856,7 +4870,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed with draft filter.", function (done) {
                 const itemMetadata1 = UnitTest.getJsonObject(path1);
                 const stubRest = sinon.stub(searchREST, "search");
-                stubRest.resolves({"documents": [itemMetadata1] });
+                stubRest.resolves({"documents": [{document: JSON.stringify(itemMetadata1)}] });
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubRest);
@@ -4869,15 +4883,15 @@ class BaseHelperUnitTest extends UnitTest {
 
                         // Verify that the expected options were passed to the stub.
                         expect(stubRest.args[0][1]["q"]).to.equal("foo");
-                        expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(4);
+                        expect(stubRest.args[0][1]["fl"]).to.have.lengthOf(3);
                         expect(stubRest.args[0][1]["fl"][0]).to.equal("bar");
                         expect(stubRest.args[0][1]["fl"][1]).to.equal("id");
-                        expect(stubRest.args[0][1]["fl"][2]).to.equal("name");
-                        expect(stubRest.args[0][1]["fl"][3]).to.equal("status");
+                        expect(stubRest.args[0][1]["fl"][2]).to.equal("document");
                         if (helper._classification) {
-                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(2);
+                            expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(3);
                             expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
-                            expect(stubRest.args[0][1]["fq"][1]).to.contain(helper._classification);
+                            expect(stubRest.args[0][1]["fq"][1]).to.contain("status:draft");
+                            expect(stubRest.args[0][1]["fq"][2]).to.contain(helper._classification);
                         } else {
                             expect(stubRest.args[0][1]["fq"]).to.have.lengthOf(1);
                             expect(stubRest.args[0][1]["fq"][0]).to.equal("another");
@@ -4900,7 +4914,7 @@ class BaseHelperUnitTest extends UnitTest {
             it("should succeed when searchREST.searchRemote succeeds.", function (done) {
                 const itemMetadata1 = UnitTest.getJsonObject(path1);
                 const stubRest = sinon.stub(searchREST, "search");
-                stubRest.resolves({"documents": [itemMetadata1] });
+                stubRest.resolves({"documents": [{document: JSON.stringify(itemMetadata1)}] });
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubRest);

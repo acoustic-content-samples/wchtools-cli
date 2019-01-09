@@ -21,7 +21,6 @@ const BaseCommand = require("../lib/baseCommand");
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
-const login = ToolsApi.getLogin();
 const events = require("events");
 const fs = require("fs");
 const rimraf = require("rimraf");
@@ -122,7 +121,7 @@ class PullCommand extends BaseCommand {
             })
             .then(function () {
                 // Login using the current options.
-                return login.login(context, self.getApiOptions());
+                return self.handleLogin(context, self.getApiOptions());
             })
             .then(function () {
                 // Handle the manifest options.

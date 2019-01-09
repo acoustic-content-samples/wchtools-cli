@@ -108,6 +108,33 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
+    getResourceFilename (context, resourceId, opts) {
+        const deferred = Q.defer();
+        const restObject = this;
+        restObject.getDownloadRequestOptions(context, opts)
+            .then(function (requestOptions) {
+                requestOptions.uri = restObject._appendURI(requestOptions.uri, resourceId);
+                request.head(requestOptions, function (err, res, body) {
+                    const response = res || {};
+                    if (err || response.statusCode !== 200) {
+                        err = utils.getError(err, body, response, requestOptions);
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
+                        utils.logErrors(context, i18n.__("get_item_error", {service_name: "resources"}), err);
+                        deferred.reject(err);
+                    } else {
+                        BaseREST.logRetryInfo(context, requestOptions, response.attempts);
+                        const disposition = response.headers["content-disposition"];
+                        const filename = restObject._extractFilename(disposition);
+                        deferred.resolve(filename);
+                    }
+                });
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+        return deferred.promise;
+    }
+
     getResourceListRequestOptions (context, opts) {
         const deferred = Q.defer();
         const restObject = this;
@@ -262,6 +289,13 @@ class AssetsREST extends BaseREST {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         try {
                             const parsed = JSON.parse(body);
+                            // If next links is enabled and the response contains a next link, set it in the opts.
+                            // Otherwise, ensure that there is no nextURI value in the opts.
+                            if (restObject.useNextLinks(context, opts) && opts && parsed.next) {
+                                opts.nextURI = parsed.next;
+                            } else if (opts && opts.nextURI) {
+                                delete opts.nextURI;
+                            }
                             deferred.resolve(parsed.items ? parsed.items : parsed);
                         } catch (err) {
                             deferred.resolve(body);

@@ -235,7 +235,7 @@ class JSONItemHelper extends BaseHelper {
     pushAllItems (context, opts) {
         // Return the promise to get the list of local item names and push those items to the content hub.
         const helper = this;
-        return helper.listLocalItemNames(context, opts)
+        return helper._listLocalItemNames(context, opts)
             .then(function (names) {
                 return helper._pushNameList(context, names, opts);
             });
@@ -358,7 +358,7 @@ class JSONItemHelper extends BaseHelper {
 
         // Pull a "chunk" of remote items and and then recursively pull any remaining chunks.
         const helper = this;
-        const listFn = helper.getRemoteItems.bind(helper, context);
+        const listFn = helper._getRemoteListFunction(context, opts);
         const handleChunkFn = helper._pullItemsChunk.bind(helper);
 
         // After the promise has been resolved, update the last pull timestamp.
@@ -393,6 +393,51 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
+     * Returns a function to be used for the list remote items functionality. The returned function should accept a single opts argument.
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the pull operations.
+     * @return the function to call to list remote items.
+     * @private
+     */
+    _getRemoteListFunction (context, opts) {
+        // Use getRemoteItems() as the list function, so that all artifacts will be pulled.
+        return this.getRemoteItems.bind(this, context);
+    }
+
+    /**
+     * Given an array of items, filter those that are modified based on the flags.
+     * @param context
+     * @param items
+     * @param flags
+     * @param opts
+     * @private
+     */
+    _filterRemoteModified (context, items, flags, opts) {
+        const helper = this;
+        const dir = helper._fsApi.getPath(context, opts);
+        return items.filter(function (item) {
+            try {
+                const itemPath = helper._fsApi.getItemPath(context, item, opts);
+                return hashes.isRemoteModified(context, flags, item, dir, itemPath, undefined, opts);
+            } catch (err) {
+                utils.logErrors(context, i18n.__("error_filtering_remote_items"), err);
+            }
+        });
+    }
+
+    /**
+     * Returns a function to be used for the modified list remote items functionality. The returned function should accept a single opts argument.
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Object} opts The options to be used for the pull operations.
+     * @return the function to call to list modified remote items.
+     * @private
+     */
+    _getRemoteModifiedListFunction (context, flags, opts) {
+        // Use getModifiedRemoteItems() as the list function, so that all modified artifacts will be pulled.
+        return this.getModifiedRemoteItems.bind(this, context, flags);
+    }
+
+    /**
      * Pull any modified items from the remote content hub to the local file system.
      *
      * @param {Object} context The API context to be used for this operation.
@@ -411,7 +456,7 @@ class JSONItemHelper extends BaseHelper {
 
         // Pull a "chunk" of modified remote items and and then recursively pull any remaining chunks.
         const helper = this;
-        const listFn = helper.getModifiedRemoteItems.bind(helper, context, [helper.NEW, helper.MODIFIED]);
+        const listFn = helper._getRemoteModifiedListFunction(context, [helper.NEW, helper.MODIFIED], opts);
         const handleChunkFn = helper._pullItemsChunk.bind(helper);
 
         // After the promise has been resolved, update the last pull timestamp.
@@ -739,7 +784,7 @@ class JSONItemHelper extends BaseHelper {
     _listRemoteItemNames (context, opts) {
         // Recursively call restApi.getItems() to retrieve all of the remote items.
         const helper = this;
-        const listFn = helper.getRemoteItems.bind(helper, context);
+        const listFn = helper._getRemoteListFunction(context, opts);
         const handleChunkFn = helper._listItemChunk.bind(helper);
 
         // Get the first chunk of remote items, and then recursively retrieve any additional chunks.
@@ -781,18 +826,9 @@ class JSONItemHelper extends BaseHelper {
      */
     getModifiedRemoteItems (context, flags, opts) {
         const helper = this;
-        const dir = helper._fsApi.getPath(context, opts);
         return helper._restApi.getModifiedItems(context, helper.getLastPullTimestamp(context, opts), opts)
             .then(function (items) {
-                const results = items.filter(function (item) {
-                    try {
-                        const itemPath = helper._fsApi.getItemPath(context, item, opts);
-                        return hashes.isRemoteModified(context, flags, item, dir, itemPath, undefined, opts);
-                    } catch (err) {
-                        utils.logErrors(context, i18n.__("error_filtering_remote_items"), err);
-                    }
-                });
-                return results;
+                return helper._filterRemoteModified(context, items, flags, opts);
             });
     }
 
@@ -808,7 +844,7 @@ class JSONItemHelper extends BaseHelper {
      */
     _listModifiedRemoteItemNames (context, flags, opts) {
         const helper = this;
-        const listFn = helper.getModifiedRemoteItems.bind(helper, context, flags);
+        const listFn = helper._getRemoteModifiedListFunction(context, flags, opts);
         const handleChunkFn = helper._listItemChunk.bind(helper);
 
         return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
@@ -1358,7 +1394,7 @@ class JSONItemHelper extends BaseHelper {
 
                                 // Log a warning that the push of this item will be retried.
                                 const error = item[BaseHelper.RETRY_PUSH_ITEM_ERROR];
-                                utils.logWarnings(context, i18n.__("pushed_item_retry", {
+                                utils.logRetryInfo(context, i18n.__("pushed_item_retry", {
                                     name: name.id || name,
                                     message: error.log ? error.log : error.message
                                 }));

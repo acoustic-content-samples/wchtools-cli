@@ -2194,14 +2194,14 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
             it("should succeed when pulling assets by path.", function (done) {
                 // Define four simple asset metadata items.
-                const assetMetadata1 = {path: "/foo/bar1.json"};
-                const assetMetadata2 = {path: "/bar/foo1.json"};
-                const assetMetadata3 = {path: "/foo/bar2.json"};
-                const assetMetadata4 = {path: "/bar/foo2.json"};
+                const assetMetadata1 = {path: "/foo/bar1.json", document: '{"path": "/foo/bar1.json"}'};
+                const assetMetadata2 = {path: "/bar/foo1.json", document: '{"path": "/bar/foo1.json"}'};
+                const assetMetadata3 = {path: "/foo/bar2.json", document: '{"path": "/foo/bar2.json"}'};
+                const assetMetadata4 = {path: "/bar/foo2.json", document: '{"path": "/bar/foo2.json"}'};
 
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
-                const stubGet = sinon.stub(assetsREST, "getItems");
-                stubGet.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+                const stubSearch = sinon.stub(searchREST, "search");
+                stubSearch.resolves({documents: [assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]});
 
                 // Create an assetsHelper.pullResources stub that returns an empty list.
                 const stubResources = sinon.stub(assetsHelper, "pullResources");
@@ -2213,7 +2213,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubPull.onCall(1).resolves(assetMetadata3);
 
                 // The stubs and spies should be restored when the test is complete.
-                self.addTestDouble(stubGet);
+                self.addTestDouble(stubSearch);
                 self.addTestDouble(stubResources);
                 self.addTestDouble(stubPull);
 
@@ -2229,7 +2229,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         }
 
                         // Verify that the get stub was called once.
-                        expect(stubGet).to.have.been.calledOnce;
+                        expect(stubSearch).to.have.been.calledOnce;
 
                         // Verify that the pull stub was called twice with the expected path and stream.
                         expect(stubPull).to.have.been.calledTwice;
@@ -2943,6 +2943,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubResource = sinon.stub(assetsREST, "getResourceList");
                 stubResource.resolves([UnitTest.DUMMY_METADATA]);
 
+                const stubGetFilename = sinon.stub(assetsREST, "getResourceFilename");
+                stubGetFilename.resolves("test1");
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -2969,6 +2972,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubResource);
+                self.addTestDouble(stubGetFilename);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubRename);
@@ -3016,6 +3020,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubResource = sinon.stub(assetsREST, "getResourceList");
                 stubResource.resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
 
+                const stubGetFilename = sinon.stub(assetsREST, "getResourceFilename");
+                stubGetFilename.resolves("test1");
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -3051,6 +3058,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubResource);
+                self.addTestDouble(stubGetFilename);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubRename);
@@ -3101,6 +3109,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubResource = sinon.stub(assetsREST, "getResourceList");
                 stubResource.resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
 
+                const stubGetFilename = sinon.stub(assetsREST, "getResourceFilename");
+                stubGetFilename.resolves("test1");
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -3137,6 +3148,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubResource);
+                self.addTestDouble(stubGetFilename);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubRename);
@@ -3195,6 +3207,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     }
                 });
 
+                const stubGetFilename = sinon.stub(assetsREST, "getResourceFilename");
+                stubGetFilename.resolves("test1");
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -3231,6 +3246,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubResource);
+                self.addTestDouble(stubGetFilename);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubRename);
@@ -3293,6 +3309,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Change the hashes.getPathForResource stub to return an existing path for the second resource.
                 stubGetPathForResource.onSecondCall().returns("some-path");
 
+                const stubGetFilename = sinon.stub(assetsREST, "getResourceFilename");
+                stubGetFilename.resolves("test1");
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -3329,6 +3348,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubResource);
+                self.addTestDouble(stubGetFilename);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubRename);
@@ -3381,6 +3401,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubResource = sinon.stub(assetsREST, "getResourceList");
                 stubResource.resolves([UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
 
+                const stubGetFilename = sinon.stub(assetsREST, "getResourceFilename");
+                stubGetFilename.resolves("test1");
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -3416,6 +3439,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubResource);
+                self.addTestDouble(stubGetFilename);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubRename);
@@ -3466,6 +3490,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubResource = sinon.stub(assetsREST, "getResourceList");
                 stubResource.resolves([UnitTest.DUMMY_METADATA]);
 
+                const stubGetFilename = sinon.stub(assetsREST, "getResourceFilename");
+                stubGetFilename.resolves("test1");
+
                 // Create an assetsFS.getItemWriteStream stub that returns a promise for a stream.
                 const stubStream = sinon.stub(assetsFS, "getResourceWriteStream");
                 const stream1 = AssetsUnitTest.DUMMY_PASS_STREAM;
@@ -3498,6 +3525,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubResource);
+                self.addTestDouble(stubGetFilename);
                 self.addTestDouble(stubStream);
                 self.addTestDouble(stubPull);
                 self.addTestDouble(stubRename);
@@ -6594,8 +6622,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 assetMetadata4.path = "/bar/foo2.json";
 
                 // Create an assetsREST.getModifiedItems stub that returns a promise for the modified remote asset names.
-                const stub = sinon.stub(assetsREST, "getModifiedItems");
-                stub.resolves([assetMetadata1, assetMetadata2, assetMetadata3, assetMetadata4]);
+                const stub = sinon.stub(searchREST, "search");
+                stub.resolves({documents: [{document: JSON.stringify(assetMetadata1)}, {document: JSON.stringify(assetMetadata2)}, {document: JSON.stringify(assetMetadata3)}, {document: JSON.stringify(assetMetadata4)}]});
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
