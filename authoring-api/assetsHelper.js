@@ -906,7 +906,7 @@ class AssetsHelper extends BaseHelper {
         // Handle any necessary actions once the pull operations have completed.
         return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
-                if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
+                if (filterPath || (options.getRelevantOption(context, opts, "disablePushPullResources") === true)) {
                     return items;
                 } else {
                     return helper.pullResources(context, opts)
@@ -994,7 +994,7 @@ class AssetsHelper extends BaseHelper {
         // Handle any necessary actions once the pull operations have completed.
         return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
             .then(function (items) {
-                if (options.getRelevantOption(context, opts, "disablePushPullResources") === true) {
+                if (filterPath || (options.getRelevantOption(context, opts, "disablePushPullResources") === true)) {
                     return items;
                 } else {
                     return helper.pullResources(context, opts)

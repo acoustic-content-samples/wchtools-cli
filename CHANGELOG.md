@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.1.15 changes since 4.1.12
+  - Fix a bug that causes resources to be pulled unnecessarily when using the --path option.
+
 ### 4.1.12 changes since 4.1.5
   - Fix a bug that prevents iterating through all resources.
   - Fix a bug that prevents iterating through all search results when using the search API.
