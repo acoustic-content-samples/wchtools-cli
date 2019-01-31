@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+
+# save the current dir
+pushd . >/dev/null
+
+WCHTOOLS=$0
+cd `dirname $WCHTOOLS`
+WCHTOOLS=`basename $WCHTOOLS`
+while [ -L "$WCHTOOLS" ]
+do
+    WCHTOOLS=`readlink $WCHTOOLS`
+    cd `dirname $WCHTOOLS`
+    WCHTOOLS=`basename $WCHTOOLS`
+done
+# get the path of the dir we finally ended up in
+WCHTOOLS_DIR=`pwd -P|sed s,^/cygdrive/./,/,`
+
+# restore the current dir
+popd >/dev/null
+
+/usr/bin/env node --max-old-space-size=${WCHTOOLS_MAX_HEAP:-2048} $WCHTOOLS_DIR/../index.js "$@"
