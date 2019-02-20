@@ -636,6 +636,42 @@ class BaseHelper {
     }
 
     /**
+     * Filter the given list of items before completing the delete operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} items The items to be deleted.
+     * @param {Object} opts The options to be used for this operation.
+     *
+     * @returns {Array} The filtered list of items to be deleted.
+     *
+     * @protected
+     */
+    _deleteFilter (context, items, opts) {
+        // Filter the item list based on the ready and draft options.
+        const readyOnly = options.getRelevantOption(context, opts, "filterReady");
+        const draftOnly = options.getRelevantOption(context, opts, "filterDraft");
+        const self = this;
+        if (readyOnly) {
+            // Filter out any items that are not ready.
+            items = items.filter(function (item) {
+                return (self.getStatus(context, item, opts) === "ready");
+            });
+        } else if (draftOnly) {
+            // Filter out any items that are not draft.
+            items = items.filter(function (item) {
+                return (self.getStatus(context, item, opts) === "draft");
+            });
+        }
+
+        // Filter out any items that cannot be deleted.
+        items = items.filter(function (item) {
+            return self.canDeleteItem(item, true, opts);
+        });
+
+        return items;
+    }
+
+    /**
      * Delete the remote items returned from the given list function.
      *
      * @param {Object} context The API context to be used by the delete operation.
@@ -662,9 +698,7 @@ class BaseHelper {
                 const chunkSize = items.length;
 
                 // Filter the list of remote items to remove any that should not be deleted.
-                items = items.filter(function (item) {
-                    return self.canDeleteItem(item, true, opts);
-                });
+                items = self._deleteFilter(context, items, opts);
 
                 // Keep track of the list of items that were successfully deleted.
                 const deletedItems = [];

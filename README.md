@@ -119,6 +119,12 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   When another wchtools command (for example, push, pull, etc) is run that requires a login, if the username and password are not specified via the command line options, wchtools will attempt to obtain the username and password automatically from the operating system key manager using the API URL to lookup the credentials. If the user credentials are not found in the operating system key manager, wchtools will prompt you to enter them.
 
+#### Alternate syntax for specifying command line parameter values
+
+  The wchtools command line arguments that require an additional value (for example, --url, --user, --password, etc), can also be specified using an alternate syntax.  This syntax may be required in some cases to prevent the interpretation of the argument value as an additional argument to the command. For example:
+  
+     wchtools pull -A --user=myWCHusername@mycompany.com --password=-abcd1234-
+
 #### Specifying default options and command line options
 
 The init command generates a .wchtoolsoptions file in the user's home directory with the values provided during the init command. You may also create the .wchtoolsoptions file in a tooling project working-directory with the init command by using the --dir option.

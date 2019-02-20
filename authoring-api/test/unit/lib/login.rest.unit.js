@@ -396,13 +396,14 @@ class LoginRestUnitTest extends UnitTest {
                 const body = '{"username": "Foo", "x-ibm-dx-tenant-base-url": "Bar"}';
                 stub.onCall(0).yields(err, res, body);
 
-                // Create a stub for the options.getProperty method to return null for the base-url.
-                const originalGetProperty = options.getProperty;
-                const stubProperty = sinon.stub(options, "getProperty", function (context, key) {
-                    if (key === "x-ibm-dx-tenant-base-url") {
+                // Create a stub for the options.getRelevantOption method to return null for the base-url on the 2nd call.
+                const originalGetRelevantOption = options.getRelevantOption.bind(options);
+                let callCount = 0;
+                const stubProperty = sinon.stub(options, "getRelevantOption", function (context, opts, key) {
+                    if (key === "x-ibm-dx-tenant-base-url" && callCount++ > 0) {
                         return null;
                     } else {
-                        originalGetProperty(context, key);
+                        return originalGetRelevantOption(context, opts, key);
                     }
                 });
 
@@ -410,7 +411,8 @@ class LoginRestUnitTest extends UnitTest {
                 self.addTestDouble(stub);
                 self.addTestDouble(stubProperty);
 
-                // Save the base URL value.
+                // Save the base URL value from the loginOptions and context.
+                const testBaseUrl = loginOptions["x-ibm-dx-tenant-base-url"];
                 const origBaseUrl = context["x-ibm-dx-tenant-base-url"];
 
                 // Call the method being tested.
@@ -425,7 +427,7 @@ class LoginRestUnitTest extends UnitTest {
 
                         // Verify that the stub was called once with the expected values.
                         expect(stub).to.have.been.calledOnce;
-                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
+                        expect(stub.firstCall.args[0].uri).to.contain(testBaseUrl);
                         expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
                     })
                     .catch(function (err) {

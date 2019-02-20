@@ -145,13 +145,13 @@ class LoginREST extends BaseREST {
 
                 const tenant = response.headers["x-ibm-dx-tenant-id"];
                 const baseUrl = response.headers["x-ibm-dx-tenant-base-url"];
-                const existingBaseUrl = options.getProperty(context, "x-ibm-dx-tenant-base-url");
-                context.logger.debug("LoginREST.login: successful authentication to " + existingBaseUrl + " as " + opts.username);
+                const existingBaseUrl = options.getRelevantOption(context, opts,"x-ibm-dx-tenant-base-url");
 
                 // Resolve the promise with the tenant and baseUrl values from the login response.
                 result["x-ibm-dx-tenant-id"] = tenant;
                 result["x-ibm-dx-tenant-base-url"] = existingBaseUrl || baseUrl;
                 result["base-url-from-login-response"] = baseUrl;
+                context.logger.debug("LoginREST.login: successful authentication to " + result["x-ibm-dx-tenant-base-url"] + " as " + opts.username);
 
                 // Add the tenant tier if it's available.
                 if (body) {

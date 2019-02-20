@@ -40,6 +40,10 @@ class PagesHelperUnitTest extends BaseHelperUnit {
         super.run(restApi, fsApi, helper,  path1, path2, badPath );
     }
 
+    testDeleteRemoteReadyDraftItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        // Pages handle ready and draft filtering differently than other artifact types.
+    }
+
     runAdditionalTests (restApi, fsApi, helper, path1, path2, badPath) {
         this.testCanDeleteItem(helper);
         this.testCompare(restApi, fsApi, helper, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_1, UnitTest.API_PATH + UnitTest.COMPARE_RESOURCES_DIRECTORY_2);

@@ -149,6 +149,10 @@ class RenditionsHelperUnitTest extends BaseHelperUnitTest {
         });
     }
 
+    testDeleteRemoteReadyDraftItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        // No need to test this for renditions, since renditions cannot bve deleted.
+    }
+
     testRemoveAllHashes (helper){
         const self = this;
         describe("removeAllHashes", function () {

@@ -1,5 +1,10 @@
 # Changelog
 
+### 4.1.23 changes since 4.1.20
+  - Fix logged message for successful login when using --url argument.
+  - Enable paging for pulling pages.
+  - Fix a bug with filtering of deletions by ready/draft state.
+
 ### 4.1.20 changes since 4.1.15
   - Fix a bug with pulling assets with certain special characters in the filename when using the --path option.
 
