@@ -60,6 +60,30 @@ class PagesHelper extends JSONPathBasedItemHelper {
     }
 
     /**
+     * Filter the given list of items before completing the delete operation.
+     *
+     * @param {Object} context The API context to be used for this operation.
+     * @param {Array} items The items to be deleted.
+     * @param {Object} opts The options to be used for this operation.
+     *
+     * @returns {Array} The filtered list of items to be deleted.
+     *
+     * @protected
+     */
+    _deleteFilter (context, items, opts) {
+        // DO NOT filter the item list based on the ready and draft options. The pages to be deleted are based on
+        // the siteList (defined in the context), which may not align with the filterDraft and filterReady values.
+
+        // Filter out any items that cannot be deleted.
+        const self = this;
+        items = items.filter(function (item) {
+            return self.canDeleteItem(item, true, opts);
+        });
+
+        return items;
+    }
+
+    /**
      * Filter the given list of items using the given path.
      *
      * @param {Array} itemList The items to be listed.

@@ -112,6 +112,7 @@ class BaseHelperUnitTest extends UnitTest {
             self.testDeleteLocalItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteRemoteItem(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteRemoteItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
+            self.testDeleteRemoteReadyDraftItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testGetManifestItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
             self.testDeleteManifestItems(restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata);
 
@@ -3996,7 +3997,7 @@ class BaseHelperUnitTest extends UnitTest {
 
     testDeleteRemoteItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
         const self = this;
-        describe("deleteRemoteItem", function () {
+        describe("deleteRemoteItems", function () {
             it("should fail when getting the remote items fails.", function (done) {
                 const GET_ERROR = "There was an error getting the remote items.";
                 const stub = sinon.stub(helper, "getRemoteItems");
@@ -4387,6 +4388,243 @@ class BaseHelperUnitTest extends UnitTest {
                 } else {
                     done();
                 }
+            });
+        });
+    }
+
+    testDeleteRemoteReadyDraftItems (restApi, fsApi, helper, path1, path2, badPath, type, itemMetadata1, itemMetadata2, badMetadata) {
+        const self = this;
+        describe("deleteRemoteItems (ready and draft)", function () {
+            it("should succeed when deleting drafts and there are drafts.", function (done) {
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([draftMetadata1, draftMetadata2]);
+
+                const stubCan = sinon.stub(helper, "canDeleteItem");
+                stubCan.returns(true);
+
+                const stubDelete = sinon.stub(restApi, "deleteItem");
+                stubDelete.onFirstCall().resolves(draftMetadata1);
+                stubDelete.onSecondCall().resolves(draftMetadata2);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubCan);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context, {filterDraft: true})
+                    .then(function (items) {
+                        // Verify that the stubs were called the expected number of times.
+                        expect(stubGet).to.be.calledOnce;
+                        expect(stubCan).to.be.calledTwice;
+                        expect(stubDelete).to.be.calledTwice;
+
+                        expect(items).to.have.lengthOf(2);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting drafts and there is one draft.", function (done) {
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([readyMetadata1, draftMetadata2]);
+
+                const stubCan = sinon.stub(helper, "canDeleteItem");
+                stubCan.returns(true);
+
+                const stubDelete = sinon.stub(restApi, "deleteItem");
+                stubDelete.onFirstCall().resolves(draftMetadata2);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubCan);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context, {filterDraft: true})
+                    .then(function (items) {
+                        // Verify that the stubs were called the expected number of times.
+                        expect(stubGet).to.be.calledOnce;
+                        expect(stubCan).to.be.calledOnce;
+                        expect(stubDelete).to.be.calledOnce;
+
+                        expect(items).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting drafts and there are no drafts.", function (done) {
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([readyMetadata1, readyMetadata2]);
+
+                const spyCan = sinon.spy(helper, "canDeleteItem");
+
+                const spyDelete = sinon.spy(restApi, "deleteItem");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(spyCan);
+                self.addTestDouble(spyDelete);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context, {filterDraft: true})
+                    .then(function (items) {
+                        // Verify that the stubs were called the expected number of times.
+                        expect(stubGet).to.be.calledOnce;
+                        expect(spyCan).to.not.be.called;
+                        expect(spyDelete).to.not.be.called;
+
+                        expect(items).to.have.lengthOf(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting ready items and there are ready items.", function (done) {
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const readyMetadata2 = utils.clone(itemMetadata2);
+                readyMetadata2.status = "ready";
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([readyMetadata1, readyMetadata2]);
+
+                const stubCan = sinon.stub(helper, "canDeleteItem");
+                stubCan.returns(true);
+
+                const stubDelete = sinon.stub(restApi, "deleteItem");
+                stubDelete.onFirstCall().resolves(readyMetadata1);
+                stubDelete.onSecondCall().resolves(readyMetadata2);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubCan);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context, {filterReady: true})
+                    .then(function (items) {
+                        // Verify that the stubs were called the expected number of times.
+                        expect(stubGet).to.be.calledOnce;
+                        expect(stubCan).to.be.calledTwice;
+                        expect(stubDelete).to.be.calledTwice;
+
+                        expect(items).to.have.lengthOf(2);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting ready items and there is one ready item.", function (done) {
+                const readyMetadata1 = utils.clone(itemMetadata1);
+                readyMetadata1.status = "ready";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([readyMetadata1, draftMetadata2]);
+
+                const stubCan = sinon.stub(helper, "canDeleteItem");
+                stubCan.returns(true);
+
+                const stubDelete = sinon.stub(restApi, "deleteItem");
+                stubDelete.onFirstCall().resolves(readyMetadata1);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(stubCan);
+                self.addTestDouble(stubDelete);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context, {filterReady: true})
+                    .then(function (items) {
+                        // Verify that the stubs were called the expected number of times.
+                        expect(stubGet).to.be.calledOnce;
+                        expect(stubCan).to.be.calledOnce;
+                        expect(stubDelete).to.be.calledOnce;
+
+                        expect(items).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when deleting ready items and there are no ready items.", function (done) {
+                const draftMetadata1 = utils.clone(itemMetadata1);
+                draftMetadata1.status = "draft";
+                const draftMetadata2 = utils.clone(itemMetadata2);
+                draftMetadata2.status = "draft";
+                const stubGet = sinon.stub(helper, "getRemoteItems");
+                stubGet.resolves([draftMetadata1, draftMetadata2]);
+
+                const spyCan = sinon.spy(helper, "canDeleteItem");
+
+                const spyDelete = sinon.spy(restApi, "deleteItem");
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubGet);
+                self.addTestDouble(spyCan);
+                self.addTestDouble(spyDelete);
+
+                // Call the method being tested.
+                let error;
+                helper.deleteRemoteItems(context, {filterReady: true})
+                    .then(function (items) {
+                        // Verify that the stubs were called the expected number of times.
+                        expect(stubGet).to.be.calledOnce;
+                        expect(spyCan).to.not.be.called;
+                        expect(spyDelete).to.not.be.called;
+
+                        expect(items).to.have.lengthOf(0);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
             });
         });
     }
