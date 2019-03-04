@@ -1792,7 +1792,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.pushItem(context, true, true, false, UnitTest.DUMMY_ID, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
+                assetsREST.pushItem(context, true, false, false, UnitTest.DUMMY_ID, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length)
                     .then(function (asset) {
                         expect(stubHead).to.have.callCount(1);
 

@@ -1030,7 +1030,7 @@ function isLocalModified (context, flags, basePath, metadataPath, resourcePath, 
             ((fileHashes.localLastModified && stat && stat.mtime.getTime() !== Date.parse(fileHashes.localLastModified)) ||
              (fileHashes.resourceLocalLastModified && statResource && statResource.mtime.getTime() !== Date.parse(fileHashes.resourceLocalLastModified)))) {
             // The timestamps don't match so check the md5 hashes.
-            const md5 = generateMD5HashSync(filePath);
+            const md5 = stat ? generateMD5HashSync(filePath) : undefined;
             context.logger.debug("hashes.isLocalModified MODIFIED fileHashes md5", fileHashes.md5);
             context.logger.debug("hashes.isLocalModified MODIFIED md5", md5);
 
@@ -1039,7 +1039,7 @@ function isLocalModified (context, flags, basePath, metadataPath, resourcePath, 
                 context.logger.debug("hashes.isLocalModified MODIFIED file is modified");
                 modified = true;
             } else if (resourcePath && metadataPath) {
-                const resourceMD5 = generateMD5HashSync(resourcePath);
+                const resourceMD5 = statResource ? generateMD5HashSync(resourcePath) : undefined;
                 if (fileHashes.resourceMD5 && resourceMD5 !== fileHashes.resourceMD5) {
                     context.logger.debug("hashes.isLocalModified MODIFIED file is modified due to resource MD5");
                     modified = true;
