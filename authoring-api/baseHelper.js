@@ -1254,7 +1254,7 @@ class BaseHelper {
      * @private
      */
     _wrapRemoteListFunction (listFn, context, opts) {
-        return listFn(context, utils.cloneOpts(opts, {"noErrorLog": true}))
+        return listFn(context, utils.cloneOpts(opts, {"noErrorLog": "true"}))
             .catch(function (err) {
                 if (err.statusCode === 404) {
                     // The remote items do not exist, so return an empty list. This can happen when a site
@@ -1278,7 +1278,7 @@ class BaseHelper {
      * @private
      */
     _wrapLocalListFunction (listFn, context, opts) {
-        return listFn(context, utils.cloneOpts(opts, {"noErrorLog": true}))
+        return listFn(context, utils.cloneOpts(opts, {"noErrorLog": "true"}))
             .catch(function () {
                 // The local items do not exist, so return an empty list. It's not clear how this could
                 // happen, but it should not result in an error if it does.
@@ -1297,7 +1297,7 @@ class BaseHelper {
      * @private
      */
     _wrapRemoteItemFunction (getItemFn, context, item, opts) {
-        return getItemFn(context, item, utils.cloneOpts(opts, {"noErrorLog": true}))
+        return getItemFn(context, item, utils.cloneOpts(opts, {"noErrorLog": "true"}))
             .catch(function (err) {
                 if (err.statusCode === 404) {
                     // The remote item does not exist, so return undefined. This can happen when the specified
@@ -1322,7 +1322,7 @@ class BaseHelper {
      * @private
      */
     _wrapLocalItemFunction (getItemFn, context, item, opts) {
-        return getItemFn(context, item, utils.cloneOpts(opts, {"noErrorLog": true}))
+        return getItemFn(context, item, utils.cloneOpts(opts, {"noErrorLog": "true"}))
             .catch(function (err) {
                 if (err.code === "ENOENT") {
                     // The local item does not exist, so return undefined. This can happen when the specified

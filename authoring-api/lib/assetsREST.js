@@ -568,26 +568,25 @@ class AssetsREST extends BaseREST {
         // in the normal way, because a resource PUT request is used to create a resource with a specific id.
         const createOnly = restObject.isCreateOnlyMode(context, opts);
 
-        // A web asset always uses PUT to update the resource, content assets only POST if replaceContentResource is true or there is no resourceId.
-        const updateContentResource = ((isContentResource && !replaceContentResource) || (!isContentResource)) && resourceId;
+        // A web asset always uses PUT to create a resource using a specific id (as supplied based on the md5hash and path).
+        // A content asset uses POST (to have WCH generate a new resourceId) if replaceContentResource is true or there is no resourceId.
+        let useResourcePUT = ((isContentResource && !replaceContentResource) || (!isContentResource)) && resourceId;
 
         // Do not retry resource push requests. The stream passed in can only be read for the first request.
         const rOpts = utils.cloneOpts(opts, {retryMaxAttempts: 1});
 
-        const resourceRequestOptions = updateContentResource ? this.getResourcePUTOptions(context, resourceId, resourceMd5, pathname, rOpts) : this.getResourcePOSTOptions(context, pathname, rOpts);
+        const getResourceRequestOptions = useResourcePUT ? this.getResourcePUTOptions(context, resourceId, resourceMd5, pathname, rOpts) : this.getResourcePOSTOptions(context, pathname, rOpts);
 
         // Asset creation requires two steps.  POST/PUT the binary to resource service followed by pushing asset metadata to the asset service
         const deferred = Q.defer();
-        resourceRequestOptions
+        getResourceRequestOptions
             .then(function (reqOptions) {
-                reqOptions.headers["Content-Length"] = length;
-
                 const resourceRequestCallback = function (err, res, body) {
                     const response = res || {};
                     let handleError = err || (response.statusCode >= 400);
 
                     // A 409 Conflict error means the resource already exists. So for createOnly, we will consider this
-                    // to be a sucessful push of the specified resource, otherwise handle the error in the normal way.
+                    // to be a successful push of the specified resource, otherwise handle the error in the normal way.
                     if (createOnly && response.statusCode === 409) {
                         handleError = false;
                     }
@@ -609,7 +608,7 @@ class AssetsREST extends BaseREST {
                         BaseREST.logRetryInfo(context, reqOptions, response.attempts);
 
                         // To replace the underlying resource, we need to parse the result body to get the new resource ID.
-                        const resourceMetadata = (updateContentResource || !body) ? {id: resourceId} : JSON.parse(body);
+                        const resourceMetadata = (useResourcePUT || !body) ? {id: resourceId} : JSON.parse(body);
 
                         let doUpdate;
                         let requestBody;
@@ -675,6 +674,7 @@ class AssetsREST extends BaseREST {
                                         });
                                     });
                             } else {
+                                // No asset id or asset rev, this asset metadata has not been pushed before, just create it
                                 restObject.getUpdateRequestOptions(context, opts)
                                     .then(function (reqOptions) {
                                         reqOptions.body = requestBody;
@@ -697,22 +697,29 @@ class AssetsREST extends BaseREST {
 
                 const headDeferred = Q.defer();
                 const headResponsePromise = headDeferred.promise;
-                if (updateContentResource) {
+                if (useResourcePUT) {
                     // Before a PUT, do HEAD request to see if the resource already exists with the same MD5 hash.
                     restObject.getDownloadRequestOptions(context, opts).then(function (headReqOptions) {
                         headReqOptions.uri = restObject._appendURI(headReqOptions.uri, resourceId) + "?bypass-cache=" + Date.now();
                         request.head(headReqOptions, function(headErr, headRes, headBody) {
-                            let sendResource = true;
-                            if (headErr) {
-                                // Ignore an error from the HEAD request and continue assuming we need to push.
-                            } else if (headRes && headRes.statusCode && headRes.statusCode === 200 && headRes.headers && headRes.headers.etag) {
+                            if (!headErr && headRes && headRes.statusCode && headRes.statusCode === 200 && headRes.headers && headRes.headers.etag) {
                                 const etag = headRes.headers.etag.substring(1, headRes.headers.etag.length-1);
                                 if (hashes.compareMD5Hashes(resourceMd5, etag)) {
                                     // The hashes are equal, the resource already exists with a matching MD5.
-                                    sendResource = false;
+                                    headDeferred.resolve(false);
+                                } else {
+                                    // A resource already exists using the requested resource id, but with a different md5 hash.
+                                    // This should only ever happen for a content resource, since web resources use the md5 hash of the binary content as part of the resource id.
+                                    useResourcePUT = false;
+                                    restObject.getResourcePOSTOptions(context, pathname, rOpts).then(function (postRequestOptions) {
+                                        reqOptions = postRequestOptions;
+                                        headDeferred.resolve(true);
+                                    });
                                 }
+                            } else {
+                                // Ignore any other status or error from the HEAD request and assume we need to push.
+                                headDeferred.resolve(true);
                             }
-                            headDeferred.resolve(sendResource);
                         });
                     });
                 } else {
@@ -720,9 +727,10 @@ class AssetsREST extends BaseREST {
                 }
                 headResponsePromise.then(function (sendResource) {
                     if (sendResource) {
+                        reqOptions.headers["Content-Length"] = length;
                         // A web asset always uses POST to create a new resource, content assets only POST if replaceContentResource is true or there is no resourceId.
                         //noinspection JSUnresolvedFunction
-                        stream.pipe(updateContentResource ? request.put(reqOptions, resourceRequestCallback) : request.post(reqOptions, resourceRequestCallback));
+                        stream.pipe(useResourcePUT ? request.put(reqOptions, resourceRequestCallback) : request.post(reqOptions, resourceRequestCallback));
                     } else {
                         // Directly call the callback and send a simple HTTP 200 reply.
                         resourceRequestCallback(undefined, { statusCode: 200 }, {});

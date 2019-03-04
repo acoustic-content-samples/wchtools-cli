@@ -1,5 +1,9 @@
 # Changelog
 
+### 4.1.26 changes since 4.1.23
+  - Allow managed assets to be pushed without managed asset metadata present.
+  - Fix a error reporting a md5 hash mismatch when pushing updated managed assets.
+
 ### 4.1.23 changes since 4.1.20
   - Fix logged message for successful login when using --url argument.
   - Enable paging for pulling pages.

@@ -1204,42 +1204,73 @@ class AssetsHelper extends BaseHelper {
             .then(function (length) {
                 // Get the resource ID and the MD5 hash for the specified local asset file from the local hashes.
                 const assetFile = helper._fsApi.getPath(context, opts) + path;
-                let assetHashesResourceMD5 = hashes.getResourceMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
-                const isContentResource = helper._fsApi.isContentResource(path);
-                if (!assetHashesResourceMD5 && isContentResource) {
-                    // the asset is a content resource, try the lookup in hashes using the metadata path
-                    const mdFile = helper._fsApi.getMetadataPath(context, path, opts);
-                    assetHashesResourceMD5 = hashes.getResourceMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), mdFile, opts);
-                }
-                let resourceId;
-                let resourceMd5 = isContentResource ? assetHashesResourceMD5 : undefined;
                 hashes.generateMD5HashAndID(helper._fsApi.getAssetsPath(context, opts), assetFile).then(function (hashAndID) {
                     // In order to push the asset to the content hub, open a read stream for the asset file.
+                    let resourceId;
+                    let replaceContentResource;
                     let streamOpened;
-                    if (isContentResource && fs.existsSync(helper._fsApi.getMetadataPath(context, path, opts))) {
-                        // There is a metadata file for the content asset, so start by reading the metadata file.
-                        streamOpened = helper._fsApi.getItem(context, path, opts)
-                            .then(function (asset) {
-                                // Get the resource ID and the MD5 hash if they aren't already defined.
-                                resourceId = asset.resource;
-                                resourceMd5 = resourceMd5 || hashAndID.md5;
+                    const isContentResource = helper._fsApi.isContentResource(path);
+                    if (isContentResource) {
+                        // This is a content asset.
+                        const metadataFile = helper._fsApi.getMetadataPath(context, path, opts);
+                        let hashesResourceMD5 = hashes.getResourceMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), assetFile, opts);
+                        if (!hashesResourceMD5) {
+                            // the asset is a content resource, try the lookup in hashes using the metadata path
+                            hashesResourceMD5 = hashes.getResourceMD5ForFile(context, helper._fsApi.getAssetsPath(context, opts), metadataFile, opts);
+                        }
+                        if (fs.existsSync(metadataFile)) {
+                            // There is a metadata file for the content asset, so start by reading the metadata file.
+                            streamOpened = helper._fsApi.getItem(context, path, opts)
+                                .then(function (asset) {
+                                    // Use the resource ID from the asset metadata.
+                                    resourceId = asset.resource;
 
-                                // Keep track of the asset metadata.
-                                opts = utils.cloneOpts(opts, {asset: asset});
+                                    // Set replaceContentResource - if the saved md5 is not undefined and doesn't match the md5 of the resource
+                                    const savedMd5 = asset.digest || hashesResourceMD5;
+                                    replaceContentResource = savedMd5 ? (savedMd5 !== hashAndID.md5) : false;
 
-                                // Open a read stream for the actual asset file (not the metadata file).
-                                return helper._fsApi.getItemReadStream(context, path, opts);
-                            })
-                            .catch(function (err) {
-                                // Reject the top-level promise.
-                                deferred.reject(err);
-                            });
+                                    // Keep track of the asset metadata.
+                                    opts = utils.cloneOpts(opts, {asset: asset});
+
+                                    // Open a read stream for the actual asset file (not the metadata file).
+                                    return helper._fsApi.getItemReadStream(context, path, opts);
+                                })
+                                .catch(function (err) {
+                                    // Reject the top-level promise.
+                                    deferred.reject(err);
+                                });
+                        } else {
+                            // This is a content asset with no metadata file present, try to fetch it from the server.
+                            streamOpened = helper._restApi.getItemByPath(context, path, utils.cloneOpts(opts, {"noErrorLog": "true"}))
+                                .then(function (asset) {
+                                    // Use the resource ID from the asset metadata.
+                                    resourceId = asset.resource;
+
+                                    // Set replaceContentResource - if the saved md5 is not undefined and doesn't match the md5 of the resource
+                                    replaceContentResource = asset.digest ? (asset.digest !== hashAndID.md5) : false;
+
+                                    // Keep track of the asset metadata.
+                                    opts = utils.cloneOpts(opts, {asset: asset});
+
+                                    return helper._fsApi.getItemReadStream(context, path, opts);
+                                }).catch(function (err) {
+                                    // Ignore any error here, this is a create of a new content asset with no metadata.
+                                    // Use undefined as the resourceId to let WCH generate one.
+                                    resourceId = undefined;
+
+                                    // Set replaceContentResource to false - there is no existing metadata found.
+                                    replaceContentResource = false;
+
+                                    return helper._fsApi.getItemReadStream(context, path, opts);
+                                });
+                        }
                     } else {
-                        // There is no metadata file, so open a read stream for the asset file.
-                        streamOpened = helper._fsApi.getItemReadStream(context, path, opts);
-                        resourceMd5 = resourceMd5 || hashAndID.md5;
+                        // This is a web asset.
                         // Use the resources's MD5 hash (with path name) as the resourceId.
-                        resourceId = resourceMd5 ? hashAndID.id : undefined;
+                        resourceId = hashAndID.id;
+                        // Set replaceContentResource to false - this is a web asset.
+                        replaceContentResource = false;
+                        streamOpened = helper._fsApi.getItemReadStream(context, path, opts);
                     }
 
                     streamOpened
@@ -1250,27 +1281,24 @@ class AssetsHelper extends BaseHelper {
                                 streamClosed.resolve(path);
                             });
 
-                            // Determine how to set replaceContentReource - if the saved md5 doesn't match the md5 of the resource
-                            const replaceContentResource = isContentResource && (resourceMd5 !== hashAndID.md5);
+                            // Push the asset to the content hub.
+                            helper._restApi.pushItem(context, false, isContentResource, replaceContentResource, resourceId, hashAndID.md5, path, readStream, length, opts)
+                                .then(function (asset) {
+                                    errorInfo = {id: asset.id, path: path};
 
-                        // Push the asset to the content hub.
-                        helper._restApi.pushItem(context, false, isContentResource, replaceContentResource, resourceId, resourceMd5, path, readStream, length, opts)
-                            .then(function (asset) {
-                                errorInfo = {id: asset.id, path: path};
-
-                                // Save the asset metadata to a local file.
-                                const done = Q.defer();
-                                const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
-                                if (isContentResource && rewriteOnPush) {
-                                    // Wait for the metadata to be saved, and don't reject the push if the save fails.
-                                    try {
-                                        done.resolve(helper._fsApi.saveItem(context, asset, opts));
-                                    } catch (err) {
-                                        done.resolve(err);
+                                    // Save the asset metadata to a local file.
+                                    const done = Q.defer();
+                                    const rewriteOnPush = options.getRelevantOption(context, opts, "rewriteOnPush");
+                                    if (isContentResource && rewriteOnPush) {
+                                        // Wait for the metadata to be saved, and don't reject the push if the save fails.
+                                        try {
+                                            done.resolve(helper._fsApi.saveItem(context, asset, opts));
+                                        } catch (err) {
+                                            done.resolve(err);
+                                        }
+                                    } else {
+                                        done.resolve(asset);
                                     }
-                                } else {
-                                    done.resolve(asset);
-                                }
 
                                     // Update the hashes for the pushed asset.
                                     const assetPath = helper._fsApi.getPath(context, opts) + helper._fsApi.getAssetPath(asset);
@@ -1389,7 +1417,7 @@ class AssetsHelper extends BaseHelper {
                             const resourceId = path.basename(path.dirname(resourcePath));
 
                         // Push the resource to the content hub.
-                        helper._restApi.pushItem(context, true, true, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
+                        helper._restApi.pushItem(context, true, false, false, resourceId, resourceMd5, resourcePath, readStream, length, opts)
                             .then(function (resource) {
                                 const newResource = {id: resource.id || resourceId, path: resourcePath};
                                 errorInfo = newResource;
@@ -1787,7 +1815,7 @@ class AssetsHelper extends BaseHelper {
      */
     _wrapGetRemoteMD5HashFunction (getMD5HashFunction, context, asset, opts) {
         // For a remote asset, we have metadata, use the resource member.
-        return getMD5HashFunction(context, asset, utils.cloneOpts(opts, {"noErrorLog": true}))
+        return getMD5HashFunction(context, asset, utils.cloneOpts(opts, {"noErrorLog": "true"}))
             .catch(function (err) {
                 if (err.statusCode === 404) {
                     // The remote item does not exist, so return undefined. This can happen when the specified
@@ -1813,7 +1841,7 @@ class AssetsHelper extends BaseHelper {
      */
     _wrapGetLocalMD5HashFunction (getMD5HashFunction, context, asset, opts) {
         // For a local resource, we have no metadata, use the path member.
-        return getMD5HashFunction(context, asset, utils.cloneOpts(opts, {"noErrorLog": true}))
+        return getMD5HashFunction(context, asset, utils.cloneOpts(opts, {"noErrorLog": "true"}))
             .catch(function (err) {
                 if (err.code === "ENOENT") {
                     // The local item does not exist, so return undefined. This can happen when the specified

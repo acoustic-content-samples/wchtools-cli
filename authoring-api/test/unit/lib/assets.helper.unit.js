@@ -4430,6 +4430,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_JAR_1).resolves(jarStream);
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_1).resolves(jpgStream);
 
+                // Stub assetsREST.getItemByPath to reject with no asset metadata available locally.
+                const stubGetItemByPath = sinon.stub(assetsREST, "getItemByPath");
+                stubGetItemByPath.rejects();
+
                 // Create an assetsREST.pushItem stub that returns a promise for asset metadata based on the value of
                 // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
                 // promises will be resolved. And in order to test error handling, one of the stub calls will reject.
@@ -4472,6 +4476,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubFS);
+                self.addTestDouble(stubGetItemByPath);
                 self.addTestDouble(stubREST);
                 self.addTestDouble(stubContentLength);
                 self.addTestDouble(stubSave);
@@ -4608,6 +4613,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2).resolves(stream2);
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT).resolves(draftStream2);
 
+                // Stub assetsREST.getItemByPath to reject with no asset metadata available locally.
+                const stubGetItemByPath = sinon.stub(assetsREST, "getItemByPath");
+                stubGetItemByPath.rejects();
+
                 // Create an assetsREST.pushItem stub that returns a promise for asset metadata based on the value of
                 // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
                 // promises will be resolved.
@@ -4649,6 +4658,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubFS);
+                self.addTestDouble(stubGetItemByPath);
                 self.addTestDouble(stubREST);
                 self.addTestDouble(stubSave);
                 self.addTestDouble(stubContentLength);
@@ -4777,6 +4787,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2).resolves(stream2);
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT).resolves(draftStream2);
 
+                // Stub assetsREST.getItemByPath to reject with no asset metadata available locally.
+                const stubGetItemByPath = sinon.stub(assetsREST, "getItemByPath");
+                stubGetItemByPath.rejects();
+
                 // Create an assetsREST.pushItem stub that returns a promise for asset metadata based on the value of
                 // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
                 // promises will be resolved.
@@ -4818,6 +4832,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubFS);
+                self.addTestDouble(stubGetItemByPath);
                 self.addTestDouble(stubREST);
                 self.addTestDouble(stubSave);
                 self.addTestDouble(stubContentLength);
@@ -4931,6 +4946,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2).resolves(stream2);
                 stubFS.withArgs(sinon.match.any, AssetsUnitTest.ASSET_CONTENT_JPG_2_DRAFT).resolves(draftStream2);
 
+                // Stub assetsREST.getItemByPath to reject with no asset metadata available locally.
+                const stubGetItemByPath = sinon.stub(assetsREST, "getItemByPath");
+                stubGetItemByPath.rejects();
+
                 // Create an assetsREST.pushItem stub that returns a promise for asset metadata based on the value of
                 // the "pathname" parameter. In this case the stub also emits a stream close event so that subsequent
                 // promises will be resolved.
@@ -4972,6 +4991,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubFS);
+                self.addTestDouble(stubGetItemByPath);
                 self.addTestDouble(stubREST);
                 self.addTestDouble(stubSave);
                 self.addTestDouble(stubContentLength);
@@ -5204,6 +5224,9 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubIsContentResource = sinon.stub(assetsFS, "isContentResource");
                 stubIsContentResource.returns(false);
 
+                const stubGetItemByPath = sinon.stub(assetsREST, "getItemByPath");
+                stubGetItemByPath.rejects();
+
                 // The stubs should be restored when the test is complete.
                 self.addTestDouble(stubList);
                 self.addTestDouble(stubStats);
@@ -5211,6 +5234,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 self.addTestDouble(stubPush);
                 self.addTestDouble(stubIsContentResource);
                 self.addTestDouble(stubResources);
+                self.addTestDouble(stubGetItemByPath);
 
                 // Call the method being tested.
                 let error;
@@ -5253,12 +5277,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(spyError).to.have.been.calledOnce;
                         expect(spyError.firstCall.args[0].message).to.equal(ASSET_ERROR);
                         expect(spyError.firstCall.args[1]).to.equal(AssetsUnitTest.ASSET_HBS_1);
-
-                        // Verify that the hashes were called as expected.
-                        expect(stubGetResourceMD5ForFile).to.have.been.calledThrice;
-                        expect(stubGetResourceMD5ForFile.firstCall.args[2]).to.contain(AssetsUnitTest.ASSET_HTML_1);
-                        expect(stubGetResourceMD5ForFile.secondCall.args[2]).to.contain(AssetsUnitTest.ASSET_CSS_1);
-                        expect(stubGetResourceMD5ForFile.thirdCall.args[2]).to.contain(AssetsUnitTest.ASSET_HBS_1);
 
                         expect(stubSetLastPull).to.not.have.been.called;
 

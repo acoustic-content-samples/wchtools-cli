@@ -50,10 +50,10 @@ const ASSET_TYPES = 'assetTypes';
  */
 class AssetsFS extends BaseFS {
     // Expose the constants for differentiating between web assets and content assets.
-    static get ASSET_TYPES_WEB_ASSETS () { return ASSET_TYPES_WEB_ASSETS; };
-    static get ASSET_TYPES_CONTENT_ASSETS () { return ASSET_TYPES_CONTENT_ASSETS; };
-    static get ASSET_TYPES_BOTH () { return ASSET_TYPES_BOTH; };
-    static get ASSET_TYPES () { return ASSET_TYPES; };
+    static get ASSET_TYPES_WEB_ASSETS () { return ASSET_TYPES_WEB_ASSETS; }
+    static get ASSET_TYPES_CONTENT_ASSETS () { return ASSET_TYPES_CONTENT_ASSETS; }
+    static get ASSET_TYPES_BOTH () { return ASSET_TYPES_BOTH; }
+    static get ASSET_TYPES () { return ASSET_TYPES; }
 
     /**
      * The constructor for an AssetsFS object. This constructor implements a singleton pattern, and will fail if called
