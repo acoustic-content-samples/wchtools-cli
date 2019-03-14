@@ -123,7 +123,7 @@ class AuthoringSearchREST extends BaseREST {
         if (fqa && Array.isArray(fqa) && fqa.length > 0) {
             fqa.forEach(function (fq) {
                 // Prefix some special characters with a backslash so they are interpreted properly by search.
-                fq = fq.replace(/[ "^~{}[\]]/g, "\\$&");
+                fq = fq.replace(/[ "^~{}[\]()]/g, "\\$&");
                 searchQuery += "&fq=" + querystring.escape(fq);
             });
         }
