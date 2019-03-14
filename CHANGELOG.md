@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.1.32 changes since 4.1.26
+  - Allow () to be used in filenames with the --path option.
+
 ### 4.1.26 changes since 4.1.23
   - Allow managed assets to be pushed without managed asset metadata present.
   - Fix a error reporting a md5 hash mismatch when pushing updated managed assets.
