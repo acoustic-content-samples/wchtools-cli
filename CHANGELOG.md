@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.1.35 changes since 4.1.32
+  - Enable support for resource pull to use deep page mode.
+
 ### 4.1.32 changes since 4.1.26
   - Allow () to be used in filenames with the --path option.
 

@@ -104,10 +104,30 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
     testGetResourceHeaders () {
         describe("getResourceHeaders", function () {
+            it("should succeed", function (done) {
+                let error = undefined;
+                try {
+                    const headers = AssetsREST.getResourceHeaders(context);
+                    expect(headers).to.exist;
+                    expect(headers["Accept"]).to.equal("application/json");
+                    expect(headers["Accept-Language"]).to.contain("en");
+                    expect(headers["Connection"]).to.equal("keep-alive");
+                } catch (err) {
+                    error = err;
+                } finally {
+                    // Call mocha's done function to indicate that the test is over.
+                    done(error);
+                }
+            });
+        });
+    }
+
+    testGetResourceHeadersForFilename () {
+        describe("getResourceHeadersForFilename", function () {
             it("should succeed when a name is specified", function (done) {
                 let error = undefined;
                 try {
-                    const headers = AssetsREST.getResourceHeaders(context, "dummy.jpg");
+                    const headers = AssetsREST.getResourceHeadersForFilename(context, "dummy.jpg");
                     expect(headers).to.exist;
                     expect(headers["Accept"]).to.equal("application/json");
                     expect(headers["Accept-Language"]).to.contain("en");
@@ -124,7 +144,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
             it("should succeed when no name is specified", function (done) {
                 let error = undefined;
                 try {
-                    const headers = AssetsREST.getResourceHeaders(context);
+                    const headers = AssetsREST.getResourceHeadersForFilename(context);
                     expect(headers).to.exist;
                     expect(headers["Accept"]).to.equal("application/json");
                     expect(headers["Accept-Language"]).to.contain("en");
@@ -235,7 +255,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         describe("getResourceListRequestOptions", function () {
             it("should succeed with valid options", function (done) {
                 let error;
-                assetsREST.getResourceListRequestOptions(context, DUMMY_REQUEST_OPTIONS)
+                assetsREST.getResourceListRequestOptions(context, "/authoring/v1/resources/views/by-created", DUMMY_REQUEST_OPTIONS)
                     .then(function (requestOptions) {
                         expect(requestOptions).to.exist;
                         expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
@@ -264,7 +284,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested, passing an empty context (no tenant-base-uri property).
                 let error;
-                assetsREST.getResourceListRequestOptions({})
+                assetsREST.getResourceListRequestOptions({}, "/authoring/v1/resources/views/by-created")
                     .then(function (requestOptions) {
                         expect(requestOptions).to.exist;
                         expect(requestOptions.uri).to.contain(UnitTest.DUMMY_URI);
@@ -294,7 +314,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
 
                 // Call the method being tested.
                 let error;
-                assetsREST.getResourceListRequestOptions(context, DUMMY_REQUEST_OPTIONS)
+                assetsREST.getResourceListRequestOptions(context, "/authoring/v1/resources/views/by-created", DUMMY_REQUEST_OPTIONS)
                     .then(function () {
                         // This is not expected. Pass the error to the "done" function to indicate a failed test.
                         error = new Error("The promise for the resource list request URI should have been rejected.");
@@ -1067,7 +1087,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const resourceMetadataString5 = fs.readFileSync(resourceMetadataPath5 + ".json");
                 const body = '[' + resourceMetadataString1 + ', ' + resourceMetadataString2 + ', ' +
                     resourceMetadataString3 + ', ' + resourceMetadataString4 + ', ' + resourceMetadataString5 + ']';
-                stub.onCall(0).yields(err, res, body);
+                stub.onCall(0).yields(err, res, {items: JSON.parse(body)});
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -1123,7 +1143,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const resourceMetadataString5 = fs.readFileSync(resourceMetadataPath5 + ".json");
                 const body = '{"items": [' + resourceMetadataString1 + ', ' + resourceMetadataString2 + ', ' +
                     resourceMetadataString3 + ', ' + resourceMetadataString4 + ', ' + resourceMetadataString5 + ']}';
-                stub.onCall(0).yields(err, res, body);
+                stub.onCall(0).yields(err, res, JSON.parse(body));
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);
@@ -1178,7 +1198,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                 const resourceMetadata4 = UnitTest.getJsonObject(resourceMetadataPath4);
                 const resourceMetadata5 = UnitTest.getJsonObject(resourceMetadataPath5);
                 const body = [resourceMetadata1, resourceMetadata2, resourceMetadata3, resourceMetadata4, resourceMetadata5];
-                stub.onCall(0).yields(err, res, body);
+                stub.onCall(0).yields(err, res, {items: body});
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stub);

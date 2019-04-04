@@ -68,17 +68,30 @@ class AssetsREST extends BaseREST {
         return this[singleton];
     }
 
-    static getResourceHeaders (context, name, opts) {
-        const mtype = mime.lookup(name) || "text/plain";
+    static getResourceHeaders (context, opts) {
         const headers = {
             "Accept": "application/json",
             "Accept-Language": utils.getHTTPLanguage(),
-            "Content-Type": mtype,
             "Connection": "keep-alive",
             "User-Agent": utils.getUserAgent()
         };
 
         return this.addHeaderOverrides(context, headers, opts);
+    }
+
+    static getResourceHeadersForFilename (context, name, opts) {
+        const mtype = mime.lookup(name) || "text/plain";
+        const headers = this.getResourceHeaders(context, opts);
+        headers["Content-Type"] = mtype;
+        return headers;
+    }
+
+    getResourcesUriPath (context, opts) {
+        return "/authoring/v1/resources";
+    }
+
+    getResourcesListUriPath (context, opts) {
+        return this.getResourcesUriPath(context, opts) + "/views/by-created";
     }
 
     getDownloadRequestOptions (context, opts) {
@@ -96,7 +109,7 @@ class AssetsREST extends BaseREST {
             .then(function (uri) {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
-                    uri: restObject._appendURI(uri, "/authoring/v1/resources"),
+                    uri: restObject._appendURI(uri, restObject.getResourcesUriPath(context, opts)),
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -135,22 +148,17 @@ class AssetsREST extends BaseREST {
         return deferred.promise;
     }
 
-    getResourceListRequestOptions (context, opts) {
+    getResourceListRequestOptions (context, uriPath, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        const headers = {
-            "Accept": "application/json",
-            "Accept-Language": utils.getHTTPLanguage(),
-            "Connection": "keep-alive",
-            "User-Agent": utils.getUserAgent()
-        };
-        BaseREST.addHeaderOverrides(context, headers, opts);
+        const headers = AssetsREST.getResourceHeaders(context, opts);
 
         this.getRequestURI(context, opts)
             .then(function (uri) {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
-                    uri: restObject._appendURI(uri, "/authoring/v1/resources/views/by-created"),
+                    uri: restObject._appendURI(uri, uriPath),
+                    json: true,
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -207,14 +215,14 @@ class AssetsREST extends BaseREST {
     getResourcePOSTOptions (context, name, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        const headers = AssetsREST.getResourceHeaders(context, name, opts);
+        const headers = AssetsREST.getResourceHeadersForFilename(context, name, opts);
         const fname = path.basename(name);
 
         this.getRequestURI(context, opts)
             .then(function (uri) {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
-                    uri: restObject._appendURI(uri, "/authoring/v1/resources") + "?name=" + querystring.escape(fname),
+                    uri: restObject._appendURI(uri, restObject.getResourcesUriPath(context, opts)) + "?name=" + querystring.escape(fname),
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -229,7 +237,7 @@ class AssetsREST extends BaseREST {
     getResourcePUTOptions (context, resourceId, resourceMd5, name, opts) {
         const deferred = Q.defer();
         const restObject = this;
-        const headers = AssetsREST.getResourceHeaders(context, name, opts);
+        const headers = AssetsREST.getResourceHeadersForFilename(context, name, opts);
         const fname = path.basename(name);
 
         this.getRequestURI(context, opts)
@@ -238,7 +246,7 @@ class AssetsREST extends BaseREST {
                 const uriIdPath = resourceId ? "/" + resourceId : "";
                 const paramMd5 = resourceMd5 ? "&md5=" + querystring.escape(resourceMd5) : "";
                 const requestOptions = {
-                    uri: restObject._appendURI(uri, "/authoring/v1/resources" + uriIdPath) + "?name=" + querystring.escape(fname) + paramMd5,
+                    uri: restObject._appendURI(uri, restObject.getResourcesUriPath(context, opts) + uriIdPath) + "?name=" + querystring.escape(fname) + paramMd5,
                     headers: headers
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
@@ -273,11 +281,32 @@ class AssetsREST extends BaseREST {
     getResourceList (context, opts) {
         const restObject = this;
         const deferred = Q.defer();
-        const offset = options.getRelevantOption(context, opts, "offset", "resources") || 0;
-        const limit = options.getRelevantOption(context, opts, "limit", "resources");
-        restObject.getResourceListRequestOptions(context, opts)
+
+        const queryParams = {};
+        let uriPath;
+        if (this.useNextLinks(context, "resources", opts) && opts && opts.nextURI) {
+            // This is a continuation request for the next chunk of results, set uriPath with the nextURI available in opts.
+            uriPath = opts.nextURI;
+        } else {
+            // This is either an initial request for the first chunk of items, or a continuation request without using next links.
+            uriPath = restObject.getResourcesListUriPath(context, opts);
+            queryParams.offset = options.getRelevantOption(context, opts, "offset", "resources") || 0;
+            queryParams.limit = options.getRelevantOption(context, opts, "limit", "resources");
+            // Set the pageMode=deep param if enabled.
+            if (this.useDeepPageMode(context, "resources", opts)) {
+                queryParams.pageMode = "deep";
+            }
+        }
+
+        restObject.getResourceListRequestOptions(context, uriPath, opts)
             .then(function (requestOptions) {
-                requestOptions.uri = requestOptions.uri + "?offset=" + offset + "&limit=" + limit;
+                if (queryParams) {
+                    let delimiter = (requestOptions.uri.indexOf('?') === -1) ? "?" : "&";
+                    Object.keys(queryParams).forEach(function (key) {
+                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + querystring.escape(queryParams[key]);
+                        delimiter = "&";
+                    });
+                }
                 request.get(requestOptions, function (err, res, body) {
                     const response = res || {};
                     if (err || response.statusCode !== 200) {
@@ -285,21 +314,16 @@ class AssetsREST extends BaseREST {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
                         utils.logErrors(context, i18n.__("get_items_error", {service_name: "resources"}), err);
                         deferred.reject(err);
-                    } else if (body) {
+                    } else if (body && body.items) {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);
-                        try {
-                            const parsed = JSON.parse(body);
-                            // If next links is enabled and the response contains a next link, set it in the opts.
-                            // Otherwise, ensure that there is no nextURI value in the opts.
-                            if (restObject.useNextLinks(context, opts) && opts && parsed.next) {
-                                opts.nextURI = parsed.next;
-                            } else if (opts && opts.nextURI) {
-                                delete opts.nextURI;
-                            }
-                            deferred.resolve(parsed.items ? parsed.items : parsed);
-                        } catch (err) {
-                            deferred.resolve(body);
+                        // If next links is enabled and the response contains a next link, set it in the opts.
+                        // Otherwise, ensure that there is no nextURI value in the opts.
+                        if (restObject.useNextLinks(context, "resources", opts) && opts && body.next) {
+                            opts.nextURI = body.next;
+                        } else if (opts && opts.nextURI) {
+                            delete opts.nextURI;
                         }
+                        deferred.resolve(body.items);
                     } else {
                         deferred.resolve([]);
                     }
