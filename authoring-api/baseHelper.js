@@ -1225,7 +1225,7 @@ class BaseHelper {
         const chunkSize = listInfo.length;
         const limit = options.getRelevantOption(context, opts, "limit", helper.getArtifactName());
         //test to see if we got less than the full chunk size
-        if ((this._restApi.useNextLinks(context, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
+        if ((this._restApi.useNextLinks(context, undefined, opts) && !opts.nextURI) || (chunkSize === 0 || chunkSize < limit)) {
             //resolve the deferred with the allItems array
             deferred.resolve(allItems);
         } else {

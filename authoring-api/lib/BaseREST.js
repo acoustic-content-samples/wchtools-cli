@@ -344,11 +344,13 @@ class BaseREST {
      * Returns whether the next links should be used for paging through chunks of items.
      *
      * @param {Object} context The API context to be used for the current request.
+     * @param {string} serviceName The name of the service to lookup.
      * @param {Object} opts The override options specified for the current request.
      * @return {boolean} true if next links should be used for paging
      */
-    useNextLinks (context, opts) {
-        const useNextLinks = options.getRelevantOption(context, opts, "useNextLinks", this.getServiceName());
+    useNextLinks (context, serviceName, opts) {
+        serviceName = serviceName || this.getServiceName();
+        const useNextLinks = options.getRelevantOption(context, opts, "useNextLinks", serviceName);
         return (useNextLinks !== null) ? useNextLinks : true;
     }
 
@@ -356,12 +358,14 @@ class BaseREST {
      * Returns whether the deep page mode should be used for paging through chunks of items.
      *
      * @param {Object} context The API context to be used for the current request.
+     * @param {string} serviceName The name of the service to lookup.
      * @param {Object} opts The override options specified for the current request.
      * @return {boolean} true if deep page mode should be used for paging
      */
-    useDeepPageMode (context, opts) {
-        const useDeepPageMode = options.getRelevantOption(context, opts, "useDeepPageMode", this.getServiceName());
-        return this.useNextLinks(context, opts) && ((useDeepPageMode !== null) ? useDeepPageMode : true);
+    useDeepPageMode (context, serviceName, opts) {
+        serviceName = serviceName || this.getServiceName();
+        const useDeepPageMode = options.getRelevantOption(context, opts, "useDeepPageMode", serviceName);
+        return this.useNextLinks(context, serviceName, opts) && ((useDeepPageMode !== null) ? useDeepPageMode : true);
     }
 
     _getItems (context, uriSuffix, queryParams, opts) {
@@ -369,7 +373,7 @@ class BaseREST {
         const deferred = Q.defer();
 
         let uriPath;
-        if (this.useNextLinks(context, opts) && opts && opts.nextURI) {
+        if (this.useNextLinks(context, undefined, opts) && opts && opts.nextURI) {
             // This is a continuation request for the next chunk of results, set uriPath with the nextURI available in opts.
             uriPath = opts.nextURI;
         } else {
@@ -380,7 +384,7 @@ class BaseREST {
             queryParams.offset = options.getRelevantOption(context, opts, "offset", this.getServiceName()) || 0;
             queryParams.limit = options.getRelevantOption(context, opts, "limit", this.getServiceName());
             // Set the pageMode=deep param if enabled.
-            if (this.useDeepPageMode(context, opts)) {
+            if (this.useDeepPageMode(context, undefined, opts)) {
                 queryParams.pageMode = "deep";
             }
         }
@@ -405,7 +409,7 @@ class BaseREST {
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);
                         // If next links is enabled and the response contains a next link, set it in the opts.
                         // Otherwise, ensure that there is no nextURI value in the opts.
-                        if (restObject.useNextLinks(context, opts) && opts && body.next) {
+                        if (restObject.useNextLinks(context, undefined, opts) && opts && body.next) {
                             opts.nextURI = body.next;
                         } else if (opts && opts.nextURI) {
                             delete opts.nextURI;
