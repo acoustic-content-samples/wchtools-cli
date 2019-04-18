@@ -99,7 +99,11 @@ class BaseCommand {
      * @param {object} value The value of the API option.
      */
     setApiOption (name, value) {
-        this._apiOptions[name] = value;
+        if (value === undefined) {
+            delete this._apiOptions[name];
+        } else {
+            this._apiOptions[name] = value;
+        }
     }
 
     /**

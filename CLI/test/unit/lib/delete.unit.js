@@ -3311,6 +3311,333 @@ class DeleteUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("deletes both ready and draft items with no arguments", function (done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{
+                        "hierarchicalPath": "/" + itemName1,
+                        "path": itemName1,
+                        "name": itemName1,
+                        "id": UnitTest.DUMMY_ID,
+                        "status": "draft"
+                    },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "2",
+                            "path": itemName1 + "2",
+                            "name": itemName1 + "2",
+                            "id": UnitTest.DUMMY_ID + "2",
+                            "status": "draft"
+                        },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "3",
+                            "path": itemName1 + "3",
+                            "name": itemName1 + "3",
+                            "id": UnitTest.DUMMY_ID + "3",
+                            "status": "ready"
+                        }]
+                );
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "y"});
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().resolves(itemName1);
+                stubDelete.onSecondCall().resolves(itemName1 + "2");
+                stubDelete.onThirdCall().resolves(itemName1 + "3");
+                stubDelete.onCall(3).resolves(itemName1);
+                stubDelete.onCall(4).resolves(itemName1 + "2");
+                stubDelete.onCall(5).resolves(itemName1 + "3");
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        if (switches === "--pages") {
+                            // The stub should have been called six times (three for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(6);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 6 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        } else {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubRenditions.restore();
+                        stubPrompt.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("deletes only draft items when using the draft argument", function (done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{
+                        "hierarchicalPath": "/" + itemName1,
+                        "path": itemName1,
+                        "name": itemName1,
+                        "id": UnitTest.DUMMY_ID,
+                        "status": "draft"
+                    },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "2",
+                            "path": itemName1 + "2",
+                            "name": itemName1 + "2",
+                            "id": UnitTest.DUMMY_ID + "2",
+                            "status": "draft"
+                        },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "3",
+                            "path": itemName1 + "3",
+                            "name": itemName1 + "3",
+                            "id": UnitTest.DUMMY_ID + "3",
+                            "status": "ready"
+                        }]
+                );
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "y"});
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().resolves(itemName1);
+                stubDelete.onSecondCall().resolves(itemName1 + "2");
+                stubDelete.onThirdCall().resolves(itemName1 + "3");
+                stubDelete.onCall(3).resolves(itemName1);
+                stubDelete.onCall(4).resolves(itemName1 + "2");
+                stubDelete.onCall(5).resolves(itemName1 + "3");
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--draft', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        if (switches === "--pages") {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        } else if (switches === "--sites") {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        } else {
+                            // The stub should have been called two times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(2);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 2 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubRenditions.restore();
+                        stubPrompt.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("deletes both ready and draft items when using the ready argument", function (done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{
+                        "hierarchicalPath": "/" + itemName1,
+                        "path": itemName1,
+                        "name": itemName1,
+                        "id": UnitTest.DUMMY_ID,
+                        "status": "draft"
+                    },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "2",
+                            "path": itemName1 + "2",
+                            "name": itemName1 + "2",
+                            "id": UnitTest.DUMMY_ID + "2",
+                            "status": "draft"
+                        },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "3",
+                            "path": itemName1 + "3",
+                            "name": itemName1 + "3",
+                            "id": UnitTest.DUMMY_ID + "3",
+                            "status": "ready"
+                        }]
+                );
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "y"});
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().resolves(itemName1);
+                stubDelete.onSecondCall().resolves(itemName1 + "2");
+                stubDelete.onThirdCall().resolves(itemName1 + "3");
+                stubDelete.onCall(3).resolves(itemName1);
+                stubDelete.onCall(4).resolves(itemName1 + "2");
+                stubDelete.onCall(5).resolves(itemName1 + "3");
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--ready', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        if (switches === "--pages") {
+                            // The stub should have been called six times (three for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(6);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 6 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        } else {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubRenditions.restore();
+                        stubPrompt.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("deletes both ready and draft items when using both ready and draft arguments", function (done) {
+                const stubSearch = sinon.stub(helper, "getRemoteItems");
+                stubSearch.resolves([{
+                        "hierarchicalPath": "/" + itemName1,
+                        "path": itemName1,
+                        "name": itemName1,
+                        "id": UnitTest.DUMMY_ID,
+                        "status": "draft"
+                    },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "2",
+                            "path": itemName1 + "2",
+                            "name": itemName1 + "2",
+                            "id": UnitTest.DUMMY_ID + "2",
+                            "status": "draft"
+                        },
+                        {
+                            "hierarchicalPath": "/" + itemName1 + "3",
+                            "path": itemName1 + "3",
+                            "name": itemName1 + "3",
+                            "id": UnitTest.DUMMY_ID + "3",
+                            "status": "ready"
+                        }]
+                );
+
+                const renditionsHelper = ToolsApi.getRenditionsHelper();
+                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
+                stubRenditions.resolves([]);
+
+                const stubPrompt = sinon.stub(prompt, "get");
+                stubPrompt.yields(null, {"confirm": "y"});
+
+                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
+                stubCanDelete.returns(true);
+
+                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
+                stubDelete.onFirstCall().resolves(itemName1);
+                stubDelete.onSecondCall().resolves(itemName1 + "2");
+                stubDelete.onThirdCall().resolves(itemName1 + "3");
+                stubDelete.onCall(3).resolves(itemName1);
+                stubDelete.onCall(4).resolves(itemName1 + "2");
+                stubDelete.onCall(5).resolves(itemName1 + "3");
+
+                // Execute the command to delete the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '--ready', '--draft', '--verbose', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
+                    .then(function (msg) {
+                        if (switches === "--pages") {
+                            // The stub should have been called six times (three for each site), and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(6);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 6 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        } else {
+                            // The stub should have been called three times, and the expected message should have been returned.
+                            expect(stubDelete).to.have.callCount(3);
+                            expect(msg).to.contain('complete');
+                            expect(msg).to.contain('Deleted 3 artifacts');
+                            expect(msg).to.not.contain('errors');
+                            expect(msg).to.not.contain('wchtools-cli.log');
+                        }
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's stubbed methods.
+                        stubSearch.restore();
+                        stubRenditions.restore();
+                        stubPrompt.restore();
+                        stubCanDelete.restore();
+                        stubDelete.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 

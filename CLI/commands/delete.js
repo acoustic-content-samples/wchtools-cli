@@ -213,6 +213,30 @@ class DeleteCommand extends BaseCommand {
     }
 
     /**
+     * Handle the ready and draft options specified on the command line.
+     *
+     * @returns {Q.Promise} Resolve if the specified ready and draft options are valid, otherwise reject to
+     *          indicate that command execution should not continue.
+     */
+    handleReadyDraftOptions() {
+        const result = super.handleReadyDraftOptions();
+
+        const all = this.getCommandLineOption("all");
+        const draft = this.getCommandLineOption("draft");
+
+        // Using --all with --draft is allowed - it will delete all draft items.
+        // But using --all with --ready or with neither --draft nor --ready should have
+        // the behavior of deleting all ready items including their drafts.
+        if (all && !draft) {
+            // Unset any filtering set by the super class impl.
+            this.setApiOption("filterReady", undefined);
+            this.setApiOption("filterDraft", undefined);
+        }
+
+        return result;
+    }
+
+    /**
      * Determine whether this command should include draft sites.
      *
      * @returns {Boolean} A return value of true indicates that this command should include draft sites. A return value

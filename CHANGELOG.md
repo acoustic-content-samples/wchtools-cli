@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.1.38 changes since 4.1.35
+  - Fix behavior of delete --all to also delete drafts of ready items.
+
 ### 4.1.35 changes since 4.1.32
   - Enable support for resource pull to use deep page mode.
 
