@@ -1266,6 +1266,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     getItemWriteStreamCreateStreamError (done) {
+        const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
+        const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
+
         // Create a stub for mkdirp.mkdirp that just continues on without an error.
         const stubDir = sinon.stub(mkdirp, "mkdirp");
         stubDir.yields();
@@ -1282,7 +1285,7 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.getItemWriteStream(context, AssetsUnitTest.ASSET_GIF_1, UnitTest.DUMMY_OPTIONS)
+        assetsFS.getItemWriteStream(context, assetMetadata1, UnitTest.DUMMY_OPTIONS)
             .then(function () {
                 // This is not expected. Pass the error to the "done" function to indicate a failed test.
                 error = new Error("The promise for the asset stream should have been rejected.");
@@ -1290,11 +1293,11 @@ class AssetsFsUnitTest extends AssetsUnitTest {
             .catch(function (err) {
                 try {
                     // Verify that each stub was called once.
-                    expect(stubDir).to.have.been.calledOnce;
+                    expect(stubDir).to.have.been.calledTwice;
                     expect(stubFile).to.have.been.calledOnce;
 
                     // Verify that the file stub was called with the expected values.
-                    expect(stubFile.args[0][0]).to.contain(AssetsUnitTest.ASSET_GIF_1);
+                    expect(stubFile.args[0][0]).to.contain(assetMetadata1.resource);
 
                     // Verify that the expected error is returned.
                     expect(err.name).to.equal("Error");
@@ -1310,6 +1313,9 @@ class AssetsFsUnitTest extends AssetsUnitTest {
     }
 
     getItemWriteStreamSuccess (done) {
+        const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+        const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
+
         // Create a stub for mkdirp.mkdirp that just continues on without an error.
         const stubDir = sinon.stub(mkdirp, "mkdirp");
         stubDir.yields();
@@ -1325,12 +1331,12 @@ class AssetsFsUnitTest extends AssetsUnitTest {
 
         // Call the method being tested.
         let error;
-        assetsFS.getItemWriteStream(context, AssetsUnitTest.ASSET_CSS_1, UnitTest.DUMMY_OPTIONS)
+        assetsFS.getItemWriteStream(context, assetMetadata1, UnitTest.DUMMY_OPTIONS)
             .then(function (stream) {
                 // Verify that each stub was called once with the specified path.
-                expect(stubDir).to.have.been.calledOnce;
+                expect(stubDir).to.have.been.calledTwice;
                 expect(stubFile).to.have.been.calledOnce;
-                expect(stubFile.args[0][0]).to.contain(AssetsUnitTest.ASSET_CSS_1);
+                expect(stubFile.args[0][0]).to.contain(assetMetadata1.resource);
 
                 // Verify that the expected stream was returned.
                 expect(stream.write).to.be.ok;

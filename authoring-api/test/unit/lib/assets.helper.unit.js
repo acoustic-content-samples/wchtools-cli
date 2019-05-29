@@ -732,7 +732,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                             // Verify that both stubs were called once, and the FS stub was called with the specified path.
                             expect(stubREST).to.have.been.calledOnce;
                             expect(stubFS).to.have.been.calledOnce;
-                            expect(stubFS.args[0][1]).to.equal(assetMetadata1.path);
+                            expect(stubFS.args[0][1]).to.equal(assetMetadata1);
                         } catch (err) {
                             error = err;
                         }
@@ -792,7 +792,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                             expect(stubItems).to.have.been.calledOnce;
                             expect(stubStream).to.have.been.calledOnce;
                             expect(stubPull).to.have.been.calledOnce;
-                            expect(stubStream.args[0][1]).to.equal(assetMetadata2.path);
+                            expect(stubStream.args[0][1]).to.equal(assetMetadata2);
                             expect(diff.diffJson(stubPull.args[0][1], assetMetadata2)).to.have.lengthOf(1);
                             expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
                         } catch (err) {
@@ -860,7 +860,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                             expect(stubItems).to.have.been.calledOnce;
                             expect(stubStream).to.have.been.calledOnce;
                             expect(stubPull).to.have.been.calledOnce;
-                            expect(stubStream.args[0][1]).to.equal(assetMetadata2.path);
+                            expect(stubStream.args[0][1]).to.equal(assetMetadata2);
                             expect(diff.diffJson(stubPull.args[0][1], assetMetadata2)).to.have.lengthOf(1);
                             expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
                         } catch (err) {
@@ -926,7 +926,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubStream).to.have.been.calledOnce;
                         expect(stubPull).to.have.been.calledOnce;
                         expect(stubUpdateHashes).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata3.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata3);
                         expect(diff.diffJson(stubPull.args[0][1], assetMetadata3)).to.have.lengthOf(1);
                         expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
                         expect(diff.diffJson(stubUpdateHashes.args[0][3], assetMetadata3)).to.have.lengthOf(1);
@@ -1013,7 +1013,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubItems).to.have.been.calledOnce;
                         expect(stubStream).to.have.been.calledOnce;
                         expect(stubPull).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata2.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata2);
                         expect(diff.diffJson(stubPull.args[0][1], assetMetadata2)).to.have.lengthOf(1);
                         expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
                     })
@@ -1084,7 +1084,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubPull).to.have.been.calledOnce;
                         expect(stubUpdateHashes).to.have.been.calledOnce;
                         expect(stubSave).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata3.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata3);
                         expect(diff.diffJson(stubPull.args[0][1], assetMetadata3)).to.have.lengthOf(1);
                         expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
                         expect(diff.diffJson(stubUpdateHashes.args[0][3], assetMetadata3)).to.have.lengthOf(1);
@@ -1313,7 +1313,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubStream).to.have.been.calledOnce;
                         expect(stubPull).to.have.been.calledOnce;
                         expect(stubUpdateHashes).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).contains("_wchdraft");
+                        expect(stubStream.args[0][1]).equals(draftAssetMetadata);
                         expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
 
                         // Verify that the spy was not called.
@@ -1380,7 +1380,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubStream).to.have.been.calledOnce;
                         expect(stubPull).to.have.been.calledOnce;
                         expect(stubUpdateHashes).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).contains("_wchdraft_flubber123");
+                        expect(stubStream.args[0][1]).to.equal(draftAssetMetadata);
                         expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG);
 
                         // Verify that the spy was not called.
@@ -1600,11 +1600,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called five times, each time with the expected path.
                         expect(stubStream).to.have.callCount(5);
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata1.path);
-                        expect(stubStream.args[1][1]).to.equal(assetMetadata2.path);
-                        expect(stubStream.args[2][1]).to.equal(assetMetadata3.path);
-                        expect(stubStream.args[3][1]).to.equal(assetMetadata4.path);
-                        expect(stubStream.args[4][1]).to.equal(assetMetadata6.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata1);
+                        expect(stubStream.args[1][1]).to.equal(assetMetadata2);
+                        expect(stubStream.args[2][1]).to.equal(assetMetadata3);
+                        expect(stubStream.args[3][1]).to.equal(assetMetadata4);
+                        expect(stubStream.args[4][1]).to.equal(assetMetadata6);
 
                         // Verify that the pull stub was called five times, each time with the expected path and stream.
                         expect(stubPull).to.have.callCount(5);
@@ -1763,10 +1763,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called four times, each time with the expected path.
                         expect(stubStream).to.have.callCount(4);
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata1.path);
-                        expect(stubStream.args[1][1]).to.equal(assetMetadata3.path);
-                        expect(stubStream.args[2][1]).to.equal(assetMetadata4.path);
-                        expect(stubStream.args[3][1]).to.equal(assetMetadata6.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata1);
+                        expect(stubStream.args[1][1]).to.equal(assetMetadata3);
+                        expect(stubStream.args[2][1]).to.equal(assetMetadata4);
+                        expect(stubStream.args[3][1]).to.equal(assetMetadata6);
 
                         // Verify that the pull stub was called four times, each time with the expected path and stream.
                         expect(stubPull).to.have.callCount(4);
@@ -1903,7 +1903,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called once with the expected path.
                         expect(stubStream).to.have.been.calledOnce;
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata2.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata2);
 
                         // Verify that the pull stub was called once with the expected path and stream.
                         expect(stubPull).to.have.been.calledOnce;
@@ -2022,8 +2022,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called twice with the expected path.
                         expect(stubStream).to.have.been.calledTwice;
-                        expect(stubStream.args[0][1]).to.equal(assetsFS.getAssetPath(assetMetadata1));
-                        expect(stubStream.args[1][1]).to.equal(assetsFS.getAssetPath(assetMetadata3));
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata1);
+                        expect(stubStream.args[1][1]).to.equal(assetMetadata3);
 
                         // Verify that the pull stub was called twice with the expected path and stream.
                         expect(stubPull).to.have.been.calledTwice;
@@ -2148,8 +2148,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called twice with the expected path.
                         expect(stubStream).to.have.been.calledTwice;
-                        expect(stubStream.args[0][1]).to.equal(assetsFS.getAssetPath(assetMetadata2));
-                        expect(stubStream.args[1][1]).to.equal(assetsFS.getAssetPath(assetMetadata4));
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata2);
+                        expect(stubStream.args[1][1]).to.equal(assetMetadata4);
 
                         // Verify that the pull stub was called twice with the expected path and stream.
                         expect(stubPull).to.have.been.calledTwice;
@@ -2420,10 +2420,10 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called five times, each time with the expected path.
                         expect(stubStream).to.have.callCount(4);
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata1.path);
-                        expect(stubStream.args[1][1]).to.equal(assetMetadata2.path);
-                        expect(stubStream.args[2][1]).to.equal(assetMetadata3.path);
-                        expect(stubStream.args[3][1]).to.equal(assetMetadata4.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata1);
+                        expect(stubStream.args[1][1]).to.equal(assetMetadata2);
+                        expect(stubStream.args[2][1]).to.equal(assetMetadata3);
+                        expect(stubStream.args[3][1]).to.equal(assetMetadata4);
 
                         // Verify that the pull stub was called five times, each time with the expected path and stream.
                         expect(stubPull).to.have.callCount(4);
@@ -2587,11 +2587,11 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
 
                         // Verify that the stream stub was called five times, each time with the expected path.
                         expect(stubStream).to.have.callCount(5);
-                        expect(stubStream.args[0][1]).to.equal(assetMetadata1.path);
-                        expect(stubStream.args[1][1]).to.equal(assetMetadata2.path);
-                        expect(stubStream.args[2][1]).to.equal(assetMetadata3.path);
-                        expect(stubStream.args[3][1]).to.equal(assetMetadata4.path);
-                        expect(stubStream.args[4][1]).to.equal(assetMetadata5.path);
+                        expect(stubStream.args[0][1]).to.equal(assetMetadata1);
+                        expect(stubStream.args[1][1]).to.equal(assetMetadata2);
+                        expect(stubStream.args[2][1]).to.equal(assetMetadata3);
+                        expect(stubStream.args[3][1]).to.equal(assetMetadata4);
+                        expect(stubStream.args[4][1]).to.equal(assetMetadata5);
 
                         // Verify that the pull stub was called five times, each time with the expected path and stream.
                         expect(stubPull).to.have.callCount(5);

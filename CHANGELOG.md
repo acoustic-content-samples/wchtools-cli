@@ -1,5 +1,9 @@
 # Changelog
 
+### 4.1.45 changes since 4.1.38
+  - Don't overwrite resources with error response if resource doesn't exist.
+  - Allow delete of sites and pages on base tier.
+
 ### 4.1.38 changes since 4.1.35
   - Fix behavior of delete --all to also delete drafts of ready items.
 

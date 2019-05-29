@@ -215,7 +215,7 @@ class AssetsHelper extends BaseHelper {
             return deferred.promise;
         } else {
             // Get the local file stream to be written.
-            return helper._fsApi.getItemWriteStream(context, assetPath, opts)
+            return helper._fsApi.getItemWriteStream(context, asset, opts)
                 .then(function (stream) {
                     let md5Promise;
                     stream.on("pipe", function (src) {

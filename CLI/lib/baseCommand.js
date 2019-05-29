@@ -62,6 +62,9 @@ class BaseCommand {
 
         // The cleanup functions to execute after the command has been completed.
         this._cleanups = [];
+
+        // Delete command has slightly different behavior wrt tier, to allow deleting pages/site after downgrade tier
+        this._isDelete = false;
     }
 
     /**
@@ -996,7 +999,7 @@ class BaseCommand {
         const self = this;
 
         // Only initialize the sites if the tenant supports sites, and the sites or pages option was specified.
-        if (!this.isBaseTier(context) && (this.getCommandLineOption("sites") || this.getCommandLineOption("pages"))) {
+        if ((this._isDelete || !this.isBaseTier(context)) && (this.getCommandLineOption("sites") || this.getCommandLineOption("pages"))) {
             if (this.getCommandLineOption("manifest")) {
                 // Use the sites defined by the manifest.
                 const sites = self.getManifestSiteItems(context);

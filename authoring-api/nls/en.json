@@ -15,6 +15,10 @@
   "cannot_pull_item": "Item '%(name)s' could not be pulled.",
   "compare_error_loading_items": "Error getting list of items for compare: ",
   "compare_error_loading_item": "Error loading item for compare: ",
+  "error_resource_rename": "Error renaming temporary resource '%(temp)s' to '%(name)s'.",
+  "warning_resource_delete": "Unable to remove temporary resource '%(temp)s'.",
+  "error_reading_response_stream": "Error reading from resource response stream. Resource ID: %(id)s",
+  "error_pulling_resource": "Error pulling resource. Resource ID: %(id)s",
 
   "deleted_original_file": "Deleted original file: %(old_name)s new file: %(new_name)s",
   "file_parse_error": "Unable to parse file: %(path)s",
