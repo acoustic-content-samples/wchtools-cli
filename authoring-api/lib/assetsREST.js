@@ -406,14 +406,6 @@ class AssetsREST extends BaseREST {
                 reqOptions.uri = restObject._appendURI(reqOptions.uri, asset.resource);
                 // Make the request and pipe the response to the specified stream.
                 const responseStream = request.get(reqOptions);
-                if (opts && opts.returnDisposition) {
-                    responseStream.on("response", function (response) {
-                        const disposition = response.headers["content-disposition"];
-                        asset.disposition = restObject._extractFilename(disposition);
-                        asset.contentType = response.headers["content-type"];
-                    });
-                }
-                responseStream.pipe(stream);
 
                 // Check the "response" event to make sure the response was successful.
                 let error;
@@ -423,6 +415,15 @@ class AssetsREST extends BaseREST {
                     const code = response.statusCode;
                     if (code >= 400) {
                         error = new Error(i18n.__("cannot_get_asset", {path: asset.path, code: code}));
+                        stream.destroy(error);
+                        deferred.reject(error);
+                    } else {
+                        if (opts && opts.returnDisposition) {
+                            const disposition = response.headers["content-disposition"];
+                            asset.disposition = restObject._extractFilename(disposition);
+                            asset.contentType = response.headers["content-type"];
+                        }
+                        responseStream.pipe(stream);
                     }
                 });
 
@@ -430,7 +431,7 @@ class AssetsREST extends BaseREST {
                 stream.on("finish", function () {
                     if (error) {
                         BaseREST.logRetryInfo(context, reqOptions, sResponse.attempts, error);
-                        utils.logErrors(context, 'AssetsRest.pullItem finish: ', utils.getError(error, undefined, sResponse, reqOptions));
+                        utils.logErrors(context, i18n.__("error_pulling_resource", {"id": asset.resource}), utils.getError(error, undefined, sResponse, reqOptions));
                         deferred.reject(error);
                     } else {
                         BaseREST.logRetryInfo(context, reqOptions, sResponse.attempts);
@@ -438,13 +439,13 @@ class AssetsREST extends BaseREST {
                     }
                 });
 
-                // Handle an "error" event on the response stream
+                // Handle an "error" event on the response stream.
                 responseStream.on("error", function (err) {
-                    utils.logErrors(context, 'AssetsREST.pullItem error: ', utils.getError(err, undefined, sResponse, reqOptions));
+                    utils.logErrors(context, i18n.__("error_reading_response_stream", {"id": asset.resource}), utils.getError(err, undefined, sResponse, reqOptions));
                     // set the error object which will get handled via the writable stream finish event.
                     error = err;
                     // If there was an error reading the response, the writable stream must be ended manually.
-                    stream.end();
+                    stream.destroy(err);
                 });
             })
             .catch (function (err) {

@@ -2689,66 +2689,6 @@ class DeleteUnitTest extends UnitTest {
                     });
             });
 
-            it("should not delete for a base tier", function(done) {
-                if (switches !== "-l" && switches !== "-m" && switches !== "--pages" && switches !== "--sites") {
-                    return done();
-                }
-
-                // Create a stub to return a value for the "tier" key.
-                const originalGetProperty = options.getProperty.bind(options);
-                const stubGet = sinon.stub(options, "getProperty", function (context, key) {
-                    if (key === "tier") {
-                        return "Base";
-                    } else {
-                        return originalGetProperty(context, key);
-                    }
-                });
-
-                const stub = sinon.stub(helper, "getRemoteItems");
-                stub.resolves([{"path": itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);
-
-                const renditionsHelper = ToolsApi.getRenditionsHelper();
-                const stubRenditions = sinon.stub(renditionsHelper, "getRemoteItems");
-                stubRenditions.resolves([]);
-
-                const stubCanDelete = sinon.stub(helper, "canDeleteItem");
-                stubCanDelete.returns(true);
-
-                const stubDelete = sinon.stub(helper, "deleteRemoteItem");
-                stubDelete.resolves(itemName1);
-
-                // Execute the command to delete the items to the download directory.
-                let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "delete", switches, '--all', '-v', '-q', '--user', 'foo', '--password', 'password', '--url', 'http://foo.bar/api'])
-                    .then(function (msg) {
-                        // The stubs should not have been called, and the expected message should have been returned.
-                        if (switches === "--sites") {
-                            // For deleting all sites, the syub is called when initializing the site list.
-                            expect(stub).to.have.been.calledOnce;
-                        } else {
-                            expect(stub).to.not.have.been.called;
-                        }
-                        expect(stubCanDelete).to.not.have.been.called;
-                        expect(stubDelete).to.not.have.been.called;
-                        expect(msg).to.contain("no artifacts");
-                    })
-                    .catch(function (err) {
-                        // Pass the error to the "done" function to indicate a failed test.
-                        error = err;
-                    })
-                    .finally(function () {
-                        // Restore the helper's stubbed methods.
-                        stubGet.restore();
-                        stub.restore();
-                        stubRenditions.restore();
-                        stubCanDelete.restore();
-                        stubDelete.restore();
-
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
             it("should succeed for a single artifact", function(done) {
                 const stubGet = sinon.stub(helper, "getRemoteItems");
                 stubGet.resolves([{"hierarchicalPath": "/" + itemName1, "path": "/" + itemName1, "id": UnitTest.DUMMY_ID, "name": itemName1}]);

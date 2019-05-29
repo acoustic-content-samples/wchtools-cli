@@ -495,10 +495,48 @@ class AssetsFS extends BaseFS {
      *
      * NOTE: The specified asset may not exist.
      */
-    getItemWriteStream (context, name, opts) {
-        // Get the file path for the specified file, creating the working directory if necessary.
-        const filepath = this.getPath(context, opts) + name;
-        return this._getItemWriteStream(context, filepath, opts);
+    getItemWriteStream (context, asset, opts) {
+        const deferred = Q.defer();
+        const self = this;
+
+        // Get the file path for the destination file, creating the working directory if necessary.
+        const filepath = this.getPath(context, opts) + this.getAssetPath(asset);
+        mkdirp.mkdirp(path.dirname(filepath), function (err) {
+            if (err) {
+                // Reject the promise if an error occurs when creating a directory.
+                deferred.reject(err);
+            } else {
+                // Get the file path for a temporary file based on the resource ID.
+                const tmppath = self.getPath(context, opts) + asset.resource;
+                self._getItemWriteStream(context, tmppath, opts)
+                    .then(function (stream) {
+                        stream.on("finish", function () {
+                            // On successful finish, we rename the temporary file to the destination file.
+                            try {
+                                fs.renameSync(tmppath, filepath);
+                            } catch (err) {
+                                utils.logErrors(context, i18n.__("error_resource_rename", {"temp": tmppath, "name": filepath}), err);
+                            }
+                        });
+                        stream.on("error", function (error) {
+                            // On error, we remove the temporary file.
+                            try {
+                                if (fs.existsSync(tmppath)) {
+                                    fs.unlinkSync(tmppath);
+                                }
+                            } catch (err) {
+                                utils.logWarnings(context, i18n.__("warning_resource_delete", {"temp": tmppath}), err);
+                            }
+                        });
+                        deferred.resolve(stream);
+                    })
+                    .catch(function (err) {
+                        deferred.reject(err);
+                    });
+            }
+        });
+
+        return deferred.promise;
     }
 
     /**

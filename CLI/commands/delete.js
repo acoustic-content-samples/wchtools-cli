@@ -42,6 +42,7 @@ class DeleteCommand extends BaseCommand {
      */
     constructor (program) {
         super(program);
+        this._isDelete = true;
     }
 
     handleValidation () {
@@ -1953,7 +1954,6 @@ class DeleteCommand extends BaseCommand {
                 if (self.getCommandLineOption("pages")) {
                     // Get the list of site items to use for deleting pages.
                     const siteItems = context.siteList;
-
                     // Local function to recursively delete pages for one site at a time.
                     let index = 0;
                     const deletePagesBySite = function (context) {
@@ -2271,24 +2271,19 @@ class DeleteCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when all site artifacts are deleted.
      */
     deleteAllSites(context) {
-        if (options.getProperty(context, "tier") === "Base") {
-            // Sites are not available in a Base tenant, so just return a resolved promise.
-            return Q.resolve();
-        } else {
-            const helper = ToolsApi.getSitesHelper();
-            const opts = this.getApiOptions();
-            const logger = this.getLogger();
+        const helper = ToolsApi.getSitesHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
 
-            // Add a banner for the type of artifacts being deleted.
-            logger.info(PREFIX + i18n.__("cli_deleting_all_sites") + SUFFIX);
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_sites") + SUFFIX);
 
-            // Display the context name for deleted sites.
-            const getDisplayName = function (item) {
-                return helper.getSiteContextName(item)
-            };
+        // Display the context name for deleted sites.
+        const getDisplayName = function (item) {
+            return helper.getSiteContextName(item)
+        };
 
-            return this.deleteAllItems(context, helper, getDisplayName, opts);
-        }
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
@@ -2300,25 +2295,20 @@ class DeleteCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when all page artifacts are deleted.
      */
     deleteAllPages(context, siteItem) {
-        if (options.getProperty(context, "tier") === "Base") {
-            // Pages are not available in a Base tenant, so just return a resolved promise.
-            return Q.resolve();
-        } else {
-            const helper = ToolsApi.getPagesHelper();
-            const opts = utils.cloneOpts(this.getApiOptions(), {siteItem: siteItem});
-            const logger = this.getLogger();
+        const helper = ToolsApi.getPagesHelper();
+        const opts = utils.cloneOpts(this.getApiOptions(), {siteItem: siteItem});
+        const logger = this.getLogger();
 
-            // Add a banner for the type of artifacts being deleted.
-            const contextName = ToolsApi.getSitesHelper().getSiteContextName(siteItem);
-            logger.info(PREFIX + i18n.__("cli_deleting_all_pages_for_site", {id: contextName}) + SUFFIX);
+        // Add a banner for the type of artifacts being deleted.
+        const contextName = ToolsApi.getSitesHelper().getSiteContextName(siteItem);
+        logger.info(PREFIX + i18n.__("cli_deleting_all_pages_for_site", {id: contextName}) + SUFFIX);
 
-            // Display the hierarchicalPath field for deleted pages.
-            const getDisplayName = function (item) {
-                return item["hierarchicalPath"]
-            };
+        // Display the hierarchicalPath field for deleted pages.
+        const getDisplayName = function (item) {
+            return item["hierarchicalPath"]
+        };
 
-            return this.deleteAllItems(context, helper, getDisplayName, opts);
-        }
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     deleteAllItems(context, helper, getDisplayName, opts) {
