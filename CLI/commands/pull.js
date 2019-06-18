@@ -346,12 +346,12 @@ class PullCommand extends BaseCommand {
                 }
             })
             .then(function() {
-                if (self.getCommandLineOption("layouts") && !self.isBaseTier(context)) {
+                if (self.getCommandLineOption("layouts")) {
                     return self.handlePullPromise(self.pullLayouts(context), continueOnError);
                 }
             })
             .then(function() {
-                if (self.getCommandLineOption("layoutMappings") && !self.isBaseTier(context)) {
+                if (self.getCommandLineOption("layoutMappings")) {
                     return self.handlePullPromise(self.pullLayoutMappings(context), continueOnError);
                 }
             })

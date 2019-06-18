@@ -15,6 +15,10 @@
   "cannot_pull_item": "無法取回項目 '%(name)s'。",
   "compare_error_loading_items": "取得項目清單進行比較時發生錯誤：",
   "compare_error_loading_item": "載入項目進行比較時發生錯誤：",
+  "error_resource_rename": "將暫時資源 '%(temp)s' 重新命名為 '%(name)s' 時發生錯誤。",
+  "warning_resource_delete": "無法移除暫時資源 '%(temp)s'。",
+  "error_reading_response_stream": "從資源回應串流進行讀取時發生錯誤。資源 ID：%(id)s",
+  "error_pulling_resource": "取回資源時發生錯誤。資源 ID：%(id)s",
 
   "deleted_original_file": "已刪除原始檔案：%(old_name)s 新的檔案：%(new_name)s",
   "file_parse_error": "無法剖析檔案：%(path)s",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "嘗試要求 (%(id)d) 的次數已達上限。",
   "header_value_not_string": "忽略 HTTP 標頭 %(header)s；提供的值不是字串。"
 }
-

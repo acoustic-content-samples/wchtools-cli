@@ -15,6 +15,10 @@
   "cannot_pull_item": "No se ha podido extraer el elemento '%(name)s'.",
   "compare_error_loading_items": "Error al obtener la lista de elementos para comparar: ",
   "compare_error_loading_item": "Error al cargar el elemento para comparar: ",
+  "error_resource_rename": "Error al cambiar el nombre del recurso temporal '%(temp)s' a '%(name)s'.",
+  "warning_resource_delete": "No se puede eliminar el recurso temporal '%(temp)s'.",
+  "error_reading_response_stream": "Error al leer del flujo de respuestas del recurso. ID de recurso: %(id)s",
+  "error_pulling_resource": "Error al extraer el recurso. ID de recurso: %(id)s",
 
   "deleted_original_file": "Archivo original suprimido: nuevo archivo de %(old_name)s: %(new_name)s",
   "file_parse_error": "No se ha podido analizar el archivo: %(path)s",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "Una solicitud (%(id)d) se ha reintentado el número máximo de reintentos.",
   "header_value_not_string": "Ignorando la cabecera HTTP %(header)s; el valor proporcionado no es una serie."
 }
-

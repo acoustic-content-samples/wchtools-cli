@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.1.49 changes since 4.1.45
+  - Allow full support for layouts and layout mappings on all tenant tiers.
+
 ### 4.1.45 changes since 4.1.38
   - Don't overwrite resources with error response if resource doesn't exist.
   - Allow delete of sites and pages on base tier.

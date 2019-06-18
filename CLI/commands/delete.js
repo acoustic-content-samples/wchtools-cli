@@ -42,7 +42,6 @@ class DeleteCommand extends BaseCommand {
      */
     constructor (program) {
         super(program);
-        this._isDelete = true;
     }
 
     handleValidation () {
@@ -2127,24 +2126,19 @@ class DeleteCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when all layout artifacts are deleted.
      */
     deleteAllLayouts (context) {
-        if (options.getProperty(context, "tier") === "Base") {
-            // Layouts are not available in a Base tenant, so just return a resolved promise.
-            return Q.resolve();
-        } else {
-            const helper = ToolsApi.getLayoutsHelper();
-            const opts = this.getApiOptions();
-            const logger = this.getLogger();
+        const helper = ToolsApi.getLayoutsHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
 
-            // Add a banner for the type of artifacts being deleted.
-            logger.info(PREFIX + i18n.__("cli_deleting_all_layouts") + SUFFIX);
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_layouts") + SUFFIX);
 
-            // Display the name field for deleted layouts.
-            const getDisplayName = function (item) {
-                return item["name"]
-            };
+        // Display the name field for deleted layouts.
+        const getDisplayName = function (item) {
+            return item["name"]
+        };
 
-            return this.deleteAllItems(context, helper, getDisplayName, opts);
-        }
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
@@ -2155,24 +2149,19 @@ class DeleteCommand extends BaseCommand {
      * @returns {Q.Promise} A promise that is resolved when all layout mappings artifacts are deleted.
      */
     deleteAllLayoutMappings (context) {
-        if (options.getProperty(context, "tier") === "Base") {
-            // Layout Mappings are not available in a Base tenant, so just return a resolved promise.
-            return Q.resolve();
-        } else {
-            const helper = ToolsApi.getLayoutMappingsHelper();
-            const opts = this.getApiOptions();
-            const logger = this.getLogger();
+        const helper = ToolsApi.getLayoutMappingsHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
 
-            // Add a banner for the type of artifacts being deleted.
-            logger.info(PREFIX + i18n.__("cli_deleting_all_layout_mappings") + SUFFIX);
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_layout_mappings") + SUFFIX);
 
-            // Display the name field for deleted layout mappings.
-            const getDisplayName = function (item) {
-                return item["name"]
-            };
+        // Display the name field for deleted layout mappings.
+        const getDisplayName = function (item) {
+            return item["name"]
+        };
 
-            return this.deleteAllItems(context, helper, getDisplayName, opts);
-        }
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**
@@ -2390,6 +2379,16 @@ class DeleteCommand extends BaseCommand {
         // For delete, handle the draft sites before the ready sites. With this ordering, draft pages will be deleted
         // before ready pages. (A ready page cannot be deleted if there is a draft page that refers to it.)
         return draftSites.concat(readySites);
+    }
+
+    /**
+     * Returns true if this command invocation supports sites/pages.
+     * @param context The API context associated with this command.
+     * @param opts The API options associated with this command.
+     * @return {boolean} True if this command invocation supports sites/pages.
+     */
+    supportsSites (context, opts) {
+        return true;
     }
 
     /**

@@ -15,6 +15,10 @@
   "cannot_pull_item": "无法拉取项“%(name)s”。",
   "compare_error_loading_items": "获取项列表以进行比较时发生错误：",
   "compare_error_loading_item": "装入此项以进行比较时发生错误：",
+  "error_resource_rename": "将临时资源“%(temp)s”重命名为“%(name)s”时出错。",
+  "warning_resource_delete": "无法除去临时资源“%(temp)s”。",
+  "error_reading_response_stream": "从资源响应流中读取时出错。资源标识：%(id)s",
+  "error_pulling_resource": "拉取资源时出错。资源标识：%(id)s",
 
   "deleted_original_file": "已删除原始文件：%(old_name)s 新文件：%(new_name)s",
   "file_parse_error": "无法解析文件：%(path)s",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "已重试请求 (%(id)d) 达最大次数。",
   "header_value_not_string": "将忽略 HTTP 头 %(header)s；提供的值不是字符串。"
 }
-

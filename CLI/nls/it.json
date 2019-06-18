@@ -405,7 +405,7 @@
   "cli_delete_opt_recursive": "Se specificata, l'opzione --path verrà trattata come una cartella e tutte le risorse in tale cartella verranno eliminate.",
   "cli_delete_opt_preview":     "Se specificato, elenca le risorse che saranno eliminate ma non le elimina effettivamente.",
   "cli_delete_opt_quiet":       "Se specificato, non conferma l'eliminazione. Quando devono essere eliminate più risorse, viene visualizzata una conferma per ognuna.",
-  "cli_delete_opt_by_type_name":"Se specificato con -c, eliminare l'elemento contenuto associato al nome tipo specificato.",
+  "cli_delete_opt_by_type_name":"Se specificato con -c, eliminare l'elemento di contenuto associato al nome tipo specificato.",
   "cli_delete_opt_ready": "Se specificato, eliminare le risorse pronte. (Questa è l'impostazione predefinita).",
   "cli_delete_opt_draft": "Se specificato, eliminare le risorse bozza.",
   "cli_delete_only_one_type": "L'eliminazione di più di un tipo di risorsa alla volta è supportata solo quando è specificata l'opzione --all, --tag o --manifest.",
@@ -628,4 +628,3 @@
 
   "cli_log_non_verbose":        "Per maggiori informazioni sull'operazione consultare il file wchtools-cli.log."
 }
-

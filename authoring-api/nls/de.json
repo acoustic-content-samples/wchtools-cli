@@ -13,8 +13,12 @@
   "remote_asset_not_found": "Fernes Asset nicht gefunden: ",
   "cannot_push_item": "Element '%(name)s' konnte nicht mit Push-Operation übertragen werden.",
   "cannot_pull_item": "Element '%(name)s' konnte nicht mit Pull-Operation extrahiert werden.",
-  "compare_error_loading_items": "Fehler beim Abrufen der Liste der Elemente für den Vergleich:",
+  "compare_error_loading_items": "Fehler beim Abrufen der Liste der Elemente für den Vergleich: ",
   "compare_error_loading_item": "Fehler beim Laden des Elements für den Vergleich: ",
+  "error_resource_rename": "Fehler beim Umbenennen der temporären Ressource '%(temp)s' in '%(name)s'.",
+  "warning_resource_delete": "Temporäre Ressource '%(temp)s' kann nicht entfernt werden.",
+  "error_reading_response_stream": "Fehler beim Lesen aus Antwortdatenstrom der Ressource. Ressourcen-ID: %(id)s",
+  "error_pulling_resource": "Fehler beim Extrahieren der Ressource. Ressourcen-ID: %(id)s",
 
   "deleted_original_file": "Gelöschte Originaldatei: %(old_name)s neue Datei: %(new_name)s",
   "file_parse_error": "Datei kann nicht geparst werden: %(path)s",
@@ -59,13 +63,13 @@
 
   "error_unsupported_endpoint": "Die API von %(service_name) unterstützt die Endpunkte von %(endpoint) nicht.",
   "unknown_error": "Unbekannter Fehler",
-  "service_unavailable": "Ein IBM Watson Content Hub-Service ist aktuell nicht verfügbar.",
-  "service_error": "Ein IBM Watson Content Hub-Service meldet technische Probleme.",
+  "service_unavailable": "Ein IBM Watson Content Hub-Service ist aktuell nicht verfügbar.  ",
+  "service_error": "Ein IBM Watson Content Hub-Service meldet technische Probleme.  ",
   "service_response_error": "Ein IBM Watson Content Hub-Service hat Fehlercode %(code)d und die folgende Statusnachricht zurückgegeben: %(message)s",
   "operation_failed": "Operation mit Fehler fehlgeschlagen: ",
   "async_parallel_limit_error": "Asynchroner Aufruf von parallelLimit mit Fehler fehlgeschlagen: ",
   "async_parallel_limit_results": "Ergebnisse des asynchronen Aufrufs von parallelLimit: ",
-  "please_try": "Versuchen Sie es später noch einmal. Wenn das Problem bestehen bleibt, dann wenden Sie sich an den Kundendienst. Übermitteln Sie auch die verfügbaren Protokollinformationen unter %(log_dir)s",
+  "please_try": "Versuchen Sie es später noch einmal.  Wenn das Problem bestehen bleibt, dann wenden Sie sich an den Kundendienst. Übermitteln Sie auch die verfügbaren Protokollinformationen unter %(log_dir)s",
   "conflict":"Der Service hat beim Verarbeiten der Anforderung für dieses Artefakt eine Fehlerbedingung festgestellt und zurückgegeben.",
   "login_missing_authn":"Der Anmeldeservice hat nicht mit Authentifizierungsinformationen geantwortet.",
   "digest_mismatch": "Digest %(cli_digest)s des extrahierten Assets %(asset)s weicht vom Server-Digest %(server_digest)s ab.",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "Die Anforderung (%(id)d) hat die maximale Anzahl der Wiederholungen erreicht.",
   "header_value_not_string": "Der HTTP-Header %(header)s wird ignoriert; der angegebene Wert ist keine Zeichenfolge."
 }
-

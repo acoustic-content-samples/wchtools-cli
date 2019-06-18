@@ -15,6 +15,10 @@
   "cannot_pull_item": "L'élément '%(name)s' n'a pas pu être extrait.",
   "compare_error_loading_items": "Erreur lors de l'obtention de la liste des éléments pour la comparaison : ",
   "compare_error_loading_item": "Erreur lors du chargement de l'élément pour la comparaison : ",
+  "error_resource_rename": "Erreur lors du renommage de la ressource temporaire '%(temp)s' en '%(name)s'.",
+  "warning_resource_delete": "Impossible de supprimer la ressource temporaire '%(temp)s'.",
+  "error_reading_response_stream": "Erreur lors de la lecture du flux de réponse de la ressource. ID de la ressource : %(id)s",
+  "error_pulling_resource": "Erreur lors de l'extraction de la ressource. ID de la ressource : %(id)s",
 
   "deleted_original_file": "Fichier d'origine supprimé : %(old_name)s ; nouveau fichier : %(new_name)s",
   "file_parse_error": "Impossible de faire une analyse syntaxique du fichier : %(path)s",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "Une demande (%(id)d) a été renouvelée autant de fois que possible.",
   "header_value_not_string": "En-tête HTTP ignoré %(header)s : la valeur fournie n'est pas une chaîne."
 }
-
