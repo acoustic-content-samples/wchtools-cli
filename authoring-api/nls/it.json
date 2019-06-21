@@ -13,8 +13,12 @@
   "remote_asset_not_found": "Asset remoto non trovato: ",
   "cannot_push_item": "Impossibile eseguire il push dell'elemento '%(name)s'.",
   "cannot_pull_item": "Impossibile eseguire il pull dell'elemento '%(name)s'.",
-  "compare_error_loading_items": "Errore durante il richiamo dell'elenco di elementi per il confronto:",
+  "compare_error_loading_items": "Errore durante il richiamo dell'elenco di elementi per il confronto: ",
   "compare_error_loading_item": "Errore di caricamento elemento per il confronto: ",
+  "error_resource_rename": "Errore durante la ridenominazione della risorsa temporanea '%(temp)s' in '%(name)s'.",
+  "warning_resource_delete": "Impossibile rimuovere la risorsa temporanea '%(temp)s'.",
+  "error_reading_response_stream": "Errore durante la lettura da l flusso di risposta della risorsa. ID risorsa: %(id)s",
+  "error_pulling_resource": "Errore durante l'estrazione della risorsa. ID risorsa: %(id)s",
 
   "deleted_original_file": "File originale eliminato: %(old_name)s nuovo file: %(new_name)s",
   "file_parse_error": "Impossibile analizzare il file: %(path)s",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "Una richiesta (%(id)d) è stata ritentata il numero massimo di volte.",
   "header_value_not_string": "Si ignorerà l'intestazione HTTP %(header)s; il valore fornito non è una stringa."
 }
-

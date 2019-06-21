@@ -15,6 +15,10 @@
   "cannot_pull_item": "'%(name)s' 항목을 가져올 수 없습니다.",
   "compare_error_loading_items": "비교를 위해 항목의 목록을 가져오는 중에 오류 발생: ",
   "compare_error_loading_item": "비교를 위해 항목을 로드하는 중에 오류 발생: ",
+  "error_resource_rename": "임시 리소스의 이름 '%(temp)s'을(를) '%(name)s'(으)로 변경하는 중에 오류가 발생했습니다.",
+  "warning_resource_delete": "임시 리소스 '%(temp)s'을(를) 제거할 수 없습니다.",
+  "error_reading_response_stream": "리소스 응답 스트림에서 읽는 중에 오류가 발생했습니다. 리소스 ID: %(id)s",
+  "error_pulling_resource": "리소스를 가져오는 중에 오류가 발생했습니다. 리소스 ID: %(id)s",
 
   "deleted_original_file": "삭제된 원본 파일: %(old_name)s 새 파일: %(new_name)s",
   "file_parse_error": "파일을 구문 분석할 수 없음: %(path)s",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "요청(%(id)d)이 최대 횟수 만큼 재시도되었습니다.",
   "header_value_not_string": "HTTP 헤더 %(header)s을(를) 무시합니다. 제공된 값이 문자열이 아닙니다."
 }
-

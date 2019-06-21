@@ -25,7 +25,7 @@
   "cli_help_options_placeholder": "[選項]",
   "cli_help_commands": "指令：",
   "cli_help_options": "選項：",
-  "cli_help_usage_info": "輸出用法資訊",
+  "cli_help_usage_info": "輸出使用資訊",
   "cli_help_version_number": "輸出版本號碼",
   "cli_update_notifier": "請執行 '%(update_command)s'，以從 %(current_version)s 版更新為 %(new_version)s 版。",
   "cli_update_notifier_changelog": "有新的 wchtools 版本。如需變更的清單，請參閱 %(changelog_url)s。",
@@ -628,4 +628,3 @@
 
   "cli_log_non_verbose":        "如需作業的相關資訊，請參閱 wchtools-cli.log。"
 }
-

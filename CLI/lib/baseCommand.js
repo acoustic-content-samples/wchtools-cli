@@ -62,9 +62,6 @@ class BaseCommand {
 
         // The cleanup functions to execute after the command has been completed.
         this._cleanups = [];
-
-        // Delete command has slightly different behavior wrt tier, to allow deleting pages/site after downgrade tier
-        this._isDelete = false;
     }
 
     /**
@@ -309,8 +306,8 @@ class BaseCommand {
                 manifests.initializeManifests(context, manifest, writeManifest, writeDeletionsManifest, opts).then(function () {
                     // Make sure the manifest is compatible with the tenant tier.
                     if (options.getProperty(context, "tier") === "Base") {
-                        // A manifest used with a base tier tenant cannot have sites, pages, layouts, or layout-mappings.
-                        const incompatibleSections = ["sites", "pages", "layouts", "layout-mappings"];
+                        // A manifest used with a base tier tenant cannot have sites or pages.
+                        const incompatibleSections = ["sites", "pages"];
 
                         // The manifest is incompatible if it contains a section for an incompatible artifact type.
                         const incompatible = incompatibleSections.some(function (section) {
@@ -986,6 +983,16 @@ class BaseCommand {
     }
 
     /**
+     * Returns true if this command invocation supports sites/pages.
+     * @param context The API context associated with this command.
+     * @param opts The API options associated with this command.
+     * @return {boolean} True if this command invocation supports sites/pages.
+     */
+    supportsSites (context, opts) {
+        return !this.isBaseTier(context);
+    }
+
+    /**
      * Initialize the list of sites to be used for this command, if necessary.
      *
      * @param {Object} context The API context associated with this command.
@@ -999,7 +1006,7 @@ class BaseCommand {
         const self = this;
 
         // Only initialize the sites if the tenant supports sites, and the sites or pages option was specified.
-        if ((this._isDelete || !this.isBaseTier(context)) && (this.getCommandLineOption("sites") || this.getCommandLineOption("pages"))) {
+        if (this.supportsSites(context, opts) && (this.getCommandLineOption("sites") || this.getCommandLineOption("pages"))) {
             if (this.getCommandLineOption("manifest")) {
                 // Use the sites defined by the manifest.
                 const sites = self.getManifestSiteItems(context);

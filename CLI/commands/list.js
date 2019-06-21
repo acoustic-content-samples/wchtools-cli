@@ -469,12 +469,12 @@ class ListCommand extends BaseCommand {
                 }
             })
             .then(function() {
-                if (self.getCommandLineOption("layouts") && !self.isBaseTier(context)) {
+                if (self.getCommandLineOption("layouts")) {
                     return self.handleListPromise(self.listLayouts(context), results);
                 }
             })
             .then(function() {
-                if (self.getCommandLineOption("layoutMappings") && !self.isBaseTier(context)) {
+                if (self.getCommandLineOption("layoutMappings")) {
                     return self.handleListPromise(self.listLayoutMappings(context), results);
                 }
             })

@@ -15,6 +15,10 @@
   "cannot_pull_item": "O item '%(name)s' não pôde ser puxado.",
   "compare_error_loading_items": "Erro ao obter lista de itens para comparação: ",
   "compare_error_loading_item": "Erro ao carregar item para comparação: ",
+  "error_resource_rename": "Erro ao renomear o recurso temporário '%(temp)s' para '%(name)s'.",
+  "warning_resource_delete": "Não é possível remover o recurso temporário '%(temp)s'.",
+  "error_reading_response_stream": "Erro ao ler do fluxo de resposta do recurso. ID do recurso: %(id)s",
+  "error_pulling_resource": "Erro ao puxar recurso. ID do recurso: %(id)s",
 
   "deleted_original_file": "Excluído arquivo original: %(old_name)s novo arquivo: %(new_name)s",
   "file_parse_error": "Não é possível analisar arquivo: %(path)s",
@@ -76,4 +80,3 @@
   "retry_max_attempts": "Uma solicitação (%(id)d) foi tentada novamente o número máximo de vezes.",
   "header_value_not_string": "Ignorando o cabeçalho de HTTP %(header)s; o valor fornecido não é uma sequência."
 }
-
