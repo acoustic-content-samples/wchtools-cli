@@ -1113,6 +1113,8 @@ class BaseHelper {
         if (!searchPath.endsWith('*')) {
             searchPath += "*";
         }
+        // Prefix some special characters with a backslash so they are interpreted properly by search.
+        searchPath = searchPath.replace(/[ "^~{}[\]()]/g, "\\$&");
         return this._search(context, this._addSearchQuery(searchOptions, "path:" + searchPath), opts);
     }
 
