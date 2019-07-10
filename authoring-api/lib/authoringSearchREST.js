@@ -86,6 +86,8 @@ class AuthoringSearchREST extends BaseREST {
      *   fl: string or array of strings
      *   fq: string or array of strings
      *
+     * Any special characters in the search parameters should be escaped by the caller.
+     *
      * @param {Object} context The API context to be used by the search operation.
      * @param {Object} [opts]
      *
@@ -122,8 +124,6 @@ class AuthoringSearchREST extends BaseREST {
         }
         if (fqa && Array.isArray(fqa) && fqa.length > 0) {
             fqa.forEach(function (fq) {
-                // Prefix some special characters with a backslash so they are interpreted properly by search.
-                fq = fq.replace(/[ "^~{}[\]()]/g, "\\$&");
                 searchQuery += "&fq=" + querystring.escape(fq);
             });
         }

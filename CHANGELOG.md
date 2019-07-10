@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.1.53 changes since 4.1.49
+  - Fix a bug with search based operations - delete by name and pull by type name.
+
 ### 4.1.49 changes since 4.1.45
   - Allow full support for layouts and layout mappings on all tenant tiers.
 
