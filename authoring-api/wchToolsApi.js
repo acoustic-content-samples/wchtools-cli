@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016, 2017, 2018
+Copyright IBM Corporation 2016, 2017, 2018, 2019
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ const layoutMappingsHelper = require('./layoutMappingsHelper').instance;
 const sitesHelper = require('./sitesHelper').instance;
 const pagesHelper = require('./pagesHelper').instance;
 const edgeConfigHelper = require('./edgeConfigHelper').instance;
+const librariesHelper = require('./librariesHelper').instance;
 const login = require('./lib/loginREST').instance;
 const utils = require('./lib/utils/utils.js');
 const options = require('./lib/utils/options.js');
@@ -110,6 +111,8 @@ class WchToolsApi {
 
         // The logger specified on the context options has associated functions, so it needs to be set directly.
         this.context.logger = contextOptions.logger;
+
+        this.context.logger.debug("Initialized wchToolsApi with contextOptions: " + JSON.stringify(contextOptions));
     }
 
     /**
@@ -183,6 +186,10 @@ class WchToolsApi {
 
     static getEdgeConfigHelper () {
         return edgeConfigHelper;
+    }
+
+    static getLibrariesHelper () {
+        return librariesHelper;
     }
 
     static getRemoteSites (context, opts) {
@@ -300,6 +307,9 @@ class WchToolsApi {
                 }
             })
             .then(function () {
+                return self.handlePromise(self.pushLibraries(opts)) // TODO - if sites can be in libs, then this needs to go first
+            })
+            .then(function () {
                 return self.handlePromise(self.pushImageProfiles(opts))
             })
             .then(function () {
@@ -385,6 +395,14 @@ class WchToolsApi {
             // Any error thrown by this promise will be returned to the caller.
             return promise;
         }
+    }
+
+    pushLibraries (opts) {
+        this.getLogger().info("pushLibraries started");
+        const helper = WchToolsApi.getLibrariesHelper();
+        const promise = helper[this.context.wchToolsApiPushMethod](this.context, opts);
+        this.getLogger().info("pushLibraries complete");
+        return promise;
     }
 
     pushImageProfiles (opts) {
@@ -571,6 +589,9 @@ class WchToolsApi {
             .then(function () {
                 return self.handlePromise(self.deleteAllImageProfiles(opts));
             })
+            .then(function() {
+                return self.handlePromise(self.deleteAllLibraries(opts));
+            })
             .then(function () {
                 self.getLogger().info("deleteAllItems complete");
                 if (!errors) {
@@ -589,6 +610,14 @@ class WchToolsApi {
             });
 
         return deferred.promise;
+    }
+
+    deleteAllLibraries (opts) {
+        this.getLogger().info("deleteAllLibraries started");
+        const helper = WchToolsApi.getLibrariesHelper();
+        const promise = helper.deleteRemoteItems(this.context, opts);
+        this.getLogger().info("deleteAllLibraries complete");
+        return promise;
     }
 
     deleteAllPages (opts) {

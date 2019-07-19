@@ -27,6 +27,14 @@ class JSONItemREST extends BaseREST {
         super(serviceName, uriPath, allUriSuffix, modifiedUriSuffix);
     }
 
+    getCreateQueryParameters (context, opts) {
+        const queryParams = {};
+        if (this.supportsForceOverrideOnCreate() && options.getRelevantOption(context, opts, "force-override")) {
+            queryParams["forceOverride"] = true;
+        }
+        return queryParams;
+    }
+
     createItem (context, item, opts) {
         const restObject = this;
         const deferred = Q.defer();
@@ -37,9 +45,8 @@ class JSONItemREST extends BaseREST {
             .then(function (requestOptions) {
                 const saveRev = item.rev;
                 delete item.rev;
-                if (restObject.supportsForceOverrideOnCreate() && options.getRelevantOption(context, opts, "force-override")) {
-                    requestOptions.uri += "?forceOverride=true";
-                }
+                const queryParams = restObject.getCreateQueryParameters(context, opts);
+                requestOptions.uri = restObject._appendQueryParameters(requestOptions.uri, queryParams);
                 requestOptions.body = item;
                 utils.logDebugInfo(context, "Creating item with request options: ", undefined, requestOptions);
                 request.post(requestOptions, function (err, res, body) {
@@ -80,6 +87,14 @@ class JSONItemREST extends BaseREST {
         return deferred.promise;
     }
 
+    getUpdateQueryParameters (context, opts) {
+        const queryParams = {};
+        if (this.supportsForceOverride() && options.getRelevantOption(context, opts, "force-override")) {
+            queryParams["forceOverride"] = true;
+        }
+        return queryParams;
+    }
+
     updateItem (context, item, opts) {
         const deferred = Q.defer();
         const restObject = this;
@@ -89,9 +104,8 @@ class JSONItemREST extends BaseREST {
         this.getUpdateRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = restObject._appendURI(requestOptions.uri, item.id);
-                if (restObject.supportsForceOverride() && options.getRelevantOption(context, opts, "force-override")) {
-                    requestOptions.uri += "?forceOverride=true";
-                }
+                const queryParams = restObject.getUpdateQueryParameters(context, opts);
+                requestOptions.uri = restObject._appendQueryParameters(requestOptions.uri, queryParams);
                 requestOptions.body = item;
 
                 // Determine whether to force the item to be created instead of updated.

@@ -300,13 +300,7 @@ class AssetsREST extends BaseREST {
 
         restObject.getResourceListRequestOptions(context, uriPath, opts)
             .then(function (requestOptions) {
-                if (queryParams) {
-                    let delimiter = (requestOptions.uri.indexOf('?') === -1) ? "?" : "&";
-                    Object.keys(queryParams).forEach(function (key) {
-                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + querystring.escape(queryParams[key]);
-                        delimiter = "&";
-                    });
-                }
+                requestOptions.uri = restObject._appendQueryParameters(requestOptions.uri, queryParams);
                 request.get(requestOptions, function (err, res, body) {
                     const response = res || {};
                     if (err || response.statusCode !== 200) {

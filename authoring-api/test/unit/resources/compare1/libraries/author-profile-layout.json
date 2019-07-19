@@ -1,0 +1,13 @@
+{
+  "id": "author-profile-layout",
+  "rev": "3-86248c173f6622636940e7f3e8e60c92",
+  "name": "Author profile",
+  "classification": "layout",
+  "prerender": false,
+  "thumbnail": {
+    "path": "/dxauth/layoutThumbs/author-profile_220.svg",
+    "url": "/authoring/v1/resources/48f1853a4ac2f7432f10a81d10ec7f19_d484fc4c1c755d0e171809b55c47f6bc"
+  },
+  "template": "author-profile-layout",
+  "templateType": "angular"
+}

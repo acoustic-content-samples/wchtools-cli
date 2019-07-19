@@ -1,0 +1,23 @@
+{
+  "rev": "17-137b0fd2d50d5be90c4e8f4d6ed54019",
+  "creator": "System",
+  "access": "private",
+  "created": "2019-05-30T19:10:59.610Z",
+  "creatorId": "feb7d073-1aa7-4020-94f2-daf599b2064d",
+  "description": "",
+  "lastModifier": "System",
+  "owners": [
+    {
+      "displayName": "System",
+      "id": "feb7d073-1aa7-4020-94f2-daf599b2064d"
+    }
+  ],
+  "classification": "library",
+  "tags": [],
+  "name": "Library 1",
+  "lastModifierId": "feb7d073-1aa7-4020-94f2-daf599b2064d",
+  "lastModified": "2019-05-30T19:10:59.610Z",
+  "contributors": [],
+  "id": "37d1d0c5-7164-4750-9809-27ba447bbca4",
+  "systemModified": "2019-05-30T19:10:59.610Z"
+}

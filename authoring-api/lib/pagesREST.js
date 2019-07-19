@@ -111,19 +111,12 @@ class PagesREST extends JSONPathBasedItemREST {
         return super._getItem(context, uriSuffix, queryParams, opts);
     }
 
-    /*
-     * Overrideable method for delete URI for the REST object
-     * @param {string} uri
-     * @return {string} uri, optionally modified, with query parameters
-     *
-     * @override
-     */
-    getDeleteUri( uri, opts ) {
-        if (opts && opts["delete-content"] ) {
-            return uri + "?delete-content=true";
-        } else {
-            return uri;
+    getDeleteQueryParameters(context, opts) {
+        const queryParams = super.getDeleteQueryParameters(context, opts);
+        if (opts && opts["delete-content"]) {
+            queryParams["delete-content"] = true;
         }
+        return queryParams;
     }
 
     /*

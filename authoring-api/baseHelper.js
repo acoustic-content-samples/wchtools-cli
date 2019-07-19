@@ -36,52 +36,52 @@ class BaseHelper {
     /**
      * Name of a retry property (Number) that specifies how many items were attempted for the current push operation.
      */
-    static get RETRY_PUSH_ITEM_COUNT () { return "itemCount"; };
+    static get RETRY_PUSH_ITEM_COUNT () { return "itemCount"; }
 
     /**
      * Name of a retry property (Array) that contains the items whose push operation failed and will be retried.
      */
-    static get RETRY_PUSH_ITEMS () { return "items"; };
+    static get RETRY_PUSH_ITEMS () { return "items"; }
 
     /**
      * Name of an item property (String) that contains the name of the item whose push operation will be retried.
      */
-    static get RETRY_PUSH_ITEM_NAME () { return "name"; };
+    static get RETRY_PUSH_ITEM_NAME () { return "name"; }
 
     /**
      * Name of an item property (Error) that contains the error for the failed push operation.
      */
-    static get RETRY_PUSH_ITEM_ERROR () { return "error"; };
+    static get RETRY_PUSH_ITEM_ERROR () { return "error"; }
 
     /**
      * Name of an item property (String) that contains the heading for the failed push operation.
      */
-    static get RETRY_PUSH_ITEM_HEADING () { return "heading"; };
+    static get RETRY_PUSH_ITEM_HEADING () { return "heading"; }
 
     /**
      * Name of an item property (String) that contains the delay for the retried push operation.
      */
-    static get RETRY_PUSH_ITEM_DELAY () { return "delay"; };
+    static get RETRY_PUSH_ITEM_DELAY () { return "delay"; }
 
     /**
      * Name of a retry property (Array) that contains the items whose delete operation failed and will be retried.
      */
-    static get RETRY_DELETE_ITEMS () { return "items"; };
+    static get RETRY_DELETE_ITEMS () { return "items"; }
 
     /**
      * Name of an item property (String) that contains the item whose delete operation will be retried.
      */
-    static get RETRY_DELETE_ITEM () { return "item"; };
+    static get RETRY_DELETE_ITEM () { return "item"; }
 
     /**
      * Name of an item property (Error) that contains the error for the failed delete operation.
      */
-    static get RETRY_DELETE_ITEM_ERROR () { return "error"; };
+    static get RETRY_DELETE_ITEM_ERROR () { return "error"; }
 
     /**
      * Name of an item property (String) that contains the heading for the failed delete operation.
      */
-    static get RETRY_DELETE_ITEM_HEADING () { return "heading"; };
+    static get RETRY_DELETE_ITEM_HEADING () { return "heading"; }
 
     /**
      * The base constructor for a helper object.
@@ -257,7 +257,7 @@ class BaseHelper {
                     hashes.removeHashes(context, basePath, [item.id], opts);
 
                     // Remove any empty parent folders that were created for the item.
-                    utils.removeEmptyParentDirectories(basePath, filepath)
+                    utils.removeEmptyParentDirectories(basePath, filepath);
                 }
 
                 return item;
@@ -808,7 +808,7 @@ class BaseHelper {
                         });
                 })
                 .catch(function (err) {
-                    deferred.reject(err)
+                    deferred.reject(err);
                 });
         }
 

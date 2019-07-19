@@ -37,6 +37,7 @@ const ListLayoutMappings =       PREFIX + i18n.__('cli_listing_layout_mappings')
 const ListRenditions =           PREFIX + i18n.__('cli_listing_renditions') + SUFFIX;
 const ListPublishingSiteRevisions = PREFIX + i18n.__('cli_listing_site_revisions') + SUFFIX;
 const ListSites =                   PREFIX + i18n.__('cli_listing_sites') + SUFFIX;
+const ListLibraries =               PREFIX + i18n.__('cli_listing_libraries') + SUFFIX;
 
 class ListCommand extends BaseCommand {
     /**
@@ -86,7 +87,7 @@ class ListCommand extends BaseCommand {
         self.handleDirOption(context)
             .then(function () {
                 // Make sure the url has been specified, if login is required for this list command.
-                return self.handleUrlOption(context)
+                return self.handleUrlOption(context);
             })
             .then(function () {
                 // Make sure the user name and password have been specified, if login is required for this list command.
@@ -454,6 +455,11 @@ class ListCommand extends BaseCommand {
 
         self.readyToList()
             .then(function () {
+                if (self.getCommandLineOption("libraries")) {
+                    return self.handleListPromise(self.listLibraries(context), results);
+                }
+            })
+            .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
                     return self.handleListPromise(self.listImageProfiles(context), results);
                 }
@@ -586,6 +592,31 @@ class ListCommand extends BaseCommand {
         } else {
             return helper[functionName].bind(helper, context, this.getFlags(helper));
         }
+    }
+
+    /**
+     * List the "library" artifacts.
+     *
+     * @param {Object} context The API context associated with this list command.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of "content" artifacts.
+     */
+    listLibraries (context) {
+        const helper = ToolsApi.getLibrariesHelper();
+        const apiOptions = this.getApiOptions();
+        const listFunction = this.getListFunction(helper, context);
+        const artifactsPromise = listFunction(apiOptions);
+        const deferred = Q.defer();
+
+        artifactsPromise
+            .then(function (result) {
+                deferred.resolve({"type": ListLibraries, "value": result});
+            })
+            .catch(function (err) {
+                deferred.reject(err);
+            });
+
+        return deferred.promise;
     }
 
     /**
@@ -913,6 +944,7 @@ class ListCommand extends BaseCommand {
      * terminated and these values need to be reset.
      */
     resetCommandLineOptions () {
+        this.setCommandLineOption("libraries", undefined);
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
@@ -945,6 +977,7 @@ function listCommand (program) {
         .option('-t --types',            i18n.__('cli_list_opt_types'))
         .option('-a --assets',           i18n.__('cli_list_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_list_opt_web_assets'))
+        .option('-L --libraries',        i18n.__('cli_list_opt_libraries'))
         .option('-l --layouts',          i18n.__('cli_list_opt_layouts'))
         .option('-m --layout-mappings',  i18n.__('cli_list_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_list_opt_image_profiles'))

@@ -1,5 +1,9 @@
 {
   "dx-api-gateway": "https://my.digitalexperience.ibm.com/api",
+  "libraries": {
+    "limit": 200,
+    "concurrent-limit": 8
+  },
   "content": {
     "limit": 200,
     "concurrent-limit": 8
@@ -66,10 +70,12 @@
     "concurrent-limit": 1
   },
   "pages": {
-    "limit": 200,
     "useNextLinks": false,
+    "limit": 200,
     "concurrent-limit": 1
   },
+  "limit": 10,
+  "concurrent-limit": 1,
   "retryMaxAttempts": 5,
   "retryMinTimeout": 1000,
   "retryMaxTimeout": 16000,

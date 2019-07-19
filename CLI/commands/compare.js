@@ -40,7 +40,8 @@ const CompareLayouts =              PREFIX + i18n.__('cli_compare_layouts') + SU
 const CompareLayoutMappings =       PREFIX + i18n.__('cli_compare_layout_mappings') + SUFFIX;
 const CompareRenditions =           PREFIX + i18n.__('cli_compare_renditions') + SUFFIX;
 const ComparePublishingSiteRevisions = PREFIX + i18n.__('cli_compare_site_revisions') + SUFFIX;
-const CompareSites =                   PREFIX + i18n.__('cli_compare_sites') + SUFFIX;
+const CompareSites =                PREFIX + i18n.__('cli_compare_sites') + SUFFIX;
+const CompareLibraries =            PREFIX + i18n.__('cli_compare_libraries') + SUFFIX;
 
 // Define the names of the events emitted by the API during a compare operation.
 const EVENT_ITEM_DIFF = "diff";
@@ -166,7 +167,7 @@ class CompareCommand extends BaseCommand {
                     if (helper.getStatus(context, siteItem, self.getApiOptions()) === "draft") {
                         // Determine whether the draft target site already exists in the combined draft sites list.
                         const exists = draftSites.some(function (site) {
-                            return site.id === siteItem.id
+                            return site.id === siteItem.id;
                         });
 
                         // Add the draft target site to the combined draft site list if it isn't already there.
@@ -176,7 +177,7 @@ class CompareCommand extends BaseCommand {
                     } else {
                         // Determine whether the ready target site already exists in the combined ready sites list.
                         const exists = readySites.some(function (site) {
-                            return site.id === siteItem.id
+                            return site.id === siteItem.id;
                         });
 
                         // Add the ready target site to the combined ready site list if it isn't already there.
@@ -453,6 +454,11 @@ class CompareCommand extends BaseCommand {
 
         self.readyToCompare()
             .then(function () {
+                if (self.getCommandLineOption("libraries")) {
+                    return self.handleComparePromise(self.compareLibraries(context), results);
+                }
+            })
+            .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
                     return self.handleComparePromise(self.compareImageProfiles(context), results);
                 }
@@ -565,10 +571,12 @@ class CompareCommand extends BaseCommand {
             "types": "type",
             "assets": "asset",
             "resources": "resource",
+            "libraries": "library",
             "layouts": "layout",
             "layout-mappings": "layout_mapping",
             "image-profiles": "image_profile",
             "content": "content",
+            "default-content": "default_content",
             "categories": "category",
             "renditions": "rendition",
             "site-revisions": "site_revision",
@@ -748,6 +756,19 @@ class CompareCommand extends BaseCommand {
     }
 
     /**
+     * Compare the library artifacts.
+     *
+     * @param {Object} context The API context associated with this compare command.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the specified list of libraries artifacts.
+     */
+    compareLibraries (context) {
+        const helper = ToolsApi.getLibrariesHelper();
+        const opts = this.getApiOptions();
+        return this.compareArtifactsImpl(context, helper, CompareLibraries, opts);
+    }
+
+    /**
      * Compare the layouts artifacts.
      *
      * @param {Object} context The API context associated with this compare command.
@@ -888,6 +909,7 @@ class CompareCommand extends BaseCommand {
      * terminated and these values need to be reset.
      */
     resetCommandLineOptions () {
+        this.setCommandLineOption("libraries", undefined);
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
@@ -917,6 +939,7 @@ function compareCommand (program) {
     program
         .command('compare')
         .description(i18n.__('cli_compare_description'))
+        .option('-L --libraries',        i18n.__('cli_compare_opt_libraries'))
         .option('-t --types',            i18n.__('cli_compare_opt_types'))
         .option('-a --assets',           i18n.__('cli_compare_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_compare_opt_web_assets'))

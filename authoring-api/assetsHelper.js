@@ -1665,7 +1665,7 @@ class AssetsHelper extends BaseHelper {
                     return helper.pushModifiedResources(context, opts)
                         .then(function (resourceResults) {
                             return results;
-                        })
+                        });
                 }
             });
     }

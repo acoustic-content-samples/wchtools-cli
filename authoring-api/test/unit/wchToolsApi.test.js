@@ -875,6 +875,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
+            const stubLibraries = sinon.stub(ToolsApi.getLibrariesHelper(), "deleteRemoteItems");
+            stubLibraries.resolves(undefined);
 
             // Call the method being tested.
             let error;
@@ -892,6 +894,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.not.have.been.called; // Because there are no remote sites.
+                    expect(stubLibraries).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
                     expect(items).to.have.lengthOf(0);
@@ -913,6 +916,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubDefaultContent.restore();
                     stubPages.restore();
+                    stubLibraries.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
@@ -956,6 +960,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
+            const stubLibraries = sinon.stub(ToolsApi.getLibrariesHelper(), "deleteRemoteItems");
+            stubLibraries.resolves(undefined);
 
             // Call the method being tested.
             let error;
@@ -971,6 +977,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
+                    expect(stubLibraries).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
                     expect(items).to.have.lengthOf(6);
@@ -995,6 +1002,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubDefaultContent.restore();
                     stubPages.restore();
+                    stubLibraries.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
@@ -1039,6 +1047,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
+            const stubLibraries = sinon.stub(ToolsApi.getLibrariesHelper(), "deleteRemoteItems");
+            stubLibraries.resolves(undefined);
 
             // Call the method being tested.
             let error;
@@ -1065,6 +1075,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
+                    expect(stubLibraries).to.have.been.calledOnce;
                 })
                 .catch (function (err) {
                     // NOTE: A failed expectation from above will be handled here.
@@ -1086,6 +1097,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubDefaultContent.restore();
                     stubPages.restore();
+                    stubLibraries.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
@@ -1126,6 +1138,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
+            const stubLibraries = sinon.stub(ToolsApi.getLibrariesHelper(), "deleteRemoteItems");
+            stubLibraries.resolves(undefined);
 
             // Call the method being tested.
             let error;
@@ -1141,6 +1155,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubContent).to.have.been.calledOnce;
                     expect(stubDefaultContent).to.have.been.calledOnce;
                     expect(stubPages).to.have.been.calledTwice; // Because there are two remote sites
+                    expect(stubLibraries).to.have.been.calledOnce;
 
                     // Verify that the expected values are returned.
                     expect(items).to.have.lengthOf(6);
@@ -1162,6 +1177,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubDefaultContent.restore();
                     stubPages.restore();
+                    stubLibraries.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
@@ -1202,6 +1218,8 @@ describe("Unit tests for wchToolsApi.js", function () {
             stubDefaultContent.resolves(undefined);
             const stubPages = sinon.stub(ToolsApi.getPagesHelper(), "deleteRemoteItems");
             stubPages.resolves(undefined);
+            const stubLibraries = sinon.stub(ToolsApi.getLibrariesHelper(), "deleteRemoteItems");
+            stubLibraries.resolves(undefined);
 
             // Call the method being tested.
             let error;
@@ -1224,6 +1242,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     expect(stubAssets).to.not.have.been.called;
                     expect(stubCategories).to.not.have.been.called;
                     expect(stubImageProfiles).to.not.have.been.called;
+                    expect(stubLibraries).to.not.have.been.called;
                 })
                 .catch (function (err) {
                     // NOTE: A failed expectation from above will be handled here.
@@ -1242,6 +1261,7 @@ describe("Unit tests for wchToolsApi.js", function () {
                     stubContent.restore();
                     stubDefaultContent.restore();
                     stubPages.restore();
+                    stubLibraries.restore();
 
                     // Call mocha's done function to indicate that the test is over.
                     done(error);
