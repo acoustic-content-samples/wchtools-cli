@@ -1,0 +1,13 @@
+{
+  "id": "address-book-layout",
+  "rev": "1-68cc1662dccf9e01f64c0b4fc7ad7bcf",
+  "name": "addressBookLayout",
+  "classification": "layout",
+  "prerender": false,
+  "thumbnail": {
+    "path": "/dxauth/layoutThumbs/address-book-layout.jpg",
+    "url": "/authoring/v1/resources/a9b7575381cd03962dbe81e4116c8663_ca6e411ac65252522e5f7aa30c62e5e7"
+  },
+  "template": "address-book-layout",
+  "templateType": "angular"
+}

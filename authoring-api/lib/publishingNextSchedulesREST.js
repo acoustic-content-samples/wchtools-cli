@@ -50,7 +50,12 @@ class PublishingNextSchedulesREST extends BaseREST {
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 const tenantId = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-id");
-                requestOptions.uri = requestOptions.uri + "?deliveryDomainId=default&classification=tenant&docId=" + tenantId;
+                const queryParams = {
+                    "deliveryDomainId": "default",
+                    "classification": "tenant",
+                    "docId": tenantId
+                };
+                requestOptions.uri = restObject._appendQueryParameters(requestOptions.uri, queryParams);
                 request.get(requestOptions, function (err, res, body) {
                     const response = res || {};
                     if (err || response.statusCode !== 200) {

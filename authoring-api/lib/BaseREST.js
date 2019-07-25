@@ -284,6 +284,25 @@ class BaseREST {
         return uriSuffix ? (uri + '/' + uriSuffix) : uri;
     }
 
+    /**
+     * Appends the specified query parameters to the URI.
+     *
+     * @param uri the URI
+     * @param queryParams the query parameters to append
+     * @return {string} the concatenated URI
+     * @private
+     */
+    _appendQueryParameters (uri, queryParams) {
+        if (queryParams) {
+            let delimiter = (uri.indexOf('?') === -1) ? "?" : "&";
+            Object.keys(queryParams).forEach(function (key) {
+                uri = uri + delimiter + key + "=" + querystring.escape(queryParams[key]);
+                delimiter = "&";
+            });
+        }
+        return uri;
+    }
+
     _getRequestOptions (context, uriPath, headers, opts) {
         const restObject = this;
         const deferred = Q.defer();
@@ -391,13 +410,7 @@ class BaseREST {
 
         this._getRequestOptions(context, uriPath, BaseREST.getHeaders(context, opts), opts)
             .then(function (requestOptions) {
-                if (queryParams) {
-                    let delimiter = (requestOptions.uri.indexOf('?') === -1) ? "?" : "&";
-                    Object.keys(queryParams).forEach(function (key) {
-                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + querystring.escape(queryParams[key]);
-                        delimiter = "&";
-                    });
-                }
+                requestOptions.uri = restObject._appendQueryParameters(requestOptions.uri, queryParams);
                 request.get(requestOptions, function (err, res, body) {
                     const response = res || {};
                     if (err || response.statusCode !== 200) {
@@ -438,13 +451,7 @@ class BaseREST {
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
                 requestOptions.uri = restObject._appendURI(requestOptions.uri, uriSuffix);
-                if (queryParams) {
-                    let delimiter = "?";
-                    Object.keys(queryParams).forEach(function (key) {
-                        requestOptions.uri = requestOptions.uri + delimiter + key + "=" + querystring.escape(queryParams[key]);
-                        delimiter = "&";
-                    });
-                }
+                requestOptions.uri = restObject._appendQueryParameters(requestOptions.uri, queryParams);
                 request.get(requestOptions, function (err, res, body) {
                     const response = res || {};
                     if (err || response.statusCode !== 200) {
@@ -525,13 +532,8 @@ class BaseREST {
         return false;
     }
 
-    /*
-     * Overrideable method for delete URI for the REST object
-     * @param {string} uri
-     * @return {string} uri, optionally modified, with query parameters
-     */
-    getDeleteUri( uri, opts ) {
-        return uri;
+    getDeleteQueryParameters (context, opts) {
+        return {};
     }
 
     /**
@@ -548,7 +550,8 @@ class BaseREST {
         const deferred = Q.defer();
         this.getRequestOptions(context, opts)
             .then(function (requestOptions) {
-                requestOptions.uri = restObject.getDeleteUri(restObject._appendURI(requestOptions.uri, item.id), opts);
+                const queryParams = restObject.getDeleteQueryParameters(context, opts);
+                requestOptions.uri = restObject._appendQueryParameters(restObject._appendURI(requestOptions.uri, item.id), queryParams);
                 utils.logDebugInfo(context, 'delete item:' + restObject.getServiceName(), undefined, requestOptions);
 
                 // del ==> delete

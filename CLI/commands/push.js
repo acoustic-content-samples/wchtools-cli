@@ -40,6 +40,7 @@ const PushingPublishingSiteRevisions = PREFIX + i18n.__('cli_push_pushing_site_r
 const PushingImageProfiles =        PREFIX + i18n.__('cli_push_pushing_image_profiles') + SUFFIX;
 const PushingRenditions =           PREFIX + i18n.__('cli_push_pushing_renditions') + SUFFIX;
 const PushingSites =                PREFIX + i18n.__('cli_push_pushing_sites') + SUFFIX;
+const PushingLibraries =            PREFIX + i18n.__('cli_push_pushing_libraries') + SUFFIX;
 
 class PushCommand extends BaseCommand {
     /**
@@ -154,7 +155,7 @@ class PushCommand extends BaseCommand {
                     self.getLogger().error(error);
                 });
             });
-    };
+    }
 
     /**
      * Start the display for the pushed artifacts.
@@ -219,7 +220,7 @@ class PushCommand extends BaseCommand {
         const logger = this.getLogger();
         const manifest = this.getCommandLineOption("manifest");
         if (manifest) {
-            message = i18n.__('cli_push_manifest_pushing_complete', {name: manifest})
+            message = i18n.__('cli_push_manifest_pushing_complete', {name: manifest});
         } else if (this._modified) {
             message = i18n.__('cli_push_modified_pushing_complete');
         } else {
@@ -234,7 +235,7 @@ class PushCommand extends BaseCommand {
         let isError = false;
         let logError = true;
         if (manifest) {
-            message = i18n.__('cli_push_manifest_complete', {name: manifest})
+            message = i18n.__('cli_push_manifest_complete', {name: manifest});
         } else if (this._modified) {
             message = i18n.__('cli_push_modified_complete');
         } else {
@@ -316,8 +317,16 @@ class PushCommand extends BaseCommand {
         if (setTagVal) {
             self.setApiOption("setTag", setTagVal);
         }
+        if (self.getCommandLineOption("keepUsers")) {
+            self.setApiOption("keepUsers", true);
+        }
 
         self.readyToPush()
+            .then(function() {
+                if (self.getCommandLineOption("libraries")) {
+                    return self.handlePushPromise(self.pushLibraries(context), continueOnError);
+                }
+            })
             .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
                     return self.handlePushPromise(self.pushImageProfiles(context), continueOnError);
@@ -599,6 +608,70 @@ class PushCommand extends BaseCommand {
             .finally(function () {
                 emitter.removeListener("pushed", imageProfilePushed);
                 emitter.removeListener("pushed-error", imageProfilePushedError);
+            });
+    }
+
+
+    /**
+     * Push the library artifacts.
+     *
+     * @param {Object} context The API context to be used for the push operation.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pushing the content artifacts.
+     */
+    pushLibraries (context) {
+        const helper = ToolsApi.getLibrariesHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+
+        self.getLogger().info(PushingLibraries);
+
+        // The api emits an event when an item is pushed, so we log it for the user.
+        const artifactPushed = function (item) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_push_library_pushed', item));
+        };
+        emitter.on("pushed", artifactPushed);
+
+        // The api emits an event when there is a push error, so we log it for the user.
+        const artifactPushedError = function (error, info) {
+            // Set the artifactErrorHandled property of the error. If the push fails, this property can be checked to
+            // determine whether the push operation failed because of this same error.
+            error.artifactErrorHandled = true;
+
+            // Increment the error count and log the error.
+            self._artifactsError++;
+            if (typeof info === "object") {
+                self.getLogger().error(i18n.__('cli_push_library_item_error', {id: info.id, name: info.name, path: info.path, message: error.message}));
+            } else {
+                self.getLogger().error(i18n.__('cli_push_library_push_error', {name: info, message: error.message}));
+            }
+        };
+        emitter.on("pushed-error", artifactPushedError);
+
+        // If a name is specified, push the named content.
+        // If Ignore-timestamps is specified then push all content.
+        // Otherwise only push modified content (which is the default behavior).
+        const apiOptions = this.getApiOptions();
+
+        if (helper.doesDirectoryExist(context, apiOptions)) {
+            this._directoriesCount++;
+        }
+
+        // Return the promise for the results of the push operation.
+        return this.pushItems(context, helper, apiOptions)
+            .catch(function (err) {
+                // If the promise is rejected, it may mean that an error was encountered before the pull process was
+                // started. However, it may also mean that a single item was being pushed and the error was emitted and
+                // handled above. If it wasn't already handled, we need to make sure to count the error and rethrow it.
+                if (!err.artifactErrorHandled) {
+                    self._artifactsError++;
+                    throw err;
+                }
+            })
+            .finally(function () {
+                emitter.removeListener("pushed", artifactPushed);
+                emitter.removeListener("pushed-error", artifactPushedError);
             });
     }
 
@@ -1312,6 +1385,7 @@ class PushCommand extends BaseCommand {
      * terminated and these values need to be reset.
      */
     resetCommandLineOptions () {
+        this.setCommandLineOption("libraries", undefined);
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
@@ -1333,6 +1407,7 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("writeManifest", undefined);
         this.setCommandLineOption("publishNow", undefined);
         this.setCommandLineOption("setTag", undefined);
+        this.setCommandLineOption("keepUsers", undefined);
         super.resetCommandLineOptions();
     }
 }
@@ -1344,6 +1419,7 @@ function pushCommand (program) {
         .option('-t --types',            i18n.__('cli_push_opt_types'))
         .option('-a --assets',           i18n.__('cli_push_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_push_opt_web_assets'))
+        .option('-L --libraries',        i18n.__('cli_push_opt_libraries'))
         .option('-l --layouts',          i18n.__('cli_push_opt_layouts'))
         .option('-m --layout-mappings',  i18n.__('cli_push_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_push_opt_image_profiles'))
@@ -1370,6 +1446,7 @@ function pushCommand (program) {
         .option('--write-manifest <manifest>', i18n.__('cli_push_opt_write_manifest'))
         .option('--dir <dir>',           i18n.__('cli_push_opt_dir'))
         .option('--set-tag <tag>',       i18n.__('cli_push_opt_set_tag'))
+        .option('--keep-users',          i18n.__('cli_push_opt_keep_users'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))
         .option('--url <url>',           i18n.__('cli_opt_url', {"product_name": utils.ProductName}))

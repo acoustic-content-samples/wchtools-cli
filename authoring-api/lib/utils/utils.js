@@ -717,7 +717,7 @@ function removeEmptyParentDirectories (basePath, filePath) {
             }
         }
     }
-};
+}
 
 /**
  * get the user home directory for Windows, Linus or mac
@@ -940,7 +940,7 @@ function reset () {
     httplang = null;
     Object.keys(loggers).forEach(function (key) {
         delete loggers[key];
-    })
+    });
 }
 
 /**

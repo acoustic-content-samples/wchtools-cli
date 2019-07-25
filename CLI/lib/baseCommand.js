@@ -39,10 +39,10 @@ class BaseCommand {
         this._program = program;
 
         // The logger for this command, which will be lazy loaded.
-        this._logger;
+        this._logger = undefined;
 
         // The command line options for this command, which must be set using the setCommandLineOptions method.
-        this._commandLineOptions;
+        this._commandLineOptions = undefined;
 
         // The options used by this command for making API calls.
         this._apiOptions = {};
@@ -401,7 +401,8 @@ class BaseCommand {
                 {option: "pages", section: "pages"},
                 {option: "publishingProfiles", section: "publishing-profiles"},
                 {option: "publishingSiteRevisions", section: "site-revisions"},
-                {option: "publishingSources", section: "publishing-sources"}
+                {option: "publishingSources", section: "publishing-sources"},
+                {option: "libraries", section: "libraries"}
             ];
 
             const self = this;
@@ -467,6 +468,7 @@ class BaseCommand {
                 this.setCommandLineOption("imageProfiles", true);
                 this.setCommandLineOption("sites", true);
                 this.setCommandLineOption("pages", true);
+                this.setCommandLineOption("libraries", true);
             }
 
             // Determine the number of artifact types that have been set.
@@ -508,6 +510,9 @@ class BaseCommand {
                 this._optionArtifactCount++;
             }
             if (this.getCommandLineOption("pages")) {
+                this._optionArtifactCount++;
+            }
+            if (this.getCommandLineOption("libraries")) {
                 this._optionArtifactCount++;
             }
 

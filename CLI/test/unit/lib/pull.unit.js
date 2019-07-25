@@ -82,7 +82,7 @@ class PullUnitTest extends UnitTest {
             if (switches === "-A") {
                 // Test the pull all by type name option
                 self.testPullByTypeName(helper, switches, itemName1, itemName2, badItem);
-                self.testPullByTypeName(helper, "-tcar", itemName1, itemName2, badItem);
+                self.testPullByTypeName(helper, "-tcDar", itemName1, itemName2, badItem);
 
             } else {
                 // Run each of the tests defined in this class.

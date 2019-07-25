@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.2 changes since 4.1.53
+  - Add support for libraries.
+
 ### 4.1.53 changes since 4.1.49
   - Fix a bug with search based operations - delete by name and pull by type name.
 

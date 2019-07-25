@@ -44,6 +44,7 @@ const PullingCategories = PREFIX + i18n.__('cli_pull_pulling_categories') + SUFF
 const PullingRenditions = PREFIX + i18n.__('cli_pull_pulling_renditions') + SUFFIX;
 const PullingPublishingSiteRevisions = PREFIX + i18n.__('cli_pull_pulling_site_revisions') + SUFFIX;
 const PullingSites = PREFIX + i18n.__('cli_pull_pulling_sites') + SUFFIX;
+const PullingLibraries = PREFIX + i18n.__('cli_pull_pulling_libraries') + SUFFIX;
 
 // Define the names of the events emitted by the API during a pull operation.
 const EVENT_ITEM_PULLED = "pulled";
@@ -214,7 +215,7 @@ class PullCommand extends BaseCommand {
         const logger = this.getLogger();
         const manifest = this.getCommandLineOption("manifest");
         if (manifest) {
-            message = i18n.__('cli_pull_manifest_pulling_complete', {name: manifest})
+            message = i18n.__('cli_pull_manifest_pulling_complete', {name: manifest});
         } else if (this._modified) {
             message = i18n.__('cli_pull_modified_pulling_complete');
         } else {
@@ -229,7 +230,7 @@ class PullCommand extends BaseCommand {
         let isError = false;
         let logError = true;
         if (manifest) {
-            message = i18n.__('cli_pull_manifest_complete', {name: manifest})
+            message = i18n.__('cli_pull_manifest_complete', {name: manifest});
         } else if (this._modified) {
             message = i18n.__('cli_pull_modified_complete');
         } else {
@@ -292,11 +293,13 @@ class PullCommand extends BaseCommand {
             } else if (!(self.getCommandLineOption("allAuthoring") ||
                        ( self.getCommandLineOption("types") &&
                            self.getCommandLineOption("content") &&
+                           self.getCommandLineOption("defaultContent") &&
                            self.getCommandLineOption("assets") &&
                          self.getCommandLineOption("renditions")) ) ) {
                 self.errorMessage(i18n.__('cli_pull_opt_by_type_all'));
                 valid = false;
             } else if ( self.getCommandLineOption("categories") ||
+                        self.getCommandLineOption("libraries") ||
                         self.getCommandLineOption("pages") ||
                         self.getCommandLineOption("sites") ||
                         self.getCommandLineOption("publishingSiteRevisions") ||
@@ -330,6 +333,11 @@ class PullCommand extends BaseCommand {
         }
 
         self.readyToPull()
+            .then(function () {
+                if (self.getCommandLineOption("libraries")) {
+                    return self.handlePullPromise(self.pullLibraries(context), continueOnError);
+                }
+            })
             .then(function () {
                 if (self.getCommandLineOption("imageProfiles")) {
                     return self.handlePullPromise(self.pullImageProfiles(context), continueOnError);
@@ -459,7 +467,7 @@ class PullCommand extends BaseCommand {
         self.renditionPulledError = function(error, name) {
             self._artifactsError++;
             self.getLogger().error(i18n.__('cli_pull_rendition_pull_error', {name: name, message: error.message}));
-        }
+        };
     }
 
     /*
@@ -515,7 +523,7 @@ class PullCommand extends BaseCommand {
                     if (e.thumbnail && e.thumbnail.renditionId && !EMBEDDED_RENDITION_ID.test(e.thumbnail.renditionId)) {
                         renditions.add(e.thumbnail.renditionId);
                     }
-                })
+                });
             }
         };
 
@@ -541,7 +549,7 @@ class PullCommand extends BaseCommand {
                 // Search for content by this type and pull any that is found
                 self.getLogger().info(PullingContent);
                 searchOptions = {"fq": ["type:(\"" + typeName + "\")"], "fl":"id,document"};
-                return contentHelper.searchRemote(context, searchOptions, self.getApiOptions())
+                return contentHelper.searchRemote(context, searchOptions, self.getApiOptions());
             })
             .then(function (searchResults) {
                 return self.pullMatchingItems(contentHelper, context, searchResults, self.getApiOptions());
@@ -607,7 +615,7 @@ class PullCommand extends BaseCommand {
                         // Add an error entry for the localized failure message. (Displayed in verbose mode.)
                         logger.error(i18n.__("cli_pull_failure", {"artifacttype": helper.getArtifactName(),  "name": item.name || item.id || item, "err": err.message}));
                     });
-            }
+            };
         }), concurrentLimit);
     }
 
@@ -1468,6 +1476,75 @@ class PullCommand extends BaseCommand {
     }
 
     /**
+     * Pull the library artifacts.
+     *
+     * @param {Object} context The API context to be used for the pull operation.
+     *
+     * @returns {Q.Promise} A promise that is resolved with the results of pulling the content artifacts.
+     */
+    pullLibraries (context) {
+        const helper = ToolsApi.getLibrariesHelper();
+        const emitter = context.eventEmitter;
+        const self = this;
+
+        self.getLogger().info(PullingLibraries);
+
+        // The API emits an event when an item is pulled, so we log it for the user.
+        const artifactPulled = function (item) {
+            self._artifactsCount++;
+            self.getLogger().info(i18n.__('cli_pull_library_pulled', item));
+        };
+        emitter.on(EVENT_ITEM_PULLED, artifactPulled);
+
+        // The API emits an event when there is an error pulling an item, so we log it for the user.
+        const artifactPulledError = function (error, name) {
+            self._artifactsError++;
+            self.getLogger().error(i18n.__('cli_pull_library_pull_error', {name: name, message: error.message}));
+        };
+        emitter.on(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
+
+        // The API emits an event when a local item does not exist on the server, so add it to the list to delete.
+        const itemsToDelete = [];
+        const itemLocalOnly = function (item) {
+            itemsToDelete.push(item);
+        };
+        emitter.on(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+
+        // Get the API options and start the pull operation.
+        const apiOptions = this.getApiOptions();
+
+        // Return the promise for the results of the pull operation.
+        return this.pullItems(context, helper, apiOptions)
+            .then(function (items) {
+                // Handle any local items that need to be deleted.
+                if (itemsToDelete.length > 0) {
+                    // Delete the local items that do not exist on the server.
+                    const deleteFn = helper.deleteLocalItem.bind(helper);
+                    const promptKey = "cli_pull_library_delete_confirm";
+                    const successKey = "cli_pull_library_deleted";
+                    const errorKey = "cli_pull_library_delete_error";
+                    return self.deleteLocalItems(context, deleteFn, itemsToDelete, promptKey, successKey, errorKey, apiOptions)
+                        .then(function () {
+                            return items;
+                        });
+                } else {
+                    return items;
+                }
+            })
+            .catch(function (err) {
+                // If the promise is rejected, it means that an error was encountered before the pull process started,
+                // so we need to make sure this error is accounted for.
+                self._artifactsError++;
+                throw err;
+            })
+            .finally(function () {
+                emitter.removeListener(EVENT_ITEM_PULLED, artifactPulled);
+                emitter.removeListener(EVENT_ITEM_PULLED_ERROR, artifactPulledError);
+                emitter.removeListener(EVENT_ITEM_LOCAL_ONLY, itemLocalOnly);
+            });
+    }
+
+    /**
      * Pull the site definitions
      *
      * @param {Object} context The API context to be used for the pull operation.
@@ -1750,6 +1827,7 @@ class PullCommand extends BaseCommand {
      * terminated and these values need to be reset.
      */
     resetCommandLineOptions () {
+        this.setCommandLineOption("libraries", undefined);
         this.setCommandLineOption("types", undefined);
         this.setCommandLineOption("assets", undefined);
         this.setCommandLineOption("webassets", undefined);
@@ -1782,6 +1860,7 @@ function pullCommand (program) {
         .option('-t --types',            i18n.__('cli_pull_opt_types'))
         .option('-a --assets',           i18n.__('cli_pull_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_pull_opt_web_assets'))
+        .option('-L --libraries',        i18n.__('cli_pull_opt_libraries'))
         .option('-l --layouts',          i18n.__('cli_pull_opt_layouts'))
         .option('-m --layout-mappings',  i18n.__('cli_pull_opt_layout_mappings'))
         .option('-i --image-profiles',   i18n.__('cli_pull_opt_image_profiles'))

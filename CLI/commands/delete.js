@@ -1,5 +1,5 @@
 /*
-Copyright IBM Corporation 2016, 2017
+Copyright IBM Corporation 2016, 2017, 2019
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ class DeleteCommand extends BaseCommand {
 
         const webassets = self.getCommandLineOption("webassets");
         const assets = self.getCommandLineOption("assets");
+        const libraries = self.getCommandLineOption("libraries");
         const content = self.getCommandLineOption("content");
         const defaultContent = self.getCommandLineOption("defaultContent");
         const types = self.getCommandLineOption("types");
@@ -117,6 +118,8 @@ class DeleteCommand extends BaseCommand {
             } else if (assets) {
                 helper = ToolsApi.getAssetsHelper();
                 self.setApiOption(helper.ASSET_TYPES, helper.ASSET_TYPES_CONTENT_ASSETS);
+            } else if (libraries) {
+                helper = ToolsApi.getLibrariesHelper();
             } else if (layouts) {
                 helper = ToolsApi.getLayoutsHelper();
             } else if (layoutMappings) {
@@ -160,6 +163,9 @@ class DeleteCommand extends BaseCommand {
                     } else if ((layouts || layoutMappings) && !(id || path)) {
                         // Layouts and layout mappings require either the --id or --path option.
                         errorMessage = i18n.__('cli_delete_no_id_or_path');
+                    } else if (libraries && !id) {
+                        // Libraries require the --id option.
+                        errorMessage = i18n.__('cli_delete_no_id');
                     } else if (id && path) {
                         // The --id and --path options cannot both be specified.
                         errorMessage = i18n.__('cli_delete_both_id_and_path');
@@ -280,7 +286,7 @@ class DeleteCommand extends BaseCommand {
         self.handleDirOption(context)
             .then(function () {
                 // Make sure the url option has been specified.
-                return self.handleUrlOption(context)
+                return self.handleUrlOption(context);
             })
             .then(function () {
                 // Make sure the user name and password have been specified.
@@ -326,6 +332,7 @@ class DeleteCommand extends BaseCommand {
                 const types = self.getCommandLineOption("types");
                 const layouts = self.getCommandLineOption("layouts");
                 const layoutMappings = self.getCommandLineOption("layoutMappings");
+                const libraries = self.getCommandLineOption("libraries");
                 const sites = self.getCommandLineOption("sites");
                 const pages = self.getCommandLineOption("pages");
                 const id = self.getCommandLineOption("id");
@@ -347,6 +354,8 @@ class DeleteCommand extends BaseCommand {
                     helper = ToolsApi.getLayoutsHelper();
                 } else if (layoutMappings) {
                     helper = ToolsApi.getLayoutMappingsHelper();
+                } else if (libraries) {
+                    helper = ToolsApi.getLibrariesHelper();
                 } else if (content) {
                     helper = ToolsApi.getContentHelper();
                 } else if (defaultContent) {
@@ -441,7 +450,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the context name for deleted sites.
         const getDisplayName = function (item) {
-            return helper.getSiteContextName(item)
+            return helper.getSiteContextName(item);
         };
 
         // The site(s) to be deleted should be in the context site list.
@@ -510,7 +519,7 @@ class DeleteCommand extends BaseCommand {
                                 deferred.resolve(item);
                             })
                             .catch(function (err) {
-                                deferred.reject(err)
+                                deferred.reject(err);
                             });
 
                         return deferred.promise;
@@ -583,7 +592,7 @@ class DeleteCommand extends BaseCommand {
                                         deferred.resolve(item);
                                     })
                                     .catch(function (err) {
-                                        deferred.reject(err)
+                                        deferred.reject(err);
                                     });
 
                                 return deferred.promise;
@@ -737,7 +746,7 @@ class DeleteCommand extends BaseCommand {
             .then(function (searchResults) {
                 // Display the name field for deleted items.
                 const getDisplayName = function (item) {
-                    return item["name"]
+                    return item["name"];
                 };
 
                 return self.handleMatchingItems(helper, context, searchResults, getDisplayName, searchKey, opts);
@@ -959,7 +968,7 @@ class DeleteCommand extends BaseCommand {
             // For each item, return a function that returns a promise.
             return function () {
                 return self._deleteRemoteItem(helper, context, item, getDisplayName, opts);
-            }
+            };
         }), concurrentLimit)
             .then(function () {
                 // Stop the spinner if it's being displayed.
@@ -1304,7 +1313,7 @@ class DeleteCommand extends BaseCommand {
                         // Add an error entry for the localized failure message. (Displayed in verbose mode.)
                         logger.error(i18n.__("cli_delete_failure", {"name": item[displayField], "err": err.message}));
                     });
-            }
+            };
         }), concurrentLimit);
     }
 
@@ -1434,6 +1443,11 @@ class DeleteCommand extends BaseCommand {
                 }
             })
             .then(function () {
+                if (self.getCommandLineOption("libraries")) {
+                    return self.handleDeletePromise(self.deleteManifestLibraries(context), continueOnError);
+                }
+            })
+            .then(function () {
                 if (self.getCommandLineOption("layoutMappings")) {
                     return self.handleDeletePromise(self.deleteManifestLayoutMappings(context), continueOnError);
                 }
@@ -1555,6 +1569,31 @@ class DeleteCommand extends BaseCommand {
                 return i18n.__("cli_deleting_manifest_image_profiles");
             } else { /* key === DISPLAY_NAME */
                 // Display the name field for the deleted image profile.
+                return item["name"];
+            }
+        };
+
+        return this.deleteManifestItems(context, helper, getDisplayString, this.getApiOptions());
+    }
+
+    /**
+     * Delete the library artifacts in the manifest.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when the library artifacts are deleted.
+     */
+    deleteManifestLibraries (context) {
+        const helper = ToolsApi.getLibrariesHelper();
+
+        // Local function to supply display strings for the delete operation.
+        const getDisplayString = function (key, item) {
+            if (key === DISPLAY_PREVIEW_BANNER) {
+                return i18n.__("cli_preview_deleting_manifest_libraries");
+            } else if (key === DISPLAY_DELETE_BANNER) {
+                return i18n.__("cli_deleting_manifest_libraries");
+            } else { /* key === DISPLAY_NAME */
+                // Display the name field for the deleted library.
                 return item["name"];
             }
         };
@@ -1707,8 +1746,8 @@ class DeleteCommand extends BaseCommand {
                 // Display the name field for the deleted content item.
                 return item["name"];
             }
-        }; 
-        
+        };
+
         return this.deleteManifestItems(context, helper, getDisplayString, this.getApiOptions());
     }
 
@@ -2014,6 +2053,11 @@ class DeleteCommand extends BaseCommand {
                 }
             })
             .then(function () {
+                if (self.getCommandLineOption("libraries")) {
+                    return self.handleDeletePromise(self.deleteAllLibraries(context), continueOnError);
+                }
+            })
+            .then(function () {
                 self.handleRenditions(context);
             })
             .then(function () {
@@ -2089,7 +2133,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the path field for deleted assets.
         const getDisplayName = function (item) {
-            return item["path"]
+            return item["path"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2112,7 +2156,30 @@ class DeleteCommand extends BaseCommand {
 
         // Display the name field for deleted image profiles.
         const getDisplayName = function (item) {
-            return item["name"]
+            return item["name"];
+        };
+
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
+    }
+
+    /**
+     * Delete all "Library" artifacts.
+     *
+     * @param {Object} context The API context associated with this delete command.
+     *
+     * @returns {Q.Promise} A promise that is resolved when all library artifacts are deleted.
+     */
+    deleteAllLibraries (context) {
+        const helper = ToolsApi.getLibrariesHelper();
+        const opts = this.getApiOptions();
+        const logger = this.getLogger();
+
+        // Add a banner for the type of artifacts being deleted.
+        logger.info(PREFIX + i18n.__("cli_deleting_all_libraries") + SUFFIX);
+
+        // Display the name field for deleted libraries.
+        const getDisplayName = function (item) {
+            return item["name"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2135,7 +2202,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the name field for deleted layouts.
         const getDisplayName = function (item) {
-            return item["name"]
+            return item["name"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2158,7 +2225,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the name field for deleted layout mappings.
         const getDisplayName = function (item) {
-            return item["name"]
+            return item["name"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2181,7 +2248,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the name field for deleted categories.
         const getDisplayName = function (item) {
-            return item["name"]
+            return item["name"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2204,7 +2271,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the name field for deleted content types.
         const getDisplayName = function (item) {
-            return item["name"]
+            return item["name"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2246,7 +2313,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the name field for deleted content items.
         const getDisplayName = function (item) {
-            return item["name"]
+            return item["name"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2269,7 +2336,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the context name for deleted sites.
         const getDisplayName = function (item) {
-            return helper.getSiteContextName(item)
+            return helper.getSiteContextName(item);
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2294,7 +2361,7 @@ class DeleteCommand extends BaseCommand {
 
         // Display the hierarchicalPath field for deleted pages.
         const getDisplayName = function (item) {
-            return item["hierarchicalPath"]
+            return item["hierarchicalPath"];
         };
 
         return this.deleteAllItems(context, helper, getDisplayName, opts);
@@ -2401,6 +2468,7 @@ class DeleteCommand extends BaseCommand {
     resetCommandLineOptions () {
         this.setCommandLineOption("webassets", undefined);
         this.setCommandLineOption("assets", undefined);
+        this.setCommandLineOption("libraries",  undefined);
         this.setCommandLineOption("layouts",  undefined);
         this.setCommandLineOption("layoutMappings", undefined);
         this.setCommandLineOption("content", undefined);
@@ -2434,6 +2502,7 @@ function deleteCommand (program) {
         .description(i18n.__('cli_delete_description'))
         .option('-a --assets',           i18n.__('cli_delete_opt_assets'))
         .option('-w --webassets',        i18n.__('cli_delete_opt_web_assets'))
+        .option('-L --libraries',        i18n.__('cli_delete_opt_libraries'))
         .option('-l --layouts',          i18n.__('cli_delete_opt_layouts'))
         .option('-m --layout-mappings',  i18n.__('cli_delete_opt_layout_mappings'))
         .option('-c --content',          i18n.__('cli_delete_opt_content'))
