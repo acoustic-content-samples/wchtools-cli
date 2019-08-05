@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.2.8 changes since 4.2.1
+  - Add support for setting network request timeout.
+
 ### 4.2 changes since 4.1.53
   - Add support for libraries.
 

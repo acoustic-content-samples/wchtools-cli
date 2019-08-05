@@ -38,6 +38,8 @@ class BaseREST {
         return this._uriPath;
     }
 
+    static get DEFAULT_TIMEOUT () { return 60000; }
+
     static getHeaders (context, opts) {
         const hdrs = {
             "Accept": "application/json",
@@ -313,7 +315,8 @@ class BaseREST {
                 const requestOptions = {
                     uri: restObject._appendURI(uri, uriPath),
                     json: true,
-                    headers: headers
+                    headers: headers,
+                    timeout: options.getRelevantOption(context, opts, "request-timeout", restObject.getServiceName()) || BaseREST.DEFAULT_TIMEOUT
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })

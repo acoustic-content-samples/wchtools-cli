@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "4.2.1",
+  "version": "4.2.8",
   "keywords": [
     "cli"
   ],
@@ -53,6 +53,7 @@
     "pretest": "node ./test/testsetup.js",
     "checkcoverage": "./node_modules/.bin/istanbul check-coverage",
     "testcleanup": "node ./test/testcleanup.js",
-    "posttest": "npm run testcleanup && npm run checkcoverage"
+    "posttest": "npm run testcleanup && npm run checkcoverage",
+    "postinstall": "node ./scripts/postinstall.js"
   }
 }

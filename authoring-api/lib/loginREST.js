@@ -108,7 +108,8 @@ class LoginREST extends BaseREST {
                 "pass": opts.password,
                 "sendImmediately": true
             },
-            followRedirect: false
+            followRedirect: false,
+            timeout: options.getRelevantOption(context, opts, "request-timeout") || BaseREST.DEFAULT_TIMEOUT
         };
 
         return this.addRetryOptions(context, requestOptions, opts);

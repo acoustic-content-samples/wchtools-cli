@@ -40,7 +40,7 @@ const DUMMY_HTML_FILE_NAME = "dummy.html";
 const DUMMY_MD5_HASH = "1234567890";
 const DUMMY_REQUEST_OPTIONS = {"x-ibm-dx-tenant-base-url": "dummy-url"};
 const DUMMY_PUBLISH_NOW_REQUEST_OPTIONS = {
-    "x-ibm-dx-tenant-base-url": "dummy-url", 
+    "x-ibm-dx-tenant-base-url": "dummy-url",
     "publish-now":true,
     "setTag": "test-tag"};
 
