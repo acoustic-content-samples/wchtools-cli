@@ -110,7 +110,8 @@ class AssetsREST extends BaseREST {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
                     uri: restObject._appendURI(uri, restObject.getResourcesUriPath(context, opts)),
-                    headers: headers
+                    headers: headers,
+                    timeout: options.getRelevantOption(context, opts, "request-timeout", "resources") || BaseREST.DEFAULT_TIMEOUT
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
@@ -159,7 +160,8 @@ class AssetsREST extends BaseREST {
                 const requestOptions = {
                     uri: restObject._appendURI(uri, uriPath),
                     json: true,
-                    headers: headers
+                    headers: headers,
+                    timeout: options.getRelevantOption(context, opts, "request-timeout", "resources") || BaseREST.DEFAULT_TIMEOUT
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
@@ -172,7 +174,7 @@ class AssetsREST extends BaseREST {
 
     /*
      * Override BaseREST.getUpdateRequestOptions to add x-ibm-dx-publish-priority:now header if specified
-     * 
+     *
      * NOTE - this is only used for the Asset POSTing, since Asset PUT needs to determine whether to add forceOverride whereas POST doesn't support that
      */
     getUpdateRequestOptions (context, opts) {
@@ -201,7 +203,8 @@ class AssetsREST extends BaseREST {
                 const requestOptions = {
                     uri: restObject._appendURI(uri, "/authoring/v1/assets/" + id) + forceParam,
                     headers: headers,
-                    json: true
+                    json: true,
+                    timeout: options.getRelevantOption(context, opts, "request-timeout", restObject.getServiceName()) || BaseREST.DEFAULT_TIMEOUT
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
@@ -223,7 +226,8 @@ class AssetsREST extends BaseREST {
                 uri = options.getRelevantOption(context, opts, "x-ibm-dx-tenant-base-url", "resources") || uri;
                 const requestOptions = {
                     uri: restObject._appendURI(uri, restObject.getResourcesUriPath(context, opts)) + "?name=" + querystring.escape(fname),
-                    headers: headers
+                    headers: headers,
+                    timeout: options.getRelevantOption(context, opts, "request-timeout", "resources") || BaseREST.DEFAULT_TIMEOUT
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
@@ -247,7 +251,8 @@ class AssetsREST extends BaseREST {
                 const paramMd5 = resourceMd5 ? "&md5=" + querystring.escape(resourceMd5) : "";
                 const requestOptions = {
                     uri: restObject._appendURI(uri, restObject.getResourcesUriPath(context, opts) + uriIdPath) + "?name=" + querystring.escape(fname) + paramMd5,
-                    headers: headers
+                    headers: headers,
+                    timeout: options.getRelevantOption(context, opts, "request-timeout", "resources") || BaseREST.DEFAULT_TIMEOUT
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
@@ -267,7 +272,8 @@ class AssetsREST extends BaseREST {
             .then(function (uri) {
                 const requestOptions = {
                     uri: restObject._appendURI(uri, "/authoring/v1/assets/record") + "?path=" + querystring.escape(path),
-                    headers: headers
+                    headers: headers,
+                    timeout: options.getRelevantOption(context, opts, "request-timeout", restObject.getServiceName()) || BaseREST.DEFAULT_TIMEOUT
                 };
                 deferred.resolve(restObject.addRetryOptions(context, requestOptions, opts));
             })
@@ -421,6 +427,13 @@ class AssetsREST extends BaseREST {
                     }
                 });
 
+                // If the writable stream receives an error, we must reject the promise.
+                stream.on("error", function (error) {
+                    BaseREST.logRetryInfo(context, reqOptions, sResponse.attempts, error);
+                    utils.logErrors(context, i18n.__("error_pulling_resource", {"id": asset.resource}), utils.getError(error, undefined, sResponse, reqOptions));
+                    deferred.reject(error);
+                });
+
                 // Wait for the writable stream to "finish" before the promise is settled.
                 stream.on("finish", function () {
                     if (error) {
@@ -517,7 +530,7 @@ class AssetsREST extends BaseREST {
         const restObject = this;
         if (options.getRelevantOption(context, opts, "setTag")) {
             restObject.setTag (context, reqOptions.body, opts);
-        }                                
+        }
         utils.logDebugInfo(context, "_postAssetMetadata request", undefined, reqOptions);
         request.post(reqOptions, function (err, res, body) {
             const response = res || {};
@@ -653,7 +666,7 @@ class AssetsREST extends BaseREST {
                                     .then(function (reqOptions) {
                                         if (options.getRelevantOption(context, opts, "setTag")) {
                                             restObject.setTag (context, requestBody, opts);
-                                        }                                
+                                        }
                                         reqOptions.body = requestBody;
                                         request.put(reqOptions, function (err, res, body) {
                                             const response = res || {};
@@ -765,14 +778,14 @@ class AssetsREST extends BaseREST {
 
     /*
      * Set the specified tag in this item, if not already in the list of tags for the specified item.
-     * 
+     *
      * End up with a tag entry like this in the asset metadata item:
      * { ...
      *   "tags": {
      *       "values": [
      *           ...
-     *           "thetag" 
-     *       ] 
+     *           "thetag"
+     *       ]
      *   }
      * }
      * @param context

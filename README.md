@@ -13,8 +13,8 @@ Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/
 
  Pre-Requisite: Before you install the wchtools CLI, you must install NodeJS.
 
-   - Install the latest Node 8.x LTS version of Node
-     - Note, early versions of 8.x may have security risks, so use the latest point release of 8.x available, to ensure you take advantage of available functional and security fixes.
+   - Install the latest Node 10.x LTS version of Node
+     - Use the latest point release of Node 10.x available to ensure you take advantage of available functional and security fixes.
 
  Learn more about installing NodeJS at the following locations
 
@@ -882,6 +882,14 @@ After you disable auto-publishing, you may either invoke a publish manually with
     - Retry #4 after an 8 second delay
 
   If you use the above init options to set 10 attempts, with a min of 5000 (5 seconds) and a max of 15000 (15 seconds) then retry #1 will be after a 5 second delay, retry #2 after a 10 second delay and retries #3 through #9 will all use the maximum 15 second delay,  for that particular WCH API request.   Each WCH API request (eg, to create or update an asset or content item) will be attempted the maximum number of attempts set, and start at the minimum retry attempt time (the settings are per artifact pushed or pulled, not per push command).
+
+#### Specifying a network timeout value
+
+  The default request timeout used by wchtools for network connect and read operations is 60 seconds. All socket connect attempts and network read operations will terminate with an error if there is no response from the remote host after the request timeout is exceeded. Network operations that timeout will be retried according to the retry properties specified above. The request timeout value can be overridden by specifying a request-timeout property in the .wchtoolsoptions file. The property value configured in .wchtoolsoptions should be specified in milliseconds.
+  
+    "request-timeout": 30000
+
+  The request-timeout property can be set to a different value for each service by nesting the request-timeout property under the appropriate service specific section of the .wchtoolsoptions file.
 
 #### Conflict Handling
 
