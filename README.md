@@ -163,6 +163,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
        content/                     ( authoring content items )
        default-content/             ( default content )
        image-profiles/              ( authoring image profiles )
+       libraries/                   ( authoring libraries )
        renditions/                  ( authoring renditions )
        sites/{site-folder}/{pages}  ( site metadata and page node hierarhy for the site )
        resources/                   ( image resources no longer referenced by asset metadata, when images updated on assets )
@@ -202,9 +203,29 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
     wchtools push -A --dir <path-to-working-directory>
 
-  This will push the artifacts in the order of least dependencies (eg, image profiles), to most (eg, pages), in order for dependent items to be there before items that depend on them.
+  This will push the artifacts in the order of least dependencies (eg, libraries), to most (eg, pages), in order for dependent items to be there before items that depend on them.
 
   In most cases, the metadata for the default site (<working-directory>/sites/default.json) is not changed across pulling/pushing pages and content etc. And since the default site metadata is created out of the box for new tenants, the revision in your package may not match the revision in the Watson Content Hub tenant data. So even if you're not changing the default site metadata (eg, site name or description), you may get a conflict error when pushing the site to a different tenant. If you do push it and it fails with a conflict error, you may either ignore the conflict if you haven't made any changes, or push the default site again with -f (--force-override) to override the conflict and update the current default site metadata on the server side, for your Watson Content Hub tenant.
+
+#### The -A option and granular artifact type options
+
+  The -A option is a convenience option to indicate that all artifact types should be acted upon by the wchtools command.  Using -A implies the following options:
+
+    -t --types
+    -a --assets
+    -w --webassets
+    -L --libraries
+    -l --layouts
+    -m --layout-mappings
+    -i --image-profiles
+    -c --content
+    -D --default-content
+    -C --categories
+    -r --renditions
+    -s --sites
+    -p --pages
+
+  Whether using -A or the individual artifact options (for example -t -c -a), the artifacts will be operated on in the correct dependency order from those with no dependencies to those with the most dependencies in order to avoid reference issues. If you encounter errors due to missing references during a push operation, you should examine the artifacts in your working directory and pay attention to the options used for the wchtools pull and push commands to make sure you have the complete set of dependencies for the artifacts being pushed.
 
 #### Uploading new managed content assets such as images
 
