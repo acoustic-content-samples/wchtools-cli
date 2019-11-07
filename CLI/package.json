@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for IBM Watson Content Hub",
-  "version": "4.2.8",
+  "version": "4.2.24",
   "keywords": [
     "cli"
   ],
@@ -22,7 +22,7 @@
     "wchtools_heap": "./bin/wchtools_heap"
   },
   "dependencies": {
-    "@ibm-wch-sdk/cli-credentials": "^7.0.165",
+    "@acoustic-content-sdk/cli-credentials": "^8",
     "cli-table": "^0.3.1",
     "colors": "^1.3.2",
     "commander": "^2.19.0",

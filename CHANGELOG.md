@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.2.24 changes since 4.2.8
+  - Add support for file elements when pulling by type.
+
 ### 4.2.8 changes since 4.2.1
   - Add support for setting network request timeout.
 

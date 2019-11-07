@@ -92,13 +92,17 @@ const checkUpdateNotifier = function() {
     const update_command = (process.platform === 'win32') ? UPDATE_COMMAND : 'sudo ' + UPDATE_COMMAND;
     const notifier = updateNotifier({pkg, updateCheckInterval: 1000 * 60 * 10 });
     if (notifier.update) {
-        const upmsg = i18n.__('cli_update_notifier',
-                              {update_command: update_command,
-                               current_version: notifier.update.current,
-                               new_version: notifier.update.latest});
-        const changelogmsg = i18n.__('cli_update_notifier_changelog',
-                                     {changelog_url: "https://github.com/ibm-wch/wchtools-cli/blob/master/CHANGELOG.md" });
-        notifier.notify({message: changelogmsg + '\n' + upmsg });
+        // The update notification check is run during the previous invocation of the command and cached,
+        // so we must check to make sure the package wasn't upgraded since the previous run.
+        if (pkg.version !== notifier.update.latest) {
+            const upmsg = i18n.__('cli_update_notifier',
+                {update_command: update_command,
+                 current_version: pkg.version,
+                 new_version: notifier.update.latest});
+            const changelogmsg = i18n.__('cli_update_notifier_changelog',
+                {changelog_url: "https://github.com/ibm-wch/wchtools-cli/blob/master/CHANGELOG.md" });
+            notifier.notify({message: changelogmsg + '\n' + upmsg });
+        }
     }
 };
 
