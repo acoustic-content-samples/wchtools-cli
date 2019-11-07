@@ -489,11 +489,11 @@ class PullCommand extends BaseCommand {
 
         const assets = new Set([]);
         const renditions = new Set([]);
-        let imageElements = [];
+        let assetElements = [];
         let references=[];  // For now, we only care if there are "any" references - future, we may walk them too
         const postProcessTypes = function(item) {
             if (item && item.elements) {
-                imageElements = item.elements.filter((elem)=>(elem.elementType==='image' || elem.elementType==='video'));
+                assetElements = item.elements.filter((elem)=>(elem.elementType==='image' || elem.elementType==='video' || elem.elementType ==='file'));
                 references = item.elements.filter((elem)=>(elem.elementType==='reference'));
             }
             if (item && item.thumbnail && item.thumbnail.id) {
@@ -506,7 +506,7 @@ class PullCommand extends BaseCommand {
 
         const postProcessContent = function(item) {
             if (item && item.elements) {
-                imageElements.forEach(elem => {
+                assetElements.forEach(elem => {
                     const e = item.elements[elem.key];
                     if (e.asset && e.asset.id) {
                         assets.add(e.asset.id);

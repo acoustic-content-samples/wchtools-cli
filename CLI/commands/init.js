@@ -23,7 +23,7 @@ const Q = require("q");
 const utils = ToolsApi.getUtils();
 const options = ToolsApi.getOptions();
 const prompt = require("prompt");
-const creds = require("@ibm-wch-sdk/cli-credentials");
+const creds = require("@acoustic-content-sdk/cli-credentials");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 class InitCommand extends BaseCommand {

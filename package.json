@@ -1,6 +1,6 @@
 {
   "name": "prod-tools",
-  "version": "4.2.8",
+  "version": "4.2.24",
   "author": "IBM Corporation",
   "license": "Apache-2.0",
   "bugs": {
@@ -13,12 +13,16 @@
     "engine-strict": true
   },
   "devDependencies": {
+    "gulp-zip": "^5.0.0",
     "istanbul": "^0.4.5",
     "license-checker": "^24.0.1",
+    "merge-stream": "^2.0.0",
     "mocha": "^4.x.x",
     "rimraf": "^2.6.1"
   },
   "scripts": {
+    "gulppackreleasezip": "node ./node_modules/gulp/bin/gulp.js release_zip",
+    "gulppackexportzip": "node ./node_modules/gulp/bin/gulp.js export_zip",
     "npminstallall": "node ./npminstallall.js",
     "clear": "node ./npmclearmodules.js",
     "install": "npm run clear && npm run npminstallall",
