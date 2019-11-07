@@ -17,8 +17,8 @@
   "compare_error_loading_item": "比較するアイテムのロード中にエラーが発生しました: ",
   "error_resource_rename": "一時リソース '%(temp)s' の名前を '%(name)s' に変更中にエラーが発生しました。",
   "warning_resource_delete": "一時リソース '%(temp)s' を削除できません。",
-  "error_reading_response_stream": "リソースの応答ストリームから読み取り中にエラーが発生しました。リソース ID: %(id)s",
-  "error_pulling_resource": "リソースのプル中にエラーが発生しました。リソース ID: %(id)s",
+  "error_reading_response_stream": "リソースの応答ストリームから読み取り中にエラーが発生しました。 リソース ID: %(id)s",
+  "error_pulling_resource": "リソースのプル中にエラーが発生しました。 リソース ID: %(id)s",
 
   "deleted_original_file": "元のファイル %(old_name)s を削除しました。新規ファイル: %(new_name)s",
   "file_parse_error": "ファイル %(path)s を解析できません",
