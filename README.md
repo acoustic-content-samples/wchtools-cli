@@ -16,7 +16,7 @@ Please review the [LICENSE](https://github.com/acoustic-content-samples/wchtools
    - Install the latest Node 10.x LTS version of Node
      - Use the latest point release of Node 10.x available to ensure you take advantage of available functional and security fixes.
 
- Learn more about installing NodeJS at the following location
+ Learn more about installing NodeJS at the following locations
 
   - https://nodejs.org/en/
 
@@ -76,7 +76,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
 ### Getting Started
 
-  After you successfully install the wchtools CLI, initialize the username and the API URL for your Watson Content Hub tenant.   Obtain the API URL from the "Hub Information" dialog, which is available from the "About" flyout menu off the left navigation pane of the Watson Content Hub authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
+  After you successfully install the wchtools CLI, initialize the username and the API URL for your Acoustic Content tenant.   Obtain the API URL from the "Hub Information" dialog, which is available from the "About" flyout menu off the left navigation pane of the Acoustic Content authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
 
 #### Initializing wchtools with a username and API URL for a non-federated IBM id
 
@@ -84,17 +84,17 @@ Then follow the Getting Started instructions below, to configure and start using
       API URL: https://my11.digitalexperience.ibm.com/api/00000000-1111-2222-3333-444444444444
       User: myWCHusername@mycompany.com
 
-#### Using a Federated Identity (user) with Watson Content Hub tooling and APIs
+#### Using a Federated Identity (user) with Acoustic Content tooling and APIs
 
   Some user IBM ids are "Federated" accounts as described here:   https://www.ibm.com/support/knowledgecenter/SS3UMF/wch_q_a_watson_assistant/authentication_api_key.html
 
-  Federated user accounts may use the WCH Authoring UI with the user's username and password, but cannot use that same username and password for either WCH REST API access, or for use with wchtools, which uses those same WCH REST APIs.
+  Federated user accounts may use the Acoustic Content Authoring UI with the user's username and password, but cannot use that same username and password for either REST API access, or for use with wchtools, which uses those same Acoustic Content REST APIs.
 
   If your IBM id account is federated, you may receive an error when wchtools tries to authenticate that user to the WCH login API, indicating that you are trying to use a federated account.   If this happens, you may instead create an API key as described in the following IBM Bluemix documentation, and then use "apikey" as the username and the value of that API key as the password, for both WCH REST APIs and for wchtools.
 
-#### Using an API key instead of a username and password, with Watson Content Hub tooling and APIs
+#### Using an API key instead of a username and password, with Acoustic Content tooling and APIs
 
-  You may authenticate to the Watson Content Hub login API via wchtools using an API key, instead of a username and password, whether or not your IBM id is associated with a federated user.   While federated users, "must" authenticate with an API key, other users may also choose to do so.
+  You may authenticate to the Acoustic Content login API via wchtools using an API key, instead of a username and password, whether or not your IBM id is associated with a federated user.   While federated users, "must" authenticate with an API key, other users may also choose to do so.
 
 https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
@@ -114,7 +114,7 @@ https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
 
   You can optionally store the credentials in the operating system key manager (Windows and Mac OS only).
 
-  When running wchtools init, add the --store-credentials option to the command line. The wchtools init command will prompt for the password and then store the credentials in the operating system key manager. The credentials are stored per-API URL, so it is possible to maintain unique user credentials for each Watson Content Hub API URL.
+  When running wchtools init, add the --store-credentials option to the command line. The wchtools init command will prompt for the password and then store the credentials in the operating system key manager. The credentials are stored per-API URL, so it is possible to maintain unique user credentials for each Acoustic Content API URL.
 
   When another wchtools command (for example, push, pull, etc) is run that requires a login, if the username and password are not specified via the command line options, wchtools will attempt to obtain the username and password automatically from the operating system key manager using the API URL to lookup the credentials. If the user credentials are not found in the operating system key manager, wchtools will prompt you to enter them.
 
@@ -148,7 +148,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
 ### Local filesystem layout and working directory
 
-  The wchtools CLI utility operates against a working directory, and requires specific folders as direct children of that working directory.  Each child folder of the working directory separates artifacts based on the Watson Content Hub service that manages those artifacts.
+  The wchtools CLI utility operates against a working directory, and requires specific folders as direct children of that working directory.  Each child folder of the working directory separates artifacts based on the Acoustic Content service that manages those artifacts.
 
   The working directory for the root of this filesystem layout is either the current directory where the wchtools CLI is run, or the path that is specified by the specified by the --dir argument.
 
@@ -188,7 +188,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
     wchtools pull -A --dir <path-to-working-directory>
 
-  When you pull artifacts from the Watson Content Hub authoring services, wchtools CLI creates a folder for each artifact type (types, assets, content, etc.) in the working directory. The tool does not operate on raw artifacts in a current working directory. You must specify the <working-directory> parent of the subfolders that contain the artifacts, or be in the <working-directory> parent folder that contains such subfolders, when you run wchtools CLI with the push, pull or list commands.
+  When you pull artifacts from the Acoustic Content authoring services, wchtools CLI creates a folder for each artifact type (types, assets, content, etc.) in the working directory. The tool does not operate on raw artifacts in a current working directory. You must specify the <working-directory> parent of the subfolders that contain the artifacts, or be in the <working-directory> parent folder that contains such subfolders, when you run wchtools CLI with the push, pull or list commands.
 
 #### Pulling artifacts under a specific folder or path
 
@@ -204,7 +204,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
   This will push the artifacts in the order of least dependencies (eg, libraries), to most (eg, pages), in order for dependent items to be there before items that depend on them.
 
-  In most cases, the metadata for the default site (<working-directory>/sites/default.json) is not changed across pulling/pushing pages and content etc. And since the default site metadata is created out of the box for new tenants, the revision in your package may not match the revision in the Watson Content Hub tenant data. So even if you're not changing the default site metadata (eg, site name or description), you may get a conflict error when pushing the site to a different tenant. If you do push it and it fails with a conflict error, you may either ignore the conflict if you haven't made any changes, or push the default site again with -f (--force-override) to override the conflict and update the current default site metadata on the server side, for your Watson Content Hub tenant.
+  In most cases, the metadata for the default site (<working-directory>/sites/default.json) is not changed across pulling/pushing pages and content etc. And since the default site metadata is created out of the box for new tenants, the revision in your package may not match the revision in the Acoustic Content tenant data. So even if you're not changing the default site metadata (eg, site name or description), you may get a conflict error when pushing the site to a different tenant. If you do push it and it fails with a conflict error, you may either ignore the conflict if you haven't made any changes, or push the default site again with -f (--force-override) to override the conflict and update the current default site metadata on the server side, for your Acoustic Content tenant.
 
 #### The -A option and granular artifact type options
 
@@ -228,7 +228,7 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
 #### Uploading new managed content assets such as images
 
-  To upload a number of files into Watson Content Hub with a single command, copy the files into the assets/dxdam/ folder under your working directory. Then, run the following command:
+  To upload a number of files into Acoustic Content with a single command, copy the files into the assets/dxdam/ folder under your working directory. Then, run the following command:
 
     wchtools push -a --dir <path-to-working-directory>
 
@@ -304,7 +304,7 @@ If you have more complex content types and references, or need to pull other aut
 
 Some deployment scenarios involve a separate development WCH tenant from the staging and/or production tenant.  In order to compare the WCH artifacts between your two tenants, wchtools provides a command that allows you to compare an export from your source tenant (eg, your source code repository representing the latest state of your tested development tenant) with either the live state of your staging/production tenant, or an export from your target tenant.
 
-The compare command allows you to compare specified artifacts between two locations. The artifacts to compare can be located locally in a working directory or located in the Watson Content Hub.
+The compare command allows you to compare specified artifacts between two locations. The artifacts to compare can be located locally in a working directory or located in the Acoustic Content.
 
 The compare command can output the results of the compare operation either as verbose output to the console, which includes detailed diffs between the compared artifacts, or it can generate a manifest file that is useful for performing additional actions on the set of artifacts that differ.
 
@@ -316,11 +316,11 @@ To compare two local working directories:
 
     wchtools compare -A --source <working_directory_1> --target <working_directory_2>
 
-To compare two Watson Content Hub tenants:
+To compare two Acoustic Content tenants:
 
     wchtools compare -A --source <url_1> --target <url_2>
 
-Or to compare a local working directory with Watson Content Hub:
+Or to compare a local working directory with Acoustic Content:
 
     wchtools compare -A --source <working_directory> --target <url>
 
@@ -338,7 +338,7 @@ The resulting my_deletions manifest would contain all of the deleted artifacts t
 
 When comparing two directories or a source directory and a target WCH tenant, any manifest files read or written by the compare command will be loaded or saved using the source directory as identified by the --source argument.
 
-When comparing two Watson Content Hub tenants, any manifest files read or written by the compare command will be loaded or saved using the current working directory where the command is executed from.
+When comparing two Acoustic Content tenants, any manifest files read or written by the compare command will be loaded or saved using the current working directory where the command is executed from.
 
 ##### Limiting the scope of the comparison
 
@@ -362,11 +362,11 @@ The following push and delete commands will push all of the changes from the sou
 
 ### Delete command (for explicit deletion of server side artifacts)
 
-The delete command allows you to delete specified artifacts from Watson Content Hub.
+The delete command allows you to delete specified artifacts from Acoustic Content.
 
 It is for remote service hosted artifact deletion only, not for deleting files off the local filesystem.  Use your operating system's file explorer or command line delete support, to delete local files from the local working directory.
 
-#### Deleting non-managed web assets such as html, Javascript and CSS, from the Watson Content Hub
+#### Deleting non-managed web assets such as html, Javascript and CSS, from Acoustic Content
 
   Since non-managed (not located under assets/dxdam/...) web application assets are manipulated only via the wchtools CLI at this time and not by the Authoring UI, you must use wchtools to delete a web application asset, should you choose to do so.  To delete a web application asset, specify the portion of the asset path that was below the <working-directory>/assets/  folder, when you pushed the web resource, as shown in the following command.
 
@@ -408,11 +408,11 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
 #### Deleting pages by hierarchical path or by id
 
-  You can delete pages by hierarchical path, or by id.  The hierarchical path is the tree based path shown in the Watson Content Hub site manager user interface, which is not necessarily the same as the URL path to the page.  The hierarchical path is made up of the page names, separated by / characters (eg, /Home/Products/Outdoors) and is case sensitive.  The "path" field when creating a page or editing a page settings is for the URL path, which by default is the same as the hierarchical name based path, but may differ, if a sites developer decides to set alternate URL path fields for some pages.  To see a list of "hierarchical" page paths for your site, try the following command:
+  You can delete pages by hierarchical path, or by id.  The hierarchical path is the tree based path shown in the Acoustic Content site manager user interface, which is not necessarily the same as the URL path to the page.  The hierarchical path is made up of the page names, separated by / characters (eg, /Home/Products/Outdoors) and is case sensitive.  The "path" field when creating a page or editing a page settings is for the URL path, which by default is the same as the hierarchical name based path, but may differ, if a sites developer decides to set alternate URL path fields for some pages.  To see a list of "hierarchical" page paths for your site, try the following command:
 
     wchtools list --pages --server
 
-  A Watson Content Hub tenant can be used to manage multiple web sites. The resulting list will show a list of pages associated with each of these sites. When deleting pages by path or id, a site must also be specified using the --site-context option and the "context root" of the site. (The default site does not have a context root, so use a value of "default".)
+  An Acoustic Content tenant can be used to manage multiple web sites. The resulting list will show a list of pages associated with each of these sites. When deleting pages by path or id, a site must also be specified using the --site-context option and the "context root" of the site. (The default site does not have a context root, so use a value of "default".)
 
     wchtools delete -p -v --path /Home/Products/Details --site-context default  (delete the page named Details from the default site)
 
@@ -420,7 +420,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
     wchtools delete -p -v --id {page-id} --site-context Campaign  (delete the page with the specified id from the Campaign site)
 
-  Watson Content Hub will delete all child pages of a specified page, when that page is deleted.  This behavior is the same whether a page is deleted from the Sites UI, wchtools, or via API, so be sure you want to delete that entire page hierarchy before deleting a page that has child pages below it.
+  Acoustic Content will delete all child pages of a specified page, when that page is deleted.  This behavior is the same whether a page is deleted from the Sites UI, wchtools, or via API, so be sure you want to delete that entire page hierarchy before deleting a page that has child pages below it.
 
   Note:  The WCH Sites API treats the page path (constructed by concatenating the "Name" fields of pages, with / separators) as case sensitive, so it will not find a page named "Lawn and Garden"  if you pass the path "/Home/lawn and garden".
 
@@ -436,7 +436,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
     wchtools delete -t -v --tag "IBM Sample"
     wchtools delete -a -v --tag beach
 
-  Note:  The Watson Content Hub API will not allow you to delete assets or types that are still referenced by content, and this version of the wchtools delete command only allows for deletion of a single artifact type, by tag, at a time.
+  Note:  The Acoustic Content API will not allow you to delete assets or types that are still referenced by content, and this version of the wchtools delete command only allows for deletion of a single artifact type, by tag, at a time.
 
 #### Deleting content or types by name
 
@@ -445,7 +445,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
     wchtools delete -c -v --tag "My Test Article"
     wchtools delete -t --tag "Sample Article"
 
-  Note:  The Watson Content Hub API will not allow you to delete types that are still referenced by content, and this version of the wchtools delete command only allows for deletion of a single artifact type, by name, at a time.
+  Note:  The Acoustic Content API will not allow you to delete types that are still referenced by content, and this version of the wchtools delete command only allows for deletion of a single artifact type, by name, at a time.
 
 #### Deleting content by the name of the content type that the content is associated with
 
@@ -472,7 +472,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
 #### Deleting "all" instances of a specified artifact type or all instances of all artifact types
 
-  A less common use case, but still useful when you need to clean out a demo or prototype tenant or site to populate your content hub tenant with all new data, is the need to delete all artifacts of a specified type (eg, all pages) or all artifacts of all types (eg, to clear all the sample article assets, type, content from an Essentials tier tenant, or to clear all Oslo pages from a Trial tenant, in order to populate it with your own pages).
+  A less common use case, but still useful when you need to clean out a demo or prototype tenant or site to populate your Acoustic Content tenant with all new data, is the need to delete all artifacts of a specified type (eg, all pages) or all artifacts of all types (eg, to clear all the sample article assets, type, content from an Essentials tier tenant, or to clear all Oslo pages from a Trial tenant, in order to populate it with your own pages).
 
   To delete all pages from your tenant:
 
@@ -483,7 +483,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
     wchtools delete -A --all -v
 
     - use with care and only after using up to date wchtools to pull all artifacts to a safe location
-    - use only when you intend to completely clean out your Watson Content Hub tenant of all artifacts, to start with a clean empty hub.
+    - use only when you intend to completely clean out your Acoustic Content tenant of all artifacts, to start with a clean empty tenant.
 
 ### Pushing, pulling, and deleting, by manifest
 A manifest file can be used to control the set of authoring artifacts that are acted upon by the wchtools commands. The push, pull, and delete actions all support using a manifest to specify which artifacts to perform the desired operation on. Likewise, the push, pull, delete and list commands can be used to generate a new manifest from your environment. The manifest file is a simple JSON list of artifacts grouped by artifact type.
@@ -501,11 +501,11 @@ Alternatively, if you specify the manifest using a full path, you can point to a
 
     wchtools pull --manifest /Users/wchuser/manifests/my_site.json
 
-The manifest can also be loaded from Watson Content Hub using the --server-manifest option.
+The manifest can also be loaded from Acoustic Content using the --server-manifest option.
 
     wchtools pull --server-manifest my_site
 
-will look for a manifest file named my_site.json in /dxconfig/manifests on Watson Content Hub.
+will look for a manifest file named my_site.json in /dxconfig/manifests on Acoustic Content.
 
 #### Using a manifest
 A manifest can be specified using the manifest or server-manifest option on the command line. For example:
@@ -539,7 +539,7 @@ Or
 
     wchtools delete --server-manifest <manifest>
 
-will delete only those artifacts that are specified in the named manifest obtained from Watson Content Hub.
+will delete only those artifacts that are specified in the named manifest obtained from Acoustic Content.
 
 #### Creating a new manifest
 A manifest file can be created based on the results of the artifacts successfully processed by the push, pull, delete and list commands.
@@ -581,13 +581,13 @@ It is possible to use both --manifest and --write-manifest in the same command. 
 
 Assuming you had an existing manifest called my_site which included all artifacts for your site, the above command would push only the locally modified content items to your tenant and afterwards generate a new manifest called new_content which includes only those content items that were modified (and successfully pushed to your tenant).
 
-#### Storing a manifest on Watson Content Hub
+#### Storing a manifest on Acoustic Content
 
-Manifests can be stored on Watson Content Hub. The manifest file can be treated as a web asset and pushed to Watson Content Hub. The following command
+Manifests can be stored on Acoustic Content. The manifest file can be treated as a web asset and pushed to Acoustic Content. The following command
 
     wchtools push -w --path /dxconfig/manifests
 
-will push any manifests in the /dxconfig/manifests directory to Watson Content Hub. Any manifests stored like this on Watson Content Hub can then be accessed using the --server-manifest argument.
+will push any manifests in the /dxconfig/manifests directory to Acoustic Content. Any manifests stored like this on Acoustic Content can then be accessed using the --server-manifest argument.
 
 ### Pulling, pushing, listing, and comparing only "ready" artifacts.
 Some artifact types (content items, content assets, pages, and sites) support draft versions. A draft version of an artifact is a working copy that will not be published until it is set to ready. For this reason a site developer may not want to include draft versions in a push, pull, list, or compare operation.
@@ -610,7 +610,7 @@ The manifest created from this command will include all of the ready artifacts i
 
 #### Limiting a command to the pages and site definition for a specific site
 
-  By default, the pull, push, list, compare, and delete commands include the pages and site definitions from all ready sites in the Watson Content Hub tenant. When the --draft option is used, the pages and site definitions from all draft sites are included. But sometimes you may only want to work with the pages and site definitions for a specific site. This can be accomplished by using the --site-context option.
+  By default, the pull, push, list, compare, and delete commands include the pages and site definitions from all ready sites in the Acoustic Content tenant. When the --draft option is used, the pages and site definitions from all draft sites are included. But sometimes you may only want to work with the pages and site definitions for a specific site. This can be accomplished by using the --site-context option.
 
   The value specified for the --site-context option is the _context root_ of the site. You can use the wchtools list command to determine the context root value of a site. The default site does not have a context root value, so a value of "default" can be used for the default site.
 
@@ -638,7 +638,7 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools list -sI --ready --draft --site-context Halloween
 
-  To compare the local page artifacts for the Fall Fashion site to the pages in the Watson Content Hub, use the following command:
+  To compare the local page artifacts for the Fall Fashion site to the pages in Acoustic Content, use the following command:
 
     wchtools compare -pv --site-context "Fall Fashion" --source <working_directory> --target <url>
 
@@ -652,11 +652,11 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools delete --all -pv --draft --site-context "Race Car Rally"
 
-  To delete the Favorite Movies site from the Watson Content Hub (without prompting), use the following command:
+  To delete the Favorite Movies site from the Acoustic Content (without prompting), use the following command:
 
     wchtools delete --quiet -sv --site-context "Favorite Movies"
 
-  Caution: It's a good idea to pull all artifacts to your working directory before deleting them from the Watson Content Hub. This provides a backup in case you need to restore some or all of the deleted artifacts in the future.
+  Caution: It's a good idea to pull all artifacts to your working directory before deleting them from Acoustic Content. This provides a backup in case you need to restore some or all of the deleted artifacts in the future.
 
 #### Triggering a publish job
   By default, authoring artifacts such as assets are published to the delivery system when they are uploaded and authoring artifacts such as content are moved from draft to ready state. Therefore, an explicit publish command is not necessary.   If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
@@ -680,7 +680,7 @@ The manifest created from this command will include all of the ready artifacts i
 #### Defaults
   By default, wchtools CLI pushes and pulls only the authoring artifacts and web resources that are "ready" (not draft), and have been modified since the last successful push or pull.  To push or pull artifacts again whether they are modified or not since the last successful push or pull, use the -I option to Ignore-timestamps. To push or pull "draft" authoring artifacts, use the --draft option.
 
-  An initial push of a starter kit or sample package is done to populate the initial authoring artifacts. Those authoring artifacts and successive ones are typically manipulated in the Watson Content Hub web based Authoring UI and not locally on the filesystem. Web resource artifacts such as html, css, js, and handlebars templates are managed and edited externally and pushed to the Watson Content Hub with the wchtools CLI utility. Therefore, the default is to push and pull only web resource artifacts, if no options are specified to the push and pull commands.
+  An initial push of a starter kit or sample package is done to populate the initial authoring artifacts. Those authoring artifacts and successive ones are typically manipulated in the Acoustic Content web based Authoring UI and not locally on the filesystem. Web resource artifacts such as html, css, js, and handlebars templates are managed and edited externally and pushed to the Acoustic Content with the wchtools CLI utility. Therefore, the default is to push and pull only web resource artifacts, if no options are specified to the push and pull commands.
 
   Use the following command to push only web resource artifacts that have been modified locally since they were last pushed or pulled.
 
@@ -751,10 +751,10 @@ Auto-publishing is enabled by default, meaning that each time you push a web or 
 After you disable auto-publishing, you may either invoke a publish manually with "wchtools publish -v"  or you may re-enable auto-publishing again using the above steps and changing the "autoPublishEnabled" value back to true, before making your final updates to the assets and content.
 
 #### Logging
-  The Watson Content Hub public APIs that the wchtools CLI utility uses, provides server side logging. The server side logging aids customer support in helping you diagnose an issue if problems occur when you use Watson Content Hub from the authoring UI or the command line tools. The wchtools creates 2 log files locally, in the current directory to aid you the user to identify causes of issues that you can fix. For example, an issue in the artifacts you're trying to push.
+  The Acoustic Content public APIs that the wchtools CLI utility uses, provides server side logging. The server side logging aids customer support in helping you diagnose an issue if problems occur when you use Acoustic Content from the authoring UI or the command line tools. The wchtools creates 2 log files locally, in the current directory to aid you the user to identify causes of issues that you can fix. For example, an issue in the artifacts you're trying to push.
 
      - wchtools-cli.log - Contains command log, for commands run through wchtools.
-     - wchtools-api.log - Contains errors, if any, encountered while you ran commands against Watson Content Hub authoring and publishing services.
+     - wchtools-api.log - Contains errors, if any, encountered while you ran commands against Acoustic Content authoring and publishing services.
 
   Using the -v or --verbose option with wchtools commands, logs additional information about the status of the command and any error information to the output console while the command is running.
 
@@ -789,7 +789,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
   The command descriptions and usage messages are translated into a few languages to assist users who use other languages with the tool. The messages fall back to English if translations for the current OS locale are not found. A dependent node module attempts to determine the locale from the OS localization settings.  If you need to or choose to change the locale back to English for communicating issues or questions with others, you may set the environment variable LANG=en  in the command shell environment where you are running wchtools. To see the current languages available, look under the CLI/nls folder in the git repository for this tool.
 
 #### Ignore Files
-  Some local files and folders should not be stored in Watson Content Hub, including for example, project files, source control data, logs, and backups. By default, the wchtools CLI will ignore these local files and folders for the push and list commands.
+  Some local files and folders should not be stored in Acoustic Content, including for example, project files, source control data, logs, and backups. By default, the wchtools CLI will ignore these local files and folders for the push and list commands.
 
   To ignore additional local files and folders, a file named <i>.wchtoolsignore</i> can be added to the "assets" virtual directory. For example, to ignore all local files with the "abc" extension and all files within the local "xyz" folder, the ignore file could contain the following lines:
 
@@ -804,9 +804,9 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
 #### Creating and managing templates, layouts and layout mappings
 
- - To work with Watson Content Hub sites based on an Angular Single Page Application, with Angular layout components and type mappings, please refer to the WCH Site Customization documentation here: https://developer.ibm.com/customer-engagement/docs/wch/developing-your-own-website/customizing-sample-site/
+ - To work with Acoustic Content sites based on an Angular Single Page Application, with Angular layout components and type mappings, please refer to the WCH Site Customization documentation here: https://developer.ibm.com/customer-engagement/docs/wch/developing-your-own-website/customizing-sample-site/
 
- - Watson Content Hub also supports Handlebars templates for rendering purposes, where a content type and item can be mapped to a layout object, via layout mapping, where the layout object then refers to a handlebars template, that is associated with that content type.
+ - Acoustic Content also supports Handlebars templates for rendering purposes, where a content type and item can be mapped to a layout object, via layout mapping, where the layout object then refers to a handlebars template, that is associated with that content type.
 
  - For example, you can create a handlebars template under working-dir/assets/templates/article.hbs  for the "Article" content type
 
@@ -854,7 +854,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
   - Note, the content "Type" can be referenced from the layout mapping by "name", but the "layout" has to be referenced by "id" at this point, so be sure to give your layout a developer readable and remember-able "id" field when you create it, so that you can easily reference it when creating the layout mapping metadata in the above format.
 
-  - Now that you have created an hbs template, a layout object and a layout mapping object for your article type, you may push those all to Watson Content Hub with the following command:
+  - Now that you have created an hbs template, a layout object and a layout mapping object for your article type, you may push those all to Acoustic Content with the following command:
 
              wchtools push -wlm -v --dir <some_working_directory>
 
@@ -862,23 +862,23 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
   - Note, the above sample using the "/templates" folder under assets, layouts and layout-mappings is an example for reference only.  You may choose another folder name and multiple subfolder levels if desired.  It is recommended that you keep the folder names and filenames under assets, layouts and layout-mappings,   and the name of the template, layout and layout mapping files similar and similar to the Type name that you are creating these artifacs for,  to make it easier to find when making further edits, and to make it easier for others on your team to understand the relationship between the files quickly and easily, when browsing the local artifacs in an IDE.
 
-  - See the Watson Content Hub online documentation for more information on Layout, Layout Mapping syntax and metadata supported, and the Publishing and Rendering documentation, for how these artifacts are combined during a publishing and rendering job, to generate HTML.
+  - See the Acoustic Content online documentation for more information on Layout, Layout Mapping syntax and metadata supported, and the Publishing and Rendering documentation, for how these artifacts are combined during a publishing and rendering job, to generate HTML.
 
-#### Clearing the Watson Content Hub content delivery network cache
+#### Clearing the Acoustic Content content delivery network cache
 
  The content delivery network caches web artifacts, for performance reasons.  When you push updates to web artifacts with wchtools, you may still see the older cached artifacts for some amount of time, even after the assets are published to the delivery network by WCH.  If you need to invalidate the cache and see the changes immediately, you may use the following wchtools command to clear the CDN cache (invalidate the cache entries).  This results in all artifacts in the cache being cleared, not just the modified artifacts.  This may have performance implications (artifacts that have not changed will also have to be re-cached on the CDN and downloaded again by callers), so the following command should only be used when necessary and not on every push.
 
              wchtools clear --cache
 
 #### Specifying maximum heap size
-  The maximum heap size used for the node process can be specified by setting an environment variable and running an alternate command provided with Watson Content Hub Developer Tools.  An alternate command "wchtools_heap" provides the ability to configure the maximum heap used by node.  To set the maximum heap, set the environment variable WCHTOOLS_MAX_HEAP to a numeric value, specified in megabytes.  For example, to use a 2GB heap, set WCHTOOLS_MAX_HEAP=2048.
+  The maximum heap size used for the node process can be specified by setting an environment variable and running an alternate command provided with Acoustic Content Developer Tools.  An alternate command "wchtools_heap" provides the ability to configure the maximum heap used by node.  To set the maximum heap, set the environment variable WCHTOOLS_MAX_HEAP to a numeric value, specified in megabytes.  For example, to use a 2GB heap, set WCHTOOLS_MAX_HEAP=2048.
 
-  On linux launch Watson Content Hub Developer Tools using:
+  On linux launch Acoustic Content Developer Tools using:
 
             export WCHTOOLS_MAX_HEAP=2048
             wchtools_heap push ...
 
-  On Windows launch Watson Content Hub Developer Tools using:
+  On Windows launch Acoustic Content Developer Tools using:
 
             set WCHTOOLS_MAX_HEAP=2048
             wchtools_heap push ...
@@ -916,16 +916,16 @@ After you disable auto-publishing, you may either invoke a publish manually with
 When pushing artifacts using wchtools, it is possible to encounter a scenario where the version of the artifact being pushed conflicts with changes made to that artifact on the tenant. In this situation, wchtools will compare the local version of the artifact with the remote version of the artifact to determine if meaningful differences are detected. If meaningful differences are found the copy of the artifact on the tenant is written to the local file system with a .conflict suffix and the push action for that item is logged as an error. After a manual inspection of the conflicting artifacts (and resolution of any important conflicts), you can use the -f --force-override option to re-attempt the push action. If no meaningful differences are found, the rejection of the push update request by the tenant is ignored and a warning is written to the log instead. wchtools uses a list of ignorable fields to determine if changes are meaninfgul or not. This list includes fields such as rev, created, lastModified, systemModified, createorId, lastModifierId, creator, lastModifier, as well as other calculated/synthetic fields such as links, types, categories, publishing.
 
 #### Limitations
-  The wchtools functions are limited by what the Watson Content Hub public REST APIs allow, including but not limited to the following list:
+  The wchtools functions are limited by what the Acoustic Content public REST APIs allow, including but not limited to the following list:
 
   - The authoring APIs and services do not allow you to push an update to an authoring artifact, where the "revision" field of the item you are trying to push does not match the current revision stored that is stored on the server by the authoring service. This action is enforced by the services to help prevent overwriting newer updates by another user through authoring UI with an older copy of an artifact.  If a wchtools push encounters such a 409 conflict error for an authoring artifact or artifacts, each conflicting copy is saved to the appropriate artifact subfolder with a "conflict" suffix. Some conflicts are not meaningful (for example, a difference in the lastModified timestamp field) and are automatically ignored by wchtools which treats the push as successful but logs a warning indicating that a conflict was ignored. You can compare the files locally to determine which changes are appropriate.  If you determine that it is safe to override the conflicting server changes with your local artifacts, you may try pushing again with the -f or --force-override options to ask the authoring services to override the revision conflict validation.
 
-  - Authoring artifacts refer to each other by internal identifiers (the 'id' field). The Watson Content Hub authoring services enforce validation of referential integrity as artifacts are created or updated through the public REST APIs.   For this reason, it is suggested that you use the -A or --All-authoring options when you push authoring artifacts. This option is not needed if you are pushing up only a new set of low level artifacts such as content types (where you could use -t to specify that's what what you want to push). Low-level artifacts are those artifacts without references to other types of artifacts. The all authoring artifact options push artifacts in order from those with no dependencies, to those with the most dependencies. This ordering helps avoid issues where dependent artifacts don't exist yet on the server, during a push.
+  - Authoring artifacts refer to each other by internal identifiers (the 'id' field). The Acoustic Content authoring services enforce validation of referential integrity as artifacts are created or updated through the public REST APIs.   For this reason, it is suggested that you use the -A or --All-authoring options when you push authoring artifacts. This option is not needed if you are pushing up only a new set of low level artifacts such as content types (where you could use -t to specify that's what what you want to push). Low-level artifacts are those artifacts without references to other types of artifacts. The all authoring artifact options push artifacts in order from those with no dependencies, to those with the most dependencies. This ordering helps avoid issues where dependent artifacts don't exist yet on the server, during a push.
 
-  - Pulling (exporting) a set of artifacts from one tenant and moving them to another by pushing (importing) to the new tenant is "additive", in that if something was removed from the source tenant between pull and push iterations, they won't automatically be removed from the target tenant.  You will need to use the Authoring UI to remove authoring artifacts (content, pages etc) on the target tenant explicitly,  if they were removed in the source tenant, when migrating a new version of an application to a target tenant (for example, when using multiple Watson Content Hub tenants to develop, test and then release iterative versions of an application).
+  - Pulling (exporting) a set of artifacts from one tenant and moving them to another by pushing (importing) to the new tenant is "additive", in that if something was removed from the source tenant between pull and push iterations, they won't automatically be removed from the target tenant.  You will need to use the Authoring UI to remove authoring artifacts (content, pages etc) on the target tenant explicitly,  if they were removed in the source tenant, when migrating a new version of an application to a target tenant (for example, when using multiple Acoustic Content tenants to develop, test and then release iterative versions of an application).
 
 #### Git Repository
-  The IBM Watson Content Hub Developer Tools are provided as open source and made available in github.
+  The Acoustic Content Developer Tools are provided as open source and made available in github.
   While it is not necessary to obtain the source from the github repository in order to install the release version of wchtools, you may choose to clone the github repository to access the source for the developer tools.  After cloning the github repository you can run npm install from the root folder of the local copy.
   - npm install
 
