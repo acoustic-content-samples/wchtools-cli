@@ -1,9 +1,9 @@
 # wchtools
-## Acoustic Content (formerly Watson Content Hub or WCH) Developer Tools
+## Acoustic Content Developer Tools
 
 
 ### Summary
-The Acoustic Content Developer Tools provide a command line interface (CLI) based utility called wchtools for working with Acoustic Content. This utility allows developer or other users to upload (push) and download (pull) any content, assets, and content model artifacts from Acoustic Content. With the tool you can easily install sample packages or pull authoring artifacts for archiving locally. You can also use it for bulk upload of assets such as images, and to trigger a publishing job to publish your "ready" assets.
+The Acoustic Content (formerly Watson Content Hub or WCH) Developer Tools provide a command line interface (CLI) based utility called wchtools for working with Acoustic Content. This utility allows developer or other users to upload (push) and download (pull) any content, assets, and content model artifacts from Acoustic Content. With the tool you can easily install sample packages or pull authoring artifacts for archiving locally. You can also use it for bulk upload of assets such as images, and to trigger a publishing job to publish your "ready" assets.
 
 
 ### License and Notices
