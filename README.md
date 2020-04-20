@@ -1,13 +1,13 @@
 # wchtools
-## IBM Watson Content Hub Developer Tools
+## Acoustic Content (formerly Watson Content Hub or WCH) Developer Tools
 
 
 ### Summary
-The IBM Watson Content Hub Developer Tools provide a command line interface (CLI) based utility called wchtools for working with Watson Content Hub. This utility allows developer or other users to upload (push) and download (pull) any content, assets, and content model artifacts from Watson Content Hub. With the tool you can easily install sample packages or pull authoring artifacts for archiving locally. You can also use it for bulk upload of assets such as images, and to trigger a publishing job to publish your "ready" assets.
+The Acoustic Content Developer Tools provide a command line interface (CLI) based utility called wchtools for working with Acoustic Content. This utility allows developer or other users to upload (push) and download (pull) any content, assets, and content model artifacts from Acoustic Content. With the tool you can easily install sample packages or pull authoring artifacts for archiving locally. You can also use it for bulk upload of assets such as images, and to trigger a publishing job to publish your "ready" assets.
 
 
 ### License and Notices
-Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/LICENSE) and [NOTICE](https://github.com/ibm-wch/wchtools-cli/blob/master/NOTICE) files at the root of this project's git repository before you download and get started with this toolkit.
+Please review the [LICENSE](https://github.com/acoustic-content-samples/wchtools-cli/blob/master/LICENSE) and [NOTICE](https://github.com/acoustic-content-samples/wchtools-cli/blob/master/NOTICE) files at the root of this project's git repository before you download and get started with this toolkit.
 
 ### Install
 
@@ -16,9 +16,8 @@ Please review the [LICENSE](https://github.com/ibm-wch/wchtools-cli/blob/master/
    - Install the latest Node 10.x LTS version of Node
      - Use the latest point release of Node 10.x available to ensure you take advantage of available functional and security fixes.
 
- Learn more about installing NodeJS at the following locations
+ Learn more about installing NodeJS at the following location
 
-  - https://developer.ibm.com/node/sdk/v8/
   - https://nodejs.org/en/
 
  You may install the wchtools CLI as a node module directly from the npm registry at https://npmjs.com .   If for some reason you are unable to access the public npm registry, you may download and installing a release from the wchtools-cli git repository releases tab as described below.
@@ -43,7 +42,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
  Complete the following steps to install and run the wchtools CLI from a downloadable release in the git repository:
 
-   1. Download the latest wch.developer.tools.zip release available from the [releases](https://github.com/ibm-wch/wchtools-cli/releases) page of the wchtools-cli git repository and extract the files to a temporary folder on your local filesystem.
+   1. Download the latest wch.developer.tools.zip release available from the [releases](https://github.com/acoustic-content-samples/wchtools-cli/releases) page of the wchtools-cli git repository and extract the files to a temporary folder on your local filesystem.
 
    2. Run the installation command from that temporary folder as follows:-
 
