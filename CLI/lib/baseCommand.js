@@ -25,7 +25,7 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const prompt = require("prompt");
 const Q = require("q");
 const ProductVersion = require("../package.json").version;
-const creds = require("@ibm-wch-sdk/cli-credentials");
+const creds = require("@acoustic-content-sdk/cli-credentials");
 const cliLog = "cli" + " " + ProductVersion;
 
 class BaseCommand {

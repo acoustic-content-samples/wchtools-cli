@@ -63,9 +63,9 @@
 
   "error_unsupported_endpoint": "%(service_name)s API hanterar inte %(endpoint)s slutpunkt.",
   "unknown_error": "Okänt fel",
-  "service_unavailable": "En IBM Watson Content Hub-tjänst är inte tillgänglig för närvarande. ",
-  "service_error": "En IBM Watson Content Hub-tjänst rapporterar tekniska svårigheter. ",
-  "service_response_error": "En IBM Watson Content Hub-tjänst returnerade felkoden %(code)d och statusmeddelandet: %(message)s",
+  "service_unavailable": "En Acoustic Content-tjänst är inte tillgänglig för närvarande. ",
+  "service_error": "En Acoustic Content-tjänst rapporterar tekniska svårigheter. ",
+  "service_response_error": "En Acoustic Content-tjänst returnerade felkoden %(code)d och statusmeddelandet: %(message)s",
   "operation_failed": "Åtgärden misslyckades med fel: ",
   "async_parallel_limit_error": "Asynkront parallelLimit-anrop misslyckades med fel: ",
   "async_parallel_limit_results": "Asynkrona parallelLimit-resultat: ",

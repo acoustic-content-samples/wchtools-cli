@@ -642,7 +642,7 @@ describe("hashes", function () {
             const stubRead = sinon.stub(fs, "readFileSync", function (filename) {
                 if (filename === TEXT_FILE_PATH) {
                     // Return different contents when reading the test file.
-                    return new Buffer("Different contents than the actual file.");
+                    return Buffer.from("Different contents than the actual file.");
                 } else {
                     // Return the actual contents when reading other files.
                     return originalReadFileSync.call(fs, filename);

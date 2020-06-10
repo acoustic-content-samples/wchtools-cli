@@ -24,7 +24,7 @@ const logLevel = process.env.WCHTOOLS_LOG_LEVEL || 'WARN';
 const Q = require("q");
 const async = require("async");
 
-const ProductName = "IBM Watson Content Hub";
+const ProductName = "Acoustic Content";
 const ProductAbrev = "wchtools";
 const ProductVersion = require("../../package.json").version;
 const userAgent = ProductAbrev + "/" + ProductVersion;

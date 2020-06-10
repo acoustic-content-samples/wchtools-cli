@@ -63,9 +63,9 @@
 
   "error_unsupported_endpoint": "%(service_name)s API 不支援 %(endpoint)s 端點。",
   "unknown_error": "不明錯誤",
-  "service_unavailable": "IBM Watson Content Hub 服務目前無法使用。",
-  "service_error": "IBM Watson Content Hub 服務正在報告技術難題。",
-  "service_response_error": "IBM Watson Content Hub 服務已傳回錯誤碼 %(code)d 及狀態訊息：%(message)s",
+  "service_unavailable": "Acoustic Content 服務目前無法使用。",
+  "service_error": "Acoustic Content 服務正在報告技術難題。",
+  "service_response_error": "Acoustic Content 服務已傳回錯誤碼 %(code)d 及狀態訊息：%(message)s",
   "operation_failed": "由於下列錯誤，作業失敗：",
   "async_parallel_limit_error": "由於下列錯誤，非同步 parallelLimit 呼叫失敗：",
   "async_parallel_limit_results": "非同步 parallelLimit 結果：",

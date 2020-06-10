@@ -16,7 +16,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.ibm.com/DX/prod-tools"
+        "url": "https://github.com/aipoweredmarketer/prod-tools"
     },
     "keywords": [
         "cli"
@@ -24,7 +24,7 @@
     "author": "IBM",
     "license": "MIT",
     "bugs": {
-        "url": "https://github.ibm.com/DX/prod-tools/issues"
+        "url": "https://github.com/aipoweredmarketer/prod-tools/issues"
     },
     "dependencies": {
         "cli-table": "0.3.1",

@@ -1,11 +1,11 @@
 {
   "name": "wchtools-cli",
-  "description": "Command line tools for IBM Watson Content Hub",
-  "version": "4.2.26",
+  "description": "Command line tools for Acoustic Content",
+  "version": "4.3.8",
   "keywords": [
     "cli"
   ],
-  "author": "IBM Corporation",
+  "author": "Acoustic, L.P.",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/ibm-wch/wchtools-cli/issues"
@@ -22,16 +22,19 @@
     "wchtools_heap": "./bin/wchtools_heap"
   },
   "dependencies": {
-    "@ibm-wch-sdk/cli-credentials": "^7.0.165",
+    "@acoustic-content-sdk/cli-credentials": "^9.0",
     "cli-table": "^0.3.1",
     "colors": "^1.3.2",
     "commander": "^2.19.0",
+    "email-validator": "^2.0.4",
     "log4js": "^3.0.5",
     "ora": "^1.2.0",
     "prompt": "^1.0.0",
     "q": "^1.5.0",
+    "request-promise-native": "^1.0.8",
     "rimraf": "^2.6.1",
     "update-notifier": "^2.5.0",
+    "valid-url": "^1.0.9",
     "wchtools-api": "../authoring-api"
   },
   "devDependencies": {

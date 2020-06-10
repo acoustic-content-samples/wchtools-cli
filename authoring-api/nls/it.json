@@ -63,9 +63,9 @@
 
   "error_unsupported_endpoint": "L'API %(service_name)s non supporta l'endpoint %(endpoint)s.",
   "unknown_error": "Errore sconosciuto",
-  "service_unavailable": "Un servizio IBM Watson Content Hub non è attualmente disponibile.  ",
-  "service_error": "Un servizio IBM Watson Content Hub sta notificando difficoltà tecniche.  ",
-  "service_response_error": "Un servizio IBM Watson Content Hub ha restituito il codice di errore %(code)d e il messaggio di stato: %(message)s",
+  "service_unavailable": "Un servizio Acoustic Content non è attualmente disponibile.  ",
+  "service_error": "Un servizio Acoustic Content sta notificando difficoltà tecniche.  ",
+  "service_response_error": "Un servizio Acoustic Content ha restituito il codice di errore %(code)d e il messaggio di stato: %(message)s",
   "operation_failed": "Operazione non riuscita con errore: ",
   "async_parallel_limit_error": "Chiamata parallelLimit asincrona non riuscita con errore: ",
   "async_parallel_limit_results": "Risultati di parallelLimit asincrono: ",

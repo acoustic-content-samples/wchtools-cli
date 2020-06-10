@@ -101,7 +101,7 @@ function generateMD5HashAndID (basePath, filename) {
         const relative = path.relative(basePath, filename);
         hashID.update(relative);
         // Concat the MD5 hash of the binary content with the relative filename.
-        const id = new Buffer(md5, HASH_ENCODING).toString("hex") + "_" + hashID.digest("hex");
+        const id = Buffer.from(md5, HASH_ENCODING).toString("hex") + "_" + hashID.digest("hex");
         deferred.resolve({
             md5: md5,
             id: id
@@ -151,7 +151,7 @@ function generateMD5HashFromStream (readStream) {
 function compareMD5Hashes (hash1, hash2) {
     return (hash1 && hash2) &&
             ((hash1 === hash2) ||
-            Buffer.compare(new Buffer(hash1, HASH_ENCODING), new Buffer(hash2, HASH_ENCODING)) === 0);
+            Buffer.compare(Buffer.from(hash1, HASH_ENCODING), Buffer.from(hash2, HASH_ENCODING)) === 0);
 }
 
 function normalizePath (basePath) {
