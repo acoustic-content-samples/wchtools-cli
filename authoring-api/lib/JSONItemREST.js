@@ -35,6 +35,20 @@ class JSONItemREST extends BaseREST {
         return queryParams;
     }
 
+    isConflictResponse (response) {
+        // For ready items, a 409 conflict statusCode is returned.
+        let isConflict = response.statusCode === 409;
+        // For draft items, a 400 bad request statusCode is returned with a 3002 error code.
+        if (response.statusCode === 400 && response.body && response.body.errors && response.body.errors.length > 0) {
+            response.body.errors.forEach(function (e) {
+                if (e.code === 3002) {
+                    isConflict = true;
+                }
+            });
+        }
+        return isConflict;
+    }
+
     createItem (context, item, opts) {
         const restObject = this;
         const deferred = Q.defer();
@@ -52,7 +66,7 @@ class JSONItemREST extends BaseREST {
                 request.post(requestOptions, function (err, res, body) {
                     const response = res || {};
                     const createOnly = restObject.isCreateOnlyMode(context, opts);
-                    if (createOnly && response.statusCode === 409) {
+                    if (createOnly && restObject.isConflictResponse(response)) {
                         // A 409 Conflict error means the item already exists. So for createOnly, consider the create of
                         // the item to be successful, otherwise handle the error in the normal way.
                         BaseREST.logRetryInfo(context, requestOptions, response.attempts);

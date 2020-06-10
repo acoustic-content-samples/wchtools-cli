@@ -21,11 +21,11 @@ class BufferStream extends stream.Writable {
 
     constructor(options) {
         super(options);
-        this._buffer = new Buffer('');
+        this._buffer = Buffer.from('');
     }
 
     _write(chunk, enc, cb) {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : new Buffer(chunk, enc);
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, enc);
         this._buffer = Buffer.concat([this._buffer, buffer]);
         if (cb) {
             cb();

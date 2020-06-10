@@ -1,12 +1,12 @@
 {
   "name": "wchtools-api",
-  "description": "Tools API for IBM Watson Content Hub",
-  "version": "4.2.26",
+  "description": "Tools API for Acoustic Content",
+  "version": "4.3.8",
   "keywords": [
     "api",
     "tools"
   ],
-  "author": "IBM Corporation",
+  "author": "Acoustic, L.P.",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/ibm-wch/wchtools-cli/issues"

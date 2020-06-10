@@ -164,7 +164,7 @@ describe("Unit tests for wchToolsApi.js", function () {
             utils = ToolsApi.getUtils(); // Save the utils for use in other tests.
             expect(utils).to.be.ok;
             expect(utils.ProductAbrev).to.equal("wchtools");
-            expect(utils.ProductName).to.equal("IBM Watson Content Hub");
+            expect(utils.ProductName).to.equal("Acoustic Content");
             done();
         });
     });

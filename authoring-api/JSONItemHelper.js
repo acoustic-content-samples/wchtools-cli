@@ -354,7 +354,7 @@ class JSONItemHelper extends BaseHelper {
         }
 
         // Get the timestamp to set before we call the REST API.
-        const timestamp = new Date();
+        const timestamp = new Date().toISOString();
 
         // Pull a "chunk" of remote items and and then recursively pull any remaining chunks.
         const helper = this;
@@ -452,7 +452,7 @@ class JSONItemHelper extends BaseHelper {
         context.pullErrorCount = 0;
 
         // Get the timestamp to set before we call the REST API.
-        const timestamp = new Date();
+        const timestamp = new Date().toISOString();
 
         // Pull a "chunk" of modified remote items and and then recursively pull any remaining chunks.
         const helper = this;

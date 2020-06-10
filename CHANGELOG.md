@@ -1,5 +1,13 @@
 # Changelog
 
+### 4.3.8 changes since 4.2.26
+ - Rebrand message strings from Watson Content Hub to Acoustic Content
+ - update to acoustic sdk
+ - fix warning about new Buffer security issue
+ - always keep timestamps in ISO format
+ - fix context init opts to not overwrite values loaded from .wchtoolsoptions with defaults
+ - fix conflict handling for draft items
+
 ### 4.2.26 changes since 4.2.24
   - Fix dependencies.
 

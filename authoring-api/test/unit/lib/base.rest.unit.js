@@ -1367,6 +1367,48 @@ class BaseRestUnitTest extends UnitTest {
                     });
             });
 
+            it("should succeed when createOnly and updating a draft item fails with a conflict", function (done) {
+                // Create a stub for the POST request.
+                const stubPost = sinon.stub(request, "post");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                const CREATE_ERROR = "Error creating the item.";
+                const err = new Error(CREATE_ERROR);
+                const body = {"errors": [{"code": 3002}]};
+                const res = {"statusCode": 400, "body": body};
+                stubPost.onCall(0).yields(err, res, body);
+
+                // Create a spy for a PUT request, which should never be called for createOnly mode.
+                const spyPut = sinon.spy(request, "put");
+
+                // Create a stub for restApi.isCreateOnlyMode() to always return true.
+                const stubOnly = sinon.stub(restApi, "isCreateOnlyMode");
+                stubOnly.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(spyPut);
+                self.addTestDouble(stubOnly);
+
+                // Call the method being tested.
+                let error;
+                restApi.updateItem(context, item1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        // Verify thqat the POST stub was called once and thge PUT stub was not called.
+                        expect(stubPost).to.have.been.calledOnce;
+                        expect(spyPut).to.not.have.been.called;
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(item1, item)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should succeed when createOnly and creating item succeeds", function (done) {
                 // Create a stub for the POST request to return a conflict error.
                 const stubPost = sinon.stub(request, "post");
@@ -1909,6 +1951,43 @@ class BaseRestUnitTest extends UnitTest {
                 const err = null;
                 const res = {"statusCode": 409};
                 const body = item1;
+                stubPost.onCall(0).yields(err, res, body);
+
+                // Create a stub for restApi.isCreateOnlyMode() to always return true.
+                const stubOnly = sinon.stub(restApi, "isCreateOnlyMode");
+                stubOnly.returns(true);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(stubOnly);
+
+                // Call the method being tested.
+                let error;
+                restApi.createItem(context, item1, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        expect(stubPost).to.have.been.calledOnce;
+
+                        // Verify that the REST API returned the expected values.
+                        expect(diff.diffJson(item1, item)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when createOnly and draft item already exists", function (done) {
+                // Create a stub for the POST request to return a conflict error.
+                const stubPost = sinon.stub(request, "post");
+                const item1 = UnitTest.getJsonObject(itemPath1);
+                const err = null;
+                const body = {"errors": [{"code": 3002}]};
+                const res = {"statusCode": 400, "body": body};
                 stubPost.onCall(0).yields(err, res, body);
 
                 // Create a stub for restApi.isCreateOnlyMode() to always return true.

@@ -901,7 +901,7 @@ class AssetsHelper extends BaseHelper {
         context.skippedResourceIDs = [];
 
         // Get the timestamp to set before we call the REST API.
-        const timestamp = new Date();
+        const timestamp = new Date().toISOString();
 
         // Handle any necessary actions once the pull operations have completed.
         return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)
@@ -989,7 +989,7 @@ class AssetsHelper extends BaseHelper {
         context.skippedResourceIDs = [];
 
         // Get the timestamp to set before we call the REST API.
-        const timestamp = new Date();
+        const timestamp = new Date().toISOString();
 
         // Handle any necessary actions once the pull operations have completed.
         return helper.recursiveGetItems(context, listFn, handleChunkFn, opts)

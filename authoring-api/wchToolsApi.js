@@ -67,16 +67,16 @@ class WchToolsApi {
         contextOptions = contextOptions || {};
 
         // Use hashes to determine which files have been modified, unless the useHashes property is set to false.
-        contextOptions.useHashes = (typeof contextOptions.useHashes !== "boolean") || (contextOptions.useHashes === true);
+        contextOptions.useHashes = (typeof contextOptions.useHashes === "boolean") ? contextOptions.useHashes : (typeof this.context.useHashes === "boolean") ? this.context.useHashes : true;
 
         // Rewrite pushed artifacts, unless the rewriteOnPush property is set to false.
-        contextOptions.rewriteOnPush = (typeof contextOptions.rewriteOnPush !== "boolean") || (contextOptions.rewriteOnPush === true);
+        contextOptions.rewriteOnPush = (typeof contextOptions.rewriteOnPush === "boolean") ? contextOptions.rewriteOnPush : (typeof this.context.rewriteOnPush === "boolean") ? this.context.rewriteOnPush : true;
 
         // Save a "conflict" file when a pushed artifact produces a conflict error, unless the saveFileOnConflict property is set to false.
-        contextOptions.saveFileOnConflict = (typeof contextOptions.saveFileOnConflict !== "boolean") || (contextOptions.saveFileOnConflict === true);
+        contextOptions.saveFileOnConflict = (typeof contextOptions.saveFileOnConflict === "boolean") ? contextOptions.saveFileOnConflict : (typeof this.context.saveFileOnConflict === "boolean") ? this.context.saveFileOnConflict : true;
 
         // Continue pushing items after encountering an error, unless the continueOnError property is set to false.
-        contextOptions.continueOnError = (typeof contextOptions.continueOnError !== "boolean") || (contextOptions.continueOnError === true);
+        contextOptions.continueOnError = (typeof contextOptions.continueOnError === "boolean") ? contextOptions.continueOnError : (typeof this.context.continueOnError === "boolean") ? this.context.continueOnError : true;
 
         // Use the standard API logger, if a logger was not specified on the context options.
         contextOptions.logger = contextOptions.logger || utils.getLogger(utils.apisLog);

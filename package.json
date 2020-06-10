@@ -1,7 +1,7 @@
 {
   "name": "prod-tools",
-  "version": "4.2.26",
-  "author": "IBM Corporation",
+  "version": "4.3.8",
+  "author": "Acoustic, L.P.",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/ibm-wch/wchtools-cli/issues"

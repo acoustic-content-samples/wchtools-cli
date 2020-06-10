@@ -63,9 +63,9 @@
 
   "error_unsupported_endpoint": "%(service_name)s API는 %(endpoint)s 엔드포인트를 지원하지 않습니다.",
   "unknown_error": "알 수 없는 오류",
-  "service_unavailable": "IBM Watson Content Hub 서비스를 현재 사용할 수 없습니다. ",
-  "service_error": "IBM Watson Content Hub 서비스에서 기술적 문제를 보고합니다. ",
-  "service_response_error": "IBM Watson Content Hub 서비스에서 오류 코드 %(code)d 및 상태 메시지: %(message)s을(를) 리턴함",
+  "service_unavailable": "Acoustic Content 서비스를 현재 사용할 수 없습니다. ",
+  "service_error": "Acoustic Content 서비스에서 기술적 문제를 보고합니다. ",
+  "service_response_error": "Acoustic Content 서비스에서 오류 코드 %(code)d 및 상태 메시지: %(message)s을(를) 리턴함",
   "operation_failed": "오류 때문에 조작에 실패함: ",
   "async_parallel_limit_error": "오류 때문에 비동기 parallelLimit 호출에 실패함: ",
   "async_parallel_limit_results": "비동기 parallelLimit 결과: ",
