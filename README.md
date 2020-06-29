@@ -658,23 +658,20 @@ The manifest created from this command will include all of the ready artifacts i
 
   Caution: It's a good idea to pull all artifacts to your working directory before deleting them from Acoustic Content. This provides a backup in case you need to restore some or all of the deleted artifacts in the future.
 
-#### Triggering a publish job
-  By default, authoring artifacts such as assets are published to the delivery system when they are uploaded and authoring artifacts such as content are moved from draft to ready state. Therefore, an explicit publish command is not necessary.   If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
+#### Triggering a publishing system update (advanced)
+  By default, authoring artifacts such as content and assets are published to the delivery system when they are moved from draft to ready to publish state. Therefore, an explicit publish command is not necessary. If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
 
     wchtools publish --verbose
 
-  Note: Publishing currently uses the default publishing source and publishing profile.
-
-  If for some reason the published artifacts need to be republished, you can do a "rebuild" publish with the following command.
-  Note: Republishing artifacts is not a typical use case.
+  If for some reason all of the published artifacts need to be republished, you can do a "rebuild" publish with the following command. Note that all items in delivery will be unavailable whilst this process runs which will make any production site unavailable. This should only be done as a last resort. 
 
     wchtools publish -r --verbose
 
-  Both of the above publish commands display the publishing job id on successful creation of a publishing job.  The following command may be used (with or without --verbose) to see the current status of the specified publishing job.
+  Both of the above publish commands display the publishing system job id on successful creation of a publishing job.  The following command may be used (with or without --verbose) to see the current status of the specified publishing system job.
 
     wchtools publish --status [<id>] [--verbose]
 
-  If the optional id is not specified to the publish --status command, then the status of the most recent publishing job found will be shown.
+  If the optional id is not specified to the publish --status command, then the status of the most recent publishing system job found will be shown.
 
 
 #### Defaults
