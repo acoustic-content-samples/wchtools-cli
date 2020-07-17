@@ -305,51 +305,6 @@ class LoginRestUnitTest extends UnitTest {
                     });
             });
 
-            it("should fail if the login response body contains FBTBLU101E", function (done) {
-                // Create a stub for the GET requests.
-                const stub = sinon.stub(request, "get");
-                const err = null;
-                const res = null;
-                const body = "A response body containing the string FBTBLU101E.";
-                stub.onCall(0).yields(err, res, body);
-
-                // Create a spy for the utils.logErrors method.
-                const spy = sinon.spy(utils, "logErrors");
-
-                // The stub and spy should be restored when the test is complete.
-                self.addTestDouble(stub);
-                self.addTestDouble(spy);
-
-                // Call the method being tested.
-                let error;
-                loginREST.login(context, loginOptions)
-                    .then(function () {
-                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
-                        error = new Error("The promise for the login attempt should have been rejected.");
-                    })
-                    .catch(function (err) {
-                        // Verify that the expected error is returned.
-                        expect(err.name).to.equal("Error");
-                        expect(err.message).to.contain("FBTBLU101E");
-
-                        // Verify that the stub was called once with the expected values.
-                        expect(stub).to.have.been.calledOnce;
-                        expect(stub.firstCall.args[0].uri).to.contain(loginOptions["x-ibm-dx-tenant-base-url"]);
-                        expect(stub.firstCall.args[0].headers["x-ibm-dx-tenant-id"]).to.equal(loginOptions["x-ibm-dx-tenant-id"]);
-
-                        // Verify that the password was not included in the log message.
-                        expect(spy).to.have.been.calledOnce;
-                        expect(spy.firstCall.args[2].message).to.not.contain(loginOptions["password"]);
-                    })
-                    .catch(function (err) {
-                        error = err;
-                    })
-                    .finally(function () {
-                        // Call mocha's done function to indicate that the test is over.
-                        done(error);
-                    });
-            });
-
             it("should succeed if the login response contains an authentication cookie", function (done) {
                 // Create a stub for the GET requests.
                 const stub = sinon.stub(request, "get");

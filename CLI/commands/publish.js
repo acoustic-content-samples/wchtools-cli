@@ -16,10 +16,20 @@ limitations under the License.
 "use strict";
 
 const BaseCommand = require("../lib/baseCommand");
+const prompt = require('prompt')
+const Q = require("q");
 
 const ToolsApi = require("wchtools-api");
 const utils = ToolsApi.getUtils();
 const i18n = utils.getI18N(__dirname, ".json", "en");
+
+var property = {
+  name: 'yesno',
+  message: 'y/n',
+  validator: /y[es]*|n[o]?/,
+  warning: 'Must respond y or n',
+  default: 'n'
+};
 
 class PublishCommand extends BaseCommand {
     /**
@@ -51,6 +61,32 @@ class PublishCommand extends BaseCommand {
             });
     }
 
+    createPublishingJob(helper, status, context, apiOptions, jobParameters, self) {
+        if (status) {
+            self.displaySiteRevisionStatus(helper, context, apiOptions);
+        } else {
+            BaseCommand.displayToConsole(i18n.__('cli_publishing_job_starting'));
+
+            self.spinner = self.getProgram().getSpinner();
+            self.spinner.start();
+            helper.createPublishingJob(context, jobParameters, apiOptions)
+                .then(job => {
+                    self.spinner.stop();
+                    const startedMsg = i18n.__('cli_publishing_job_started');
+                    self.successMessage(startedMsg);
+                    if (self.getCommandLineOption("verbose")) {
+                        const logger = this.getLogger();
+                        logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
+                    }
+                })
+                .catch(err => {
+                    const curError = i18n.__("cli_publishing_job_error", {message: err.message});
+                    self.spinner.stop();
+                    self.errorMessage(curError);
+                });
+        }
+     }
+
     /**
      * Create a new publishing job, or look up the status of the publishing site revision.
      */
@@ -59,7 +95,6 @@ class PublishCommand extends BaseCommand {
         const toolsApi = new ToolsApi();
         const context = toolsApi.getContext();
 
-        const logger = this.getLogger();
         const mode = this.getCommandLineOption("rebuild") ? "REBUILD" : "UPDATE";
         const status = this.getCommandLineOption("status");
         const apiOptions = this.getApiOptions();
@@ -82,26 +117,23 @@ class PublishCommand extends BaseCommand {
                 return self.handleInitialization(context);
             })
             .then(function (/*results*/) {
-                if (status) {
-                    self.displaySiteRevisionStatus(helper, context, apiOptions);
+                if (mode === 'REBUILD') {
+                    self.warningMessage(i18n.__('cli_publishing_rebuild_warn'));
+                    prompt.message = ''; // remove 'prompt' when asking for value
+                    prompt.start();
+                    prompt.get(property, function (err, result) {
+                        // Display a blank line to separate the prompt output from the delete output.
+                        BaseCommand.displayToConsole("");
+                        if (err) {
+                            self.errorMessage(err);
+                        } else if (result.yesno === 'yes' || result.yesno === 'y') {
+                            self.createPublishingJob(helper, status, context, apiOptions, jobParameters, self);
+                        } else {
+                           self.successMessage(i18n.__('cli_publishing_rebuild_canceled'));
+                        }
+                    });
                 } else {
-                    BaseCommand.displayToConsole(i18n.__('cli_publishing_job_starting'));
-                    self.spinner = self.getProgram().getSpinner();
-                    self.spinner.start();
-                    return helper.createPublishingJob(context, jobParameters, apiOptions)
-                        .then(job => {
-                            self.spinner.stop();
-                            const startedMsg = i18n.__('cli_publishing_job_started');
-                            self.successMessage(startedMsg);
-                            if (self.getCommandLineOption("verbose")) {
-                                logger.info(i18n.__("cli_publishing_job_details", {job_details: JSON.stringify(job, null, "    ")}));
-                            }
-                        })
-                        .catch(err => {
-                            const curError = i18n.__("cli_publishing_job_error", {message: err.message});
-                            self.spinner.stop();
-                            self.errorMessage(curError);
-                        });
+                    self.createPublishingJob(helper, status, context, apiOptions, jobParameters, self)
                 }
             })
             .catch(err => {
@@ -110,7 +142,7 @@ class PublishCommand extends BaseCommand {
             .finally(() =>{
                 self.resetCommandLineOptions();
             });
-    }
+    };
 
     /**
      * Reset the command line options for this command.

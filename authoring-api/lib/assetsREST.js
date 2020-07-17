@@ -31,6 +31,7 @@ const singletonEnforcer = Symbol();
 
 const PUBLISH_PRIORITY = "x-ibm-dx-publish-priority";
 const PUBLISH_PRIORITY_NOW = "now";
+const PUBLISH_PRIORITY_NEXT = "next";
 
 /**
  * REST object for managing assets on the remote content hub.
@@ -173,7 +174,7 @@ class AssetsREST extends BaseREST {
     }
 
     /*
-     * Override BaseREST.getUpdateRequestOptions to add x-ibm-dx-publish-priority:now header if specified
+     * Override BaseREST.getUpdateRequestOptions to add x-ibm-dx-publish-priority:now, next header if specified
      *
      * NOTE - this is only used for the Asset POSTing, since Asset PUT needs to determine whether to add forceOverride whereas POST doesn't support that
      */
@@ -182,6 +183,8 @@ class AssetsREST extends BaseREST {
             .then((reqOptions) => {
                 if (options.getRelevantOption(context, opts, "publish-now")) {
                     reqOptions.headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NOW;
+                } else if (options.getRelevantOption(context, opts, "publish-next")) {
+                    reqOptions.headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NEXT;
                 }
                 const deferred = Q.defer();
                 deferred.resolve(reqOptions);
@@ -196,6 +199,8 @@ class AssetsREST extends BaseREST {
         const forceParam = (options.getRelevantOption(context, opts, "force-override")) ? "?forceOverride=true" : "";
         if (options.getRelevantOption(context, opts, "publish-now")) {
             headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NOW;
+        } else if (options.getRelevantOption(context, opts, "publish-next")) {
+            headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NEXT;
         }
 
         this.getRequestURI(context, opts)
@@ -531,6 +536,10 @@ class AssetsREST extends BaseREST {
         if (options.getRelevantOption(context, opts, "setTag")) {
             restObject.setTag (context, reqOptions.body, opts);
         }
+        const lib = options.getRelevantOption(context, opts, "setLibrary")
+        if (lib) {
+            reqOptions.body.libraryId = lib;
+        }
         utils.logDebugInfo(context, "_postAssetMetadata request", undefined, reqOptions);
         request.post(reqOptions, function (err, res, body) {
             const response = res || {};
@@ -666,6 +675,10 @@ class AssetsREST extends BaseREST {
                                     .then(function (reqOptions) {
                                         if (options.getRelevantOption(context, opts, "setTag")) {
                                             restObject.setTag (context, requestBody, opts);
+                                        }
+                                        const lib = options.getRelevantOption(context, opts, "setLibrary");
+                                        if (lib) {
+                                            requestBody.libraryId = lib;
                                         }
                                         reqOptions.body = requestBody;
                                         request.put(reqOptions, function (err, res, body) {

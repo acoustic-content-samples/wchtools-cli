@@ -26,6 +26,7 @@ const singletonEnforcer = Symbol();
 
 const PUBLISH_PRIORITY = "x-ibm-dx-publish-priority";
 const PUBLISH_PRIORITY_NOW = "now";
+const PUBLISH_PRIORITY_NEXT = "next";
 
 class ContentREST extends JSONItemREST {
 
@@ -51,6 +52,8 @@ class ContentREST extends JSONItemREST {
             .then((reqOptions) => {
                 if (options.getRelevantOption(context, opts, "publish-now")) {
                     reqOptions.headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NOW;
+                } else if (options.getRelevantOption(context, opts, "publish-next")) {
+                    reqOptions.headers[PUBLISH_PRIORITY] = PUBLISH_PRIORITY_NEXT;
                 }
                 const deferred = Q.defer();
                 deferred.resolve(reqOptions);
@@ -72,6 +75,14 @@ class ContentREST extends JSONItemREST {
     supportsTags() {
         return true;
     }
+
+    /*
+     * Does this artifact type support libraries (eg, to allow associating an item with a library on push)
+     */
+    supportsLibraries() {
+        return true;
+    }
+
 }
 
 module.exports = ContentREST;

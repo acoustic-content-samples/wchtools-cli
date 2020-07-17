@@ -196,6 +196,16 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
     wchtools pull -w -v --path /myNavigationWidget  --dir <path-to-working-directory>
 
+#### Pulling system artifacts
+
+  By default, wchtools will not pull out of the box system artifacts (JSON marked with isSystem:true or web assets under /acoustic/...),
+  because those can only be created, updated and deleted by acoustic services.
+
+  If you have a need to pull system artifacts, to provide information to support, or for example to look at how Acoustic implemented a type and layout combination,  you may pull with the optional --system option.  It is recommended that if you need to do this, that you 
+  specify an alternate temporary directory with the --dir option, since you will "not" be able to push those system artifacts back to
+  your tenant with your next push (you will receive an error for each system artifact you attempt to push), so you do not want to mix
+  such system artifacts with any other artifacts that you're pulling and then pushing to your tenant(s).
+
 #### Pushing all pages, content, and related authoring artifacts from a local file system folder
 
   To push (import) all pages, content model, content, and assets from a local working directory, run the following command:
@@ -251,6 +261,14 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
   If you are pushing artifacts (for example, specific set of image assets from an external source, as managed assets) and would like to explicitly tag those artifacts with a user specified tag, during the push, use the following --set-tag <tag-name> option.
 
     wchtools push -A -v --set-tag <my-tag-name>
+
+#### Setting a library on assets and content, by library id, when pushing
+
+  When pushing artifacts, you may optionally associate assets and content with an existing library by using the following push option.
+  First obtain the id of the existing library from the authoring UI libraries view, or from the libraries json artifacts in your local
+  folder of authoring artifacts, and then specify that library as follows:
+
+  wchtools push -A -v --set-library-id <id>
 
 ### Pulling all artifact instances and deleting local stale copies
 
@@ -659,11 +677,11 @@ The manifest created from this command will include all of the ready artifacts i
   Caution: It's a good idea to pull all artifacts to your working directory before deleting them from Acoustic Content. This provides a backup in case you need to restore some or all of the deleted artifacts in the future.
 
 #### Triggering a publishing system update (advanced)
-  By default, authoring artifacts such as content and assets are published to the delivery system when they are moved from draft to ready to publish state. Therefore, an explicit publish command is not necessary. If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates publish by default, that is, it publishes only the artifacts that are not already in the delivery system.
+  By default, authoring artifacts such as content and assets are published to the delivery system when they are moved from draft to ready to publish state. Therefore, an explicit publish command is not necessary. If needed, you can use wchtools CLI to trigger an explicit publish with the following publish command. The publish command updates the publishing system by default, that is, it publishes only the artifacts that are not already in the delivery system.
 
     wchtools publish --verbose
 
-  If for some reason all of the published artifacts need to be republished, you can do a "rebuild" publish with the following command. Note that all items in delivery will be unavailable whilst this process runs which will make any production site unavailable. This should only be done as a last resort. 
+  If for some reason all of the published artifacts need to be republished, you can do a "rebuild" publish with the following command. Note that all items in delivery will be unavailable whilst this process runs which will make any production site or application unavailable. Only execute this command if you know what're doing!
 
     wchtools publish -r --verbose
 

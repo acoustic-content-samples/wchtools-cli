@@ -323,7 +323,15 @@ class AssetsHelper extends BaseHelper {
         // Create an array of functions, one function for each item being pulled.
         const functions = items.map(function (item) {
             return function () {
-                return helper._pullAsset(context, item, opts);
+                if (helper.canPullItem(item, context, opts)) {
+                    return helper._pullAsset(context, item, opts);
+                } else {
+                    // This item cannot be pulled, so add a log entry.
+                    helper.getLogger(context).info(i18n.__("cannot_pull_item", {name: helper.getName(item)}));
+
+                    // Return a resolved promise with no value to skip this item.
+                    return Q();
+                }
             };
         });
 
@@ -445,6 +453,18 @@ class AssetsHelper extends BaseHelper {
             });
         }
 
+        // Filter the list to exclude any items that should not be saved to file.
+        assetList = assetList.filter(function (asset) {
+            const canPullItem = helper.canPullItem(asset, context, opts);
+            if (!canPullItem) {
+                // This item cannot be pulled, so skip the resource and add a log entry.
+                context.skippedResourceIDs.push(asset.resource);
+                helper.getLogger(context).info(i18n.__("cannot_pull_item", {name: helper.getName(asset)}));
+            }
+
+            return canPullItem;
+        });
+
         // Filter the asset list based on the path.
         let filterPath = options.getRelevantOption(context, opts, "filterPath");
         if (filterPath) {
@@ -539,10 +559,16 @@ class AssetsHelper extends BaseHelper {
         const helper = this;
         return this._restApi.getItem(context, id, opts)
             .then(function (asset) {
-                // The asset with the specified id was found, so pull it.
+                // The asset with the specified id was found.
                 const logger = helper.getLogger(context);
-                logger.trace("Pull found asset by id: " + id + " path found: " + asset.path);
-                return helper._pullAsset(context, asset, opts);
+
+                if (helper.canPullItem(asset, context, opts)) {
+                    logger.trace("Pull found asset by id: " + id + " path found: " + asset.path);
+                    return helper._pullAsset(context, asset, opts);
+                } else {
+                    // If the asset returned by the service cannot be pulled, add a log entry.
+                    logger.info(i18n.__("cannot_pull_item" , {name: helper.getName(asset)}));
+                }
             })
             .catch(function (err) {
                 // The asset with the specified name was not found.
@@ -571,10 +597,16 @@ class AssetsHelper extends BaseHelper {
                 return helper._findItemByPath(context, assets, assetPath, opts);
             })
             .then(function (asset) {
-                // The asset with the specified path was found, so pull it.
+                // The asset with the specified path was found.
                 const logger = helper.getLogger(context);
-                logger.trace("Pull found asset: " + assetPath);
-                return helper._pullAsset(context, asset, opts);
+
+                if (helper.canPullItem(asset, context, opts)) {
+                    logger.trace("Pull found asset: " + assetPath);
+                    return helper._pullAsset(context, asset, opts);
+                } else {
+                    // If the asset with the specified path cannot be pulled, add a log entry.
+                    logger.info(i18n.__("cannot_pull_item" , {name: helper.getName(asset)}));
+                }
             })
             .catch(function (err) {
                 // The asset with the specified name was not found.
@@ -1785,7 +1817,7 @@ class AssetsHelper extends BaseHelper {
      * Wrapper function to call the FS API getItem, for obtaining the
      * local asset metadata for a compare operation. For web assets, there is
      * no local metadata, so we return a resolved promise with mock metadata.
-     * 
+     *
      * @param context The API context to be used for this operation.
      * @param assetPath The asset path to retrieve the metadata for.
      * @param opts The options for this operation.
@@ -1805,7 +1837,7 @@ class AssetsHelper extends BaseHelper {
 
     /**
      * Wraps a call to a function to get a remote MD5 hash so that errors can be ignored.
-     * 
+     *
      * @param getMD5HashFunction the function to call
      * @param context the context for the operation
      * @param asset the asset to compute the MD5 hash for
@@ -1831,7 +1863,7 @@ class AssetsHelper extends BaseHelper {
 
     /**
      * Wraps a call to a function to get a local MD5 hash so that errors can be ignored.
-     * 
+     *
      * @param getMD5HashFunction the function to call
      * @param context the context for the operation
      * @param asset the asset to compute the MD5 hash for
@@ -1858,7 +1890,7 @@ class AssetsHelper extends BaseHelper {
     /**
      * Wrapper function to call the REST API getResourceStream and hashes generateMD5HashFromStream,
      * for obtaining the remote resource binary data for a compare operation.
-     * 
+     *
      * @param context The API context to be used for this operation.
      * @param asset The asset to retrieve the resource stream for.
      * @param opts The options for this operation.
@@ -1879,7 +1911,7 @@ class AssetsHelper extends BaseHelper {
     /**
      * Wrapper function to call the FS API getItemReadStream and hashes generateMD5HashFromStream,
      * for obtaining the local resource binary data for a compare operation.
-     * 
+     *
      * @param context The API context to be used for this operation.
      * @param asset The asset to retrieve the resource stream for.
      * @param opts The options for this operation.
@@ -3074,6 +3106,27 @@ class AssetsHelper extends BaseHelper {
         }
 
         return super.canDeleteItem(item, isDeleteAll, opts);
+    }
+
+    /**
+     * Determine whether the given item can be pulled.
+     *
+     * @param {Object} item The item to be pulled.
+     * @param {Object} context The API context to be used by the pull operation.
+     * @param {Object} opts The options to be used to pull the items.
+     *
+     * @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
+     *                    indicates that the item cannot be pulled.
+     */
+    canPullItem (item, context, opts) {
+        let retVal = super.canPullItem(item, context, opts);
+        if (retVal) {
+            // Do not pull system items unless the system option was specified.
+            const isSystemItem = item.isSystem || (item.path && item.path.match(/\/acoustic\/.*/));
+            retVal = (!isSystemItem || (options.getRelevantOption(context, opts, "allowSystemArtifacts") === true));
+        }
+
+        return retVal;
     }
 
     /**

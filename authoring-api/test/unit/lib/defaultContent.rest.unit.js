@@ -47,7 +47,7 @@ class DefaultContentRestUnitTest extends BaseRestUnitTest {
 
         describe("getUpdateRequestOptions", function() {
 
-            it("should succeed with valid options", function (done) {
+            it("should succeed with valid options with NOW", function (done) {
                 UnitTest.restoreOptions(context);
                 const opts = {
                     "x-ibm-dx-tenant-base-url": "url-1",
@@ -55,6 +55,41 @@ class DefaultContentRestUnitTest extends BaseRestUnitTest {
                     "x-ibm-dx-foo": "foo",
                     "x-ibm-dx-bar": 1,
                     "publish-now": true
+                };
+
+                // Call the method being tested.
+                let error;
+                restApi.getUpdateRequestOptions(context, opts)
+                    .then(function (requestOptions) {
+                        // Verify that the options contain the expected values.
+                        expect(requestOptions.uri).to.contain("url-1");
+                        expect(requestOptions.headers["x-ibm-dx-tenant-base-url"]).to.be.undefined;
+                        expect(requestOptions.headers["x-ibm-dx-request-id"]).to.contain("test-request-id-suffix");
+                        expect(requestOptions.headers["x-ibm-dx-foo"]).to.equal("foo");
+                        expect(requestOptions.headers["x-ibm-dx-bar"]).to.be.undefined;
+                        expect(requestOptions.headers["User-Agent"]).to.not.be.undefined;
+                        expect(requestOptions.maxAttempts).to.not.be.undefined;
+                        expect(requestOptions.retryStrategy).to.not.be.undefined;
+                        expect(requestOptions.delayStrategy).to.not.be.undefined;
+                        expect(requestOptions.instanceId).to.not.be.undefined;
+                    })
+                    .catch (function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with valid options with NEXT", function (done) {
+                UnitTest.restoreOptions(context);
+                const opts = {
+                    "x-ibm-dx-tenant-base-url": "url-1",
+                    "x-ibm-dx-request-id": "test-request-id-suffix",
+                    "x-ibm-dx-foo": "foo",
+                    "x-ibm-dx-bar": 1,
+                    "publish-next": true
                 };
 
                 // Call the method being tested.

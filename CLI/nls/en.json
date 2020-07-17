@@ -90,6 +90,7 @@
   "cli_pull_opt_pages": "If specified, page definitions will be pulled.",
   "cli_pull_opt_ignore_timestamps":"If specified, pull artifacts whether or not they have been modified since the last successful pull or push command.",
   "cli_pull_opt_deletions":       "If specified, pull artifacts whether or not they have been modified, and delete any local artifacts that do not exist on the server.",
+  "cli_pull_opt_system":          "If specified, also pull artifacts that are marked with the isSystem flag, including out of the box framework artifacts that cannot be pushed by users.",
   "cli_pull_opt_quiet":           "If specified, do not confirm deletions.",
   "cli_pull_opt_path":            "If specified, only artifacts that are in this relative path will be pulled. For example, if /mySPA is specified, all artifacts under the mySPA folder would be pulled. If /mySPA/test is specified, only artifacts under the /mySPA/test folder will be pulled.",
   "cli_pull_opt_siteContext": "If specified, page and site artifacts will only be pulled for the site with the specified context root. For example, if 'store' is specified, page and site artifacts will be limited to the site with that context root. The default site does not have a context root, so 'default' can be specified.",
@@ -393,6 +394,8 @@
   "cli_publishing_site_revision_state": "Publishing site revision state: %(state)s",
   "cli_publishing_site_revision": "Publishing site revision: %(site_revision)s",
   "cli_publishing_site_revision_error": "Unable to retrieve the publishing site revision. %(message)s",
+  "cli_publishing_rebuild_warn": "Warning: This process can take some time to complete. During this time, all items in delivery will be temporarily unavailable. This means that your applications or websites will be unavailable during this time. Are you sure want to continue? (yes/no)",
+  "cli_publishing_rebuild_canceled" : "Publishing request canceled",
 
   "cli_delete_description":     "Delete the specified artifact(s) from Acoustic Content. Only remote artifacts will be deleted. Use local operating system commands to delete artifacts from the file system after deleting them from Acoustic Content.",
   "cli_delete_opt_assets":      "If specified, content assets will be deleted.",

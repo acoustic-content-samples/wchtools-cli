@@ -73,7 +73,7 @@
   "cli_pull_manifest_started":    "マニフェスト %(name)s を使用してプルが開始しました。",
   "cli_pull_modified_started":    "変更済みのプルが開始しました",
   "cli_pull_started":             "プルが開始しました",
-  "cli_pull_description":         "Acoustic Content から変更されたオーサリング成果物をプルします。 成果物タイプを指定しない場合、デフォルトで Web アセットが使用されます。",
+  "cli_pull_description":         "Acoustic Content から変更されたオーサリング成果物をプルします。成果物タイプを指定しない場合、デフォルトで Web アセットが使用されます。",
   "cli_pull_opt_libraries":       "指定すると、ライブラリーがプルされます。",
   "cli_pull_opt_types":           "指定すると、コンテンツ・タイプがプルされます。",
   "cli_pull_opt_assets":          "指定すると、コンテンツ・アセットがプルされます。",
@@ -225,7 +225,7 @@
   "cli_push_manifest_started":    "マニフェスト %(name)s を使用してプッシュが開始しました。",
   "cli_push_modified_started":    "変更済みのプッシュが開始しました",
   "cli_push_started":             "プッシュが開始しました",
-  "cli_push_description":         "Acoustic Content に変更されたオーサリング成果物をプッシュします。 成果物タイプが指定されていない場合、デフォルトで Web アセットがプッシュされます。",
+  "cli_push_description":         "Acoustic Content に変更されたオーサリング成果物をプッシュします。成果物タイプが指定されていない場合、デフォルトで Web アセットがプッシュされます。",
   "cli_push_opt_libraries":       "指定すると、ライブラリーがプッシュされます。",
   "cli_push_opt_types":           "指定すると、コンテンツ・タイプがプッシュされます。",
   "cli_push_opt_assets":          "指定すると、コンテンツ・アセットがプッシュされます。",
@@ -305,7 +305,7 @@
   "cli_push_name_one_type": "--named オプションを使用できるのは単一の成果物タイプの場合のみです。",
   "cli_push_site_revision_pushed":       "名前 %(name)s および ID %(id)s の公開サイト・リビジョンをプッシュしました",
   "cli_push_site_revision_push_error":   "ID %(name)s の公開サイト・リビジョンのプッシュで次のエラーが発生しました: %(message)s。",
-  "cli_push_warn_schedule":    "この Acoustic Content テナントには公開スケジュールが存在します。  プッシュされる準備完了アイテムは、次のスケジュールが発生したとき (%(publishDateTime)s) に公開されます。 直ちに公開するには、push コマンドで %(publishNow)s オプションを使用してください。",
+  "cli_push_warn_schedule":    "この Acoustic Content テナントには公開スケジュールが存在します。プッシュされる準備完了アイテムは、次のスケジュールが発生したとき (%(publishDateTime)s) に公開されます。 直ちに公開するには、push コマンドで %(publishNow)s オプションを使用してください。",
   "cli_push_warn_schedule_lookup": "次の公開スケジュールの検索要求中にエラーが発生しました: %(message)s",
 
   "cli_push_success": {
@@ -394,7 +394,7 @@
   "cli_publishing_site_revision": "公開サイト・リビジョン: %(site_revision)s",
   "cli_publishing_site_revision_error": "公開サイト・リビジョンを取得できません。 %(message)s",
 
-  "cli_delete_description":     "指定された成果物を Acoustic Content から削除します。 リモート成果物のみが削除されます。 成果物を Acoustic Content から削除した後に、ローカル・オペレーティング・システムのコマンドを使用してファイル・システムから成果物を削除してください。",
+  "cli_delete_description":     "指定された成果物を Acoustic Content から削除します。リモート成果物のみが削除されます。 成果物を Acoustic Content から削除した後に、ローカル・オペレーティング・システムのコマンドを使用してファイル・システムから成果物を削除してください。",
   "cli_delete_opt_assets":      "指定すると、コンテンツ・アセットが削除されます。",
   "cli_delete_opt_web_assets":  "指定すると、Web アセットが削除されます。",
   "cli_delete_opt_libraries":   "指定すると、ライブラリーが削除されます。",
@@ -530,15 +530,15 @@
     "other": "成果物の削除に %d 件のエラーが発生しました。"
   },
   "cli_clear_description": "指定されたオプションに関連付けられたデータをクリアします。",
-  "cli_opt_clear_cache":        "指定された Acoustic Content テナントのコンテンツ配信ネットワーク (CDN) のキャッシュをクリアします。  これにより、CDN でバックグラウンド・タスクが開始されますが、このタスクの完了にはしばらく時間がかかります。このオプションは、必要な場合にのみ使用してください。",
+  "cli_opt_clear_cache":        "指定された Acoustic Content テナントのコンテンツ配信ネットワーク (CDN) のキャッシュをクリアします。これにより、CDN でバックグラウンド・タスクが開始されますが、このタスクの完了にはしばらく時間がかかります。このオプションは、必要な場合にのみ使用してください。",
   "cli_clear_error":            "clear コマンドの実行中にエラーが発生しました。",
   "cli_clear_requires_cache":   "現在、clear コマンドでは、コンテンツ配信ネットワークのキャッシュのクリアのみがサポートされます。  キャッシュをクリアするには、%(cache)s オプションを指定してください。",
   "cli_clear_cache_error":      "clear コマンドでエラーが発生しました。 %(message)s",
   "cli_clear_cache_started":    "指定された Acoustic Content テナントにキャッシュ・クリア要求を送信しています。",
-  "cli_clear_cache_successful": "キャッシュ・クリア操作は Acoustic Content によって受け入れられました。",
+  "cli_clear_cache_successful": "キャッシュ・クリア操作は Acoustic Content によって正常に受け入れられました。",
   "cli_clear_cache_estimate": {
-    "one": "Acoustic Content コンテンツ配信ネットワークは、キャッシュ無効化の完了まで %d 秒かかると推定しています。",
-    "other": "Acoustic Content コンテンツ配信ネットワークは、キャッシュ無効化の完了まで %d 秒かかると推定しています。"
+    "one": "Acoustic Content 配信ネットワークは、キャッシュ無効化の完了まで %d 秒かかると推定しています。",
+    "other": "Acoustic Content 配信ネットワークは、キャッシュ無効化の完了まで %d 秒かかると推定しています。"
   },
 
   "cli_clear_cache_details":    "Acoustic Content API からのキャッシュ・クリア応答に以下の詳細が含まれていました: %(clear_cache_response_details)s",
@@ -547,8 +547,8 @@
   "cli_init_opt_url":           "%(product_name)s のテナントに固有の API URL。 この URL は、%(product_name)s オーサリング・ユーザー・インターフェースのハブ情報ダイアログに表示されます。",
   "cli_init_opt_dir":           "指定した場合は、構成設定の保存場所となります。 指定しなかった場合、構成設定はユーザーのホーム・ディレクトリーに保存されます。",
   "cli_init_opt_retry_max_attempts": "ネットワークまたはサーバーがビジーであるエラーにより Acoustic Content API 要求が失敗した場合の最大試行数。 デフォルトは 5 です。",
-  "cli_init_opt_retry_min_time": "失敗した Acoustic Content API 要求を再試行しようとする前に待機する最短時間 (ミリ秒)。 デフォルトは 1,000 です。",
-  "cli_init_opt_retry_max_time": "失敗した Acoustic Content API 要求を再試行しようとする前に待機する最長時間 (ミリ秒)。 デフォルトは 16,000 です。",
+  "cli_init_opt_retry_min_time": "失敗した Acoustic Content API 要求を再試行しようとする前に待機する最短時間 (ミリ秒)。デフォルトは 1,000 です。",
+  "cli_init_opt_retry_max_time": "失敗した Acoustic Content API 要求を再試行しようとする前に待機する最長時間 (ミリ秒)。デフォルトは 16,000 です。",
   "cli_init_opt_store_credentials": "API URL によるユーザー資格情報をオペレーティング・システムのキー・マネージャー (Windows または Mac OS) に格納します。 Acoustic Content への接続時に、ユーザー名とパスワードがコマンド・ライン引数として指定されていない場合は、格納されている資格情報が取得されて認証に使用されます。",
   "cli_init_user_name":         "ユーザー名",
   "cli_init_url":               "API URL",

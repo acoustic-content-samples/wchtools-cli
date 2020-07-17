@@ -221,7 +221,7 @@ class PullUnitTest extends UnitTest {
 
                 // Execute the command to pull the items to the download directory.
                 let error;
-                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "pull", "--system", "--user", "foo", "--password", "password", "--url", "http://foo.bar/api"])
                     .then(function (msg) {
                         // Verify that the stub was called once, and that the expected message was returned.
                         expect(stub).to.have.been.calledOnce;

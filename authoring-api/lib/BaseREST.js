@@ -155,10 +155,14 @@ class BaseREST {
                         // wouldn't retry on this error, but if it happens during authorization, a retry frequently succeeds.
                         case 403: {
                             retVal = true;
-                            // For a 403, don't bother retrying if the error code is 3193 (operation not allowed based on tenant tier).
+                            // Don't bother retrying on 403 if the error code implies that retry won't succeed.
                             if (response && response.body && response.body.errors && response.body.errors.length > 0) {
                                 response.body.errors.forEach(function (e) {
-                                    if (e.code === 3193) {
+                                    const is1004 = ((e.code === 1004) || (e.code === "1004")); // Unable to login. The user credentials are incorrect.
+                                    const is1005 = ((e.code === 1005) || (e.code === "1005")); // Unable to login. The user credentials are incorrect.
+                                    const is1006 = ((e.code === 1006) || (e.code === "1006")); // Unable to login. The user is currently blocked.
+                                    const is3193 = ((e.code === 3193) || (e.code === "3193")); // Operation not allowed based on tenant tier.
+                                    if (is1004 || is1005 || is1006 || is3193) {
                                         retVal = false;
                                     }
                                 });
