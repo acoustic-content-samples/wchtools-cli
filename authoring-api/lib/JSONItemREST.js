@@ -55,6 +55,10 @@ class JSONItemREST extends BaseREST {
         if (restObject.supportsTags() && options.getRelevantOption(context, opts, "setTag")) {
             restObject.setTag (context, item, opts);
         }
+        const lib = options.getRelevantOption(context, opts, "setLibrary");
+        if (restObject.supportsLibraries() && lib) {
+            item.libraryId = lib;
+        }
         this.getUpdateRequestOptions(context, opts)
             .then(function (requestOptions) {
                 const saveRev = item.rev;
@@ -114,6 +118,10 @@ class JSONItemREST extends BaseREST {
         const restObject = this;
         if (restObject.supportsTags() && options.getRelevantOption(context, opts, "setTag")) {
             restObject.setTag (context, item, opts);
+        }
+        const lib = options.getRelevantOption(context, opts, "setLibrary")
+        if (restObject.supportsLibraries() && lib) {
+            item.libraryId = lib;
         }
         this.getUpdateRequestOptions(context, opts)
             .then(function (requestOptions) {
@@ -180,6 +188,13 @@ class JSONItemREST extends BaseREST {
      * Does this artifact type support tags (eg, to allow setting a tag on a push)
      */
     supportsTags() {
+        return false;
+    }
+
+    /*
+     * Does this artifact type support being associated with a library
+     */
+    supportsLibraries() {
         return false;
     }
 

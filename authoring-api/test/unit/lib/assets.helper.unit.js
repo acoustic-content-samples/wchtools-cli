@@ -1105,6 +1105,67 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when a system asset cannot be pulled.", function (done) {
+                // Read the contents of four valid test asset metadata files.
+                const assetPath1 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_1;
+                const assetPath2 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_2;
+                const assetPath3 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_3;
+                const assetPath4 = AssetsUnitTest.VALID_CONTENT_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CONTENT_JPG_4;
+                const assetMetadata1 = UnitTest.getJsonObject(assetPath1 + assetsFS.getExtension());
+                const assetMetadata2 = UnitTest.getJsonObject(assetPath2 + assetsFS.getExtension());
+                const assetMetadata3 = UnitTest.getJsonObject(assetPath3 + assetsFS.getExtension());
+                const assetMetadata4 = UnitTest.getJsonObject(assetPath4 + assetsFS.getExtension());
+                const isSystem3 = assetMetadata3.isSystem;
+                assetMetadata3.isSystem = true;
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stubItems = sinon.stub(assetsREST, "getItems");
+                stubItems.onCall(0).resolves([assetMetadata1, assetMetadata2]);
+                stubItems.onCall(1).resolves([assetMetadata3, assetMetadata4]);
+                stubItems.onCall(2).resolves([]);
+
+                // Create an assetsFS.getItemWriteStream spy to make sure the stream is not created.
+                const spyStream = sinon.spy(assetsFS, "getItemWriteStream");
+
+                // Create an assetsREST.pullItem spy to make sure the item is not pulled.
+                const spyPull = sinon.spy(assetsREST, "pullItem");
+
+                // Create an assetsFS.saveItem spy to make sure the item is not saved.
+                const spySave = sinon.spy(assetsFS, "saveItem");
+
+                // The stub and spies should be restored when the test is complete.
+                self.addTestDouble(stubItems);
+                self.addTestDouble(spyStream);
+                self.addTestDouble(spyPull);
+                self.addTestDouble(spySave);
+
+                // Call the method being tested with an invalid name.
+                let error;
+                assetsHelper.pullItemByPath(context, assetMetadata3.path, {offset: 0, limit: 2})
+                    .then(function (asset) {
+                        // Verify that the helper returned the expected value.
+                        expect(asset).to.be.falsy;
+
+                        // Verify that the stub and spies were called as expected.
+                        expect(stubItems).to.have.been.calledTwice;
+                        expect(spyStream).to.not.have.been.called;
+                        expect(spyPull).to.not.have.been.called;
+                        expect(stubUpdateHashes).to.not.have.been.called;
+                        expect(spySave).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        assetMetadata3.isSystem = isSystem3;
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
 
         describe("pullItem", function () {
@@ -1262,6 +1323,59 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when a system asset is not pulled.", function (done) {
+                // Read the contents of four valid test asset metadata files.
+                const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_GIF_1;
+                const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
+                const isSystem1 = assetMetadata1.isSystem;
+                assetMetadata1.isSystem = true;
+
+                // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
+                const stubItems = sinon.stub(assetsREST, "getItem");
+                stubItems.resolves(assetMetadata1);
+
+                // Create an assetsFS.getItemWriteStream spy to make sure that a stream is not created.
+                const spyStream = sinon.spy(assetsFS, "getItemWriteStream");
+
+                // Create an assetsREST.pullItem spoy to make sure that the item is not pulled.
+                const spyPull = sinon.spy(assetsREST, "pullItem");
+
+                // Create an assetsFS.saveItem spy to make sure it doesn't get called.
+                const spySave = sinon.spy(assetsFS, "saveItem");
+
+                // The stub and spies should be restored when the test is complete.
+                self.addTestDouble(stubItems);
+                self.addTestDouble(spyStream);
+                self.addTestDouble(spyPull);
+                self.addTestDouble(spySave);
+
+                // Call the method being tested with an invalid name.
+                let error;
+                assetsHelper.pullItem(context, assetMetadata1.id, {offset: 0, limit: 2})
+                    .then(function (asset) {
+                        // Verify that the helper returned the expected value.
+                        expect(asset).to.be.falsy;
+
+                        // Verify that the stub was called once, and the spies were not called.
+                        expect(stubItems).to.have.been.calledOnce;
+                        expect(spyStream).to.not.have.been.called;
+                        expect(spyPull).to.not.have.been.called;
+                        expect(stubUpdateHashes).to.not.have.been.called;
+                        expect(spySave).to.not.have.been.called;
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        assetMetadata1.isSystem = isSystem1;
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });
@@ -1495,6 +1609,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const assetMetadata4 = UnitTest.getJsonObject(assetMetadataPath4);
                 const assetMetadata5 = UnitTest.getJsonObject(assetMetadataPath5);
                 const assetMetadata6 = UnitTest.getJsonObject(assetMetadataPath6);
+                const isSystem6 = assetMetadata6.isSystem;
+                assetMetadata6.isSystem = true;
 
                 // Create an assetsREST.getItems stub that returns a promise for the metadata of the assets.
                 const stubGet = sinon.stub(assetsREST, "getItems", function (context, opts) {
@@ -1538,10 +1654,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const STREAM_TAG_4 = "unique.id.4";
                 stream4.tag = STREAM_TAG_4;
                 stubStream.onCall(3).resolves(stream4);
-                const stream5 = AssetsUnitTest.DUMMY_PASS_STREAM;
-                const STREAM_TAG_5 = "unique.id.5";
-                stream5.tag = STREAM_TAG_5;
-                stubStream.onCall(4).resolves(stream5);
 
                 const emitPipe = function(stream, res) {
                     stream.emit("pipe");
@@ -1560,8 +1672,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         return emitPipe(stream3, assetMetadata3);
                     } else if (stubPull.callCount === 4) {
                         return emitPipe(stream4, assetMetadata4);
-                    } else if (stubPull.callCount === 5) {
-                        return emitPipe(stream5, assetMetadata6);
                     }
                 });
 
@@ -1583,7 +1693,7 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         // Verify that the helper returned the expected values.
                         // Note that pullAllAssets is designed to return a metadata array, but currently it does not.
                         if (assets) {
-                            expect(assets).to.have.lengthOf(6);
+                            expect(assets).to.have.lengthOf(5);
                             expect(assets[0].path).to.equal(assetMetadata1.path);
                             expect(assets[1].path).to.equal(assetMetadata2.path);
                             expect(assets[2].path).to.equal(assetMetadata3.path);
@@ -1591,7 +1701,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                             expect(assets[4].name).to.equal("Error");
                             expect(assets[4].message).to.contain("Invalid path");
                             expect(assets[4].message).to.contain(assetMetadata5.path);
-                            expect(assets[5].path).to.equal(assetMetadata6.path);
                         }
 
                         // Verify that the get stub was called four times.
@@ -1599,30 +1708,27 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubResources).to.have.been.calledOnce;
 
                         // Verify that the stream stub was called five times, each time with the expected path.
-                        expect(stubStream).to.have.callCount(5);
+                        expect(stubStream).to.have.callCount(4);
                         expect(stubStream.args[0][1]).to.equal(assetMetadata1);
                         expect(stubStream.args[1][1]).to.equal(assetMetadata2);
                         expect(stubStream.args[2][1]).to.equal(assetMetadata3);
                         expect(stubStream.args[3][1]).to.equal(assetMetadata4);
-                        expect(stubStream.args[4][1]).to.equal(assetMetadata6);
 
                         // Verify that the pull stub was called five times, each time with the expected path and stream.
-                        expect(stubPull).to.have.callCount(5);
+                        expect(stubPull).to.have.callCount(4);
                         expect(stubPull.args[0][1].path).to.equal(assetMetadata1.path);
                         expect(stubPull.args[1][1].path).to.equal(assetMetadata2.path);
                         expect(stubPull.args[2][1].path).to.equal(assetMetadata3.path);
                         expect(stubPull.args[3][1].path).to.equal(assetMetadata4.path);
-                        expect(stubPull.args[4][1].path).to.equal(assetMetadata6.path);
                         expect(stubPull.args[0][2].tag).to.equal(STREAM_TAG_1);
                         expect(stubPull.args[1][2].tag).to.equal(STREAM_TAG_2);
                         expect(stubPull.args[2][2].tag).to.equal(STREAM_TAG_3);
                         expect(stubPull.args[3][2].tag).to.equal(STREAM_TAG_4);
-                        expect(stubPull.args[4][2].tag).to.equal(STREAM_TAG_5);
 
                         // Verify that the hashes were called as expected.
                         expect(stubSetLastPull).to.not.have.been.called;
 
-                        expect(stubUpdateHashes).to.have.callCount(5);
+                        expect(stubUpdateHashes).to.have.callCount(4);
                         expect(stubUpdateHashes.args[0][4]).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[0][3].path).to.contain(AssetsUnitTest.ASSET_HTML_1);
                         expect(stubUpdateHashes.args[1][4]).to.contain(AssetsUnitTest.ASSET_CSS_1);
@@ -1631,8 +1737,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         expect(stubUpdateHashes.args[2][3].path).to.contain(AssetsUnitTest.ASSET_JPG_1);
                         expect(stubUpdateHashes.args[3][4]).to.contain(AssetsUnitTest.ASSET_GIF_1);
                         expect(stubUpdateHashes.args[3][3].path).to.contain(AssetsUnitTest.ASSET_GIF_1);
-                        expect(stubUpdateHashes.args[4][4]).to.contain(AssetsUnitTest.ASSET_JAR_1);
-                        expect(stubUpdateHashes.args[4][3].path).to.contain(AssetsUnitTest.ASSET_JAR_1);
                     })
                     .catch(function (err) {
                         // NOTE: A failed expectation from above will be handled here.
@@ -1642,6 +1746,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                     .finally(function () {
                         // Restore the emitter on the context.
                         context.eventEmitter = emitter;
+
+                        assetMetadata6.isSystem = isSystem6;
 
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
@@ -2779,19 +2885,23 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 // Read the contents of five test asset metadata files.
                 const assetMetadataPath1 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_HTML_1;
                 const assetMetadataPath2 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_CSS_1;
+                const assetMetadataPath3 = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
                 const assetMetadata1 = UnitTest.getJsonObject(assetMetadataPath1);
                 const assetMetadata2 = UnitTest.getJsonObject(assetMetadataPath2);
+                const assetMetadata3 = UnitTest.getJsonObject(assetMetadataPath3);
+                const isSystem3 = assetMetadata3.isSystem;
+                assetMetadata3.isSystem = true;
 
                 // Create a helper.getManifestItems stub that returns a promise for the manifest items.
                 const stubGet = sinon.stub(assetsHelper, "getManifestItems");
-                stubGet.resolves([assetMetadata1, assetMetadata2, UnitTest.DUMMY_METADATA, UnitTest.DUMMY_METADATA]);
+                stubGet.resolves([assetMetadata1, assetMetadata2, assetMetadata3, UnitTest.DUMMY_METADATA]);
 
                 // Create a rest.getItem stub that returns a promise for the metadata of an item.
                 const GET_ERROR = "There was an error getting a remote item, as expected by a unit test.";
                 const stubList = sinon.stub(assetsREST, "getItemByPath");
                 stubList.onCall(0).resolves(assetMetadata1);
                 stubList.onCall(1).resolves(assetMetadata2);
-                stubList.onCall(2).resolves(UnitTest.DUMMY_METADATA);
+                stubList.onCall(2).resolves(assetMetadata3);
                 stubList.onCall(3).rejects(GET_ERROR);
 
                 // Create a helper._pullAsset stub that returns the meatadata of an item, and an error.
@@ -2799,7 +2909,6 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                 const stubPull = sinon.stub(assetsHelper, "_pullAsset");
                 stubPull.onCall(0).resolves(assetMetadata1);
                 stubPull.onCall(1).resolves(assetMetadata2);
-                stubPull.onCall(2).rejects(LIST_ERROR);
 
                 // The stub should be restored when the test is complete.
                 self.addTestDouble(stubGet);
@@ -2824,6 +2933,8 @@ class AssetsHelperUnitTest extends AssetsUnitTest {
                         error = err;
                     })
                     .finally(function () {
+                        assetMetadata3.isSystem = isSystem3;
+
                         // Call mocha's done function to indicate that the test is over.
                         done(error);
                     });

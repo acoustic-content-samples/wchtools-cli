@@ -421,6 +421,86 @@ class BaseRestUnitTest extends UnitTest {
                     });
             });
 
+            it("should fail when the request should not be retried", function (done) {
+                // Create a stub for the underlying GET requests.
+                const stub = sinon.stub(request.Request, "request");
+
+                // The GET request is to retrieve the items, but returns an error.
+                const REQUEST_ERROR = "Error getting the items.";
+                const err = new Error(REQUEST_ERROR);
+                const body = null;
+                stub.onCall(0).yields(err, {"statusCode": 403, "body": {"errors": [{"code": 1004}]}}, body);
+                stub.onCall(1).yields(err, {"statusCode": 403, "body": {"errors": [{"code": 1005}]}}, body);
+                stub.onCall(2).yields(err, {"statusCode": 403, "body": {"errors": [{"code": 1006}]}}, body);
+
+                // The stub should be restored when the test is complete.
+                self.addTestDouble(stub);
+
+                // Call the method being tested, using short delay value so the unit test doesn't timeout.
+                let error;
+                const opts = {retryMinTimeout: 10, retryMaxTimeout: 100, siteItem: {id: "foo"}};
+                restApi.getItems(context, opts)
+                    .then(function () {
+                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                        error = new Error("The promise for the asset request URI should have been rejected.");
+                    })
+                    .catch(function (err) {
+                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                        expect(stub).to.have.callCount(1);
+                        expect(stub.firstCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
+                        expect(stub.firstCall.args[0].json).to.equal(true);
+
+                        // Verify that the expected error is returned.
+                        expect(err.name).to.equal("Error");
+                        expect(err.message).to.contain(REQUEST_ERROR);
+
+                        restApi.getItems(context, opts)
+                            .then(function () {
+                                // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                                error = new Error("The promise for the asset request URI should have been rejected.");
+                            })
+                            .catch(function (err) {
+                                // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                                expect(stub).to.have.callCount(2);
+                                expect(stub.secondCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
+                                expect(stub.secondCall.args[0].json).to.equal(true);
+
+                                // Verify that the expected error is returned.
+                                expect(err.name).to.equal("Error");
+                                expect(err.message).to.contain(REQUEST_ERROR);
+
+                                restApi.getItems(context, opts)
+                                    .then(function () {
+                                        // This is not expected. Pass the error to the "done" function to indicate a failed test.
+                                        error = new Error("The promise for the asset request URI should have been rejected.");
+                                    })
+                                    .catch(function (err) {
+                                        // Verify that the stub was called once with the lookup URI and once with the asset URI.
+                                        expect(stub).to.have.callCount(3);
+                                        expect(stub.thirdCall.args[0].uri).to.contain(restApi.getUriPath(context, opts));
+                                        expect(stub.thirdCall.args[0].json).to.equal(true);
+
+                                        // Verify that the expected error is returned.
+                                        expect(err.name).to.equal("Error");
+                                        expect(err.message).to.contain(REQUEST_ERROR);
+                                    })
+                                    .catch(function (err) {
+                                        error = err;
+                                    })
+                            })
+                            .catch(function (err) {
+                                error = err;
+                            })
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
             it("should fail when the request is retried the maximum number of times", function (done) {
                 // Create a stub for the underlying GET requests.
                 const stub = sinon.stub(request.Request, "request");
@@ -710,7 +790,6 @@ class BaseRestUnitTest extends UnitTest {
                         done(error);
                     });
             });
-
         });
     }
 

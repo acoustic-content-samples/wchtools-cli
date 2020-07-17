@@ -1,12 +1,19 @@
 # Changelog
 
+### 4.4.0 changes since 4.3.8
+ - Don't pull system artifacts or /acoustic web assets unless --system is specified
+ - Add --set-library-id <id> option to push command.
+ - Add --publish-next option to publish command.
+ - Add warning and prompt to publish command when using --rebuild option.
+ - Reduce time between relogin to 12 minutes due to new shorter JWT expiration
+
 ### 4.3.8 changes since 4.2.26
  - Rebrand message strings from Watson Content Hub to Acoustic Content
- - update to acoustic sdk
- - fix warning about new Buffer security issue
- - always keep timestamps in ISO format
- - fix context init opts to not overwrite values loaded from .wchtoolsoptions with defaults
- - fix conflict handling for draft items
+ - Update to acoustic sdk
+ - Fix warning about new Buffer security issue
+ - Always keep timestamps in ISO format
+ - Fix context init opts to not overwrite values loaded from .wchtoolsoptions with defaults
+ - Fix conflict handling for draft items
 
 ### 4.2.26 changes since 4.2.24
   - Fix dependencies.

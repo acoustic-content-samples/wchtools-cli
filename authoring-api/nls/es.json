@@ -22,7 +22,7 @@
 
   "deleted_original_file": "Archivo original suprimido: nuevo archivo de %(old_name)s: %(new_name)s",
   "file_parse_error": "No se ha podido analizar el archivo: %(path)s",
-  "file_skipped": "No se ha encontrado el id en el archivo: %(path)s, skipping",
+  "file_skipped": "No se ha encontrado el id en el archivo: %(path)s, se ignora",
   "error_cancelling_job": "Error al cancelar el trabajo: id %(id)s",
   "error_fs_get_item": "Error en getItem del sistema de archivos",
   "error_fs_get_filestats": "Error en getFileStats del sistema de archivos para %(name)s.",
@@ -63,9 +63,9 @@
 
   "error_unsupported_endpoint": "El %(service_name)s API no soporta el punto final %(endpoint)s.",
   "unknown_error": "Error desconocido",
-  "service_unavailable": "Un servicio de Acoustic Content no está actualmente disponible.  ",
-  "service_error": "Un servicio de Acoustic Content está informando de dificultades técnicas.  ",
-  "service_response_error": "Un servicio de Acoustic Content ha devuelto el código de error %(code)d y el mensaje de estado: %(message)s",
+  "service_unavailable": "Actualmente, no está disponible un servicio de Acoustic Content. ",
+  "service_error": "Un servicio de Acoustic Content está informando de dificultades técnicas. ",
+  "service_response_error": "Un servicio de Acoustic Content ha devuelto un código de error %(code)d y un mensaje de estado: %(message)s",
   "operation_failed": "La operación ha fallado con el error: ",
   "async_parallel_limit_error": "La llamada parallelLimit asíncrona ha fallado con el error: ",
   "async_parallel_limit_results": "Resultados de parallelLimit asíncrona: ",

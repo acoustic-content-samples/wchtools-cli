@@ -113,6 +113,10 @@ class PullCommand extends BaseCommand {
         let error;
         self.handleDirOption(context)
             .then(function () {
+                // Handle the system option.
+                return self.handleSystemOption();
+            })
+            .then(function () {
                 // Make sure the url has been specified.
                 return self.handleUrlOption(context);
             })
@@ -1849,6 +1853,7 @@ class PullCommand extends BaseCommand {
         this.setCommandLineOption("serverManifest", undefined);
         this.setCommandLineOption("writeManifest", undefined);
         this.setCommandLineOption("writeDeletionsManifest", undefined);
+        this.setCommandLineOption("system", undefined);
         super.resetCommandLineOptions();
     }
 }
@@ -1876,6 +1881,7 @@ function pullCommand (program) {
         .option('-I --ignore-timestamps',i18n.__('cli_pull_opt_ignore_timestamps'))
         .option('--by-type-name <name>', i18n.__('cli_pull_opt_by_type_name'))
         .option('--deletions',           i18n.__('cli_pull_opt_deletions'))
+        .option('--system',              i18n.__('cli_pull_opt_system'))
         .option('-q --quiet',            i18n.__('cli_pull_opt_quiet'))
         .option('--site-context <contextRoot>', i18n.__('cli_pull_opt_siteContext'))
         .option('--path <path>',         i18n.__('cli_pull_opt_path'))

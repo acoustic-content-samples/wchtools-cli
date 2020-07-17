@@ -870,6 +870,51 @@ class BaseHelperUnitTest extends UnitTest {
                         done(error);
                     });
             });
+
+            it("should succeed when system item is not pulled.", function (done) {
+                const systemItem = utils.clone(itemMetadata1);
+                systemItem.isSystem = true;
+
+                // Create a restApi.getItem stub that returns the contents of a test file.
+                const stubRest = sinon.stub(restApi, "getItem");
+                stubRest.resolves(systemItem);
+
+                // Create an fsApi.saveItem stub that returns the contents of a test file.
+                const spyFs = sinon.spy(fsApi, "saveItem");
+
+                // Create a spy to listen for the "pulled" event.
+                const emitter = helper.getEventEmitter(context);
+                const spy = sinon.spy();
+                emitter.on("pulled", spy);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubRest);
+                self.addTestDouble(spyFs);
+
+                // Call the method being tested.
+                let error;
+                helper.pullItem(context, UnitTest.DUMMY_ID, UnitTest.DUMMY_OPTIONS)
+                    .then(function (item) {
+                        // Verify that the stubs and the spy were called in the correct order.
+                        expect(stubRest).to.have.been.called;
+                        expect(spyFs).to.not.have.been.called;
+                        expect(spy).to.not.have.been.called;
+
+                        // Verify that the item was not returned.
+                        expect(item).to.be.falsy;
+                    })
+                    .catch (function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        emitter.removeListener("pulled", spy);
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
         });
     }
 
@@ -1194,14 +1239,17 @@ class BaseHelperUnitTest extends UnitTest {
                 helper.pullAllItems(context, {offset: 0, limit: 2, validateName: true})
                     .then(function (items) {
                         // Verify that the results have the expected values.
-                        expect(items).to.have.lengthOf(2);
+                        expect(items).to.have.lengthOf(3);
                         expect(items[0].id).to.equal(itemMetadata1.id);
-                        expect(items[1].id).to.equal(itemMetadata2.id);
                         expect(helper.getName(items[0])).to.equal(helper.getName(itemMetadata1));
+                        expect(items[1].id).to.equal(itemMetadata2.id);
                         expect(helper.getName(items[1])).to.equal(helper.getName(itemMetadata2));
+                        expect(items[2].message).to.equal(SAVE_ERROR);
 
-                        // Verify that the get stub was called 3 times.
+                        // Verify that the stubs were called the expected number of times.
                         expect(stubGet).to.have.callCount(3);
+                        expect(stubCan).to.have.callCount(5);
+                        expect(stubSave).to.have.callCount(3);
 
                         // Verify that the spies were not called.
                         expect(spyPull).to.not.have.been.called;

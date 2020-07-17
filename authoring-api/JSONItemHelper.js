@@ -181,7 +181,7 @@ class JSONItemHelper extends BaseHelper {
                     // Save the original file name, in case the result of the push is saved to a file with a different name.
                     return helper._uploadItem(context, item, utils.cloneOpts(opts, {originalPushFileName: name}));
                 } else {
-                    // This really shouldn't happen. But if we try to push an item that can't be pushed, add a log entry.
+                    // Add a log entry if we try to push an item that can't be pushed.
                     helper.getLogger(context).info(i18n.__("cannot_push_item" , {name: name}));
                 }
             })
@@ -285,7 +285,7 @@ class JSONItemHelper extends BaseHelper {
         return helper.getRemoteItem(context, id, opts)
             .then(function (item) {
                 // Check whether the item should be saved to file.
-                if (helper.canPullItem(item)) {
+                if (helper.canPullItem(item, context, opts)) {
                     return helper._fsApi.saveItem(context, item, opts);
                 } else {
                     // If the item returned by the service cannot be pulled, add a log entry.
@@ -559,11 +559,7 @@ class JSONItemHelper extends BaseHelper {
      * @param {Object} opts - The options to be used for the list operation.
      */
     _updateManifest (context, itemList, opts) {
-        const helper = this;
-        const manifestList = itemList.filter(function (item) {
-            return helper.canPullItem(item);
-        });
-        manifests.updateManifestSection(context, helper.getArtifactName(), manifestList, opts);
+        manifests.updateManifestSection(context, this.getArtifactName(), itemList, opts);
     }
 
     /**
@@ -574,11 +570,7 @@ class JSONItemHelper extends BaseHelper {
      * @param {Object} opts - The options to be used for the list operation.
      */
     _updateDeletionsManifest (context, itemList, opts) {
-        const helper = this;
-        const manifestList = itemList.filter(function (item) {
-            return helper.canPullItem(item);
-        });
-        manifests.updateDeletionsManifestSection(context, helper.getArtifactName(), manifestList, opts);
+        manifests.updateDeletionsManifestSection(context, this.getArtifactName(), itemList, opts);
     }
 
     /**
@@ -939,27 +931,23 @@ class JSONItemHelper extends BaseHelper {
     }
 
     /**
-     *  Determine whether the given item can be pulled.
+     * Determine whether the given item can be pulled.
      *
-     *  @param {Object} item The item to be pulled.
+     * @param {Object} item The item to be pulled.
+     * @param {Object} context The API context to be used by the pull operation.
+     * @param {Object} opts The options to be used to pull the items.
      *
-     *  @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
-     *                     indicates that the item cannot be pulled.
+     * @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
+     *                    indicates that the item cannot be pulled.
      */
-    canPullItem (item) {
-        return (item && typeof item === "object");
-    }
+    canPullItem (item, context, opts) {
+        let retVal = super.canPullItem(item, context, opts);
+        if (retVal) {
+            // Do not pull system items unless the system option was specified.
+            retVal = (!item.isSystem || (options.getRelevantOption(context, opts, "allowSystemArtifacts") === true));
+        }
 
-    /**
-     *  Determine whether the given item can be pushed.
-     *
-     *  @param {Object} item The item to be pushed.
-     *
-     *  @returns {Boolean} A return value of true indicates that the item can be pushed. A return value of false
-     *                     indicates that the item cannot be pushed.
-     */
-    canPushItem (item) {
-        return (item && typeof item === "object");
+        return retVal;
     }
 
     addIgnoreKeys (ignoreKeys, segments) {
@@ -1526,7 +1514,7 @@ class JSONItemHelper extends BaseHelper {
 
         // Filter the list to exclude any items that should not be saved to file.
         itemList = itemList.filter(function (item) {
-            const canPullItem = helper.canPullItem(item);
+            const canPullItem = helper.canPullItem(item, context, opts);
             if (!canPullItem) {
                 // This item cannot be pulled, so add a log entry.
                 helper.getLogger(context).info(i18n.__("cannot_pull_item", {name: helper.getName(item)}));

@@ -100,7 +100,7 @@ const checkUpdateNotifier = function() {
                  current_version: pkg.version,
                  new_version: notifier.update.latest});
             const changelogmsg = i18n.__('cli_update_notifier_changelog',
-                {changelog_url: "https://github.com/ibm-wch/wchtools-cli/blob/master/CHANGELOG.md" });
+                {changelog_url: "https://github.com/acoustic-content-samples/wchtools-cli/blob/master/CHANGELOG.md" });
             notifier.notify({message: changelogmsg + '\n' + upmsg });
         }
     }

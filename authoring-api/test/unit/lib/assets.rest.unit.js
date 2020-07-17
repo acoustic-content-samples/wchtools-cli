@@ -43,6 +43,10 @@ const DUMMY_PUBLISH_NOW_REQUEST_OPTIONS = {
     "x-ibm-dx-tenant-base-url": "dummy-url",
     "publish-now":true,
     "setTag": "test-tag"};
+const DUMMY_PUBLISH_NEXT_REQUEST_OPTIONS = {
+    "x-ibm-dx-tenant-base-url": "dummy-url",
+    "publish-next":true,
+    "setTag": "test-tag"};
 
 // The default API context used for unit tests.
 const context = UnitTest.DEFAULT_API_CONTEXT;
@@ -342,7 +346,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
         const self = this;
 
         describe("getAssetUpdateRequestOptions", function () {
-            it("should succeed with a valid ID and options", function (done) {
+            it("should succeed with a valid ID and options with NOW", function (done) {
                 let error;
                 assetsREST.getAssetUpdateRequestOptions(context, UnitTest.DUMMY_ID, DUMMY_PUBLISH_NOW_REQUEST_OPTIONS)
                     .then(function (requestOptions) {
@@ -355,6 +359,31 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         expect(requestOptions.headers["Content-Type"]).to.equal("application/json");
                         expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
                         expect(requestOptions.headers["x-ibm-dx-publish-priority"]).to.exist;
+                        expect(requestOptions.headers["x-ibm-dx-publish-priority"]).to.equal("now");
+                    })
+                    .catch(function (err) {
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed with a valid ID and options with NEXT", function (done) {
+                let error;
+                assetsREST.getAssetUpdateRequestOptions(context, UnitTest.DUMMY_ID, DUMMY_PUBLISH_NEXT_REQUEST_OPTIONS)
+                    .then(function (requestOptions) {
+                        expect(requestOptions).to.exist;
+                        expect(requestOptions.uri).to.contain("/authoring/v1/assets");
+                        expect(requestOptions.uri).to.contain(DUMMY_REQUEST_OPTIONS["x-ibm-dx-tenant-base-url"]);
+                        expect(requestOptions.headers).to.exist;
+                        expect(requestOptions.headers["Accept"]).to.equal("application/json");
+                        expect(requestOptions.headers["Accept-Language"]).to.contain("en");
+                        expect(requestOptions.headers["Content-Type"]).to.equal("application/json");
+                        expect(requestOptions.headers["Connection"]).to.equal("keep-alive");
+                        expect(requestOptions.headers["x-ibm-dx-publish-priority"]).to.exist;
+                        expect(requestOptions.headers["x-ibm-dx-publish-priority"]).to.equal("next");
                     })
                     .catch(function (err) {
                         error = err;
@@ -1659,7 +1688,7 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                     });
             });
 
-            it("should succeed when pushing a valid resource", function (done) {
+            it("should succeed when pushing a valid resource with option NOW", function (done) {
                 // Create a readable stream of the asset content to pass to the method being tested.
                 const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
                 const assetContent = fs.readFileSync(assetPath);
@@ -1745,6 +1774,109 @@ class AssetsRestUnitTest extends AssetsUnitTest {
                         expect(stubPost.secondCall.args[0].body.tags.values).to.contain("test-tag");
                         expect(stubPost.secondCall.args[0].headers).to.exist;
                         expect(stubPost.secondCall.args[0].headers["x-ibm-dx-publish-priority"]).to.exist;
+                        expect(stubPost.secondCall.args[0].headers["x-ibm-dx-publish-priority"]).to.equal("now");
+
+                        // Verify that the expected value is returned.
+                        expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);
+                    })
+                    .catch(function (err) {
+                        // NOTE: A failed expectation from above will be handled here.
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("should succeed when pushing a valid resource with option NEXT", function (done) {
+                // Create a readable stream of the asset content to pass to the method being tested.
+                const assetPath = AssetsUnitTest.API_PATH + AssetsUnitTest.VALID_ASSETS_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetContent = fs.readFileSync(assetPath);
+                const assetStream = new Stream.Readable();
+                assetStream.push(assetContent);
+                assetStream.push(null);
+
+                // Create spies to watch the pipe process.
+                const spyPipe = sinon.spy();
+                const spyData = sinon.spy();
+                const spyEnd = sinon.spy();
+                const spyFinish = sinon.spy();
+
+                // Catch the data that is being piped from the input stream to the post request.
+                const requestContentArray = [];
+                let requestContentBuffer;
+                assetStream.on("data", function (data) {
+                    requestContentArray.push(data);
+                });
+                assetStream.on("data", spyData);
+                assetStream.on("end", function () {
+                    requestContentBuffer = Buffer.concat(requestContentArray);
+                });
+                assetStream.on("end", spyEnd);
+
+                // Create a writable stream to receive the content being sent to the post request.
+                const requestStream = new Stream.Writable();
+                requestStream.on("pipe", spyPipe);
+                requestStream.on("finish", spyFinish);
+
+                // Create a stub for the POST requests.
+                const stubPost = sinon.stub(request, "post");
+
+                // The first POST request specifies the resource URI and returns a promise for the resource metadata.
+                const assetMetadataPath = AssetsUnitTest.VALID_ASSETS_METADATA_DIRECTORY + AssetsUnitTest.ASSET_JPG_1;
+                const assetMetadata = UnitTest.getJsonObject(assetMetadataPath);
+                let err = null;
+                let res = {"statusCode": 200};
+                let body = '{"id": "' + assetMetadata.resource + '"}';
+                stubPost.onCall(0).returns(requestStream);
+                stubPost.onCall(0).yieldsAsync(err, res, body);
+
+                // The second POST request specifies the asset URI and returns the asset metadata.
+                err = null;
+                res = {"statusCode": 200};
+                body = assetMetadata;
+                stubPost.onCall(1).yields(err, res, body);
+
+                const stubHead = sinon.stub(request, "head");
+                stubHead.yields(undefined, { statusCode: 404 }, null);
+
+                // The stubs should be restored when the test is complete.
+                self.addTestDouble(stubPost);
+                self.addTestDouble(stubHead);
+
+                // Call the method being tested.
+                let error;
+                assetsREST.pushItem(context, false, false, false, undefined, undefined, "/" + AssetsUnitTest.ASSET_JPG_1, assetStream, assetContent.length, DUMMY_PUBLISH_NEXT_REQUEST_OPTIONS)
+                    .then(function (asset) {
+                        expect(stubHead).to.have.callCount(0);
+
+                        // Verify that the post stub was called twice.
+                        expect(stubPost).to.have.been.calledTwice;
+
+                        // Verify that the first post was called with a resource URI.
+                        expect(stubPost.firstCall.args[0].uri).to.contain("/authoring/v1/resources");
+
+                        // Verify that the expected content was sent to the first post.
+                        expect(Buffer.compare(requestContentBuffer, assetContent)).to.equal(0);
+
+                        // Verify that the pipe process occurred in the order expected.
+                        expect(spyData).to.have.been.calledBefore(spyPipe);
+                        expect(spyPipe).to.have.been.calledBefore(spyEnd);
+                        expect(spyEnd).to.have.been.calledBefore(spyFinish);
+
+                        // Verify that the second post was called with an asset URI and the expected body, which
+                        // includes the new asset metadata id and a modified path.
+                        expect(stubPost.secondCall.args[0].uri).to.contain("/authoring/v1/assets");
+                        expect(stubPost.secondCall.args[0].body.resource).to.equal(assetMetadata.resource);
+                        expect(stubPost.secondCall.args[0].body.path).to.equal("/" + AssetsUnitTest.ASSET_JPG_1);
+                        expect(stubPost.secondCall.args[0].body.tags).to.exist;
+                        expect(stubPost.secondCall.args[0].body.tags.values).to.exist;
+                        expect(stubPost.secondCall.args[0].body.tags.values).to.contain("test-tag");
+                        expect(stubPost.secondCall.args[0].headers).to.exist;
+                        expect(stubPost.secondCall.args[0].headers["x-ibm-dx-publish-priority"]).to.exist;
+                        expect(stubPost.secondCall.args[0].headers["x-ibm-dx-publish-priority"]).to.equal("next");
 
                         // Verify that the expected value is returned.
                         expect(diff.diffJson(asset, assetMetadata)).to.have.lengthOf(1);

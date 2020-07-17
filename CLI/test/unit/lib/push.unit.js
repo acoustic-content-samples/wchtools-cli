@@ -195,7 +195,7 @@ class PushUnitTest extends UnitTest {
                     });
             });
 
-            it("test generic push working", function (done) {
+            it("test generic push working with NOW", function (done) {
                 let savedOpts;
                 // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
                 const stub = sinon.stub(helper, "pushModifiedItems", function (context, opts) {
@@ -234,6 +234,65 @@ class PushUnitTest extends UnitTest {
                     .then(function (msg) {
                         expect(savedOpts).to.exist;
                         expect(savedOpts["publish-now"]).to.exist;
+                        expect(savedOpts["setTag"]).to.exist;
+
+                        // Verify that the stub was called once, and that the expected message was returned.
+                        expect(stub).to.have.been.calledOnce;
+                        expect(msg).to.contain('2 artifacts');
+                        expect(msg).to.contain('2 errors');
+                    })
+                    .catch(function (err) {
+                        // Pass the error to the "done" function to indicate a failed test.
+                        error = err;
+                    })
+                    .finally(function () {
+                        // Restore the helper's "pushModifiedItems" method.
+                        stub.restore();
+
+                        // Call mocha's done function to indicate that the test is over.
+                        done(error);
+                    });
+            });
+
+            it("test generic push working with NEXT", function (done) {
+                let savedOpts;
+                // Stub the helper.pushModifiedItems method to return a promise that is resolved after emitting events.
+                const stub = sinon.stub(helper, "pushModifiedItems", function (context, opts) {
+                    savedOpts = opts;
+                    // When the stubbed method is called, return a promise that will be resolved asynchronously.
+                    const stubDeferred = Q.defer();
+                    setTimeout(function () {
+                        const emitter = helper.getEventEmitter(context);
+                        if (switches === "--sites") {
+                            emitter.emit("pushed", {
+                                name: itemName1,
+                                id: undefined,
+                                contextRoot: itemName1,
+                                status: "ready"
+                            });
+                            emitter.emit("pushed", {
+                                name: itemName2,
+                                id: undefined,
+                                contextRoot: itemName2,
+                                status: "draft"
+                            });
+                        } else {
+                            emitter.emit("pushed", {name: itemName1, id: undefined, path: itemName1});
+                            emitter.emit("pushed", {name: itemName2, id: undefined, path: itemName2});
+                        }
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, badItem);
+                        emitter.emit("pushed-error", {message: "This failure was expected by the unit test"}, {name: "fail-name", id: "fail-id", path: "fail-path"});
+                        stubDeferred.resolve();
+                    }, 0);
+                    return stubDeferred.promise;
+                });
+
+                // Execute the command to push the items to the download directory.
+                let error;
+                toolsCli.parseArgs(['', UnitTest.COMMAND, "push", switches, "--user", "foo", "--password", "password", "--url", "http://foo.bar/api", "--publish-next", "--set-tag","test-tag"])
+                    .then(function (msg) {
+                        expect(savedOpts).to.exist;
+                        expect(savedOpts["publish-next"]).to.exist;
                         expect(savedOpts["setTag"]).to.exist;
 
                         // Verify that the stub was called once, and that the expected message was returned.

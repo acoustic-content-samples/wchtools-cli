@@ -313,9 +313,16 @@ class PushCommand extends BaseCommand {
         if (self.getCommandLineOption("publishNow")) {
             self.setApiOption("publish-now", true);
         }
+        if (self.getCommandLineOption("publishNext")) {
+            self.setApiOption("publish-next", true);
+        }
         const setTagVal = self.getCommandLineOption("setTag");
         if (setTagVal) {
             self.setApiOption("setTag", setTagVal);
+        }
+        const setLibraryVal = self.getCommandLineOption("setLibraryId");
+        if (setLibraryVal) {
+            self.setApiOption("setLibrary", setLibraryVal);
         }
         if (self.getCommandLineOption("keepUsers")) {
             self.setApiOption("keepUsers", true);
@@ -1406,7 +1413,9 @@ class PushCommand extends BaseCommand {
         this.setCommandLineOption("serverManifest", undefined);
         this.setCommandLineOption("writeManifest", undefined);
         this.setCommandLineOption("publishNow", undefined);
+        this.setCommandLineOption("publishNext", undefined);
         this.setCommandLineOption("setTag", undefined);
+        this.setCommandLineOption("setLibrary", undefined);
         this.setCommandLineOption("keepUsers", undefined);
         super.resetCommandLineOptions();
     }
@@ -1435,6 +1444,7 @@ function pushCommand (program) {
         .option('-A --all-authoring',    i18n.__('cli_push_opt_all'))
         .option('-f --force-override',   i18n.__('cli_push_opt_force_override'))
         .option('--publish-now',         i18n.__('cli_push_opt_publish_now'))
+        .option('--publish-next',        i18n.__('cli_push_opt_publish_next'))
         .option('--create-only',         i18n.__('cli_push_opt_create_only'))
         .option('--ready',               i18n.__('cli_push_opt_ready'))
         .option('--draft', i18n.__('cli_push_opt_draft'))
@@ -1446,6 +1456,7 @@ function pushCommand (program) {
         .option('--write-manifest <manifest>', i18n.__('cli_push_opt_write_manifest'))
         .option('--dir <dir>',           i18n.__('cli_push_opt_dir'))
         .option('--set-tag <tag>',       i18n.__('cli_push_opt_set_tag'))
+        .option('--set-library-id <library-id>',  i18n.__('cli_push_opt_set_tag'))
         .option('--keep-users',          i18n.__('cli_push_opt_keep_users'))
         .option('--user <user>',         i18n.__('cli_opt_user_name'))
         .option('--password <password>', i18n.__('cli_opt_password'))

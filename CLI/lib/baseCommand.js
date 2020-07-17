@@ -699,6 +699,20 @@ class BaseCommand {
     }
 
     /**
+     * Handle the system option.
+     *
+     * @returns {Q.Promise} A promise that is resolved if the system option is properly handled, and rejected to
+     *          indicate that command execution should not continue.
+     */
+    handleSystemOption () {
+        if (this.getCommandLineOption("system")) {
+            this.setApiOption("allowSystemArtifacts", true);
+        }
+
+        return Q();
+    }
+
+    /**
      * Handle the authentication options. These can be specified as command line options, user property (username), or
      * environment variable (password). If either value is missing, the user will be prompted for the missing value(s).
      *

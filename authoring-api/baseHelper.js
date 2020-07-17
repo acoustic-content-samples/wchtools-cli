@@ -843,6 +843,32 @@ class BaseHelper {
     }
 
     /**
+     * Determine whether the given item can be pulled.
+     *
+     * @param {Object} item The item to be pulled.
+     * @param {Object} context The API context to be used by the pull operation.
+     * @param {Object} opts The options to be used to pull the items.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
+     *                     indicates that the item cannot be pulled.
+     */
+    canPullItem (item, context, opts) {
+        return (item && typeof item === "object");
+    }
+
+    /**
+     *  Determine whether the given item can be pushed.
+     *
+     *  @param {Object} item The item to be pushed.
+     *
+     *  @returns {Boolean} A return value of true indicates that the item can be pushed. A return value of false
+     *                     indicates that the item cannot be pushed.
+     */
+    canPushItem (item) {
+        return (item && typeof item === "object");
+    }
+
+    /**
      * Initialize any values used to retry items that failed to push.
      *
      * @param {Object} context The current context to be used by the API.

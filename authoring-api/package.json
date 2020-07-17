@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for Acoustic Content",
-  "version": "4.3.8",
+  "version": "4.4.0",
   "keywords": [
     "api",
     "tools"
@@ -9,7 +9,7 @@
   "author": "Acoustic, L.P.",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/ibm-wch/wchtools-cli/issues"
+    "url": "https://github.com/acoustic-content-samples/wchtools-cli/issues"
   },
   "engines": {
     "node": ">=8.9.4"

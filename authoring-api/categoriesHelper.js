@@ -20,6 +20,7 @@ const JSONItemFS = require("./lib/categoriesFS");
 const Q = require("q");
 const rest = require("./lib/categoriesREST").instance;
 const fS = require("./lib/categoriesFS").instance;
+const options = require("./lib/utils/options.js");
 const utils = require("./lib/utils/utils.js");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
@@ -72,18 +73,26 @@ class CategoriesHelper extends JSONItemHelper {
     }
 
     /**
-     *  Determine whether the given item can be pulled.
+     * Determine whether the given item can be pulled.
      *
-     *  @param {Object} item The item to be pulled.
+     * @param {Object} item The item to be pulled.
+     * @param {Object} context The API context to be used by the pull operation.
+     * @param {Object} opts The options to be used to pull the items.
      *
-     *  @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
-     *                     indicates that the item cannot be pulled.
+     * @returns {Boolean} A return value of true indicates that the item can be pulled. A return value of false
+     *                    indicates that the item cannot be pulled.
      *
-     *  @override
+     * @override
      */
-    canPullItem (item) {
-        // Don't pull system categories.
-        return (item && item["permanent"] !== true);
+    canPullItem (item, context, opts) {
+        let retVal = super.canPullItem(item, context, opts);
+        if (retVal) {
+            // Don't pull system categories unless the system option was specified. This is a special case
+            // for categories, which used the "permanent" property before the "isSystem" property was added.
+            retVal = ((item["permanent"] !== true) || (options.getRelevantOption(context, opts, "allowSystemArtifacts") === true));
+        }
+
+        return retVal;
     }
 
     /**

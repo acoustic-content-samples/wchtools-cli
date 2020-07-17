@@ -99,7 +99,7 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
                 // Call the method being tested.
                 let error;
                 try {
-                    expect(helper.canPullItem(itemMetadata)).to.equal(false);
+                    expect(helper.canPullItem(itemMetadata, context, {})).to.equal(false);
                 } catch (err) {
                     error = err;
                 } finally {
@@ -114,13 +114,30 @@ class CategoriesHelperUnitTest extends BaseHelperUnitTest {
                 // Call the method being tested.
                 let error;
                 try {
-                    expect(helper.canPullItem(itemMetadata)).to.equal(true);
+                    expect(helper.canPullItem(itemMetadata, context, {})).to.equal(true);
                 } catch (err) {
                     error = err;
                 } finally {
                     done(error);
                 }
             });
+
+            it("should return false for an isSystem:true category.", function (done) {
+                // The contents of the test item metadata files.
+                const itemMetadata = UnitTest.getJsonObject(nonSystemPath1);
+                itemMetadata.isSystem = true;
+
+                // Call the method being tested.
+                let error;
+                try {
+                    expect(helper.canPullItem(itemMetadata, context, {})).to.equal(false);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    done(error);
+                }
+            });
+
         });
     }
 

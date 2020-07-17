@@ -63,8 +63,8 @@
 
   "error_unsupported_endpoint": "%(service_name)s のAPI は %(endpoint)s のエンドポイントをサポートしていません。",
   "unknown_error": "不明なエラー",
-  "service_unavailable": "Acoustic Content サービスは現在使用できません。  ",
-  "service_error": "Acoustic Content サービスが技術的な問題を報告しています。  ",
+  "service_unavailable": "Acoustic Content サービスは現在使用できません。",
+  "service_error": "Acoustic Content サービスが技術的な問題を報告しています。",
   "service_response_error": "Acoustic Content サービスからエラー・コード %(code)d および次の状況メッセージが返されました: %(message)s",
   "operation_failed": "操作がエラーで失敗しました: ",
   "async_parallel_limit_error": "非同期の parallelLimit 呼び出しがエラーで失敗しました: ",

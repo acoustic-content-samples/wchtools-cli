@@ -103,6 +103,7 @@ class LoginREST extends BaseREST {
         const requestOptions = {
             uri: this._appendURI(baseUrl, this.getUriPath(context, opts)),
             headers: LoginREST.getHeaders(context, opts),
+            json: true,
             auth: {
                 "user": opts.username,
                 "pass": opts.password,
@@ -131,11 +132,7 @@ class LoginREST extends BaseREST {
             const response = res || {};
             if (err || (response.statusCode !== 200 && response.statusCode !== 302)) {
                 // An error was returned, or at least an unexpected response code.
-                if (!err && body && body.includes("FBTBLU101E")) {
-                    err = new Error(body);
-                } else {
-                    err = utils.getError(err, body, response, requestOptions);
-                }
+                err = utils.getError(err, body, response, requestOptions);
 
                 BaseREST.logRetryInfo(context, requestOptions, response.attempts, err);
                 utils.logErrors(context, "LoginREST.login", err);
@@ -181,10 +178,10 @@ class LoginREST extends BaseREST {
                 options.setOptions(context, loginResults);
                 deferred.resolve(result);
 
-                // Determine the interval to be used for the relogin timer.
+                // Determine the interval to be used for the relogin timer, defaulting to 12 minutes, due to 15 minute JWT expiration
                 let interval = options.getRelevantOption(context, opts, "reloginInterval");
                 if (typeof interval !== "number") {
-                    interval = (11 * 60 + 45) * 60 * 1000;
+                    interval = 12 * 60 * 1000;
                 }
                 context.logger.debug("LoginREST.login: Setting relogin timer to " + interval + "ms.");
 
