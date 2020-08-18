@@ -681,7 +681,7 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools publish --verbose
 
-  If for some reason all of the published artifacts need to be republished, you can do a "rebuild" publish with the following command. Note that all items in delivery will be unavailable whilst this process runs which will make any production site or application unavailable. Only execute this command if you know what're doing!
+  If for some reason all of the published artifacts need to be republished, you can do a "rebuild" publish with the following command. Note that all items in delivery will be unavailable whilst this process runs which will make any production site or application unavailable.
 
     wchtools publish -r --verbose
 
