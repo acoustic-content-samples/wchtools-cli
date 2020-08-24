@@ -250,11 +250,11 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
     wchtools push -w --dir <path-to-working-directory>
 
-#### Forcing an immediate publish of updated web assets or content, even when a global publish schedule is set.
+#### Scheduling publish of updated content and assets
 
-  When a global publish schedule is set, by default any web or managed assets or content you push will wait in a pending state on that schedule, prior to publishing your updates.  If you need to immediately publish assets or content (for example, to fix an urgent issue in a web application asset), you may use the optional --publish-now argument to the push command.
+  Any content, managed assets or web assets that you push will be published immediately by default. When a global publish schedule exists and you need to publish content or assets on this schedule, you can use the optional --publish-next argument to the push command for the items to wait in a pending state until the next occurrence of that schedule.
 
-    wchtools push -w --dir <path-to-working-directory> --publish-now
+     wchtools push -w --dir <path-to-working-directory> --publish-next 
 
 #### Setting a tag on assets, content and types, when pushing
 
