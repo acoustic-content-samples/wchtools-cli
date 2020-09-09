@@ -90,6 +90,7 @@
   "cli_pull_opt_pages": "Se especificado, as definições de página terão pull efetuado.",
   "cli_pull_opt_ignore_timestamps":"Se especificado, extraia artefatos se eles foram ou não modificados desde o último comando pull ou push bem-sucedido.",
   "cli_pull_opt_deletions":       "Se especificado, extraia artefatos se eles foram ou não modificados e exclua quaisquer artefatos locais que não existam no servidor.",
+  "cli_pull_opt_system":          "Se especificado, extraia também artefatos marcados com a i isSystem, incluindo artefatos de estrutura prontos para uso que não podem ser enviados por usuários. ",
   "cli_pull_opt_quiet":           "Se especificado, não confirme exclusões.",
   "cli_pull_opt_path":            "Se especificado, somente os artefatos que estão nesse caminho relativo serão puxados. Por exemplo, se /mySPA for especificado, todos os artefatos sob a pasta mySPA serão puxados. Se /mySPA/test for especificado, somente os artefatos sob a pasta /mySPA/test serão puxados.",
   "cli_pull_opt_siteContext": "Se especificado, os artefatos de página e do site serão puxados apenas para o site com a raiz de contexto especificada. Por exemplo, se 'armazenar' for especificado, os artefatos de página e do site serão limitados ao site com essa raiz de contexto. O site padrão não tem uma raiz de contexto, portanto, é possível especificar 'padrão'.",
@@ -305,7 +306,6 @@
   "cli_push_name_one_type": "A opção --named só pode ser usada para um tipo de artefato único.",
   "cli_push_site_revision_pushed":       "Revisão de site de publicação puxada com o nome %(name)s e ID %(id)s",
   "cli_push_site_revision_push_error":   "O envio por push da revisão do site de publicação com o ID %(name)s resultou no erro a seguir: %(message)s.",
-  "cli_push_warn_schedule":    "Um planejamento de publicação existe para este locatário do Acoustic Content. Os itens prontos enviados por push serão publicados quando o próximo planejamento ocorrer, que é %(publishDateTime)s. Para publicar imediatamente, use a opção %(publishNow)s no comando push.",
   "cli_push_warn_schedule_lookup": "Ocorreu um erro durante uma solicitação para consultar o próximo planejamento de publicação: %(message)s",
 
   "cli_push_success": {
@@ -393,6 +393,8 @@
   "cli_publishing_site_revision_state": "Publicando o estado de revisão do site: %(state)s",
   "cli_publishing_site_revision": "Publicando a revisão do site: %(site_revision)s",
   "cli_publishing_site_revision_error": "Não é possível recuperar a revisão do site de publicação. %(message)s",
+  "cli_publishing_rebuild_warn": "Aviso: esse processo pode levar algum tempo para ser concluído. Durante esse tempo, todos os itens na entrega estarão temporariamente indisponíveis. Isso significa que seus aplicativos ou websites estarão indisponíveis durante esse período. Tem certeza de que deseja continuar? (sim/não)",
+  "cli_publishing_rebuild_canceled" : "Solicitação de publicação cancelada",
 
   "cli_delete_description":     "Exclua o(s) artefato(s) especificado(s) do Acoustic Content. Apenas os artefatos remotos serão excluídos. Use comandos do sistema operacional local para excluir artefatos do sistema de arquivos após excluí-los do Acoustic Content.",
   "cli_delete_opt_assets":      "Se especificado, os ativos de conteúdo serão excluídos.",
@@ -415,7 +417,7 @@
   "cli_delete_opt_name":        "O(s) nome(s) do(s) artefato(s) a ser(em) excluído(s). Observe que alguns tipos de artefatos permitem que múltiplas instâncias tenham o mesmo nome.",
   "cli_delete_opt_all_artifacts": "Se especificado, todos os artefatos do(s) tipo(s) especificado(s) serão excluídos.",
   "cli_delete_opt_id":          "O ID do artefato a ser excluído.",
-  "cli_delete_opt_tag":         "Se especificado, então, exclua os itens de conteúdo, os tipos de conteúdo ou os ativos de conteúdo com a marcação especificada.",
+  "cli_delete_opt_tag":         "Se especificado, então, exclua os itens de conteúdo, os tipos de conteúdo ou os ativos de conteúdo com a tag especificada.",
   "cli_delete_opt_path":        "O caminho para o artefato a ser excluído. Para especificar uma pasta de artefatos que devem ser excluídos, deve-se também especificar -r ou --recursive",
   "cli_delete_opt_siteContext": "Se especificado, os artefatos de página e do site serão excluídos apenas para o site com a raiz de contexto especificada. Por exemplo, se 'armazenar' for especificado, os artefatos de página e do site serão limitados ao site com essa raiz de contexto. O site padrão não tem uma raiz de contexto, portanto, é possível especificar 'padrão'.",
   "cli_delete_opt_recursive": "Se especificada, a opção --path será tratada como uma pasta e todos os artefatos dentro dessa pasta serão excluídos.",
@@ -530,7 +532,7 @@
     "other": "%d erros encontrados ao excluir artefatos."
   },
   "cli_clear_description": "Limpe os dados associados com a opção especificada.",
-  "cli_opt_clear_cache":        "Limpe o cache da rede de entrega de conteúdo (CDN) para o locatário do Acoustic Content especificado. Isso inicia uma tarefa em segundo plano que pode levar algum tempo para ser concluída pelo CDN e deve ser usada somente quando necessário.",
+  "cli_opt_clear_cache":        "Limpe o cache da rede de entrega de conteúdo (CDN) para o locatário do Acoustic Content especificado.  Isso inicia uma tarefa em segundo plano que pode levar algum tempo para ser concluída pelo CDN e deve ser usada somente quando necessário.",
   "cli_clear_error":            "Erro ao executar o comando clear.",
   "cli_clear_requires_cache":   "O comando clear atualmente suporta somente a limpeza do cache rede de entrega de conteúdo.  Especifique a opção %(cache)s para limpar o cache.",
   "cli_clear_cache_error":      "O comando clear resultou em um erro. %(message)s",
@@ -579,7 +581,7 @@
   "cli_compare_sites":            "Comparar definições de site",
   "cli_compare_pages_for_site":   "Comparar Páginas para o Site %(id)s",
   "cli_compare_description":      "Compare dois diretórios de trabalho locais. Se nenhum tipo de artefato for especificado, os ativos da web serão comparados por padrão.",
-  "cli_compare_opt_libraries":    "Se especificado, as bibliotecas serão comparadas.",
+  "cli_compare_opt_libraries":    "Se especificado, as bibliotecas serão compararadas.",
   "cli_compare_opt_types":        "Se especificado, os tipos de conteúdo serão comparados.",
   "cli_compare_opt_assets":       "Se especificado, os ativos serão comparados.",
   "cli_compare_opt_web_assets":   "Se especificado, os ativos da web serão comparados.",

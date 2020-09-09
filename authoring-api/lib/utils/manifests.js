@@ -78,7 +78,7 @@ function initializeManifests (context, readManifest, writeManifest, deletionsMan
                 }
             } else {
                 result = false;
-                _pullManifest(context, manifestPath, opts).then(function (manifest) {
+                _pullManifest(context, readFilename, opts).then(function (manifest) {
                     context.readManifest = manifest;
                     deferred.resolve(true);
                 }).catch(function (err) {
@@ -216,8 +216,14 @@ function _readManifest (context, manifestPath, opts) {
 
 function _pullManifest (context, manifestPath, opts) {
     const deferred = Q.defer();
-    let assetPath = path.sep + path.relative(_getAssetsDir(context, opts), manifestPath);
+    let assetPath = manifestPath;
+    if (manifestPath.indexOf("/") === -1 && (process.platform !== 'win32' || manifestPath.indexOf("\\") === -1)) {
+        assetPath = getManifestPath(context, manifestPath, opts);
+    }
     assetPath = assetPath.replace(/\\/g, '/');
+    if (!assetPath.startsWith('/')) {
+        assetPath = '/' + assetPath;
+    }
     AssetsREST.getItemByPath(context, assetPath, opts)
         .then(function (asset) {
             const manifestResource = {

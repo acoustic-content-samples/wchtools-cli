@@ -15,14 +15,14 @@ limitations under the License.
 */
 "use strict";
 
-const rest = require("./lib/publishingNextSchedulesREST").instance;
+const rest = require("./lib/publishingSchedulesREST").instance;
 const utils = require("./lib/utils/utils");
 const i18n = utils.getI18N(__dirname, ".json", "en");
 
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class PublishingNextSchedulesHelper {
+class PublishingSchedulesHelper {
     /**
      * The constructor for a PublishingJobsHelper object. This constructor implements a singleton pattern, and will fail
      * if called directly. The static instance property can be used to get the singleton instance.
@@ -31,7 +31,7 @@ class PublishingNextSchedulesHelper {
      */
     constructor (enforcer) {
         if (enforcer !== singletonEnforcer) {
-            throw i18n.__("singleton_construct_error", {classname: "PublishingNextSchedulesHelper"});
+            throw i18n.__("singleton_construct_error", {classname: "PublishingSchedulesHelper"});
         }
     }
 
@@ -40,7 +40,7 @@ class PublishingNextSchedulesHelper {
      */
     static get instance() {
         if (!this[singleton]) {
-            this[singleton] = new PublishingNextSchedulesHelper(singletonEnforcer);
+            this[singleton] = new PublishingSchedulesHelper(singletonEnforcer);
         }
         return this[singleton];
     }
@@ -54,6 +54,6 @@ class PublishingNextSchedulesHelper {
 }
 
 /**
- * Export the PublishingNextSchedulesHelper class.
+ * Export the PublishingSchedulesHelper class.
  */
-module.exports = PublishingNextSchedulesHelper;
+module.exports = PublishingSchedulesHelper;

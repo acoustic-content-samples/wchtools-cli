@@ -1,5 +1,9 @@
 # Changelog
 
+### 4.5.0 changes since 4.4.0
+ - Fix path determination for server manifests
+ - Fix display output for delete all of default content
+
 ### 4.4.0 changes since 4.3.8
  - Don't pull system artifacts or /acoustic web assets unless --system is specified
  - Add --set-library-id <id> option to push command.

@@ -305,7 +305,6 @@
   "cli_push_name_one_type": "--named 選項只能用於單一構件類型。",
   "cli_push_site_revision_pushed":       "已推送名稱為 %(name)s 及 ID 為 %(id)s 的發佈網站修訂",
   "cli_push_site_revision_push_error":   "推送 ID 為 %(name)s 的發佈網站修訂時導致下列的錯誤：%(message)s。",
-  "cli_push_warn_schedule":    "此 Acoustic Content 租戶的發佈排程存在。已推送的備妥項目將在下一個排程發生時發佈，即 %(publishDateTime)s。若要立即發佈，請在 push 命令上使用 %(publishNow)s 選項。",
   "cli_push_warn_schedule_lookup": "在要求查閱下一個發佈排程期間發生錯誤：%(message)s",
 
   "cli_push_success": {

@@ -2293,7 +2293,12 @@ class DeleteCommand extends BaseCommand {
         // Add a banner for the type of artifacts being deleted.
         logger.info(PREFIX + i18n.__("cli_deleting_all_default_content") + SUFFIX);
 
-        return this.deleteAllItems(context, helper, "name", opts);
+        // Display the name field for deleted content items.
+        const getDisplayName = function (item) {
+            return item["name"];
+        };
+
+        return this.deleteAllItems(context, helper, getDisplayName, opts);
     }
 
     /**

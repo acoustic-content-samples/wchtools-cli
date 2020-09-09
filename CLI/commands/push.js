@@ -179,22 +179,23 @@ class PushCommand extends BaseCommand {
     }
 
     /*
-     * On a push completion, if schedule(s) exist and --publish-now not specified,
-     * and ready items are being pushed (thus user may expect immediate publish)
-     * then warn the user in the completion message that what they pushed may be
+     * On a push completion, if schedule(s) exist and --publish-next is specified,
+     * ready items are being scheduled then warn the user in the completion message that what they pushed will be
      * waiting on the next scheduled publish
+     * If no scheduler exists warn about publishing immediately
      *
      * @return a promise that resolved to either the next publishing schedule if ready items are going to wait on it, or null
      */
     checkWarnAboutSchedule(context, opts) {
         const deferred = Q.defer();
-        if (this._artifactsCount > 0 && !options.getRelevantOption(context, opts, "publish-now") && !options.getRelevantOption(context, opts, "filterDraft")) {
-            ToolsApi.getPublishingNextSchedulesHelper().getNextSchedules(context, opts)
+        if (this._artifactsCount > 0 && options.getRelevantOption(context, opts, "publish-next") && !options.getRelevantOption(context, opts, "filterDraft")) {
+            ToolsApi.getPublishingSchedulesHelper().getNextSchedules(context, opts)
                 .then(items => {
                     if (items && items.length && items.length>0) {
                         const date = new Date(items[0].releaseDate);
                         deferred.resolve(date.toString());
                     } else {
+                        this.warningMessage(i18n.__("cli_push_warn_no_next_schedule"))
                         deferred.resolve(null);
                     }
                 })
@@ -286,7 +287,7 @@ class PushCommand extends BaseCommand {
         }
 
         if (this._artifactsCount > 0 && warnAboutSchedule) {
-            this.warningMessage(i18n.__('cli_push_warn_schedule', {publishNow: "--publish-now", publishDateTime: warnAboutSchedule}));
+            this.warningMessage(i18n.__('cli_push_warn_schedule', {publishDateTime: warnAboutSchedule}));
         }
     }
 

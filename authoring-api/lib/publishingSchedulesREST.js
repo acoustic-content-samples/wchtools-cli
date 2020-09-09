@@ -25,18 +25,18 @@ const i18n = utils.getI18N(__dirname, ".json", "en");
 const singleton = Symbol();
 const singletonEnforcer = Symbol();
 
-class PublishingNextSchedulesREST extends BaseREST {
+class PublishingSchedulesREST extends BaseREST {
 
     constructor(enforcer) {
         if (enforcer !== singletonEnforcer) {
-            throw i18n.__("singleton_construct_error", {classname: "PublishingNextSchedulesREST"});
+            throw i18n.__("singleton_construct_error", {classname: "PublishingSchedulesREST"});
         }
         super("publishingNextSchedules", "/publishing/v1/nextSchedule", undefined, undefined);
     }
 
     static get instance() {
         if (!this[singleton]) {
-            this[singleton] = new PublishingNextSchedulesREST(singletonEnforcer);
+            this[singleton] = new PublishingSchedulesREST(singletonEnforcer);
         }
         return this[singleton];
     }
@@ -81,4 +81,4 @@ class PublishingNextSchedulesREST extends BaseREST {
 
 }
 
-module.exports = PublishingNextSchedulesREST;
+module.exports = PublishingSchedulesREST;

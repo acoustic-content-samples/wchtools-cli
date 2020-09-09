@@ -63,8 +63,8 @@
 
   "error_unsupported_endpoint": "El %(service_name)s API no soporta el punto final %(endpoint)s.",
   "unknown_error": "Error desconocido",
-  "service_unavailable": "Actualmente, no está disponible un servicio de Acoustic Content. ",
-  "service_error": "Un servicio de Acoustic Content está informando de dificultades técnicas. ",
+  "service_unavailable": "Actualmente, no está disponible un servicio de Acoustic Content.  ",
+  "service_error": "Un servicio de Acoustic Content está informando de dificultades técnicas.  ",
   "service_response_error": "Un servicio de Acoustic Content ha devuelto un código de error %(code)d y un mensaje de estado: %(message)s",
   "operation_failed": "La operación ha fallado con el error: ",
   "async_parallel_limit_error": "La llamada parallelLimit asíncrona ha fallado con el error: ",

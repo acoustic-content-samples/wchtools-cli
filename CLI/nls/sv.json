@@ -305,7 +305,6 @@
   "cli_push_name_one_type": "Alternativet --named kan endast användas för en enkel artefakttyp.",
   "cli_push_site_revision_pushed":       "Skickade publiceringsplatsrevision med namnet %(name)s och IDt %(id)s",
   "cli_push_site_revision_push_error":   "Sändning av publiceringsplatsrevisionen med IDt %(name)s ledde till följande fel: %(message)s.",
-  "cli_push_warn_schedule":    "Det finns ett publicerat schema för den här Acoustic Content-innehavaren. Skickade klara objekt publiceras när nästa schema inträffar, vilket är %(publishDateTime)s. Om du vill publicera omedelbart använder du alternativet %(publishNow)s i Push-kommandot.",
   "cli_push_warn_schedule_lookup": "Ett fel inträffade under en begäran om att söka efter nästa publiceringsschema: %(message)s",
 
   "cli_push_success": {

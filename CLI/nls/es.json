@@ -90,6 +90,7 @@
   "cli_pull_opt_pages": "Si se especifica, se extraerán definiciones de página.",
   "cli_pull_opt_ignore_timestamps":"Si se especifica, extraer artefactos independientemente de que se hayan o no modificado desde el último mandato de envío o extracción satisfactorio.",
   "cli_pull_opt_deletions":       "Si se especifica, extraer artefactos independientemente de que se hayan o no modificado y suprimir los artefactos locales que no existan en el servidor.",
+  "cli_pull_opt_system":          "Si se especifica, también se extraen los artefactos que se han marcado con el distintivo isSystem, incluyendo los artefactos de infraestructura listos para ser utilizados que no pueden enviar los usuarios. ",
   "cli_pull_opt_quiet":           "Si se especifica, no se confirmarán las supresiones.",
   "cli_pull_opt_path":            "Si se especifica, solo se extraerán los artefactos que se encuentran en esta vía de acceso relativa. Por ejemplo, si se especifica /mySPA, se extraerán todos los artefactos de la carpeta mySPA. Si se especifica /mySPA/test, solo se extraerán los artefactos de la carpeta /mySPA/test.",
   "cli_pull_opt_siteContext": "Si se especifica, los artefactos de página y sitio sólo se extraerán para el sitio con la raíz de contexto especificada. Por ejemplo, si se especifica 'store', los artefactos de página y sitio se limitarán al sitio con esta raíz de contexto. El sitio predeterminado no tiene raíz de contexto, así que puede especificarse 'predeterminado'.",
@@ -98,7 +99,7 @@
   "cli_pull_opt_write_manifest":  "Escriba el conjunto de artefactos extraídos en el archivo de manifiesto especificado.",
   "cli_pull_opt_write_deletions_manifest":  "Escriba el conjunto de artefactos suprimidos en el archivo de manifiesto de supresiones especificado. Únicamente válido con la opción --deletions.",
   "cli_pull_opt_all":             "Si se especifica, extraer todos los tipos de artefactos de creación.",
-  "cli_pull_opt_dir":             "Directorio de trabajo local para almacenar archivos extraídos de los servicios de creación de Acoustic Content. ",
+  "cli_pull_opt_dir":             "Directorio de trabajo local para almacenar archivos extraídos de los servicios de creación de Acoustic Content.",
   "cli_pull_opt_by_type_name":    "Si se especifica con -A o --all-authoring, extraiga el contenido de tipo directamente asociado con el nombre de tipo especificado y los activos a los que dicho contenido hace referencia directa.  Esta opción establece implícitamente la opción de ignorar la indicación de fecha y hora y no es para utilizar con la opción --deletions.",
   "cli_pull_opt_bytype_deletions":"La opción --deletions no se puede especificar con la opción --by-type-name.",
   "cli_pull_opt_bytype_artifacts":"Se ha especificado un tipo de artefacto no válido para la opción --by-type-name.  La opción --by-type-name sólo se puede especificar con las opciones -A o --all-authoring y extraerá todo el contenido, activos y rendiciones directamente asociados con el tipo especificado.",
@@ -245,7 +246,7 @@
   "cli_push_opt_use_server_manifest": "Enviar solo los elementos listados en el manifiesto especificado cargado desde Acoustic Content.",
   "cli_push_opt_write_manifest":  "Se escribe el conjunto de artefactos enviados en el archivo de manifiesto especificado.",
   "cli_push_opt_all":             "Si se especifica, envía todos los tipos de artefactos de creación.",
-  "cli_push_opt_dir":             "Directorio de trabajo local para almacenar los archivos que se van a enviar a los servicios de creación de Acoustic Content. ",
+  "cli_push_opt_dir":             "Directorio de trabajo local para almacenar los archivos que se van a enviar a los servicios de creación de Acoustic Content.",
   "cli_push_opt_path":            "Si se especifica, solo se enviarán los artefactos que se encuentran en esta vía de acceso relativa. Por ejemplo, si se especifica /mySPA, se enviarán todos los artefactos de la carpeta mySPA. Si se especifica /mySPA/test, solo se enviarán los artefactos de la carpeta /mySPA/test.",
   "cli_push_opt_siteContext":     "Si se especifica, los artefactos de página y sitio sólo se enviarán para el sitio con la raíz de contexto especificada. Por ejemplo, si se especifica 'store', los artefactos de página y sitio se limitarán al sitio con esta raíz de contexto. El sitio predeterminado no tiene raíz de contexto, así que puede especificarse 'predeterminado'.",
   "cli_push_opt_named":           "Si se especifica, solo se enviará el elemento del tipo solicitado con este nombre.",
@@ -305,7 +306,6 @@
   "cli_push_name_one_type": "La opción --named solo se puede utilizar para un tipo de artefacto único.",
   "cli_push_site_revision_pushed":       "Se ha enviado la revisión de publicación del sitio con el nombre %(name)s y el ID %(id)s",
   "cli_push_site_revision_push_error":   "El envío de la revisión del sitio de publicación con el ID %(name)s ha generado el siguiente error: %(message)s.",
-  "cli_push_warn_schedule":    "Existe una planificación de publicación para este arrendatario de Acoustic Content. Los elementos listos enviados por push se publicarán cuando se produzca la próxima planificación, que tendrá lugar el %(publishDateTime)s. Para publicar de forma inmediata, utilice la opción %(publishNow)s en el mandato push.",
   "cli_push_warn_schedule_lookup": "Se ha producido un error durante una solicitud de búsqueda de la próxima planificación de publicación: %(message)s",
 
   "cli_push_success": {
@@ -393,6 +393,8 @@
   "cli_publishing_site_revision_state": "Estado de revisión del sitio de publicación: %(state)s",
   "cli_publishing_site_revision": "Revisión del sitio de publicación: %(site_revision)s",
   "cli_publishing_site_revision_error": "No se puede recuperar la revisión del sitio de publicación. %(message)s",
+  "cli_publishing_rebuild_warn": "Aviso: este proceso puede tardar unos instantes en completarse. Durante este momento, todos los elementos de la entrega dejarán de estar disponibles temporalmente. Esto significa que las aplicaciones o los sitios web dejarán de estar disponibles durante este tiempo. ¿Está seguro de que desea continuar? (sí/no)",
+  "cli_publishing_rebuild_canceled" : "Solicitud de publicación cancelada ",
 
   "cli_delete_description":     "Suprima los artefactos especificados de Acoustic Content. Sólo se suprimirán los artefactos remotos. Utilice los mandatos del sistema operativo local para suprimir artefactos del sistema de archivos después de suprimirlos de Acoustic Content.",
   "cli_delete_opt_assets":      "Si se especifica, se suprimirán los activos de contenido.",
@@ -530,15 +532,15 @@
     "other": "Se han encontrado %d errores al suprimir artefactos."
   },
   "cli_clear_description": "Borra los datos asociados con la opción especificada.",
-  "cli_opt_clear_cache":        "Borre la memoria caché de la red de entrega de contenidos (CDN) para el arrendatario especificado de Acoustic Content. Esto inicia una tarea en segundo plano que puede tardar algún tiempo en completarse, y solo debería utilizarse cuando sea necesario.",
+  "cli_opt_clear_cache":        "Borre la memoria caché de la red de entrega de contenidos (CDN) para el arrendatario especificado de Acoustic Content.  Esto inicia una tarea en segundo plano que puede tardar algún tiempo en completarse, y solo debería utilizarse cuando sea necesario.",
   "cli_clear_error":            "Error al ejecutar el mandato clear.",
   "cli_clear_requires_cache":   "El mandato clear solo da soporte actualmente al borrado de la memoria caché de la red de entrega de contenido.  Especifique la opción %(cache)s para borrar la memoria caché.",
   "cli_clear_cache_error":      "El mandato clear ha dado lugar a un error. %(message)s",
-  "cli_clear_cache_started":    "Enviando la solicitud de borrar la memoria caché al arrendatario especificado de Acoustic Content. ",
-  "cli_clear_cache_successful": "Acoustic Content ha aceptado correctamente la operación de borrar la memoria caché. ",
+  "cli_clear_cache_started":    "Enviando la solicitud de borrar la memoria caché al arrendatario especificado de Acoustic Content.",
+  "cli_clear_cache_successful": "Acoustic Content ha aceptado correctamente la operación de borrar la memoria caché.",
   "cli_clear_cache_estimate": {
-    "one": "La red de entrega de Acoustic Content estima que tardará %d segundo en completar la invalidación de la memoria caché. ",
-    "other": "La red de entrega de Acoustic Content estima que tardará %d segundos en completar la invalidación de la memoria caché. "
+    "one": "La red de entrega de Acoustic Content estima que tardará %d segundo en completar la invalidación de la memoria caché.",
+    "other": "La red de entrega de Acoustic Content estima que tardará %d segundos en completar la invalidación de la memoria caché."
   },
 
   "cli_clear_cache_details":    "La respuesta de borrar la memoria caché de la API de Acoustic Content incluía los detalles siguientes %(clear_cache_response_details)s",
@@ -549,7 +551,7 @@
   "cli_init_opt_retry_max_attempts": "Número máximo de intentos, si una solicitud de API de Acoustic Content falla debido a un error de red o un de servidor demasiado ocupado. El valor predeterminado es 5.",
   "cli_init_opt_retry_min_time": "Cantidad mínima de tiempo en milisegundos que se debe esperar antes de volver a intentar la una solicitud de API de Acoustic Content que ha fallado. El valor predeterminado es 1000.",
   "cli_init_opt_retry_max_time": "Cantidad máxima de tiempo en milisegundos que se debe esperar antes de volver a intentar una solicitud de API de Acoustic Content que ha fallado. El valor predeterminado es 16000.",
-  "cli_init_opt_store_credentials": "Almacene las credenciales de usuario por URL de API en el gestor de claves del sistema operativo (Windows o Mac OS). Cuando se conecte a Acoustic Content, si no se especifican un nombre de usuario y una contraseña como argumentos de línea de mandatos, las credenciales almacenadas se recuperarán y se utilizarán para la autenticación. ",
+  "cli_init_opt_store_credentials": "Almacene las credenciales de usuario por URL de API en el gestor de claves del sistema operativo (Windows o Mac OS). Cuando se conecte a Acoustic Content, si no se especifican un nombre de usuario y una contraseña como argumentos de línea de mandatos, las credenciales almacenadas se recuperarán y se utilizarán para la autenticación.",
   "cli_init_user_name":         "Nombre de usuario",
   "cli_init_url":               "URL de API",
   "cli_init_description":       "Inicializar los valores de configuración para %(product_name)s",
@@ -601,8 +603,8 @@
   "cli_compare_opt_filter_deletions": "Se filtran las supresiones escritas sólo en la intersección del manifiesto suministrado y en las supresiones detectadas.",
   "cli_compare_opt_write_manifest": "Se escribe el conjunto de diferencias entre los artefactos en el archivo de manifiesto especificado.",
   "cli_compare_opt_write_deletions_manifest": "Se escribe el conjunto de artefactos listados en el archivo de manifiesto especificado",
-  "cli_compare_opt_source":       "Directorio de trabajo local que contiene los artefactos de creación o el URL de la API de Acoustic Content para utilizar como origen para la comparación. ",
-  "cli_compare_opt_target":       "Directorio de trabajo local que contiene los artefactos de creación o el URL de la API de Acoustic Content para utilizar como destino para la comparación. ",
+  "cli_compare_opt_source":       "Directorio de trabajo local que contiene los artefactos de creación o el URL de la API de Acoustic Content para utilizar como origen para la comparación.",
+  "cli_compare_opt_target":       "Directorio de trabajo local que contiene los artefactos de creación o el URL de la API de Acoustic Content para utilizar como destino para la comparación.",
   "cli_compare_opt_path": "Si se especifica, solo se compararán los artefactos que se encuentren en esta vía de acceso relativa.  Por ejemplo, si se especifica /mySPA, sólo se compararán los activos web de la carpeta mySPA.  Si se especifica /mySPA/css, sólo se compararán los activos web de la carpeta mySPA/css.",
   "cli_compare_opt_siteContext": "Si se especifica, los artefactos de página y sitio sólo se compararán para el sitio con la raíz de contexto especificada. Por ejemplo, si se especifica 'store', los artefactos de página y sitio se limitarán al sitio con esta raíz de contexto. El sitio predeterminado no tiene raíz de contexto, así que puede especificarse 'predeterminado'.",
   "cli_compare_opt_ready": "Si se especifica, se compararán los artefactos con estado Listo. (Este es el valor predeterminado).",

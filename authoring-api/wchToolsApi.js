@@ -23,7 +23,7 @@ const contentHelper = require('./contentHelper').instance;
 const defaultContentHelper = require('./defaultContentHelper').instance;
 const categoriesHelper = require('./categoriesHelper').instance;
 const publishingJobsHelper = require('./publishingJobsHelper').instance;
-const publishingNextSchedulesHelper = require('./publishingNextSchedulesHelper').instance;
+const publishingSchedulesHelper = require('./publishingSchedulesHelper').instance;
 const publishingSiteRevisionsHelper = require('./publishingSiteRevisionsHelper').instance;
 const renditionsHelper = require('./renditionsHelper').instance;
 const imageProfilesHelper = require('./imageProfilesHelper').instance;
@@ -51,7 +51,7 @@ class WchToolsApi {
      * @param {Boolean} [contextOptions.rewriteOnPush] Flag for whether pushed artifacts should be written back to disk.
      * @param {Boolean} [contextOptions.saveFileOnConflict] Flag for whether a conflict file should be saved.
      * @param {Boolean} [contextOptions.continueOnError] Flag for whether to continue pushing items after encountering an error.
-     * @param {Boolean} [contextOptions.urls] Service urls.
+     * @param {Object} [contextOptions.urls] Service urls.
      */
     constructor (contextOptions) {
         // The context object contains the options for a specific API instance. These options are initialized using the
@@ -160,8 +160,8 @@ class WchToolsApi {
         return publishingJobsHelper;
     }
 
-    static getPublishingNextSchedulesHelper () {
-        return publishingNextSchedulesHelper;
+    static getPublishingSchedulesHelper () {
+        return publishingSchedulesHelper;
     }
 
     static getPublishingSiteRevisionsHelper () {
@@ -227,6 +227,12 @@ class WchToolsApi {
         return hashes;
     }
 
+    // The functions provided from this point to the end of the file are
+    // provided for internal use by the import artifacts service.
+    // The import artifacts service uses pushAllItems, pushModifiedItems,
+    // pushManifestItems, deleteAllItems, and deleteManifestItems to manage
+    // and update the artifacts deployed to tenants through the onboarding
+    // process and update the artifacts through the administration UI.
     pushAllItems (opts) {
         this.getLogger().info("pushAllItems started");
         this.context.wchToolsApiPushMethod = "pushAllItems";
@@ -503,6 +509,30 @@ class WchToolsApi {
 
     deleteAllItems (opts) {
         this.getLogger().info("deleteAllItems started");
+        this.context.wchToolsApiDeleteMethod = "deleteRemoteItems";
+        return this.deleteItems(opts);
+    }
+
+    deleteManifestItems (opts) {
+        this.getLogger().info("deleteManifestItems started");
+        this.context.wchToolsApiDeleteMethod = "deleteManifestItems";
+
+        // Clear out any existing manifest settings.
+        manifests.resetManifests(this.context, opts);
+
+        const self = this;
+        return manifests.initializeManifests(this.context, opts.manifest, undefined, undefined, opts)
+            .then(function () {
+                self.getLogger().debug("deleting from manifest: " + JSON.stringify(self.context.readManifest, null, "  "));
+                return self.deleteItems(opts);
+            })
+            .catch(function (err) {
+                self.getLogger().info("unable to initialize manifest: " + opts.manifest);
+            });
+    }
+
+    deleteItems (opts) {
+        this.getLogger().info("deleteItems started");
 
         const deferred = Q.defer();
         const self = this;
@@ -556,7 +586,7 @@ class WchToolsApi {
                 let index = 0;
                 const deletePagesBySite = function () {
                     if (index < siteItems.length) {
-                        return self.handlePromise(self.deleteAllPages(utils.cloneOpts(opts, {siteItem: siteItems[index++]})))
+                        return self.handlePromise(self.deletePages(utils.cloneOpts(opts, {siteItem: siteItems[index++]})))
                             .then(function () {
                                 return deletePagesBySite();
                             });
@@ -566,34 +596,34 @@ class WchToolsApi {
                 return deletePagesBySite();
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllContent(opts));
+                return self.handlePromise(self.deleteContent(opts));
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllDefaultContent(opts));
+                return self.handlePromise(self.deleteDefaultContent(opts));
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllLayoutMappings(opts));
+                return self.handlePromise(self.deleteLayoutMappings(opts));
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllTypes(opts));
+                return self.handlePromise(self.deleteTypes(opts));
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllLayouts(opts));
+                return self.handlePromise(self.deleteLayouts(opts));
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllCategories(opts));
+                return self.handlePromise(self.deleteCategories(opts));
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllAssets(opts));
+                return self.handlePromise(self.deleteAssets(opts));
             })
             .then(function () {
-                return self.handlePromise(self.deleteAllImageProfiles(opts));
+                return self.handlePromise(self.deleteImageProfiles(opts));
             })
             .then(function() {
-                return self.handlePromise(self.deleteAllLibraries(opts));
+                return self.handlePromise(self.deleteLibraries(opts));
             })
             .then(function () {
-                self.getLogger().info("deleteAllItems complete");
+                self.getLogger().info("deleteItems complete");
                 if (!errors) {
                     deferred.resolve(deletedItems);
                 } else {
@@ -601,7 +631,7 @@ class WchToolsApi {
                 }
             })
             .catch(function (err) {
-                self.getLogger().error("deleteAllItems complete with error", err);
+                self.getLogger().error("deleteItems complete with error", err);
                 deferred.reject(err);
             })
             .finally(function () {
@@ -612,83 +642,83 @@ class WchToolsApi {
         return deferred.promise;
     }
 
-    deleteAllLibraries (opts) {
-        this.getLogger().info("deleteAllLibraries started");
+    deleteLibraries (opts) {
+        this.getLogger().info("deleteLibraries started");
         const helper = WchToolsApi.getLibrariesHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllLibraries complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteLibraries complete");
         return promise;
     }
 
-    deleteAllPages (opts) {
-        this.getLogger().info("deleteAllPages started");
+    deletePages (opts) {
+        this.getLogger().info("deletePages started");
         const helper = WchToolsApi.getPagesHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllPages complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deletePages complete");
         return promise;
     }
 
-    deleteAllContent (opts) {
-        this.getLogger().info("deleteAllContent started");
+    deleteContent (opts) {
+        this.getLogger().info("deleteContent started");
         const helper = WchToolsApi.getContentHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllContent complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteContent complete");
         return promise;
     }
 
-    deleteAllDefaultContent (opts) {
-        this.getLogger().info("deleteAllDefaultContent started");
+    deleteDefaultContent (opts) {
+        this.getLogger().info("deleteDefaultContent started");
         const helper = WchToolsApi.getDefaultContentHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllDefaultContent complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteDefaultContent complete");
         return promise;
     }
 
-    deleteAllLayoutMappings (opts) {
-        this.getLogger().info("deleteAllLayoutMappings started");
+    deleteLayoutMappings (opts) {
+        this.getLogger().info("deleteLayoutMappings started");
         const helper = WchToolsApi.getLayoutMappingsHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllLayoutMappings complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteLayoutMappings complete");
         return promise;
     }
 
-    deleteAllTypes (opts) {
-        this.getLogger().info("deleteAllTypes started");
+    deleteTypes (opts) {
+        this.getLogger().info("deleteTypes started");
         const helper = WchToolsApi.getItemTypeHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllTypes complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteTypes complete");
         return promise;
     }
 
-    deleteAllLayouts (opts) {
-        this.getLogger().info("deleteAllLayouts started");
+    deleteLayouts (opts) {
+        this.getLogger().info("deleteLayouts started");
         const helper = WchToolsApi.getLayoutsHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllLayouts complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteLayouts complete");
         return promise;
     }
 
-    deleteAllCategories (opts) {
-        this.getLogger().info("deleteAllCategories started");
+    deleteCategories (opts) {
+        this.getLogger().info("deleteCategories started");
         const helper = WchToolsApi.getCategoriesHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllCategories complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteCategories complete");
         return promise;
     }
 
-    deleteAllAssets (opts) {
-        this.getLogger().info("deleteAllAssets started");
+    deleteAssets (opts) {
+        this.getLogger().info("deleteAssets started");
         const helper = WchToolsApi.getAssetsHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllAssets complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteAssets complete");
         return promise;
     }
 
-    deleteAllImageProfiles (opts) {
-        this.getLogger().info("deleteAllImageProfiles started");
+    deleteImageProfiles (opts) {
+        this.getLogger().info("deleteImageProfiles started");
         const helper = WchToolsApi.getImageProfilesHelper();
-        const promise = helper.deleteRemoteItems(this.context, opts);
-        this.getLogger().info("deleteAllImageProfiles complete");
+        const promise = helper[this.context.wchToolsApiDeleteMethod](this.context, opts);
+        this.getLogger().info("deleteImageProfiles complete");
         return promise;
     }
 }
