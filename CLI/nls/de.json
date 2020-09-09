@@ -90,6 +90,7 @@
   "cli_pull_opt_pages": "Bei Angabe werden Seitendefinitionen extrahiert.",
   "cli_pull_opt_ignore_timestamps":"Bei Angabe werden Artefakte unabhängig davon, ob sie seit der letzten erfolgreichen Pull- oder Push-Operation modifiziert wurden, extrahiert.",
   "cli_pull_opt_deletions":       "Bei Angabe werden Artefakte unabhängig davon, ob sie modifiziert wurden, extrahiert und alle lokalen Artefakte gelöscht, die auf dem Server nicht vorhanden sind.",
+  "cli_pull_opt_system":          "Bei Angabe werden auch mit dem isSystem-Flag markierte Artefakte extrahiert, einschließlich der Framework-Artefakte ohne Vorbereitungs- oder Anpassungsaufwand, die von Benutzern nicht mit Push-Operation übertragen werden können.",
   "cli_pull_opt_quiet":           "Bei Angabe werden keine Löschungen bestätigt.",
   "cli_pull_opt_path":            "Bei Angabe werden nur die Artefakte in diesem relativen Pfad extrahiert. Beispiel: Wenn /mySPA angegeben wird, würden alle Artefakte im Ordner mySPA extrahiert. Wenn /mySPA/test angegeben wird, werden nur Artefakte im Ordner /mySPA/test extrahiert.",
   "cli_pull_opt_siteContext": "Bei Angabe werden Seiten- und Siteartefakte nur für die Site mit dem angegebenen Kontextstammelement extrahiert. Wurde beispielsweise 'store' angegeben, dann werden die Seiten- und Siteartefakte auf die Site mit diesem Kontextstammelement beschränkt. Die Standardsite verfügt nicht über ein Kontextstammelement. Aus diesem Grund kann 'default' angegeben werden.",
@@ -305,7 +306,6 @@
   "cli_push_name_one_type": "Die Option --named kann nur für einen Artefakttyp verwendet werden.",
   "cli_push_site_revision_pushed":       "Revision der Veröffentlichungssite mit dem Namen %(name)s und der ID %(id)s mit einer Push-Operation übertragen.",
   "cli_push_site_revision_push_error":   "Das Übertragen der Revision der Veröffentlichungssite mit der ID %(name)s mit einer Push-Operation hat zum folgenden Fehler geführt: %(message)s.",
-  "cli_push_warn_schedule":    "Für diesen Acoustic Content-Tenant ist ein Veröffentlichungszeitplan vorhanden. Mit Push-Operation übertragene Elemente im Status 'Bereit' werden zum nächsten wirksamen Termin veröffentlicht. Dies ist %(publishDateTime)s. Um sofort zu veröffentlichen, verwenden Sie die Option %(publishNow)s des Push-Befehls.",
   "cli_push_warn_schedule_lookup": "Bei einer Anforderung zum Suchen des nächsten Veröffentlichungszeitplans ist ein Fehler aufgetreten: %(message)s",
 
   "cli_push_success": {
@@ -393,6 +393,8 @@
   "cli_publishing_site_revision_state": "Status der Revision von Veröffentlichungssites: %(state)s",
   "cli_publishing_site_revision": "Revision von Veröffentlichungssites: %(site_revision)s",
   "cli_publishing_site_revision_error": "Die Revision von Veröffentlichungssites kann nicht abgerufen werden. %(message)s",
+  "cli_publishing_rebuild_warn": "Warnung: Dieser Prozess kann eine gewisse Zeit dauern. Während dieser Zeit werden alle Elemente in Übermittlung temporär nicht verfügbar sein. Das bedeutet, dass Ihre Anwendungen oder Websites während dieser Zeit nicht verfügbar sein werden. Sind Sie sicher, dass Sie fortfahren möchten? (Ja/Nein)",
+  "cli_publishing_rebuild_canceled" : "Veröffentlichungsanforderung abgebrochen",
 
   "cli_delete_description":     "Löschen der angegebenen Artefakte in Acoustic Content. Gelöscht werden nur ferne Artefakte. Verwenden Sie lokale Betriebssystembefehle zum Löschen von Artefakten im Dateisystem, nachdem sie in Acoustic Content gelöscht wurden.",
   "cli_delete_opt_assets":      "Bei Angabe werden Inhaltsassets gelöscht.",
@@ -530,7 +532,7 @@
     "other": "Beim Löschen von Artefakten sind %d Fehler aufgetreten."
   },
   "cli_clear_description": "Löschen Sie die Daten zur angegebenen Option.",
-  "cli_opt_clear_cache":        "Löschen des Inhalts des CDN-Cache (Content Delivery Network, Netz zur Bereitstellung von Inhalten) für den angegebenen Acoustic Content-Tenant. Damit wird eine Hintergrundtask initiiert, deren Arbeit am CDN eine gewisse Zeit dauern kann. Dies sollte nur verwendet werden, wenn es notwendig ist.",
+  "cli_opt_clear_cache":        "Löschen des Inhalts des CDN-Cache (Content Delivery Network, Netz zur Bereitstellung von Inhalten) für den angegebenen Acoustic Content-Tenant.  Damit wird eine Hintergrundtask initiiert, deren Arbeit am CDN eine gewisse Zeit dauern kann. Dies sollte nur verwendet werden, wenn es notwendig ist.",
   "cli_clear_error":            "Fehler beim Ausführen des Löschbefehls.",
   "cli_clear_requires_cache":   "Der Löschbefehl unterstützt aktuell nur das Löschen des Inhalts des CDN-Cache (Content Delivery Network, Netz zur Bereitstellung von Inhalten).  Geben Sie die Option %(cache)s an, um den Inhalt des Cache zu löschen.",
   "cli_clear_cache_error":      "Der Löschbefehl hat zu einem Fehler geführt. %(message)s",

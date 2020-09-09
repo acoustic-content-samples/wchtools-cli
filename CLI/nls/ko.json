@@ -90,6 +90,7 @@
   "cli_pull_opt_pages": "지정된 경우, 페이지 정의를 가져옵니다.",
   "cli_pull_opt_ignore_timestamps":"지정된 경우, 마지막으로 성공한 가져오기 또는 푸시 명령 이후 수정되었는지 여부와는 무관하게 아티팩트를 가져옵니다.",
   "cli_pull_opt_deletions":       "지정된 경우 수정되었는지 여부와는 무관하게 아티팩트를 가져오고 서버에 없는 로컬 아티팩트를 삭제합니다.",
+  "cli_pull_opt_system":          "지정된 경우, 사용자가 푸시할 수 없는 즉시 사용이 가능한 프레임워크 아티팩트를 포함해 isSystem 플래그로 표시된 아티팩트를 가져오십시오.",
   "cli_pull_opt_quiet":           "지정된 경우 삭제를 확인하지 않습니다.",
   "cli_pull_opt_path":            "지정된 경우, 이 상대 경로에 있는 아티팩트만 가져옵니다. 예를 들어, /mySPA가 지정되면 mySPA 폴더 아래의 모든 아티팩트를 가져옵니다. /mySPA/test가 지정되면 /mySPA/test 폴더 아래의 아티팩트만 가져옵니다.",
   "cli_pull_opt_siteContext": "지정된 경우, 지정된 컨텍스트 루트를 가진 사이트에 대한 페이지 및 사이트 아티팩트만 가져옵니다. 예를 들어, 'store'가 지정된 경우 페이지 및 사이트 아티팩트는 해당 컨텍스트 루트를 가진 사이트로 제한됩니다. 기본 사이트에는 컨텍스트 루트가 없으므로 'default'를 지정할 수 있습니다.",
@@ -235,7 +236,7 @@
   "cli_push_opt_image_profiles":  "지정된 경우, 이미지 프로파일이 푸시됩니다.",
   "cli_push_opt_content":         "지정된 경우, 컨텐츠가 푸시됩니다.",
   "cli_push_opt_default_content": "지정된 경우, 기본 컨텐츠를 푸시합니다.",
-  "cli_push_opt_categories":      "지정된 경우, 카테고리 및 택사노미가 푸시됩니다.",
+  "cli_push_opt_categories":      "지정된 경우, 카테고리 및 택소노미가 푸시됩니다.",
   "cli_push_opt_renditions":      "지정된 경우, 변환이 푸시됩니다.",
   "cli_push_opt_site_revisions":  "지정된 경우, 공개 사이트 개정이 푸시됩니다.",
   "cli_push_opt_sites":           "지정된 경우, 사이트 정의가 푸시됩니다.",
@@ -305,7 +306,6 @@
   "cli_push_name_one_type": "--named 옵션은 단일 아티팩트 유형에만 사용될 수 있습니다.",
   "cli_push_site_revision_pushed":       "이름 %(name)s 및 ID %(id)s의 공개 사이트 개정을 푸시함",
   "cli_push_site_revision_push_error":   "id %(name)s의 공개 사이트 개정을 푸시한 결과로 발생한 오류: %(message)s.",
-  "cli_push_warn_schedule":    "이 Acoustic Content 테넌트에 대한 공개 스케줄이 있습니다. 푸시된 준비 항목은 다음 스케줄이 발생하는 시점(%(publishDateTime)s)에 공개됩니다. 즉시 공개하려면 푸시 명령에서 %(publishNow)s 옵션을 사용하십시오.",
   "cli_push_warn_schedule_lookup": "다음 공개 스케줄을 검색하기 위한 요청 중에 오류가 발생했습니다. %(message)s",
 
   "cli_push_success": {
@@ -393,6 +393,8 @@
   "cli_publishing_site_revision_state": "공개 사이트 개정 상태: %(state)s",
   "cli_publishing_site_revision": "공개 사이트 개정: %(site_revision)s",
   "cli_publishing_site_revision_error": "공개 사이트 개정을 검색할 수 없습니다. %(message)s",
+  "cli_publishing_rebuild_warn": "경고: 이 프로세스 완료에는 시간이 걸릴 수 있습니다. 이 시간 동안 제공되는 모든 항목은 일시적으로 사용 불가능합니다. 즉, 이 시간 동안 애플리케이션 또는 웹 사이트를 사용할 수 없습니다. 계속하겠습니까?(예/아니오)",
+  "cli_publishing_rebuild_canceled" : "공개 요청이 취소됨",
 
   "cli_delete_description":     "Acoustic Content에서 지정된 아티팩트를 삭제합니다. 원격 아티팩트만 삭제됩니다. Acoustic Content에서 아티팩트를 삭제한 후에는 로컬 운영 체제 명령을 사용하여 파일 시스템에서 아티팩트를 삭제하십시오.",
   "cli_delete_opt_assets":      "지정된 경우, 컨텐츠 자산이 삭제됩니다.",
@@ -404,7 +406,7 @@
   "cli_delete_opt_content":     "지정된 경우, 컨텐츠가 삭제됩니다.",
   "cli_delete_opt_default_content": "지정된 경우, 기본 컨텐츠가 삭제됩니다.",
   "cli_delete_opt_types":       "지정된 경우, 컨텐츠 유형이 삭제됩니다.",
-  "cli_delete_opt_categories":  "지정된 경우, 카테고리 및 택사노미가 삭제됩니다.",
+  "cli_delete_opt_categories":  "지정된 경우, 카테고리 및 택소노미가 삭제됩니다.",
   "cli_delete_opt_sites": "지정된 경우, 사이트 정의가 삭제됩니다.",
   "cli_delete_opt_pages":       "지정된 경우 페이지 정의가 삭제됩니다. 모든 페이지를 삭제하거나 경로 또는 ID별로 삭제할 수 있습니다. 하위 페이지도 삭제됩니다.",
   "cli_delete_opt_page_content": "지정된 경우 페이지를 삭제할 때 페이지와 연관된 컨텐츠도 삭제됩니다. 이 옵션은 페이지를 삭제할 때만 유효합니다.",

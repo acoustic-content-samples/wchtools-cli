@@ -90,6 +90,7 @@
   "cli_pull_opt_pages": "Se specificato, viene eseguito il pull delle definizioni pagina.",
   "cli_pull_opt_ignore_timestamps":"Se specificato, viene eseguito il pull delle risorse indipendentemente dal fatto che siano state modificate o meno dall'ultimo comando push o pull riuscito.",
   "cli_pull_opt_deletions":       "Se specificato, viene eseguito il pull delle risorse indipendentemente dal fatto che siano state modificate e vengono eliminate le risorse locali che non esistono sul server.",
+  "cli_pull_opt_system":          "Se specificato, estrae anche le risorse contrassegnate con l'indicatore isSystem, incluso le risorse framework pronte all'uso che possono essere inserite dall'utente. ",
   "cli_pull_opt_quiet":           "Se specificato, non conferma le eliminazioni.",
   "cli_pull_opt_path":            "Se specificato, verrà eseguito il pull solo delle risorse utente presenti in questo percorso relativo. Ad esempio, se viene specificato /mySPA, verrà eseguito il pull di tutte le risorse utente nella cartella mySPA. Se si specifica /mySPA/test, verrà eseguito il pull solo delle risorse utente nella cartella /mySPA/test.",
   "cli_pull_opt_siteContext": "Se specificato, viene eseguito il pull delle risorse pagina e sito solo per il sito con la root di contesto specificata. Ad esempio, se è specificato 'negozio', le risorse pagina e sito verranno limitate al sito con tale root di contesto. Il sito predefinito non dispone di una root di contesto, pertanto è possibile specificare 'predefinito'.",
@@ -245,7 +246,7 @@
   "cli_push_opt_use_server_manifest": "Eseguire il push solo degli elementi elencati nel file manifest specificato caricato da Acoustic Content.",
   "cli_push_opt_write_manifest":  "Scrivere la serie di risorse di cui è stato eseguito il push nel file manifest specificato.",
   "cli_push_opt_all":             "Se specificato, viene eseguito il push di tutti i tipi di risorse di sviluppo.",
-  "cli_push_opt_dir":             "La directory di lavoro locale per l'archiviazione dei file di cui è necessario eseguire il push sui servizi di sviluppo Acoustic Content. ",
+  "cli_push_opt_dir":             "La directory di lavoro locale per l'archiviazione dei file di cui è necessario eseguire il push sui servizi di sviluppo Acoustic Content.",
   "cli_push_opt_path":            "Se specificato, verrà eseguito il push solo delle risorse utente presenti in questo percorso relativo. Ad esempio, se viene specificato /mySPA, verrà eseguito il push di tutte le risorse utente nella cartella mySPA. Se si specifica /mySPA/test, verrà eseguito il push solo delle risorse utente nella cartella /mySPA/test.",
   "cli_push_opt_siteContext":     "Se specificato, viene eseguito il push delle risorse pagina e sito solo per il sito con la root di contesto specificata. Ad esempio, se è specificato 'negozio', le risorse pagina e sito verranno limitate al sito con tale root di contesto. Il sito predefinito non dispone di una root di contesto, pertanto è possibile specificare 'predefinito'.",
   "cli_push_opt_named":           "Se specificato, viene eseguito il push solo dell'elemento del tipo richiesto con questo nome.",
@@ -305,7 +306,6 @@
   "cli_push_name_one_type": "L'opzione --named può essere utilizzata solo per un tipo di risorsa singola.",
   "cli_push_site_revision_pushed":       "Eseguito il push della revisione del sito di pubblicazione con nome %(name)s e id %(id)s",
   "cli_push_site_revision_push_error":   "Il push della revisione sito di pubblicazione con ID %(name)s ha generato il seguente errore: %(message)s.",
-  "cli_push_warn_schedule":    "Esiste una pianificazione di pubblicazione per questo titolare Acoustic Content.  Gli elementi pronti sottoposti a push verranno pubblicati quando si verifica la prossima pianificazione, che è %(publishDateTime)s. Per pubblicare immediatamente, utilizzare l'opzione %(publishNow)s sul comando push.",
   "cli_push_warn_schedule_lookup": "Si è verificato un errore durante una richiesta di ricercare la successiva pianificazione di pubblicazione: %(message)s",
 
   "cli_push_success": {
@@ -393,6 +393,8 @@
   "cli_publishing_site_revision_state": "Stato della revisione del sito di pubblicazione: %(state)s",
   "cli_publishing_site_revision": "Revisione del sito di pubblicazione: %(site_revision)s",
   "cli_publishing_site_revision_error": "Impossibile richiamare la revisione del sito di pubblicazione. %(message)s",
+  "cli_publishing_rebuild_warn": "Avvertenza: il completamento di questo processo può richiedere del tempo. Durante questo tempo, tutti gli elementi in consegna saranno temporaneamente non disponibili. Ciò significa che le applicazioni o i siti web non saranno disponibili durante questo intervallo. Continuare? (sì/no)",
+  "cli_publishing_rebuild_canceled" : "Richiesta di pubblicazione annullata",
 
   "cli_delete_description":     "Eliminare le risorse selezionate da Acoustic Content. Verranno eliminate solo le risorse remote. Utilizzare i comandi del sistema operativo locale per eliminare le risorse dal file system dopo averle eliminate da Acoustic Content.",
   "cli_delete_opt_assets":      "Se specificato, gli asset contenuto verranno eliminati.",

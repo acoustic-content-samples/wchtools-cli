@@ -255,6 +255,7 @@
   "cli_push_opt_ready":           "If specified, push ready artifacts. (This is the default.)",
   "cli_push_opt_draft":           "If specified, push draft artifacts.",
   "cli_push_opt_publish_now":     "If specified, push assets and content with an option to override a publishing schedule and publish these artifacts immediately. This option is only applicable to ready content and assets.",
+  "cli_push_opt_publish_next":    "If specified, the pushed content and assets will publish when the next publishing schedule occurs. This option is only applicable to content and assets with status 'ready' or no status at all.",
   "cli_push_opt_set_tag":         "If specified, set the specified tag on any assets, types, and content, being pushed.",
   "cli_push_opt_keep_users":      "If specified, the users contained in libraries will be kept during push. The default is to clear users from libraries during push.",
   "cli_push_asset_pushed_2":      "Pushed asset with path %(path)s and id %(id)s",
@@ -306,8 +307,9 @@
   "cli_push_name_one_type": "The --named option can only be used for a single artifact type.",
   "cli_push_site_revision_pushed":       "Pushed publishing site revision with name %(name)s and id %(id)s",
   "cli_push_site_revision_push_error":   "Pushing publishing site revision with id %(name)s resulted in the following error: %(message)s.",
-  "cli_push_warn_schedule":    "A publishing schedule exists for this Acoustic Content tenant.  Pushed ready items will publish when the next schedule occurs, which is %(publishDateTime)s. To publish immediately, use the %(publishNow)s option on the push command.",
-  "cli_push_warn_schedule_lookup": "An error occurred during a request to lookup the next publishing schedule: %(message)s",
+  "cli_push_warn_schedule":    "Pushed ready items will publish when the next schedule occurs, which is %(publishDateTime)s.",
+  "cli_push_warn_schedule_lookup": "An error occurred during a request to lookup the next publishing schedule: %(message)s.",
+  "cli_push_warn_no_next_schedule": "No schedule defined, publishing immediately.",
 
   "cli_push_success": {
     "one": "Pushed %d artifact successfully.",

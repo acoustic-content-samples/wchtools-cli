@@ -251,11 +251,11 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
     wchtools push -w --dir <path-to-working-directory>
 
 #### Scheduling publish of updated content and assets
-
+ 
   Any content, managed assets or web assets that you push will be published immediately by default. When a global publish schedule exists and you need to publish content or assets on this schedule, you can use the optional --publish-next argument to the push command for the items to wait in a pending state until the next occurrence of that schedule.
-
+     
      wchtools push -w --dir <path-to-working-directory> --publish-next 
-
+     
 #### Setting a tag on assets, content and types, when pushing
 
   If you are pushing artifacts (for example, specific set of image assets from an external source, as managed assets) and would like to explicitly tag those artifacts with a user specified tag, during the push, use the following --set-tag <tag-name> option.

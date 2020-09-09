@@ -63,8 +63,8 @@
 
   "error_unsupported_endpoint": "%(service_name)s のAPI は %(endpoint)s のエンドポイントをサポートしていません。",
   "unknown_error": "不明なエラー",
-  "service_unavailable": "Acoustic Content サービスは現在使用できません。",
-  "service_error": "Acoustic Content サービスが技術的な問題を報告しています。",
+  "service_unavailable": "Acoustic Content サービスは現在使用できません。  ",
+  "service_error": "Acoustic Content サービスが技術的な問題を報告しています。  ",
   "service_response_error": "Acoustic Content サービスからエラー・コード %(code)d および次の状況メッセージが返されました: %(message)s",
   "operation_failed": "操作がエラーで失敗しました: ",
   "async_parallel_limit_error": "非同期の parallelLimit 呼び出しがエラーで失敗しました: ",
@@ -76,7 +76,7 @@
   "retry_failed_request": "失敗した要求 (%(id)d) は再試行されます。 %(message)s",
   "retry_failed_retry": "再試行 (attempt %(attempt)d) した要求 (%(id)d) は、最大再試行回数になる前に失敗しました。 %(message)s",
   "retry_next_attempt": "要求 (%(id)d) は  %(delay)d ミリ秒後に再試行 (再試行 %(attempt)d) されます。",
-  "retry_success": "再試行された要求 (%(id)d) は、%(attempt)d 回の再試行後に成功しました。",
+  "retry_success": "再試行された要求 (%(id)d) は、%(attempt)d 回の再試行後に正常に完了しました。",
   "retry_max_attempts": "要求 (%(id)d) は最大回数の再試行が行われました。",
   "header_value_not_string": "HTTP ヘッダー %(header)s を無視します。指定された値がストリングではありません。"
 }

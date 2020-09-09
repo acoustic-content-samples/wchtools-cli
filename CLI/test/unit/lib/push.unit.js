@@ -38,7 +38,7 @@ const manifests = ToolsApi.getManifests();
 const options = require("wchtools-api").getOptions();
 
 const sitesHelper = ToolsApi.getSitesHelper();
-const nextSchedulesHelper = ToolsApi.getPublishingNextSchedulesHelper();
+const schedulesHelper = ToolsApi.getPublishingSchedulesHelper();
 
 let stubLocalSites;
 let stubNextSchedules;
@@ -71,7 +71,7 @@ class PushUnitTest extends UnitTest {
                 stubLogin = sinon.stub(self.getLoginHelper(), "login");
                 stubLogin.resolves("Adam.iem@mailinator.com");
 
-                stubNextSchedules = sinon.stub(nextSchedulesHelper, "getNextSchedules");
+                stubNextSchedules = sinon.stub(schedulesHelper, "getNextSchedules");
                 // TBD individual test w/resolves [{"_id":"c6efbfff-db50-4cb4-80a2-816bde7930e2","_rev":"2-0296077a4b72f8fcd011d4510e2c354e","classification":"tenant","deliveryDomainId":"default","repeatSchedule":"none","docId":"102a4692-60c8-476d-b615-d227f6103a33","releaseDate":"2018-10-05T02:50:00.000Z","name":"onet"}]
                 stubNextSchedules.resolves(null);
 

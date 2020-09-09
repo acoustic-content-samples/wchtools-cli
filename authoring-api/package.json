@@ -1,7 +1,7 @@
 {
   "name": "wchtools-api",
   "description": "Tools API for Acoustic Content",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "keywords": [
     "api",
     "tools"
@@ -26,7 +26,7 @@
     "log4js": "^3.0.5",
     "mime-types": "^2.1.21",
     "mkdirp": "^0.5.1",
-    "os-locale": "^2.0.0",
+    "os-locale": "^5.0.0",
     "q": "^1.5.0",
     "recursive-readdir": "^2.1.1",
     "request": "^2.88.0",

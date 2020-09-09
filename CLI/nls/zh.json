@@ -305,7 +305,6 @@
   "cli_push_name_one_type": "--named 选项只能用于单个工件类型。",
   "cli_push_site_revision_pushed":       "已推送名称为 %(name)s 且标识为 %(id)s 的发布站点修订版",
   "cli_push_site_revision_push_error":   "推送标识为 %(name)s 的发布站点修改项导致以下错误：%(message)s。",
-  "cli_push_warn_schedule":    "已存在此 Acoustic Content 租户的发布安排。已推送的就绪项将在下一个安排的时间点发布，即 %(publishDateTime)s。要立即发布，请在推送命令中使用 %(publishNow)s 选项。",
   "cli_push_warn_schedule_lookup": "请求查找下一个发布安排时发生错误：%(message)s",
 
   "cli_push_success": {
