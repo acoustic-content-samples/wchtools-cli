@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.5.1 changes since 4.5.0
+ - Fix concurrency issue in pull with multiple assets referencing the same resource id
+
 ### 4.5.0 changes since 4.4.0
  - Fix path determination for server manifests
  - Fix display output for delete all of default content

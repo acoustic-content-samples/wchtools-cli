@@ -507,7 +507,7 @@ class AssetsFS extends BaseFS {
                 deferred.reject(err);
             } else {
                 // Get the file path for a temporary file based on the resource ID.
-                const tmppath = self.getPath(context, opts) + asset.resource;
+                const tmppath = self.getPath(context, opts) + asset.resource + "_" + asset.id;
                 self._getItemWriteStream(context, tmppath, opts)
                     .then(function (stream) {
                         stream.on("finish", function () {
