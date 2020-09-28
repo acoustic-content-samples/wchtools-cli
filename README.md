@@ -86,23 +86,9 @@ Then follow the Getting Started instructions below, to configure and start using
 
 #### Using an API key instead of a username and password, with Acoustic Content tooling and APIs
 
-  You may authenticate to the Acoustic Content login API via wchtools using an API key, instead of a username and password.
+  You can authenticate to the Acoustic Content login API via wchtools using an API key, instead of a username and password. Follow these Acoustic id api key instructions to create an api key: https://help.goacoustic.com/hc/en-us/articles/360041347794
 
-Prior to Acoustic Content switching from IBM id to Acoustic id, the information for creating an IBM id based api key is here:
-https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
-
-After the switch to Acoustic id for authentication to Acoustic Content, please follow these Acoustic id api key instructions to create an api key:
-https://help.goacoustic.com/hc/en-us/articles/360041347794
-
-  When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use.   For IBM id api key, use "apikey" as the value for "Username" on the init command or as passed to the --user argument of wchtools.   For Acoustic id api key, use "AcousticAPIKey" as the username on the init command line or as passed to the --user argument of wchtools commands, and use the value of the API key as the password to authenticate with, associated with that API key.
-
-IBM id api key
-
-      wchtools  init
-      API URL: https://my11...content-cms.com/api/00000000-1111-2222-3333-444444444444
-      Username: apikey
-
-Acoustic id api key
+  When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use. Use "AcousticAPIKey" (case sensitive) as the username on the init command line or as passed to the --user argument of wchtools commands, and use the value of the API key as the password to authenticate with, associated with that API key.
 
       wchtools  init
       API URL: https://my11...content-cms.com/api/00000000-1111-2222-3333-444444444444
