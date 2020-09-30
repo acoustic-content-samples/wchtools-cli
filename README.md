@@ -675,11 +675,9 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools publish -r --verbose
 
-  Both of the above publish commands display the publishing system job id on successful creation of a publishing job.  The following command may be used (with or without --verbose) to see the current status of the specified publishing system job.
+  The following command may be used (with or without --verbose) to see the status of the "site revision". The "site revision" here is the live site. This shows the "publishingLag", which is the number of items that are yet to be published to the live site. 
 
-    wchtools publish --status [<id>] [--verbose]
-
-  If the optional id is not specified to the publish --status command, then the status of the most recent publishing system job found will be shown.
+    wchtools publish --status [--verbose]
 
 
 #### Defaults
