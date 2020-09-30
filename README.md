@@ -675,7 +675,7 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools publish -r --verbose
 
-  The following command may be used (with or without --verbose) to see the status of the "site revision". The "site revision" here is the live site. This shows the "publishingLag", which is the number of items that are yet to be published to the live site. 
+  The following command may be used (with or without --verbose) to see the status of the "site revision". The "site revision" here is the live site. This shows the status of publishing and also the "publishingLag", which is the number of items that are yet to be published to the live site. 
 
     wchtools publish --status [--verbose]
 
