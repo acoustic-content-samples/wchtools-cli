@@ -78,21 +78,31 @@ Then follow the Getting Started instructions below, to configure and start using
 
   After you successfully install the wchtools CLI, initialize the username and the API URL for your Acoustic Content tenant.   Obtain the API URL from the "Hub Information" dialog, which is available from the "About" flyout menu off the left navigation pane of the Acoustic Content authoring UI.  The API URL is of the form:  https://{tenant-host}/api/{tenant-id}
 
-#### Initializing wchtools with a username and API URL
+#### Initializing wchtools with a username and API URL for a non-federated IBM id
 
       wchtools init
-      API URL: https://my11...content-cms.com/api/00000000-1111-2222-3333-444444444444
-      User: myAcousticIdusername@mycompany.com
+      API URL: https://my11.digitalexperience.ibm.com/api/00000000-1111-2222-3333-444444444444
+      User: myWCHusername@mycompany.com
+
+#### Using a Federated Identity (user) with Acoustic Content tooling and APIs
+
+  Some user IBM ids are "Federated" accounts as described here:   https://www.ibm.com/support/knowledgecenter/SS3UMF/wch_q_a_watson_assistant/authentication_api_key.html
+
+  Federated user accounts may use the Acoustic Content Authoring UI with the user's username and password, but cannot use that same username and password for either REST API access, or for use with wchtools, which uses those same Acoustic Content REST APIs.
+
+  If your IBM id account is federated, you may receive an error when wchtools tries to authenticate that user to the WCH login API, indicating that you are trying to use a federated account.   If this happens, you may instead create an API key as described in the following IBM Bluemix documentation, and then use "apikey" as the username and the value of that API key as the password, for both WCH REST APIs and for wchtools.
 
 #### Using an API key instead of a username and password, with Acoustic Content tooling and APIs
 
-  You can authenticate to the Acoustic Content login API via wchtools using an API key, instead of a username and password. Follow these Acoustic id api key instructions to create an api key: https://help.goacoustic.com/hc/en-us/articles/360041347794
+  You may authenticate to the Acoustic Content login API via wchtools using an API key, instead of a username and password, whether or not your IBM id is associated with a federated user.   While federated users, "must" authenticate with an API key, other users may also choose to do so.
 
-  When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use. Use "AcousticAPIKey" (case sensitive) as the username on the init command line or as passed to the --user argument of wchtools commands, and use the value of the API key as the password to authenticate with, associated with that API key.
+https://console.bluemix.net/docs/iam/userid_keys.html#userapikey
+
+  When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use.   Then use "apikey" as the value for "Username" on the init command or as passed to the --user argument of wchtools, and use the value of the API key as the password to authenticate with, associated with that API key.
 
       wchtools  init
-      API URL: https://my11...content-cms.com/api/00000000-1111-2222-3333-444444444444
-      Username: AcousticAPIKey
+      API URL: https://my11.digitalexperience.ibm.com/api/00000000-1111-2222-3333-444444444444
+      Username: apikey
 
       wchtools list -A --server
       Password:  0zXyZMapDLGaFDmebg1Fh1d2wDLMXmvXbU666t0TL-zz
@@ -675,9 +685,11 @@ The manifest created from this command will include all of the ready artifacts i
 
     wchtools publish -r --verbose
 
-  The following command may be used (with or without --verbose) to see the status of the "site revision". The "site revision" here is the live site. This shows the status of publishing and also the "publishingLag", which is the number of items that are yet to be published to the live site. 
+  Both of the above publish commands display the publishing system job id on successful creation of a publishing job.  The following command may be used (with or without --verbose) to see the current status of the specified publishing system job.
 
-    wchtools publish --status [--verbose]
+    wchtools publish --status [<id>] [--verbose]
+
+  If the optional id is not specified to the publish --status command, then the status of the most recent publishing system job found will be shown.
 
 
 #### Defaults

@@ -1124,7 +1124,9 @@ class BaseHelper {
             searchOptions["fq"] = [searchOptions["fq"]];
         }
         if (query) {
-            searchOptions["fq"].push(query);
+            if(searchOptions["fq"].indexOf(query) == -1) { // NOSONAR
+                searchOptions["fq"].push(query);
+            }
         }
         return searchOptions;
     }
@@ -1139,6 +1141,9 @@ class BaseHelper {
         if (!searchPath.endsWith('*')) {
             searchPath += "*";
         }
+
+
+
         // Prefix some special characters with a backslash so they are interpreted properly by search.
         searchPath = searchPath.replace(/[ "^~{}[\]()]/g, "\\$&");
         return this._search(context, this._addSearchQuery(searchOptions, "path:" + searchPath), opts);
