@@ -1,5 +1,9 @@
 # Changelog
 
+### 4.5.2 changes since 4.5.1
+ - search 
+    - fix search query parameters duplication when paging through results
+
 ### 4.5.1 changes since 4.5.0
  - Fix concurrency issue in pull with multiple assets referencing the same resource id
 
@@ -260,8 +264,8 @@
 
 ### v1.1   Changes since 1.0.*
 
-NOTE: Starting with release 1.1.*, please retrieve your Watson Content Hub tenant specific API URL from the Authoring UI "Hub Information" dialog, to configure wchtools.  This should be the same WCH tenant specific base API URL you use for all the public WCH samples and with the APIs in IBM API Explorer for Watson Content Hub as described here: https://developer.ibm.com/api/view/id-618:title-IBM_Watson_Content_Hub_API#getting
-Follow the Readme instructions for installing the wchtools CLI and then the Getting Started instructions for obtaining and setting your WCH tenant specific API URL.
+NOTE: Starting with release 1.1.*, please retrieve your Acoustic Content tenant specific API URL from the Authoring UI "Hub Information" dialog, to configure wchtools.  This should be the same tenant specific base API URL you use for all the public Content samples.
+Follow the Readme instructions for installing the wchtools CLI and then the Getting Started instructions for obtaining and setting your Acoustic Content tenant specific API URL.
 
 #### Configuration options improvements:
 
