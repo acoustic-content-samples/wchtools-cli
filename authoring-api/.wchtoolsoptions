@@ -1,5 +1,5 @@
 {
-  "dx-api-gateway": "https://my.digitalexperience.ibm.com/api",
+  "dx-api-gateway": "https://content-us-1.content-cms.com/api",
   "libraries": {
     "limit": 200,
     "concurrent-limit": 8
