@@ -1,5 +1,9 @@
 # Changelog
 
+### 4.5.3 changes since 4.5.2
+ - search 
+    - fix search query parameters status and classification duplication when paging through results
+
 ### 4.5.2 changes since 4.5.1
  - search 
     - fix search query parameters duplication when paging through results
