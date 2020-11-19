@@ -1124,7 +1124,7 @@ class BaseHelper {
             searchOptions["fq"] = [searchOptions["fq"]];
         }
         if (query) {
-            if(searchOptions["fq"].indexOf(query) == -1) { // NOSONAR
+            if(!searchOptions["fq"].includes(query)) { // NOSONAR
                 searchOptions["fq"].push(query);
             }
         }
@@ -1190,13 +1190,19 @@ class BaseHelper {
             const filterDraft = opts["filterDraft"];
             if ((filterReady && !filterDraft) || (!filterReady && filterDraft)) {
                 const status = opts["filterReady"] ? "ready" : "draft";
-                searchOptions["fq"].push("status:" + status);
+                let statusFq = "status:" + status;
+                if (!searchOptions["fq"].includes(statusFq)) { // NOSONAR
+                    searchOptions["fq"].push(statusFq);
+                }
             }
         }
 
         // Add a 'fq' parameter to restrict the search to the classification for this artifact type.
         if (this._classification) {
-            searchOptions["fq"].push("classification:" + this._classification);
+            let classificationFq = "classification:" + this._classification;
+            if(!searchOptions["fq"].includes(classificationFq)) { // NOSONAR
+                searchOptions["fq"].push(classificationFq);
+            }
         }
 
         return searchREST.search(context, searchOptions, opts)
