@@ -1,7 +1,7 @@
 {
   "name": "wchtools-cli",
   "description": "Command line tools for Acoustic Content",
-  "version": "4.5.3",
+  "version": "4.5.4",
   "keywords": [
     "cli"
   ],
