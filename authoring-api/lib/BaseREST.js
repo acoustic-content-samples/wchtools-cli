@@ -430,6 +430,7 @@ class BaseREST {
                         // If next links is enabled and the response contains a next link, set it in the opts.
                         // Otherwise, ensure that there is no nextURI value in the opts.
                         if (restObject.useNextLinks(context, undefined, opts) && opts && body.next) {
+                            opts.prevNextURI = opts.nextURI;
                             opts.nextURI = body.next;
                         } else if (opts && opts.nextURI) {
                             delete opts.nextURI;
