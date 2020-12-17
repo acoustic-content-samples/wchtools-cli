@@ -1,5 +1,9 @@
 # Changelog
 
+### 4.5.4 changes since 4.5.3
+ - pull
+    - Fix for content pull which could cause to start infinite pulling loop
+
 ### 4.5.3 changes since 4.5.2
  - search 
     - fix search query parameters status and classification duplication when paging through results
