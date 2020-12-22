@@ -81,7 +81,7 @@ Then follow the Getting Started instructions below, to configure and start using
 #### Initializing wchtools with a username and API URL
 
       wchtools init
-      API URL: https://my11...content-cms.com/api/00000000-1111-2222-3333-444444444444
+      API URL: https://content-XX-X.content-cms.com/api/00000000-1111-2222-3333-444444444444
       User: myAcousticIdusername@mycompany.com
 
 #### Using an API key instead of a username and password, with Acoustic Content tooling and APIs
@@ -91,7 +91,7 @@ Then follow the Getting Started instructions below, to configure and start using
   When creating your API key with the referenced documentation, save the value of the API key to a safe location for later use. Use "AcousticAPIKey" (case sensitive) as the username on the init command line or as passed to the --user argument of wchtools commands, and use the value of the API key as the password to authenticate with, associated with that API key.
 
       wchtools  init
-      API URL: https://my11...content-cms.com/api/00000000-1111-2222-3333-444444444444
+      API URL: https://content-XX-X.content-cms.com/api/00000000-1111-2222-3333-444444444444
       Username: AcousticAPIKey
 
       wchtools list -A --server
@@ -112,7 +112,7 @@ Then follow the Getting Started instructions below, to configure and start using
 
   The wchtools command line arguments that require an additional value (for example, --url, --user, --password, etc), can also be specified using an alternate syntax.  This syntax may be required in some cases to prevent the interpretation of the argument value as an additional argument to the command. For example:
   
-     wchtools pull -A --user=myWCHusername@mycompany.com --password=-abcd1234-
+     wchtools pull -A --user=myusername@mycompany.com --password=-abcd1234-
 
 #### Specifying default options and command line options
 
@@ -262,13 +262,13 @@ The wchtools CLI utility will first load the options from the .wchtoolsoptions f
 
 ### Pulling all artifact instances and deleting local stale copies
 
-By default a wchtools pull of all or specified artifact types, only pulls new or updated (modified) items, using a by-modified endpoint on each WCH Authoring API.  The wchtools pull -I (or --ignore-timestamps) option will pull all artifacts of the specified type(s), whether modified or not, to the local working directory.  Any artifacts that were pulled previously will still exist in the local working directory, even if they have since been deleted on the server by a business user using the authoring UI, (eg, drafts of content or assets, or content items no longer needed.)
+By default a wchtools pull of all or specified artifact types, only pulls new or updated (modified) items, using a by-modified endpoint on each Acoustic Content Authoring API.  The wchtools pull -I (or --ignore-timestamps) option will pull all artifacts of the specified type(s), whether modified or not, to the local working directory.  Any artifacts that were pulled previously will still exist in the local working directory, even if they have since been deleted on the server by a business user using the authoring UI, (eg, drafts of content or assets, or content items no longer needed.)
 
 wchtools 2.2 and later adds a new pull option called --deletions which can help with this scenario.
 
 wchtools pull -A (or specified artifact type) --deletions
   - Is a super-set of -I --ignore-timestamps, in that it will walk every instance of the specified artifact types, ensuring you have the latest copy of each
-  - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the WCH authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.
+  - When finished, it compares the list of what you had started with in your local working directory with everything just pulled from the Acoustic Content authoring services, and for any local files that were "not" found and pulled from the server during this pull session, it will ask if you want to delete them from the local filesystem.
   - It asks whether you want to delete these local-only files, rather than deleting by default, in case they were local files just created by the developer, that you just haven't pushed yet.
   - If you know the local working directory shouldn't have any locally created files that you haven't pushed yet (eg, it's used for backup only, not for creating new artifacts) you may run wchtools pull -A --deletions --quiet to tell it to quietly (no-prompt) delete artifacts that exist locally but were not pulled during this pull --deletions (ignoring timestamps) session.
   - To create a manifest of the deleted (local) artifacts, use the --write-deletions-manifest option. (In this case, the --write-manifest option is used to create a manifest of the pulled artifacts.)
@@ -290,7 +290,7 @@ wchtools pull -A (or specified artifact type) --deletions
 
 Scenario: Using Content as a Service, a developer wants to pull all Content of a given type (eg, Article or Recipe) from one tenant, and push that set of artifacts to a second tenant (eg, if using a separate authoring tenant from production tenant, with manual migration of Content and Assets).
 
-Please note that this particular option is targeted at Content as a Service customers, not those using WCH Sites and Pages, since it does not operate on the latter artifact types.
+Please note that this particular option is targeted at Content as a Service customers, not those using Acoustic Content Sites and Pages, since it does not operate on the latter artifact types.
 
     wchtools pull -A -v --by-type-name "Sample Article"
 
@@ -298,19 +298,19 @@ This limited pull option allows you to pull all content associated with a specif
 
 Use -A (for all authoring artifacts supported by the --by-type-name option) to benefit from any improvements that may be made to this option in future releases (eg, additional authoring artifact types).  Unlike other pull options -A means all artifact types that are currently supported by --by-type-name, when used with this option.
 
-If using this to move content between WCH tenants, you will need to pull and push categories and image profiles between those tenants first, using the existing pull -c -i options.
+If using this to move content between Acoustic Content tenants, you will need to pull and push categories and image profiles between those tenants first, using the existing pull -c -i options.
 
 The current --by-type-name option does not support pulling other content types and content and assets associated via "reference" elements, or other authoring artifacts.  Specifying a content type that includes reference elements to other types and artifacts, which are not followed by the current version of this option, will result in a warning in verbose output and in the log, that not all artifacts associated with the type may be pulled during this operation.
 
 Specifying an artifact type that this option does not currently support, will result in an error.   The --deletions option which relies on pulling "all" artifacts and comparing with what was in the local working directory prior to the pull, is not compatible with pulling by type (which relies on searching for content by the type and then walking the content looking for asset references) and will also result in an error, if specified with this option.
 
-Since this option works by finding the type by name, retrieving all content by that type and then walking the content to find asset and rendition references, it does not use the WCH "by-modified" APIs which the pull-modified operations rely on.  This results in all artifacts that it finds directly associated with the type being pulled each time you run the command with this option, rather than only those that are created or modified since the last pull by type.   If you then push all artifacts to a second WCH tenant where you had already pushed those same artifacts before, the revision values will be different than the prior push.  In this case, you can use the -f (--force-override) option to push with an override of the revision check, if you encounter revision conflict errors and with to overwrite what was pushed before, in case the artifats had been updated.   As always, it is not recommended to edit the same artifacts across multiple WCH tenancies and then attempt to migrate one to the other, as that may result in conflicts, or overwritten changes.
+Since this option works by finding the type by name, retrieving all content by that type and then walking the content to find asset and rendition references, it does not use the Acoustic Content "by-modified" APIs which the pull-modified operations rely on.  This results in all artifacts that it finds directly associated with the type being pulled each time you run the command with this option, rather than only those that are created or modified since the last pull by type.   If you then push all artifacts to a second Acoustic Content tenant where you had already pushed those same artifacts before, the revision values will be different than the prior push.  In this case, you can use the -f (--force-override) option to push with an override of the revision check, if you encounter revision conflict errors and with to overwrite what was pushed before, in case the artifats had been updated.   As always, it is not recommended to edit the same artifacts across multiple Acoustic Content tenancies and then attempt to migrate one to the other, as that may result in conflicts, or overwritten changes.
 
 If you have more complex content types and references, or need to pull other authoring artifacts, then the existing pull all or pull all modified options may be more appropriate for your use cases.
 
 ### Comparing a source and target tenant, optionally generating an update and deletion manifest
 
-Some deployment scenarios involve a separate development WCH tenant from the staging and/or production tenant.  In order to compare the WCH artifacts between your two tenants, wchtools provides a command that allows you to compare an export from your source tenant (eg, your source code repository representing the latest state of your tested development tenant) with either the live state of your staging/production tenant, or an export from your target tenant.
+Some deployment scenarios involve a separate development Acoustic Content tenant from the staging and/or production tenant.  In order to compare the Acoustic Content artifacts between your two tenants, wchtools provides a command that allows you to compare an export from your source tenant (eg, your source code repository representing the latest state of your tested development tenant) with either the live state of your staging/production tenant, or an export from your target tenant.
 
 The compare command allows you to compare specified artifacts between two locations. The artifacts to compare can be located locally in a working directory or located in the Acoustic Content.
 
@@ -344,7 +344,7 @@ The resulting my_diffs manifest would contain all of the added and changed artif
 
 The resulting my_deletions manifest would contain all of the deleted artifacts that exist in the target location but are removed from the source location.
 
-When comparing two directories or a source directory and a target WCH tenant, any manifest files read or written by the compare command will be loaded or saved using the source directory as identified by the --source argument.
+When comparing two directories or a source directory and a target Acoustic Content tenant, any manifest files read or written by the compare command will be loaded or saved using the source directory as identified by the --source argument.
 
 When comparing two Acoustic Content tenants, any manifest files read or written by the compare command will be loaded or saved using the current working directory where the command is executed from.
 
@@ -394,19 +394,19 @@ It is for remote service hosted artifact deletion only, not for deleting files o
   - If the path ends with the wildcard '*' and --recursive is not supplied, the action will match all artifacts that start with the supplied path but will not match any children of the artifacts
   - If the path does not end with a '*' and --recursive is not supplied, the action will match only the path supplied by the user.  If this path is a folder, the direct children of the folder will match.
 
-#### Deleting managed content assets (Assets visible in WCH UI and having path /dxdam/...  below workingdir/assets)
+#### Deleting managed content assets (Assets visible in Acoustic Content UI and having path /dxdam/...  below workingdir/assets)
 
   You may delete managed content assets via wchtools as of 2.1.x and later.
 
   Managed content assets (eg, images and videos) are those uploaded via Authoring UI and/or located under /dxdam/... in the local filesystem working directory.
 
-  The path that you specify to the delete command is the path that the asset is known to the WCH Authoring Services such as /dxdam/myimages/background.png and not the full local filesystem absolute path.
+  The path that you specify to the delete command is the path that the asset is known to the Acoustic Content Authoring Services such as /dxdam/myimages/background.png and not the full local filesystem absolute path.
 
   For example, if you have mistakenly uploaded one, or a large number of images, by pushing from /dxdam/myimages/... you may now delete them with:
 
     wchtools delete -a -v --path /dxdam/myimages/myincorrectimage.png
 
-  To delete all images directly under /dxdam/myimages from the WCH Authoring services:
+  To delete all images directly under /dxdam/myimages from the Acoustic Content Authoring services:
 
     wchtools delete -a -v --path /dxdam/myimages/*
 
@@ -430,9 +430,9 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
   Acoustic Content will delete all child pages of a specified page, when that page is deleted.  This behavior is the same whether a page is deleted from the Sites UI, wchtools, or via API, so be sure you want to delete that entire page hierarchy before deleting a page that has child pages below it.
 
-  Note:  The WCH Sites API treats the page path (constructed by concatenating the "Name" fields of pages, with / separators) as case sensitive, so it will not find a page named "Lawn and Garden"  if you pass the path "/Home/lawn and garden".
+  Note:  The Acoustic Content Sites API treats the page path (constructed by concatenating the "Name" fields of pages, with / separators) as case sensitive, so it will not find a page named "Lawn and Garden"  if you pass the path "/Home/lawn and garden".
 
-  By default the WCH Sites API only deletes the page definition when you delete a page, but not the page content directly associated with that page, in case you need to do anything with that content before deleting it.  To delete both the page and the page content at the same time, pass the additional --page-content flag to the delete -p command.
+  By default the Acoustic Content Sites API only deletes the page definition when you delete a page, but not the page content directly associated with that page, in case you need to do anything with that content before deleting it.  To delete both the page and the page content at the same time, pass the additional --page-content flag to the delete -p command.
 
     wchtools delete -p -v --path /testpage --site-context default --page-content  (delete testpage from the default site and the page content item that was created with testpage)
 
@@ -469,7 +469,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 
     --id {id-of-artifact} Delete a layout or layout mapping by id (as opposed to path).  This argument cannot be combined with the --path argument.
 
-  The WCH APIs do not allow for deleting a specified artifact if that artifact has references to it from other items (eg, content reference by another content item, type referenced by a mapping).   You should receive an error that the item has references to it, if you attempt to delete an artifact that has incoming references.
+  The Acoustic Content APIs do not allow for deleting a specified artifact if that artifact has references to it from other items (eg, content reference by another content item, type referenced by a mapping).   You should receive an error that the item has references to it, if you attempt to delete an artifact that has incoming references.
 
   For example:
 
@@ -496,7 +496,7 @@ It is for remote service hosted artifact deletion only, not for deleting files o
 ### Pushing, pulling, and deleting, by manifest
 A manifest file can be used to control the set of authoring artifacts that are acted upon by the wchtools commands. The push, pull, and delete actions all support using a manifest to specify which artifacts to perform the desired operation on. Likewise, the push, pull, delete and list commands can be used to generate a new manifest from your environment. The manifest file is a simple JSON list of artifacts grouped by artifact type.
 
-Please note that manifests just provide the wchtools commands with a list of artifacts to operate on, they cannot and do not change the behavior of WCH APIs.  These manifest based commands are thus subject to the same validation and limitations those APIs provide.  For instance, if other pages and/or content that are "not" listed in a manfiest refer to a content type listed in the manifest, you will not be able to delete that content type via manifest, until those pages and content are first removed (by UI or by another wchtools delete command).
+Please note that manifests just provide the wchtools commands with a list of artifacts to operate on, they cannot and do not change the behavior of Acoustic Content APIs.  These manifest based commands are thus subject to the same validation and limitations those APIs provide.  For instance, if other pages and/or content that are "not" listed in a manfiest refer to a content type listed in the manifest, you will not be able to delete that content type via manifest, until those pages and content are first removed (by UI or by another wchtools delete command).
 
 #### Manifest file location
 When a manifest is created, it is created in the /assets/dxconfig/manifests directory of the local working directory for the command. When specifying a manifest on the command line, you need only specify the name of the manifest, wchtools will automatically locate the manifest in the /assets/dxconfig/manifests directory. For example:
@@ -562,7 +562,7 @@ For example, to generate a manifest for just content artifacts, execute:
 
     wchtools list -c -I --write-manifest <manifest>
 
-To generate a new manifest from the contents of your WCH tenant, use:
+To generate a new manifest from the contents of your Acoustic Content tenant, use:
 
     wchtools list --server -A -I --write-manifest <manifest>
 
@@ -575,11 +575,11 @@ To push the modified contents of your local working directory to your tenant and
 
     wchtools push -A --write-manifest <manifest>
 
-To pull all artifacts from your WCH tenant to a local working directory and generate a manifest of everything that was pulled, use:
+To pull all artifacts from your Acoustic Content tenant to a local working directory and generate a manifest of everything that was pulled, use:
 
     wchtools pull -A -I --write-manifest <manifest>
 
-Since manifests are stored in a folder called "/dxconfig/manifests" under the {working-directory}/assets folder, they will be pushed with the web application assets and can be shared with other developers using the same tenant, by pushing them to your WCH tenant with those web application assets.  They may also be shared by checking the manifest(s) in to the source code control repository that you and the other developers are using to track your web application artifacts.
+Since manifests are stored in a folder called "/dxconfig/manifests" under the {working-directory}/assets folder, they will be pushed with the web application assets and can be shared with other developers using the same tenant, by pushing them to your Acoustic Content tenant with those web application assets.  They may also be shared by checking the manifest(s) in to the source code control repository that you and the other developers are using to track your web application artifacts.
 
 #### Using both --manifest and --write-manifest
 
@@ -603,18 +603,18 @@ Some artifact types (content items, content assets, pages, and sites) support dr
 Note: The push, pull, list, and compare commands only include ready items by default. The following examples explicitly specifiy the --ready option for clarity, but the same result is achieved if the --ready option is omitted.
 
 #### Pulling only ready artifacts
-When populating a new WCH tenant, a site developer may not want to include draft versions of artifacts. In this case, the developer can pull only the ready artifacts to a directory on the local file system.
+When populating a new Acoustic Content tenant, a site developer may not want to include draft versions of artifacts. In this case, the developer can pull only the ready artifacts to a directory on the local file system.
 
     wchtools pull -A -v --ready
 
-The local file system directory will contain only the ready artifacts from the current WCH tenant, which can then be pushed to the new WCH tenant.
+The local file system directory will contain only the ready artifacts from the current Acoustic Content tenant, which can then be pushed to the new Acoustic Content tenant.
 
 #### Creating a manifest that contains only ready artifacts
-When creating a manifest for a set of WCH artifacts, it may be desirable to include only the ready items.
+When creating a manifest for a set of Acoustic Content artifacts, it may be desirable to include only the ready items.
 
     wchtools list --server -AI --ready --write-manifest ready_only_content
 
-The manifest created from this command will include all of the ready artifacts in the current WCH tenant.
+The manifest created from this command will include all of the ready artifacts in the current Acoustic Content tenant.
 
 #### Limiting a command to the pages and site definition for a specific site
 
@@ -807,7 +807,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
 #### Creating and managing templates, layouts and layout mappings
 
- - To work with Acoustic Content sites based on an Angular Single Page Application, with Angular layout components and type mappings, please refer to the WCH Site Customization documentation here: https://developer.ibm.com/customer-engagement/docs/wch/developing-your-own-website/customizing-sample-site/
+ - To work with Acoustic Content sites based on an Angular Single Page Application, with Angular layout components and type mappings, please refer to the Acoustic Content Site Customization documentation here: https://github.com/acoustic-content-samples/wch-site-application/blob/master/doc/README-programming-model.md
 
  - Acoustic Content also supports Handlebars templates for rendering purposes, where a content type and item can be mapped to a layout object, via layout mapping, where the layout object then refers to a handlebars template, that is associated with that content type.
 
@@ -869,7 +869,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
 #### Clearing the Acoustic Content content delivery network cache
 
- The content delivery network caches web artifacts, for performance reasons.  When you push updates to web artifacts with wchtools, you may still see the older cached artifacts for some amount of time, even after the assets are published to the delivery network by WCH.  If you need to invalidate the cache and see the changes immediately, you may use the following wchtools command to clear the CDN cache (invalidate the cache entries).  This results in all artifacts in the cache being cleared, not just the modified artifacts.  This may have performance implications (artifacts that have not changed will also have to be re-cached on the CDN and downloaded again by callers), so the following command should only be used when necessary and not on every push.
+ The content delivery network caches web artifacts, for performance reasons.  When you push updates to web artifacts with wchtools, you may still see the older cached artifacts for some amount of time, even after the assets are published to the delivery network by Acoustic Content.  If you need to invalidate the cache and see the changes immediately, you may use the following wchtools command to clear the CDN cache (invalidate the cache entries).  This results in all artifacts in the cache being cleared, not just the modified artifacts.  This may have performance implications (artifacts that have not changed will also have to be re-cached on the CDN and downloaded again by callers), so the following command should only be used when necessary and not on every push.
 
              wchtools clear --cache
 
@@ -886,15 +886,15 @@ After you disable auto-publishing, you may either invoke a publish manually with
             set WCHTOOLS_MAX_HEAP=2048
             wchtools_heap push ...
 
-#### Setting non-default number of retries and back-off delay, for network issues on WCH API requests.
+#### Setting non-default number of retries and back-off delay, for network issues on Acoustic Content API requests.
 
-  The init command supports optional arguments for setting the maximum number of retry attempts per WCH API request error, on network issues or HTTP 429 server too busy responses.  It also allows you to specify the minimum time and maximum time (in milliseconds) to wait, between retry attempts.  By default, 5 total attempts will be tried, starting at a 1 second delay (1000 ms) and backing off by a factor of 2, up to a maximum of 16 seconds (16000 milliseconds).   You do not need to initialize these settings, if the default values meet your needs.
+  The init command supports optional arguments for setting the maximum number of retry attempts per Acoustic Content API request error, on network issues or HTTP 429 server too busy responses.  It also allows you to specify the minimum time and maximum time (in milliseconds) to wait, between retry attempts.  By default, 5 total attempts will be tried, starting at a 1 second delay (1000 ms) and backing off by a factor of 2, up to a maximum of 16 seconds (16000 milliseconds).   You do not need to initialize these settings, if the default values meet your needs.
 
       wchtools init --help
       ...
-      --retry-max-attempts <n>  The maximum number of attempts if a WCH API request fails due to a network or server too busy error. The default is 5.
-      --retry-min-time <n>      The minimum amount of time in milliseconds to wait before attempting to retry a failed WCH API request. The default is 1000.
-      --retry-max-time <n>      The maximum amount of time in milliseconds to wait before attempting to retry a failed WCH API request. The default is 16000.
+      --retry-max-attempts <n>  The maximum number of attempts if a Acoustic Content API request fails due to a network or server too busy error. The default is 5.
+      --retry-min-time <n>      The minimum amount of time in milliseconds to wait before attempting to retry a failed Acoustic Content API request. The default is 1000.
+      --retry-max-time <n>      The maximum amount of time in milliseconds to wait before attempting to retry a failed Acoustic Content API request. The default is 16000.
 
   The default retry backoff factor is 2, so the actual time delay between retries will be (1 x the min time), then (2 x the min time), then 4x, etc, until the maximum number of attempts is tried for that request.  The time delay will be the smaller of the current backoff calculation, and the specified or default retry max time.  In other words, if the backoff calculation specified a delay time of 32 seconds (32000 milliseconds), but the maximum time was set to 16 seconds (16000 milliseconds), then it would wait maximum 16 seconds between retry attempts, rather than the calculated backoff factor.
 
@@ -904,7 +904,7 @@ After you disable auto-publishing, you may either invoke a publish manually with
     - Retry #3 after a 4 second delay
     - Retry #4 after an 8 second delay
 
-  If you use the above init options to set 10 attempts, with a min of 5000 (5 seconds) and a max of 15000 (15 seconds) then retry #1 will be after a 5 second delay, retry #2 after a 10 second delay and retries #3 through #9 will all use the maximum 15 second delay,  for that particular WCH API request.   Each WCH API request (eg, to create or update an asset or content item) will be attempted the maximum number of attempts set, and start at the minimum retry attempt time (the settings are per artifact pushed or pulled, not per push command).
+  If you use the above init options to set 10 attempts, with a min of 5000 (5 seconds) and a max of 15000 (15 seconds) then retry #1 will be after a 5 second delay, retry #2 after a 10 second delay and retries #3 through #9 will all use the maximum 15 second delay,  for that particular Acoustic Content API request.   Each Acoustic Content API request (eg, to create or update an asset or content item) will be attempted the maximum number of attempts set, and start at the minimum retry attempt time (the settings are per artifact pushed or pulled, not per push command).
 
 #### Specifying a network timeout value
 
