@@ -918,6 +918,32 @@ After you disable auto-publishing, you may either invoke a publish manually with
 
 When pushing artifacts using wchtools, it is possible to encounter a scenario where the version of the artifact being pushed conflicts with changes made to that artifact on the tenant. In this situation, wchtools will compare the local version of the artifact with the remote version of the artifact to determine if meaningful differences are detected. If meaningful differences are found the copy of the artifact on the tenant is written to the local file system with a .conflict suffix and the push action for that item is logged as an error. After a manual inspection of the conflicting artifacts (and resolution of any important conflicts), you can use the -f --force-override option to re-attempt the push action. If no meaningful differences are found, the rejection of the push update request by the tenant is ignored and a warning is written to the log instead. wchtools uses a list of ignorable fields to determine if changes are meaninfgul or not. This list includes fields such as rev, created, lastModified, systemModified, createorId, lastModifierId, creator, lastModifier, as well as other calculated/synthetic fields such as links, types, categories, publishing.
 
+### Moving large numbers of items between tenants
+
+There are a few things to watch out for when moving large number of items between tenants. 
+
+(1) Circular references between content type can cause issues when importing. A content type can reference another content type as a 'restricted type'. Acoustic Content enforces that such referenced content types exist. If such references form a circular chain between content types, then it will not be possible to import such content types using the tools. 
+
+You will see errors such as these:
+
+[ERROR] cli 4.5.4 - Pushing content type with path /MyContentType.json, name MyContentTypelout and id 8e01b83c-430a-4dfc-ac76-745bdbeeb0d2 resulted in the following error: Item can not be created as it has 5 invalid references.
+
+To proceed, remove some of the 'restricted types' to break the circular reference chain.
+
+(2) Circular references between content items can cause issues when importing. A content item can reference another content item using a reference element. Acoustic Content enforces that such referenced content items exist. If such references form a circular chain between content items, then it will not be possible to import such content items using the tools. 
+
+You will see errors such as these:
+
+[2021-01-13T11:26:10.277] [ERROR] cli 4.5.4 - Pushing content with name MyContentItem and
+id 24b01593-63cb-4292-aae8-c099fd80c31c resulted in the following error:
+Item with ID 'cb7163b2-c7e9-4f6b-8abd-a6478a049415' referenced by '/elements/page/value/id' was not found.
+
+To proceed, remove some of the content references to break the circular reference chain.
+
+(3) Where content types have been updated after content has been created, this can cause issues when importing. Updates to content types such as adding, removing and renaming content can make content 'invalid'. That is, the content no longer matches the content type. Acoustic Content will not allow invalid content to be imported. 
+
+To proceed, open the invalid content item in the Acoustic Content UI in the source tenant. The UI will help by adding and removing elements that have been added and removed from the content type. Make any additional changes required to make the content valid, and the publish the update. Then export the items from the source tenant and import them in the target tenant again.
+
 #### Limitations
   The wchtools functions are limited by what the Acoustic Content public REST APIs allow, including but not limited to the following list:
 
