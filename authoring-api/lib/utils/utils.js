@@ -335,6 +335,9 @@ function getErrorFromBody (body) {
             if (Array.isArray(body.errors)) {
                 body.errors.forEach(function (error, index) {
                     messages += error.message;
+                    if(error.description) {
+                        messages += ' ' + error.description;
+                    }
                     if (index < body.errors.length - 1) {
                         // Add a separator if this is not the last error in the array.
                         messages += ' ; ';

@@ -1,5 +1,9 @@
 # Changelog
 
+### 4.5.5 changes since 4.5.4
+ - error handling
+    - show error description when present
+
 ### 4.5.4 changes since 4.5.3
  - pull
     - Fix for content pull which could cause to start infinite pulling loop

@@ -295,6 +295,54 @@ describe("utils", function () {
             }
         });
 
+        it("should return an error based on single errors (array) property on the response body and description if present", function (done) {
+            const TEST_ERROR_1 = "First error message used for testing.";
+            const DESCRIPTION_1 = 'Additional description.';
+            const testError = null;
+            let error1 = new Error(TEST_ERROR_1);
+            error1.description = DESCRIPTION_1;
+            const testBody = {"errors": [error1]};
+            const testResponse = null;
+            const testRequestOptions = null;
+            let error;
+            try {
+                const error = utils.getError(testError, testBody, testResponse, testRequestOptions);
+                expect(error.message).to.contain(TEST_ERROR_1);
+                expect(error.message).to.contain(DESCRIPTION_1);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
+        it("should return an error based on the errors (array) property on the response body and description if present", function (done) {
+            const TEST_ERROR_1 = "First error message used for testing.";
+            const TEST_ERROR_2 = "Second error message used for testing.";
+            const DESCRIPTION_1 = 'Additional description.';
+            const DESCRIPTION_2 = '2nd additional description.';
+            const testError = null;
+            let error1 = new Error(TEST_ERROR_1);
+            error1.description = DESCRIPTION_1;
+            let error2 = new Error(TEST_ERROR_2);
+            error2.description = DESCRIPTION_2;
+            const testBody = {"errors": [error1, error2]};
+            const testResponse = null;
+            const testRequestOptions = null;
+            let error;
+            try {
+                const error = utils.getError(testError, testBody, testResponse, testRequestOptions);
+                expect(error.message).to.contain(TEST_ERROR_1);
+                expect(error.message).to.contain(TEST_ERROR_2);
+                expect(error.message).to.contain(DESCRIPTION_1);
+                expect(error.message).to.contain(DESCRIPTION_2);
+            } catch (err) {
+                error = err;
+            } finally {
+                done(error);
+            }
+        });
+
         it("should return an error based on the errors (non-array Error) property on the response body", function (done) {
             const TEST_ERROR_1 = "First error message used for testing.";
             const testError = null;

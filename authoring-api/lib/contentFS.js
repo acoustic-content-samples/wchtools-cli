@@ -42,6 +42,9 @@ class ContentFS extends JSONItemFS {
     getFileName(content) {
         if (content && content.id) {
             return BaseFS.getValidFileName(content.id);
+        } else if (content) {
+            // when no id provided in json use path that is the file name
+            return BaseFS.getValidFileName(content.path);
         }
     }
 }
