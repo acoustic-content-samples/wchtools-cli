@@ -152,10 +152,7 @@ class AssetsHelper extends BaseHelper {
      * @param {Object} opts - The options to be used for the list operation.
      */
     _updateManifest (context, itemList, opts) {
-        const manifestList = itemList.filter(function (item) {
-            return (item && item.path && !item.path.match(/\/(.*_)?robots.txt/) && !item.path.match(/\/(.*_)?sitemap.*\.xml/));
-        });
-        manifests.updateManifestSection(context, this.getArtifactName(), manifestList, opts);
+        manifests.updateManifestSection(context, this.getArtifactName(), itemList, opts);
     }
 
     /**
@@ -177,10 +174,7 @@ class AssetsHelper extends BaseHelper {
      * @param {Object} opts - The options to be used for the list operation.
      */
     _updateDeletionsManifest (context, itemList, opts) {
-        const manifestList = itemList.filter(function (item) {
-            return (item && item.path && !item.path.match(/\/(.*_)?robots.txt/) && !item.path.match(/\/(.*_)?sitemap.*\.xml/));
-        });
-        manifests.updateDeletionsManifestSection(context, this.getArtifactName(), manifestList, opts);
+        manifests.updateDeletionsManifestSection(context, this.getArtifactName(), itemList, opts);
     }
 
     /**
@@ -619,47 +613,42 @@ class AssetsHelper extends BaseHelper {
     _pullResource (context, resource, opts) {
         const helper = this;
         return helper._restApi.getResourceFilename(context, resource.id, opts)
-            .then(function (filename) {
-                if (filename.match(/(.*_)?robots.txt/) || filename.match(/(.*_)?sitemap.*\.xml/)) {
-                    // Return undefined if we're skipping the resource, the callers know how to handle this.
-                    return undefined;
-                } else {
-                    // Get the local file stream to be written.
-                    return helper._fsApi.getResourceWriteStream(context, resource.id, opts)
-                        .then(function (stream) {
-                            let md5Promise;
-                            stream.on("pipe", function (src) {
-                                md5Promise = hashes.generateMD5HashFromStream(src);
-                            });
-
-                            // Construct a fake "asset" to pass to the pullItem method.  We just need the resource id and path.
-                            const asset = {
-                                id: resource.id,
-                                resource: resource.id,
-                                path: helper._fsApi.getResourcePath(context, resource.id, opts)
-                            };
-                            // Specify in the opts that we need the resource filename returned.
-                            // Download the specified resource contents and write them to the given stream.
-                            return helper._restApi.pullItem(context, asset, stream, utils.cloneOpts(opts, {returnDisposition: true}))
-                                .then(function (asset) {
-                                    const basePath = helper._fsApi.getResourcesPath(context, opts);
-                                    helper._fsApi.renameResource(context, resource.id, asset.disposition, opts);
-                                    const newname = helper._fsApi.getRawResourcePath(context, resource.id, asset.disposition, opts);
-                                    const relative = utils.getRelativePath(basePath, newname);
-                                    md5Promise.then(function (md5) {
-                                        hashes.updateResourceHashes(context, basePath, newname, asset, md5, opts);
-                                    });
-
-                                    // Notify any listeners that the resource at the given path was pulled.
-                                    const emitter = helper.getEventEmitter(context);
-                                    if (emitter) {
-                                        emitter.emit("resource-pulled", {"path":relative, "id":resource.id});
-                                    }
-                                    asset.relative = relative;
-                                    return asset;
-                                });
+            .then(function () {
+                // Get the local file stream to be written.
+                return helper._fsApi.getResourceWriteStream(context, resource.id, opts)
+                    .then(function (stream) {
+                        let md5Promise;
+                        stream.on("pipe", function (src) {
+                            md5Promise = hashes.generateMD5HashFromStream(src);
                         });
-                }
+
+                        // Construct a fake "asset" to pass to the pullItem method.  We just need the resource id and path.
+                        const asset = {
+                            id: resource.id,
+                            resource: resource.id,
+                            path: helper._fsApi.getResourcePath(context, resource.id, opts)
+                        };
+                        // Specify in the opts that we need the resource filename returned.
+                        // Download the specified resource contents and write them to the given stream.
+                        return helper._restApi.pullItem(context, asset, stream, utils.cloneOpts(opts, {returnDisposition: true}))
+                            .then(function (asset) {
+                                const basePath = helper._fsApi.getResourcesPath(context, opts);
+                                helper._fsApi.renameResource(context, resource.id, asset.disposition, opts);
+                                const newname = helper._fsApi.getRawResourcePath(context, resource.id, asset.disposition, opts);
+                                const relative = utils.getRelativePath(basePath, newname);
+                                md5Promise.then(function (md5) {
+                                    hashes.updateResourceHashes(context, basePath, newname, asset, md5, opts);
+                                });
+
+                                // Notify any listeners that the resource at the given path was pulled.
+                                const emitter = helper.getEventEmitter(context);
+                                if (emitter) {
+                                    emitter.emit("resource-pulled", {"path":relative, "id":resource.id});
+                                }
+                                asset.relative = relative;
+                                return asset;
+                            });
+                    });
             });
     }
 
@@ -3073,13 +3062,7 @@ class AssetsHelper extends BaseHelper {
      * @override
      */
     canCompareItem(item, opts) {
-        let retVal = super.canCompareItem(item, opts);
-        if (retVal) {
-            // Do not include robots.txt or *sitemap*.xml in the compare.
-            retVal = (item && item.path && !item.path.match(/\/(.*_)?robots.txt/) && !item.path.match(/\/(.*_)?sitemap.*\.xml/));
-        }
-
-        return retVal;
+        return super.canCompareItem(item, opts);
     }
 
     /**

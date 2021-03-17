@@ -10,8 +10,6 @@ sp-config.json
 .babelrc
 
 # WCH generated files
-robots.txt
-sitemap*.xml
 
 # php files
 index.php

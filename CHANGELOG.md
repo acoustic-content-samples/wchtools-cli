@@ -1,5 +1,8 @@
 # Changelog
 
+### 4.5.6 changes since 4.5.5
+ - allow handling of *robots.txt and *sitemap*.xml asset files
+
 ### 4.5.5 changes since 4.5.4
  - error handling
     - show error description when present
